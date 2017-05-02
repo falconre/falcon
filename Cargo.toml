@@ -1,0 +1,19 @@
+[package]
+name = "falcon"
+version = "0.0.1"
+authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
+
+[profile.dev]
+opt-level=1
+codegen-units = 8
+
+
+[dependencies]
+base64 = "0.5"
+capstone_rust = "0.2"
+error-chain = "0.10"
+
+
+[[bin]]
+name = "falcon"
+path = "falcon/main.rs"
