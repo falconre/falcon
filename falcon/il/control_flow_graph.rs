@@ -651,9 +651,6 @@ impl ControlFlowGraph {
         for mut block in self.blocks_mut() {
             ssa_block(block, &mut assigner);
         }
-
-        // Assign SSA to edges
-        let mut phis_to_add: Vec<(u64, Variable, Vec<Variable>)> = Vec::new();
         
         let edges = { 
             self.graph
@@ -685,34 +682,39 @@ impl ControlFlowGraph {
 
             let block_index = edge.head();
 
-            let mut edge = self.graph.edge_mut(edge.head(), edge.tail())?;
+            // Assign SSA to edges
+            let mut phis_to_add: Vec<(u64, Variable, Vec<Variable>)> = Vec::new();
 
-            if let &mut Some(ref mut condition) = edge.condition_mut() {
-                for variable in condition.collect_variables_mut() {
-                    if let Some(assignments) = found.get(variable.name()) {
-                        if assignments.len() == 1 {
-                            variable.set_ssa(*assignments.iter().next().unwrap());
-                            continue;
+            {
+                let mut edge = self.graph.edge_mut(edge.head(), edge.tail())?;
+
+                if let &mut Some(ref mut condition) = edge.condition_mut() {
+                    for variable in condition.collect_variables_mut() {
+                        if let Some(assignments) = found.get(variable.name()) {
+                            if assignments.len() == 1 {
+                                variable.set_ssa(*assignments.iter().next().unwrap());
+                                continue;
+                            }
+                            let mut dst = variable.clone();
+                            dst.set_ssa(assigner.get(variable.name()));
+                            variable.set_ssa(dst.ssa().unwrap());
+                            let mut src = Vec::new();
+                            for assignment in assignments.iter() {
+                                let mut var = variable.clone();
+                                var.set_ssa(*assignment);
+                                src.push(var);
+                            }
+                            phis_to_add.push((block_index, dst, src));
                         }
-                        let mut dst = variable.clone();
-                        dst.set_ssa(assigner.get(variable.name()));
-                        variable.set_ssa(dst.ssa().unwrap());
-                        let mut src = Vec::new();
-                        for assignment in assignments.iter() {
-                            let mut var = variable.clone();
-                            var.set_ssa(*assignment);
-                            src.push(var);
-                        }
-                        phis_to_add.push((block_index, dst, src));
                     }
                 }
             }
-        }
-
-        for phi_to_add in phis_to_add {
-            self.graph
-                .vertex_mut(phi_to_add.0)?
-                .phi(phi_to_add.1, phi_to_add.2);
+            
+            for phi_to_add in phis_to_add {
+                self.graph
+                    .vertex_mut(phi_to_add.0)?
+                    .phi(phi_to_add.1, phi_to_add.2);
+            }
         }
 
         Ok(())
