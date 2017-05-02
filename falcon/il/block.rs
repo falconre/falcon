@@ -8,11 +8,11 @@ pub struct Block {
     /// The index of the block.
     index: u64,
     /// an internal counter for the next block-unique instruction.
-    next_instruction_index: RefCell<u64>,
+    next_instruction_index: u64,
     /// An internal counter for the next block-unique temporary variable.
-    next_temp_index: RefCell<u64>,
+    next_temp_index: u64,
     /// The instructions for this block.
-    instructions: RefCell<Vec<Instruction>>,
+    instructions: Vec<Instruction>,
 }
 
 
@@ -20,30 +20,30 @@ impl Block {
     pub fn new(index: u64) -> Block {
         Block {
             index: index,
-            next_instruction_index: RefCell::new(0),
-            next_temp_index: RefCell::new(0),
-            instructions: RefCell::new(Vec::new())
+            next_instruction_index: 0,
+            next_temp_index: 0,
+            instructions: Vec::new()
         }
     }
 
 
-    fn new_instruction_index(&self) -> u64 {
-        let instruction_index = self.next_instruction_index.borrow().clone();
-        *self.next_instruction_index.borrow_mut() = instruction_index + 1;
+    fn new_instruction_index(&mut self) -> u64 {
+        let instruction_index = self.next_instruction_index;
+        self.next_instruction_index = instruction_index + 1;
         return instruction_index;
     }
 
 
-    fn push(&self, instruction: Instruction) {
-        self.instructions.borrow_mut().push(instruction);
+    fn push(&mut self, instruction: Instruction) {
+        self.instructions.push(instruction);
     }
 
 
     /// Appends the contents of another block to this block.
-    pub fn append(&self, other: &Block) {
-        for instruction in other.instructions().borrow().iter() {
+    pub fn append(&mut self, other: &Block) {
+        for instruction in other.instructions().iter() {
             let instruction = instruction.clone_new_index(self.new_instruction_index());
-            self.instructions.borrow_mut().push(instruction);
+            self.instructions.push(instruction);
         }
     }
 
@@ -55,16 +55,21 @@ impl Block {
 
 
     /// Returns this block's instructions
-    pub fn instructions(&self) -> &RefCell<Vec<Instruction>> {
+    pub fn instructions(&self) -> &Vec<Instruction> {
         &self.instructions
     }
 
 
-    /// Returns an instruction by index
+    pub fn instructions_mut(&mut self) -> &mut Vec<Instruction> {
+        &mut self.instructions
+    }
+
+
+    /// Returns a copy of an instruction by index
     pub fn instruction_by_index(&self, index: u64) -> Result<&Instruction> {
-        for instruction in self.instructions.borrow().iter() {
+        for instruction in &self.instructions {
             if instruction.index() == index {
-                return Ok(instruction);
+                return Ok(&instruction);
             }
         }
         bail!("No instruction with index of {}", index);
@@ -72,12 +77,21 @@ impl Block {
 
 
     /// Deletes an operation by its index
-    pub fn delete_by_index(&self, index: usize) -> Result<()> {
-        if self.instructions.borrow().len() >= index {
-            bail!("delete_by_index out of bounds");
+    pub fn delete_by_index(&mut self, index: u64) -> Result<()> {
+        let mut vec_index = None;
+        for i in 0..self.instructions.len() {
+            if self.instructions[i].index() == index {
+                vec_index = Some(i);
+                break;
+            }
         }
-        self.instructions.borrow_mut().remove(index);
-        Ok(())
+        match vec_index {
+            Some(index) => {
+                self.instructions.remove(index);
+                Ok(())
+            },
+            None => Err(format!("No instruction with index {} found", index).into()),
+        }
     }
 
 
@@ -90,42 +104,47 @@ impl Block {
 
 
     /// Generates a temporary variable unique to this block.
-    pub fn temp(&self, bits: usize) -> Variable {
-        let next_index = self.next_temp_index.borrow().clone();
-        let mut next_index_mut = self.next_temp_index.borrow_mut();
-        *next_index_mut = next_index + 1;
+    pub fn temp(&mut self, bits: usize) -> Variable {
+        let next_index = self.next_temp_index;
+        self.next_temp_index = next_index + 1;
         return Variable::new(format!("temp_{}.{}", self.index, next_index), bits);
     }
 
     /// Adds an assign operation to the end of this block.
-    pub fn assign(&self, dst: Variable, src: Expression) {
-        self.push(Instruction::assign(self.new_instruction_index(), dst, src));
+    pub fn assign(&mut self, dst: Variable, src: Expression) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::assign(index, dst, src));
     }
 
     /// Adds a store operation to the end of this block.
-    pub fn store(&self, address: Expression, src: Expression) {
-        self.push(Instruction::store(self.new_instruction_index(), address, src))
+    pub fn store(&mut self, address: Expression, src: Expression) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::store(index, address, src))
     }
 
     /// Adds a load operation to the end of this block.
-    pub fn load(&self, dst: Variable, address: Expression) {
-        self.push(Instruction::load(self.new_instruction_index(), dst, address));
+    pub fn load(&mut self, dst: Variable, address: Expression) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::load(index, dst, address));
     }
 
     /// Adds a conditional branch operation to the end of this block.
-    pub fn brc(&self, dst: Expression, condition: Expression) {
-        self.push(Instruction::brc(self.new_instruction_index(), dst, condition));
+    pub fn brc(&mut self, dst: Expression, condition: Expression) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::brc(index, dst, condition));
     }
 
     /// Adds a phi operation to the end of this block.
-    pub fn phi(&self, dst: Variable, src: Vec<Variable>) {
-        self.push(Instruction::phi(self.new_instruction_index(), dst, src));
+    pub fn phi(&mut self, dst: Variable, src: Vec<Variable>) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::phi(index, dst, src));
     }
 
     /// Prepends an operation to the beginning of this block
-    pub fn prepend_phi(&self, dst: Variable, src: Vec<Variable>) {
-        let phi = Instruction::phi(self.new_instruction_index(), dst, src);
-        self.instructions.borrow_mut().insert(0, phi);
+    pub fn prepend_phi(&mut self, dst: Variable, src: Vec<Variable>) {
+        let index = self.new_instruction_index();
+        let phi = Instruction::phi(index, dst, src);
+        self.instructions.insert(0, phi);
     }
 }
 
@@ -139,7 +158,7 @@ impl graph::Vertex for Block {
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(writeln!(f, "[ Block: {} ]", self.index));
-        for instruction in self.instructions().borrow().iter() {
+        for instruction in self.instructions() {
             try!(writeln!(f, "{}", instruction));
         }
         Ok(())

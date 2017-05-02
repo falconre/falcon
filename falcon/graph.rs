@@ -228,18 +228,6 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
     }
 
 
-    /// Fetches an index from the graph by index.
-    pub fn vertex(&self, index: u64) -> Result<&V> {
-        self.vertices.get(&index).ok_or(format!("index {} does not exist", index).into())
-    }
-
-
-    // Fetches a mutable instance of a vertex.
-    pub fn vertex_mut(&mut self, index: u64) -> Result<&mut V> {
-        self.vertices.get_mut(&index).ok_or(format!("index {} des not exist", index).into())
-    }
-
-
     /// Returns all immediate successors of a vertex from the graph.
     pub fn successors(&self, index: u64) -> Result<Vec<&V>> {
         if !self.vertices.contains_key(&index) {
@@ -515,9 +503,48 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
     }
 
 
+    pub fn vertices_mut(&mut self) -> Vec<&mut V> {
+        let mut vec = Vec::new();
+        for vertex in self.vertices.iter_mut() {
+            vec.push(vertex.1);
+        }
+        vec
+    }
+
+
+    /// Fetches an index from the graph by index.
+    pub fn vertex(&self, index: u64) -> Result<&V> {
+        self.vertices.get(&index).ok_or(format!("index {} does not exist", index).into())
+    }
+
+
+    // Fetches a mutable instance of a vertex.
+    pub fn vertex_mut(&mut self, index: u64) -> Result<&mut V> {
+        self.vertices
+            .get_mut(&index)
+            .ok_or(format!("index {} des not exist", index).into())
+    }
+
+
+    pub fn edge_mut(&mut self, head: u64, tail: u64) -> Result<&mut E> {
+        self.edges
+            .get_mut(&(head, tail))
+            .ok_or(format!("edge {}->{} does not exist", head, tail).into())
+    }
+
+
     /// Returns all edges in the graph.
     pub fn edges(&self) -> Vec<&E> {
         self.edges.values().collect()
+    }
+
+
+    pub fn edges_mut(&mut self) -> Vec<&mut E> {
+        let mut vec = Vec::new();
+        for edge in self.edges.iter_mut() {
+            vec.push(edge.1);
+        }
+        vec
     }
 
 

@@ -106,6 +106,42 @@ impl Expression {
         variables
     }
 
+    pub fn collect_variables_mut(&mut self) -> Vec<&mut Variable> {
+        let mut variables: Vec<&mut Variable> = Vec::new();
+        match self {
+            &mut Expression::Variable(ref mut variable) => {
+                variables.push(variable)
+            },
+            &mut Expression::Constant(ref mut constant) => {},
+            &mut Expression::Add(ref mut lhs, ref mut rhs) |
+            &mut Expression::Sub(ref mut lhs, ref mut rhs) |
+            &mut Expression::Mulu(ref mut lhs, ref mut rhs) |
+            &mut Expression::Divu(ref mut lhs, ref mut rhs) |
+            &mut Expression::Modu(ref mut lhs, ref mut rhs) |
+            &mut Expression::Muls(ref mut lhs, ref mut rhs) |
+            &mut Expression::Divs(ref mut lhs, ref mut rhs) |
+            &mut Expression::Mods(ref mut lhs, ref mut rhs) |
+            &mut Expression::And(ref mut lhs, ref mut rhs) |
+            &mut Expression::Or(ref mut lhs, ref mut rhs) |
+            &mut Expression::Xor(ref mut lhs, ref mut rhs) |
+            &mut Expression::Shl(ref mut lhs, ref mut rhs) |
+            &mut Expression::Shr(ref mut lhs, ref mut rhs) |
+            &mut Expression::Cmpeq(ref mut lhs, ref mut rhs) |
+            &mut Expression::Cmpneq(ref mut lhs, ref mut rhs) |
+            &mut Expression::Cmplts(ref mut lhs, ref mut rhs) |
+            &mut Expression::Cmpltu(ref mut lhs, ref mut rhs) => {
+                variables.append(&mut lhs.collect_variables_mut());
+                variables.append(&mut rhs.collect_variables_mut());
+            },
+            &mut Expression::Zext(bits, ref mut rhs) |
+            &mut Expression::Sext(bits, ref mut rhs) |
+            &mut Expression::Trun(bits, ref mut rhs) => {
+                variables.append(&mut rhs.collect_variables_mut());
+            }
+        }
+        variables
+    }
+
     /// Create a new expression from a variable.
     pub fn variable(variable: Variable) -> Expression {
         Expression::Variable(variable)

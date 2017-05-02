@@ -1,6 +1,5 @@
 //! Falcon Intermediate Language
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use error::*;

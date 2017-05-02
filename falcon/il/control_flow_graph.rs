@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use il::*;
@@ -24,6 +25,10 @@ impl Edge {
 
     pub fn condition(&self) -> &Option<Expression> {
         &self.condition
+    }
+
+    pub fn condition_mut(&mut self) -> &mut Option<Expression> {
+        &mut self.condition
     }
 
     pub fn head(&self) -> u64 { self.head }
@@ -66,11 +71,11 @@ impl graph::Edge for Rc<Edge> {
 #[derive(Clone)]
 pub struct ControlFlowGraph {
     // The internal graph used to store our blocks.
-    graph: graph::Graph<Rc<Block>, Edge>,
+    graph: graph::Graph<Block, Edge>,
     // The next index to use when creating a basic block.
     next_index: u64,
     // The index for the next temp variable to create.
-    next_temp_index: u64,
+    next_temp_index: Cell<u64>,
     // An optional entry index for the graph.
     entry: Option<u64>,
     // An optional exit index for the graph.
@@ -85,7 +90,7 @@ impl ControlFlowGraph {
         ControlFlowGraph {
             graph: graph::Graph::new(),
             next_index: 0,
-            next_temp_index: 0,
+            next_temp_index: Cell::new(0),
             entry: None,
             exit: None,
             ssa_form: false,
@@ -94,7 +99,7 @@ impl ControlFlowGraph {
 
 
     /// Returns the underlying graph
-    pub fn graph(&self) -> &graph::Graph<Rc<Block>, Edge> {
+    pub fn graph(&self) -> &graph::Graph<Block, Edge> {
         &self.graph
     }
 
@@ -128,13 +133,18 @@ impl ControlFlowGraph {
 
 
     /// Return a block by index
-    pub fn block(&self, index: u64) -> Result<Rc<Block>> {
-        Ok(self.graph.vertex(index)?.clone())
+    pub fn block(&self, index: u64) -> Result<&Block> {
+        self.graph.vertex(index)
+    }
+
+
+    pub fn block_mut(&mut self, index: u64) -> Result<&mut Block> {
+        self.graph.vertex_mut(index)
     }
 
 
     /// Returns the entry block for this ControlFlowGraph
-    pub fn entry_block(&self) -> Result<Rc<Block>> {
+    pub fn entry_block(&self) -> Result<Block> {
         if self.entry.is_none() {
             bail!("entry is not set");
         }
@@ -143,30 +153,35 @@ impl ControlFlowGraph {
 
 
     /// Generates a temporary variable unique to this control flow graph.
-    pub fn temp(&mut self, bits: usize) -> Variable {
-        let next_index = self.next_temp_index;
-        self.next_temp_index += 1;
+    pub fn temp(&self, bits: usize) -> Variable {
+        let next_index = self.next_temp_index.get();
+        self.next_temp_index.set(next_index + 1);
         return Variable::new(format!("temp_{}", next_index), bits);
     }
 
 
     /// Get all the blocks in this graph.
-    pub fn blocks(&self) -> Vec<Rc<Block>> {
+    pub fn blocks(&self) -> Vec<&Block> {
         let mut result = Vec::new();
         for vertex in self.graph.vertices() {
-            result.push(vertex.clone());
+            result.push(vertex);
         }
         return result;
     }
 
 
+    pub fn blocks_mut(&mut self) -> Vec<&mut Block> {
+        self.graph.vertices_mut()
+    }
+
+
     /// Creates a new basic block, adds it to the graph, and returns it
-    pub fn new_block(&mut self) -> Result<Rc<Block>> {
+    pub fn new_block(&mut self) -> Result<&mut Block> {
         let next_index = self.next_index;
         self.next_index += 1;
-        let block = Rc::new(Block::new(next_index));
-        self.graph.insert_vertex(block.clone())?;
-        Ok(block)
+        let block = Block::new(next_index);
+        self.graph.insert_vertex(block)?;
+        self.graph.vertex_mut(next_index)
     }
 
 
@@ -275,7 +290,7 @@ impl ControlFlowGraph {
         let mut block_map: HashMap<u64, u64> = HashMap::new();
         for block in other.graph().vertices() {
             // we need to clone the underlying block
-            let new_block = Rc::new(block.clone_new_index(self.next_index));
+            let new_block = block.clone_new_index(self.next_index);
             block_map.insert(block.index(), self.next_index);
             self.next_index += 1;
             self.graph.insert_vertex(new_block)?;
@@ -335,7 +350,7 @@ impl ControlFlowGraph {
 
         // insert all the blocks
         for block in other.graph().vertices() {
-            let new_block = Rc::new(block.clone_new_index(self.next_index));
+            let new_block = block.clone_new_index(self.next_index);
             block_map.insert(block.index(), self.next_index);
             if block.index() == other.entry().unwrap() {
                 entry_index = Some(self.next_index);
@@ -400,18 +415,20 @@ impl ControlFlowGraph {
 
         // Applies SSA internally to a block, leaving ssa unset for any
         // variables which are not set in the same block.
-        fn ssa_block(block: &Block, assigner: &mut CfgAssigner) {
+        fn ssa_block(block: &mut Block, assigner: &mut CfgAssigner) {
             let mut block_set: HashMap<String, u32> = HashMap::new();
 
-            for operation in block.instructions().borrow().iter() {
-                for variable in operation.variables_read() {
+            for operation in block.instructions_mut() {
+                for variable in operation.variables_read_mut() {
                     if block_set.contains_key(variable.name()) {
-                        variable.set_ssa(block_set[variable.name()]);
+                        let name = variable.name().to_string();
+                        variable.set_ssa(block_set[&name]);
                     }
                 }
-                for variable in operation.variables_written() {
+                for variable in operation.variables_written_mut() {
                     if variable.ssa().is_none() {
-                        variable.set_ssa(assigner.set(variable.name()));
+                        let name = variable.name().to_string();
+                        variable.set_ssa(assigner.set(name));
                     }
                     block_set.insert(
                         variable.name().to_string(),
@@ -427,7 +444,7 @@ impl ControlFlowGraph {
         fn get_block_ssa_assignments(block: &Block) -> HashMap<String, Variable> {
             let mut assignments: HashMap<String, Variable> = HashMap::new();
 
-            for operation in block.instructions().borrow().iter() {
+            for operation in block.instructions() {
                 for variable in operation.variables_written() {
                     // .clone().clone(), i don't want to get into it
                     let var: Variable = variable.clone().clone();
@@ -445,7 +462,7 @@ impl ControlFlowGraph {
         fn get_block_ssa_unassigned(block: &Block) -> Vec<Variable> {
             let mut unassigned: Vec<Variable> = Vec::new();
 
-            for operation in block.instructions().borrow().iter() {
+            for operation in block.instructions() {
                 for variable in operation.variables_read().iter() {
                     if variable.ssa().is_none() && !unassigned.contains(variable) {
                         unassigned.push(variable.clone().clone());
@@ -460,7 +477,7 @@ impl ControlFlowGraph {
             block: &Block,
             mut unassigned: Vec<Variable>,
             mut visited: HashSet<u64>,
-            graph: &graph::Graph<Rc<Block>, Edge>,
+            graph: &graph::Graph<Block, Edge>,
         ) -> Result<HashMap<String, HashSet<u32>>> {
 
             let mut found: HashMap<String, HashSet<u32>> = HashMap::new();
@@ -527,8 +544,8 @@ impl ControlFlowGraph {
         let mut assigner = CfgAssigner::new();
 
         // We apply SSA to each block
-        for block in self.blocks() {
-            ssa_block(&block, &mut assigner);
+        for block in self.blocks_mut() {
+            ssa_block(block, &mut assigner);
         }
 
         // For every block where SSA is not set, we recursively search
@@ -573,43 +590,50 @@ impl ControlFlowGraph {
 
             // all predecessors set
             ssa_set.insert(vertex_index);
-            let block = self.graph.vertex(vertex_index)?;
 
-            // collect all variables without assignments
-            let unassigned = get_block_ssa_unassigned(&block);
+            let (found, unassigned) = {
+                let block = self.graph.vertex(vertex_index)?;
 
-            let mut visited = HashSet::new();
-            visited.insert(block.index());
+                let unassigned = get_block_ssa_unassigned(&block); 
 
-            let found = find_assignments(
-                block,
-                unassigned.clone(),
-                visited,
-                &self.graph
-            )?;
+                let mut visited = HashSet::new();
+                visited.insert(block.index());
 
+                let found = find_assignments(
+                    &block,
+                    unassigned.clone(),
+                    visited,
+                    &self.graph
+                )?;
+                (found, unassigned)
+            };
 
             for una in &unassigned {
                 if let Some(assignments) = found.get(una.name()) {
                     if assignments.len() == 1 {
-                        for operation in block.instructions().borrow().iter() {
-                            for variable in operation.variables_read() {
-                                if variable == una && variable.ssa() == None {
+                        let block = self.graph.vertex_mut(vertex_index)?;
+                        for ref mut operation in block.instructions_mut() {
+                            for ref mut variable in operation.variables_read_mut() {
+                                if variable.name() == una.name()
+                                   && variable.bits() == una.bits()
+                                   && variable.ssa() == None {
                                     variable.set_ssa(*assignments.iter().next().unwrap());
                                 }
                             }
                         }
                     }
                     else {
-                        let dst = una.clone();
+                        let mut dst = una.clone();
                         dst.set_ssa(assigner.get(una.name()));
                         let mut src = Vec::new();
                         for assignment in assignments.iter() {
-                            let var = una.clone();
+                            let mut var = una.clone();
                             var.set_ssa(*assignment);
                             src.push(var);
                         }
-                        block.prepend_phi(dst, src);
+                        self.graph
+                            .vertex_mut(vertex_index)?
+                            .prepend_phi(dst, src);
                     }
                 }
             }
@@ -624,12 +648,21 @@ impl ControlFlowGraph {
 
         // Every block should now have an ssa assignment in it for all
         // variable writes. We go back and make sure all reads are good to go.
-        for block in self.blocks() {
-            ssa_block(&block, &mut assigner);
+        for mut block in self.blocks_mut() {
+            ssa_block(block, &mut assigner);
         }
 
         // Assign SSA to edges
-        for edge in self.graph.edges() {
+        let mut phis_to_add: Vec<(u64, Variable, Vec<Variable>)> = Vec::new();
+        
+        let edges = { 
+            self.graph
+                .edges()
+                .iter()
+                .map(|e| (*e).clone()).collect::<Vec<Edge>>()
+        };
+
+        for edge in edges {
             if edge.condition().is_none() {
                 continue;
             }
@@ -649,26 +682,37 @@ impl ControlFlowGraph {
                 &self.graph
             )?;
 
-            if let Some(condition) = edge.condition().as_ref() {
-                for variable in condition.collect_variables() {
+
+            let block_index = edge.head();
+
+            let mut edge = self.graph.edge_mut(edge.head(), edge.tail())?;
+
+            if let &mut Some(ref mut condition) = edge.condition_mut() {
+                for variable in condition.collect_variables_mut() {
                     if let Some(assignments) = found.get(variable.name()) {
                         if assignments.len() == 1 {
                             variable.set_ssa(*assignments.iter().next().unwrap());
                             continue;
                         }
-                        let dst = variable.clone();
+                        let mut dst = variable.clone();
                         dst.set_ssa(assigner.get(variable.name()));
                         variable.set_ssa(dst.ssa().unwrap());
                         let mut src = Vec::new();
                         for assignment in assignments.iter() {
-                            let var = variable.clone();
+                            let mut var = variable.clone();
                             var.set_ssa(*assignment);
                             src.push(var);
                         }
-                        self.graph.vertex(edge.head())?.phi(dst, src);
+                        phis_to_add.push((block_index, dst, src));
                     }
                 }
             }
+        }
+
+        for phi_to_add in phis_to_add {
+            self.graph
+                .vertex_mut(phi_to_add.0)?
+                .phi(phi_to_add.1, phi_to_add.2);
         }
 
         Ok(())

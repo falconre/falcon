@@ -79,6 +79,32 @@ impl Operation {
         read
     }
 
+    pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
+        let mut read: Vec<&mut Variable> = Vec::new();
+        match self {
+            &mut Operation::Assign { ref mut dst, ref mut src } => {
+                read.append(&mut src.collect_variables_mut());
+            },
+            &mut Operation::Store { ref mut address, ref mut src } => {
+                read.append(&mut address.collect_variables_mut());
+                read.append(&mut src.collect_variables_mut());
+            },
+            &mut Operation::Load { ref mut dst, ref mut address } => {
+                read.append(&mut address.collect_variables_mut());
+            },
+            &mut Operation::Brc { ref mut dst, ref mut condition } => {
+                read.append(&mut dst.collect_variables_mut());
+                read.append(&mut condition.collect_variables_mut());
+            },
+            &mut Operation::Phi { ref mut dst, ref mut src } => {
+                for variable in src {
+                    read.push(variable);
+                }
+            }
+        }
+        read
+    }
+
     pub fn variables_written(&self) -> Vec<&Variable> {
         let mut written = Vec::new();
         match self {
@@ -91,6 +117,24 @@ impl Operation {
             },
             &Operation::Brc { ref dst, ref condition } => {},
             &Operation::Phi { ref dst, ref src } => {
+                written.push(dst);
+            } 
+        }
+        written
+    }
+
+    pub fn variables_written_mut(&mut self) -> Vec<&mut Variable> {
+        let mut written = Vec::new();
+        match self {
+            &mut Operation::Assign { ref mut dst, ref mut src } => {
+                written.push(dst);
+            },
+            &mut Operation::Store { ref mut address, ref mut src } => {},
+            &mut Operation::Load { ref mut dst, ref mut address } => {
+                written.push(dst);
+            },
+            &mut Operation::Brc { ref mut dst, ref mut condition } => {},
+            &mut Operation::Phi { ref mut dst, ref mut src } => {
                 written.push(dst);
             } 
         }

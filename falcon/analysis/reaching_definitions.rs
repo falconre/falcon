@@ -1,10 +1,12 @@
+/*
+
 use analysis::fixed_point::*;
 use il::*;
 use std::collections::BTreeMap;
 
 #[derive(Clone, PartialEq)]
-struct ReachChain {
-    chain: BTreeMap<Variable, (u64, u64)>
+struct ReachingDefinitions {
+    reaches: Vec<(u64, u64)>
 }
 
 
@@ -24,3 +26,4 @@ impl FixedPointAnalysis<ReachChain> for ReachChain {
         state0.clone()
     }
 }
+*/

@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::fmt;
-use std::ops::{Deref, DerefMut};
 use il::*;
 
 
@@ -10,7 +8,7 @@ use il::*;
 pub struct Variable {
     name: String,
     bits: usize,
-    ssa: RefCell<Option<u32>>
+    ssa: Option<u32>
 }
 
 
@@ -19,7 +17,7 @@ impl Variable {
         Variable {
             name: name.into(),
             bits: bits,
-            ssa: RefCell::new(None)
+            ssa: None
         }
     }
 
@@ -37,18 +35,18 @@ impl Variable {
             "{}:{}{}",
             self.name,
             self.bits,
-            match self.ssa.borrow().deref() {
-                &Some(ssa) => format!("#{}", ssa),
-                &None => String::new()
+            match self.ssa {
+                Some(ssa) => format!("#{}", ssa),
+                None => String::new()
         })
     }
 
     pub fn ssa(&self) -> Option<u32> {
-        self.ssa.borrow().clone()
+        self.ssa
     }
 
-    pub fn set_ssa(&self, ssa: u32) {
-        *self.ssa.borrow_mut().deref_mut() = Some(ssa);
+    pub fn set_ssa(&mut self, ssa: u32) {
+        self.ssa = Some(ssa);
     }
 }
 

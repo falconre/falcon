@@ -69,8 +69,18 @@ impl Instruction {
     }
 
 
+    pub fn variables_written_mut(&mut self) -> Vec<&mut Variable> {
+        self.operation.variables_written_mut()
+    }
+
+
     pub fn variables_read(&self) -> Vec<&Variable> {
         self.operation.variables_read()
+    }
+
+
+    pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
+        self.operation.variables_read_mut()
     }
 }
 

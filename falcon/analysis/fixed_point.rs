@@ -1,7 +1,6 @@
 use error::*;
 use il::{Block, ControlFlowGraph};
 use std::collections::{HashMap, VecDeque};
-use std::ops::Deref;
 
 
 pub trait FixedPointAnalysis<State: PartialEq> {
@@ -33,7 +32,7 @@ pub fn fixed_point<Analysis, State>(control_flow_graph: &ControlFlowGraph)
         let vertex_index = queue.pop_front().unwrap();
 
         let state = Analysis::trans(
-            control_flow_graph.block(vertex_index)?.deref(),
+            control_flow_graph.block(vertex_index)?,
             states.get(&vertex_index).unwrap()
         );
         if state != *states.get(&vertex_index).unwrap() {
