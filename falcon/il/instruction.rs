@@ -2,10 +2,11 @@ use il::*;
 use std::fmt;
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Instruction {
     operation: Operation,
-    index: u64
+    index: u64,
+    comment: Option<String>
 }
 
 
@@ -13,35 +14,40 @@ impl Instruction {
     pub fn assign(index: u64, dst: Variable, src: Expression) -> Instruction {
         Instruction {
             operation: Operation::Assign { dst: dst, src: src },
-            index: index
+            index: index,
+            comment: None
         }
     }
 
     pub fn store(index: u64, address: Expression, src: Expression) -> Instruction {
         Instruction {
             operation: Operation::Store { address: address, src: src },
-            index: index
+            index: index,
+            comment: None
         }
     }
 
     pub fn load(index: u64, dst: Variable, address: Expression) -> Instruction {
         Instruction {
             operation: Operation::Load { dst: dst, address: address },
-            index: index
+            index: index,
+            comment: None
         }
     }
 
     pub fn brc(index: u64, dst: Expression, condition: Expression) -> Instruction {
         Instruction {
             operation: Operation::Brc { dst: dst, condition: condition },
-            index: index
+            index: index,
+            comment: None
         }
     }
 
     pub fn phi(index: u64, dst: Variable, src: Vec<Variable>) -> Instruction {
         Instruction {
             operation: Operation::Phi { dst: dst, src: src },
-            index: index
+            index: index,
+            comment: None
         }
     }
 
@@ -56,21 +62,27 @@ impl Instruction {
     }
 
 
+    pub fn set_comment<S>(&mut self, comment: S) where S: Into<String> {
+        self.comment = Some(comment.into());
+    }
+
+
     pub fn clone_new_index(&self, index: u64) -> Instruction {
         Instruction {
             operation: self.operation.clone(),
-            index: index
+            index: index,
+            comment: self.comment.clone()
         }
     }
 
 
-    pub fn variables_written(&self) -> Vec<&Variable> {
-        self.operation.variables_written()
+    pub fn variable_written(&self) -> Option<&Variable> {
+        self.operation.variable_written()
     }
 
 
-    pub fn variables_written_mut(&mut self) -> Vec<&mut Variable> {
-        self.operation.variables_written_mut()
+    pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
+        self.operation.variable_written_mut()
     }
 
 
@@ -88,6 +100,17 @@ impl Instruction {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:02X} {}", self.index, self.operation)
+        if let Some(ref comment) = self.comment {
+            write!(
+                f,
+                "{:02X} {} // {}",
+                self.index,
+                self.operation,
+                comment
+            )
+        }
+        else {
+            write!(f, "{:02X} {}", self.index, self.operation)
+        }
     }
 }

@@ -3,7 +3,7 @@
 use error::*;
 use il::*;
 use std::boxed::Box;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
 pub mod x86;
 
@@ -62,7 +62,7 @@ pub trait Arch {
     /// Translates a function
     fn translate_function(&self, bytes: &[u8], function_address: u64) -> Result<Function> {
         let mut translation_queue = VecDeque::new();
-        let mut translation_results = HashMap::new();
+        let mut translation_results = BTreeMap::new();
 
         translation_queue.push_front(function_address);
 
@@ -94,7 +94,7 @@ pub trait Arch {
 
         // We now insert all of these blocks into a new control flow graph,
         // keeping track of their new entry and exit indices.
-        let mut indices: HashMap<u64, (u64, u64)> = HashMap::new();
+        let mut indices: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
         let mut control_flow_graph = ControlFlowGraph::new();
         for result in &translation_results {
             let (entry, exit) = control_flow_graph.insert(result.1.control_flow_graph())?;

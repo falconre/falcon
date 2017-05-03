@@ -34,13 +34,22 @@ impl Arch for X86 {
         let mut block_graph = ControlFlowGraph::new();
 
         // the length of this block in bytes
-        let mut length = 0;
+        let mut length: usize = 0;
 
         let mut successors = Vec::new();
 
         for instruction in instructions.iter() {
 
             if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+
+                /*
+                println!(
+                    "translating {:08X}: {} {}",
+                    address + length as u64,
+                    instruction.mnemonic,
+                    instruction.op_str
+                );
+                */
 
                 length += instruction.size as usize;
                 

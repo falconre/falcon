@@ -1,6 +1,6 @@
 //! Implements a directed graph.
 
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeSet, BTreeMap, VecDeque};
 use std::fmt::Debug;
 
 use error::*;
@@ -76,10 +76,10 @@ impl Edge for NullEdge {
 #[derive(Debug, Clone)]
 pub struct Graph<V, E> {
     head: Option<u64>,
-    vertices: HashMap<u64, V>,
-    edges: HashMap<(u64, u64), E>,
-    edges_out: HashMap<u64, Vec<E>>,
-    edges_in: HashMap<u64, Vec<E>>
+    vertices: BTreeMap<u64, V>,
+    edges: BTreeMap<(u64, u64), E>,
+    edges_out: BTreeMap<u64, Vec<E>>,
+    edges_in: BTreeMap<u64, Vec<E>>
 }
 
 
@@ -87,10 +87,10 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
     pub fn new() -> Graph<V, E> {
         Graph {
             head: None,
-            vertices: HashMap::new(),
-            edges: HashMap::new(),
-            edges_out: HashMap::new(),
-            edges_in: HashMap::new()
+            vertices: BTreeMap::new(),
+            edges: BTreeMap::new(),
+            edges_out: BTreeMap::new(),
+            edges_in: BTreeMap::new()
         }
     }
 
@@ -263,8 +263,8 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
     /// # Warning
     /// Unsure of correctness of this implementation
     pub fn compute_dominance_frontiers(&self, start_index: u64)
-    -> Result<HashMap<u64, BTreeSet<u64>>> {
-        let mut df: HashMap<u64, BTreeSet<u64>> = HashMap::new();
+    -> Result<BTreeMap<u64, BTreeSet<u64>>> {
+        let mut df: BTreeMap<u64, BTreeSet<u64>> = BTreeMap::new();
 
         for vertex in &self.vertices {
             df.insert(*vertex.0, BTreeSet::new());
@@ -294,8 +294,8 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
 
 
     pub fn compute_immediate_dominators(&self, start_index: u64)
-    -> Result<HashMap<u64, u64>> {
-        let mut idoms: HashMap<u64, u64> = HashMap::new();
+    -> Result<BTreeMap<u64, u64>> {
+        let mut idoms: BTreeMap<u64, u64> = BTreeMap::new();
 
         let dominators = self.compute_dominators(start_index)?;
 
@@ -331,12 +331,12 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
 
 
     /// Computes dominators for all vertices in the graph
-    pub fn compute_dominators(&self, start_index: u64) -> Result<HashMap<u64, BTreeSet<u64>>> {
+    pub fn compute_dominators(&self, start_index: u64) -> Result<BTreeMap<u64, BTreeSet<u64>>> {
         if self.vertices.contains_key(&start_index) == false {
             bail!("vertex {} not in graph", start_index);
         }
 
-        let mut dominators: HashMap<u64, BTreeSet<u64>> = HashMap::new();
+        let mut dominators: BTreeMap<u64, BTreeSet<u64>> = BTreeMap::new();
 
         // add our start vertex to our dominator set
         {
@@ -410,8 +410,8 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
     /// graph, not just immediate predecessors.
     ///
     /// Given A -> B -> C, both A and B will be in the set for C.
-    pub fn compute_predecessors(&self) -> Result<HashMap<u64, BTreeSet<u64>>> {
-        let mut predecessors: HashMap<u64, BTreeSet<u64>> = HashMap::new();
+    pub fn compute_predecessors(&self) -> Result<BTreeMap<u64, BTreeSet<u64>>> {
+        let mut predecessors: BTreeMap<u64, BTreeSet<u64>> = BTreeMap::new();
         let mut queue: VecDeque<u64> = VecDeque::new();
 
         // initial population

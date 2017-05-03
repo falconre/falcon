@@ -66,13 +66,28 @@ impl Block {
 
 
     /// Returns a copy of an instruction by index
-    pub fn instruction_by_index(&self, index: u64) -> Result<&Instruction> {
+    pub fn instruction(&self, index: u64) -> Result<&Instruction> {
         for instruction in &self.instructions {
             if instruction.index() == index {
                 return Ok(&instruction);
             }
         }
         bail!("No instruction with index of {}", index);
+    }
+
+
+    pub fn instruction_mut<'a>(&'a mut self, index: u64) -> Result<&'a mut Instruction> {
+        let mut location = None;
+        for i in 0..self.instructions.len() {
+            if self.instructions[i].index() == index {
+                location = Some(i);
+                break;
+            }
+        }
+        match location {
+            Some(i) => Ok(self.instructions.get_mut(i).unwrap()),
+            None => bail!("No instruction with index of {}", index)
+        }
     }
 
 
@@ -157,7 +172,7 @@ impl graph::Vertex for Block {
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(writeln!(f, "[ Block: {} ]", self.index));
+        try!(writeln!(f, "[ Block: 0x{:X} ]", self.index));
         for instruction in self.instructions() {
             try!(writeln!(f, "{}", instruction));
         }

@@ -3,7 +3,7 @@ use il::*;
 
 
 /// An IL constant.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Constant {
     value: u64,
     bits: usize

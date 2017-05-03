@@ -5,7 +5,7 @@ use il::*;
 /// An IL Expression.
 /// Expressions form the building blocks of instructions, and always evaluate
 /// some value.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Expression {
     Variable(Variable),
     Constant(Constant),

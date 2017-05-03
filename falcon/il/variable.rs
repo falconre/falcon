@@ -4,7 +4,7 @@ use il::*;
 
 
 /// An IL variable.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Variable {
     name: String,
     bits: usize,
@@ -45,8 +45,8 @@ impl Variable {
         self.ssa
     }
 
-    pub fn set_ssa(&mut self, ssa: u32) {
-        self.ssa = Some(ssa);
+    pub fn set_ssa(&mut self, ssa: Option<u32>) {
+        self.ssa = ssa;
     }
 }
 

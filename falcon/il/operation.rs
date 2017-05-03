@@ -2,7 +2,7 @@ use std::fmt;
 use il::*;
 
 /// An IL Operation updates some state.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Operation {
     /// Assign the value given in expression to the variable indicated.
     Assign {
@@ -105,40 +105,24 @@ impl Operation {
         read
     }
 
-    pub fn variables_written(&self) -> Vec<&Variable> {
-        let mut written = Vec::new();
+    pub fn variable_written(&self) -> Option<&Variable> {
         match self {
-            &Operation::Assign { ref dst, ref src } => {
-                written.push(dst);
-            },
-            &Operation::Store { ref address, ref src } => {},
-            &Operation::Load { ref dst, ref address } => {
-                written.push(dst);
-            },
-            &Operation::Brc { ref dst, ref condition } => {},
-            &Operation::Phi { ref dst, ref src } => {
-                written.push(dst);
-            } 
+            &Operation::Assign { ref dst, ref src } => Some(dst),
+            &Operation::Store { ref address, ref src } => None,
+            &Operation::Load { ref dst, ref address } => Some(dst),
+            &Operation::Brc { ref dst, ref condition } => None,
+            &Operation::Phi { ref dst, ref src } => Some(dst)
         }
-        written
     }
 
-    pub fn variables_written_mut(&mut self) -> Vec<&mut Variable> {
-        let mut written = Vec::new();
+    pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
         match self {
-            &mut Operation::Assign { ref mut dst, ref mut src } => {
-                written.push(dst);
-            },
-            &mut Operation::Store { ref mut address, ref mut src } => {},
-            &mut Operation::Load { ref mut dst, ref mut address } => {
-                written.push(dst);
-            },
-            &mut Operation::Brc { ref mut dst, ref mut condition } => {},
-            &mut Operation::Phi { ref mut dst, ref mut src } => {
-                written.push(dst);
-            } 
+            &mut Operation::Assign { ref mut dst, ref mut src } => Some(dst),
+            &mut Operation::Store { ref mut address, ref mut src } => None,
+            &mut Operation::Load { ref mut dst, ref mut address } => Some(dst),
+            &mut Operation::Brc { ref mut dst, ref mut condition } => None,
+            &mut Operation::Phi { ref mut dst, ref mut src } => Some(dst)
         }
-        written
     }
 }
 
