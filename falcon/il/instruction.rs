@@ -52,6 +52,56 @@ impl Instruction {
     }
 
 
+    pub fn is_assign(&self) -> bool {
+        if let Operation::Assign{dst:_, src:_} = self.operation {
+            true
+        }
+        else {
+            false
+        }
+    }
+
+
+    pub fn is_store(&self) -> bool {
+        if let Operation::Store{address:_, src:_} = self.operation {
+            true
+        }
+        else {
+            false
+        }
+    }
+
+
+    pub fn is_load(&self) -> bool {
+        if let Operation::Load{dst:_, address:_} = self.operation {
+            true
+        }
+        else {
+            false
+        }
+    }
+
+
+    pub fn is_brc(&self) -> bool {
+        if let Operation::Brc{dst:_, condition:_} = self.operation {
+            true
+        }
+        else {
+            false
+        }
+    }
+
+
+    pub fn is_phi(&self) -> bool {
+        if let Operation::Phi{dst:_, src:_} = self.operation {
+            true
+        }
+        else {
+            false
+        }
+    }
+
+
     pub fn operation(&self) -> &Operation {
         &self.operation
     }

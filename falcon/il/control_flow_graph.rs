@@ -9,7 +9,8 @@ use il::*;
 pub struct Edge {
     head: u64,
     tail: u64,
-    condition: Option<Expression>
+    condition: Option<Expression>,
+    comment: Option<String>
 }
 
 
@@ -18,7 +19,8 @@ impl Edge {
         Edge {
             head: head,
             tail: tail,
-            condition: condition
+            condition: condition,
+            comment: None
         }
     }
 
@@ -33,13 +35,30 @@ impl Edge {
 
     pub fn head(&self) -> u64 { self.head }
     pub fn tail(&self) -> u64 { self.tail }
+
+    pub fn set_comment<S>(&mut self, comment: S) where S: Into<String> {
+        self.comment = Some(comment.into());
+    }
+
+    pub fn comment(&self) -> &Option<String> {
+        &self.comment
+    }
 }
 
 
 impl fmt::Display for Edge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.condition.is_some() {
-            return write!(f, "({}->{}) ? ({})", self.head, self.tail, self.condition.clone().unwrap());
+        if let &Some(ref comment) = &self.comment {
+            write!(f, "// {}\n", comment)?
+        }
+        if let &Some(ref condition) = &self.condition {
+            write!(
+                f,
+                "(0x{:X}->0x{:X}) ? ({})",
+                self.head,
+                self.tail,
+                condition
+            )?
         }
         Ok(())
     }
@@ -143,6 +162,37 @@ impl ControlFlowGraph {
     }
 
 
+    /// Get all the blocks in this graph.
+    pub fn blocks(&self) -> Vec<&Block> {
+        self.graph.vertices()
+    }
+
+
+    pub fn blocks_mut(&mut self) -> Vec<&mut Block> {
+        self.graph.vertices_mut()
+    }
+
+
+    pub fn edge(&self, head: u64, tail: u64) -> Result<&Edge> {
+        self.graph.edge(head, tail)
+    }
+
+
+    pub fn edge_mut(&mut self, head: u64, tail: u64) -> Result<&mut Edge> {
+        self.graph.edge_mut(head, tail)
+    }
+
+
+    pub fn edges(&self) -> Vec<&Edge> {
+        self.graph.edges()
+    }
+
+
+    pub fn edges_mut(&mut self) -> Vec<&mut Edge> {
+        self.graph.edges_mut()
+    }
+
+
     /// Returns the entry block for this ControlFlowGraph
     pub fn entry_block(&self) -> Result<Block> {
         if self.entry.is_none() {
@@ -157,21 +207,6 @@ impl ControlFlowGraph {
         let next_index = self.next_temp_index.get();
         self.next_temp_index.set(next_index + 1);
         return Variable::new(format!("temp_{}", next_index), bits);
-    }
-
-
-    /// Get all the blocks in this graph.
-    pub fn blocks(&self) -> Vec<&Block> {
-        let mut result = Vec::new();
-        for vertex in self.graph.vertices() {
-            result.push(vertex);
-        }
-        return result;
-    }
-
-
-    pub fn blocks_mut(&mut self) -> Vec<&mut Block> {
-        self.graph.vertices_mut()
     }
 
 
@@ -387,6 +422,8 @@ impl ControlFlowGraph {
         if self.entry.is_none() {
             bail!("no entry vertex set for ControlFlowGraph");
         }
+
+        self.clear_ssa()?;
 
         struct CfgAssigner {
             assignments: BTreeMap<String, u32>
@@ -724,6 +761,38 @@ impl ControlFlowGraph {
         Ok(())
     }
 
+
+    pub fn clear_ssa(&mut self) -> Result<()> {
+        for block in self.blocks_mut() {
+            let mut phi_indices = Vec::new();
+            for instruction in block.instructions_mut() {
+                if let &Operation::Phi{dst:_, src:_} = instruction.operation() {
+                    phi_indices.push(instruction.index());
+                    continue;
+                }
+                for variable in instruction.variables_read_mut() {
+                    variable.set_ssa(None);
+                }
+                if let Some(variable) = instruction.variable_written_mut() {
+                    variable.set_ssa(None);
+                }
+            }
+            for phi_index in phi_indices {
+                block.remove_instruction(phi_index)?;
+            }
+        }
+
+        for edge in self.edges_mut() {
+            let condition = edge.condition_mut();
+            if let &mut Some(ref mut condition) = condition {
+                for variable in condition.collect_variables_mut() {
+                    variable.set_ssa(None);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 

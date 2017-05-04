@@ -92,7 +92,7 @@ impl Block {
 
 
     /// Deletes an operation by its index
-    pub fn delete_by_index(&mut self, index: u64) -> Result<()> {
+    pub fn remove_instruction(&mut self, index: u64) -> Result<()> {
         let mut vec_index = None;
         for i in 0..self.instructions.len() {
             if self.instructions[i].index() == index {

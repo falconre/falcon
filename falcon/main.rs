@@ -9,7 +9,8 @@ pub mod graph;
 pub mod il;
 pub mod translator;
 
-use analysis::reaching_definitions;
+use analysis::analysis_location::{set_string};
+use analysis::analysis_location::AnalysisLocation::*;
 
 use std::fs::File;
 use std::io::Write;
@@ -28,7 +29,6 @@ mod error {
 }
 
 
-
 fn main () {
     let x86 = translator::x86();
 
@@ -37,24 +37,52 @@ fn main () {
 
     let mut function = x86.translate_function(&example_function, 0x804a00).unwrap();
     let mut control_flow_graph = function.control_flow_graph_mut();
-    println!("compute ssa");
-    control_flow_graph.ssa().unwrap();
-    println!("compute reaching defintions");
-    let rd = reaching_definitions::compute(control_flow_graph).unwrap();
-    println!("done");
 
-    for def in rd.iter() {
-        let comment = reaching_definitions::reaches_to_string_with_var(
-            &def.1,
-            &control_flow_graph
-        ).unwrap();
-        def.0
-           .find_mut(&mut control_flow_graph).unwrap()
-           .set_comment(comment);
+    //control_flow_graph.ssa().unwrap();
+
+    let analysis = analysis::Analysis::initialize(control_flow_graph).unwrap();
+    let control_flow_graph = analysis.dead_code_elimination().unwrap();
+    let analysis = analysis::Analysis::initialize(&control_flow_graph).unwrap();
+
+    /*
+    let rd = analysis.reaching_definitions();
+    let ud = analysis.use_def();
+    let du = analysis.def_use();
+
+    for reach in rd {
+        let analysis_location = reach.0;
+        println!("rd {}: {}", analysis_location, rd[analysis_location]);
+        println!("ud {}: {}", analysis_location, set_string(&ud[analysis_location]));
+        println!("du {}: {}", analysis_location, set_string(&du[analysis_location]));
+        println!("");
     }
 
-    let dot = control_flow_graph.graph().dot_graph();
+    for al in ud {
+        let this_location = al.0;
+        let comment = set_string(al.1);
+        match this_location {
+            &Edge(ref el) => el.find_mut(control_flow_graph)
+                               .unwrap()
+                               .set_comment(comment),
+            &Instruction(ref il) => il.find_mut(control_flow_graph)
+                                      .unwrap()
+                                      .set_comment(comment)
+        }
+    }
+    */
+
+    let dot = analysis.dead_code_elimination()
+                      .unwrap()
+                      .graph()
+                      .dot_graph();
 
     let mut file = File::create("/tmp/falcon_post.dot").unwrap();
+    file.write_all(dot.as_bytes()).unwrap();
+
+    let dot = analysis.control_flow_graph()
+                      .graph()
+                      .dot_graph();
+
+    let mut file = File::create("/tmp/falcon_pre.dot").unwrap();
     file.write_all(dot.as_bytes()).unwrap();
 }

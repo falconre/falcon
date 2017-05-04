@@ -526,6 +526,13 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
     }
 
 
+    pub fn edge(&self, head: u64, tail: u64) -> Result<&E> {
+        self.edges
+            .get(&(head, tail))
+            .ok_or(format!("edge {}->{} does not exist", head, tail).into())
+    }
+
+
     pub fn edge_mut(&mut self, head: u64, tail: u64) -> Result<&mut E> {
         self.edges
             .get_mut(&(head, tail))
@@ -568,7 +575,8 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
         }).collect::<Vec<String>>();
 
         let edges = self.edges.iter().map(|e| {
-            format!("{} -> {} [label=\"{}\"];", e.1.head(), e.1.tail(), e.1.dot_label())
+            let label = e.1.dot_label().replace("\n", "\\l");
+            format!("{} -> {} [label=\"{}\"];", e.1.head(), e.1.tail(), label)
         }).collect::<Vec<String>>();
 
         let mut options = Vec::new();
