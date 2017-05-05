@@ -22,7 +22,7 @@ codebase is sufficiently rust-idiomatic.
   Rough priorities, in order:
 
   * Loading of binary formats (Elf)
-  * Scripting with (ketos)[https://github.com/murarth/ketos]
+  * Scripting with [ketos](https://github.com/murarth/ketos)
   * Inter-procedural analysis
   * Constraint generation
   * Constraint solving
