@@ -238,7 +238,7 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
 
         Ok(vertices.fold(Vec::new(), |mut v, vx| {
             v.push(vx.unwrap());
-            return v;
+            v
         }))
     }
 
@@ -253,7 +253,7 @@ impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug 
 
         Ok(vertices.fold(Vec::new(), |mut v, vx| {
             v.push(vx.unwrap());
-            return v;
+            v
         }))
     }
 

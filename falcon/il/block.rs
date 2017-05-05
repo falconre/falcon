@@ -30,7 +30,7 @@ impl Block {
     fn new_instruction_index(&mut self) -> u64 {
         let instruction_index = self.next_instruction_index;
         self.next_instruction_index = instruction_index + 1;
-        return instruction_index;
+        instruction_index
     }
 
 
@@ -114,7 +114,7 @@ impl Block {
     pub fn clone_new_index(&self, index: u64) -> Block {
         let mut clone = self.clone();
         clone.index = index;
-        return clone;
+        clone
     }
 
 
@@ -122,7 +122,7 @@ impl Block {
     pub fn temp(&mut self, bits: usize) -> Variable {
         let next_index = self.next_temp_index;
         self.next_temp_index = next_index + 1;
-        return Variable::new(format!("temp_{}.{}", self.index, next_index), bits);
+        Variable::new(format!("temp_{}.{}", self.index, next_index), bits)
     }
 
     /// Adds an assign operation to the end of this block.

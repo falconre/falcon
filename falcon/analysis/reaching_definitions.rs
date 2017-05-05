@@ -13,7 +13,7 @@ use std::fmt;
 /// `AnalysisLocation`s which are valid upon entry to an `AnalysisLocation`
 /// (the in_ set), and all `AnalysisLocation`s which are valid upon exit from
 /// an `AnalysisLocation` (the out set).
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Reaches {
     in_: BTreeSet<AnalysisLocation>,
     out: BTreeSet<AnalysisLocation>
@@ -90,20 +90,18 @@ impl Reaches {
 impl Ord for Reaches {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.in_ < other.in_ {
-            Ordering::Less
+            return Ordering::Less;
         }
-        else if self.in_ > other.in_ {
-            Ordering::Greater
+        if self.in_ > other.in_ {
+            return Ordering::Greater;
         }
-        else if self.out < other.out {
-            Ordering::Less
+        if self.out < other.out {
+            return Ordering::Less;
         }
-        else if self.out > other.out {
-            Ordering::Greater
+        if self.out > other.out {
+            return Ordering::Greater;
         }
-        else {
-            Ordering::Equal
-        }
+        Ordering::Equal
     }
 }
 
@@ -144,7 +142,7 @@ impl<'a> ReachingDefinitions<'a> {
     }
 
     pub fn compute(&self) -> Result<BTreeMap<AnalysisLocation, Reaches>> {
-        fixed_point(self, &self.control_flow_graph)
+        fixed_point(self, self.control_flow_graph)
     }
 }
 
@@ -163,11 +161,11 @@ impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
     ) -> Result<Reaches> {
 
         // Copy in state to out state
-        let mut reaches_out = match reaches_in {
-            &Some(ref reaches_in) => {
+        let mut reaches_out = match *reaches_in {
+            Some(ref reaches_in) => {
                 reaches_in.clone()
             }
-            &None => Reaches::new()
+            None => Reaches::new()
         };
 
         // reaches_out.out() contains the outputs of all the predecessor
@@ -177,11 +175,12 @@ impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
 
         // Handle edges and instructions differently, as edges never assign and
         // always pass reaching definitions through
-        match analysis_location {
+        match *analysis_location {
             // Edges...
-            &Edge(_) => return Ok(reaches_out),
+            Edge(_) |
+            EmptyBlock(_) => Ok(reaches_out),
             // Instructions..
-            &Instruction(ref ii) => { 
+            Instruction(ref ii) => { 
                 // If this instruction writes to a variable
                 if let Some(this_dst) = ii.find(self.control_flow_graph)?
                                         .variable_written() {
@@ -191,7 +190,7 @@ impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
                     // candidate to be killed.
                     for kill_location in reaches_out.in_().iter() {
                         // Candidates should always be instructions.
-                        if let &AnalysisLocation::Instruction(ref ii) = kill_location {
+                        if let AnalysisLocation::Instruction(ref ii) = *kill_location {
                             // If this candidate writes to an instruction
                             if let Some(dst) = ii.find(self.control_flow_graph)?
                                                  .variable_written() {
@@ -215,8 +214,7 @@ impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
                 }
 
                 Ok(reaches_out)
-            },
-            &EmptyBlock(_) => return Ok(reaches_out)
+            }
         }
     }
 

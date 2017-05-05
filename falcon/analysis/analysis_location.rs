@@ -1,6 +1,6 @@
-//! Provides a means of pinpointing a location in a ControlFlowGraph.
+//! Provides a means of pinpointing a location in a `ControlFlowGraph`.
 //!
-//! Ideally, all analysis should be conducted over an AnalysisLocation. This
+//! Ideally, all analysis should be conducted over an `AnalysisLocation`. This
 //! ensures the analysis accounts for edges and instruction locations.
 
 use error::*;
@@ -11,7 +11,7 @@ use std::fmt;
 
 use analysis::analysis_location::AnalysisLocation::*;
 
-/// Holds a location in the ControlFlowGraph for either an instruction or an
+/// Holds a location in the `ControlFlowGraph` for either an instruction or an
 /// edge.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum AnalysisLocation {
@@ -22,21 +22,21 @@ pub enum AnalysisLocation {
 
 impl Ord for AnalysisLocation {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self {
-            &Edge(ref edge_self) => match other {
-                &Edge(ref edge_other) => edge_self.cmp(edge_other),
-                &Instruction(_) => Ordering::Greater,
-                &EmptyBlock(_) => Ordering::Less
+        match *self {
+            Edge(ref edge_self) => match *other {
+                Edge(ref edge_other) => edge_self.cmp(edge_other),
+                Instruction(_) => Ordering::Greater,
+                EmptyBlock(_) => Ordering::Less
             },
-            &Instruction(ref ins_self) => match other {
-                &Edge(_) => Ordering::Less,
-                &Instruction(ref ins_other) => ins_self.cmp(ins_other),
-                &EmptyBlock(_) => Ordering::Less
+            Instruction(ref ins_self) => match *other {
+                Edge(_) |
+                EmptyBlock(_) => Ordering::Less,
+                Instruction(ref ins_other) => ins_self.cmp(ins_other),
             },
-            &EmptyBlock(ref eb_self) => match other {
-                &Edge(_) => Ordering::Greater,
-                &Instruction(_) => Ordering::Greater,
-                &EmptyBlock(ref eb_other) => eb_self.cmp(eb_other)
+            EmptyBlock(ref eb_self) => match *other {
+                Edge(_) |
+                Instruction(_) => Ordering::Greater,
+                EmptyBlock(ref eb_other) => eb_self.cmp(eb_other)
             }
         }
     }
@@ -70,16 +70,16 @@ impl AnalysisLocation {
 
 impl fmt::Display for AnalysisLocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Edge(ref edge) => write!(f, "E({})", edge),
-            &Instruction(ref ins) => write!(f, "I({})", ins),
-            &EmptyBlock(ref eb) => write!(f, "EB({})", eb)
+        match *self {
+            Edge(ref edge) => write!(f, "E({})", edge),
+            Instruction(ref ins) => write!(f, "I({})", ins),
+            EmptyBlock(ref eb) => write!(f, "EB({})", eb)
         }
     }
 }
 
 
-/// Function to turn a BTreeSet of AnalysisLocation into a string
+/// Function to turn a `BTreeSet` of `AnalysisLocation` into a string
 pub fn set_string(set: &BTreeSet<AnalysisLocation>) -> String {
     format!("{{{}}}", set.iter()
                          .map(|al| format!("{}", al))
@@ -148,16 +148,16 @@ impl Ord for InstructionLocation {
         if self.block_index < other.block_index {
             return Ordering::Less
         }
-        else if self.block_index > other.block_index {
+        if self.block_index > other.block_index {
             return Ordering::Greater
         }
-        else if self.instruction_index < other.instruction_index {
+        if self.instruction_index < other.instruction_index {
             return Ordering::Less
         }
-        else if self.instruction_index > other.instruction_index {
+        if self.instruction_index > other.instruction_index {
             return Ordering::Greater
         }
-        return Ordering::Equal
+        Ordering::Equal
     }
 }
 
@@ -203,7 +203,7 @@ impl InstructionLocation {
 
 
 pub fn block_last_instruction_location(block: &il::Block) -> Option<InstructionLocation> {
-    if block.instructions().len() == 0 {
+    if block.instructions().is_empty() {
         None
     }
     else {
@@ -246,16 +246,16 @@ impl Ord for EdgeLocation {
         if self.head < other.head {
             return Ordering::Less
         }
-        else if self.head > other.head {
+        if self.head > other.head {
             return Ordering::Greater
         }
-        else if self.tail < other.tail {
+        if self.tail < other.tail {
             return Ordering::Less
         }
-        else if self.tail > other.tail {
+        if self.tail > other.tail {
             return Ordering::Greater
         }
-        return Ordering::Equal
+        Ordering::Equal
     }
 }
 

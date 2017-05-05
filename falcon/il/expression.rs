@@ -66,7 +66,7 @@ impl Expression {
         if lhs.bits() != rhs.bits() {
             return Err(ErrorKind::Sort.into());
         }
-        return Ok(());
+        Ok(())
     }
 
     /// Returns all variables used in the expression

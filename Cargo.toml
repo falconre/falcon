@@ -6,12 +6,16 @@ authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
 
 [profile.dev]
 codegen-units = 8
+opt-level = 1
 
 
 [dependencies]
 base64 = "0.5"
+bitflags = "0.8"
 capstone_rust = "0.2"
 error-chain = "0.10"
+goblin = "0.0.9"
+ketos = "0.9"
 log = "0.3"
 
 

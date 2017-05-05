@@ -32,7 +32,7 @@ impl Constant {
 
 impl fmt::Display for Constant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{:X}:{}", self.value, self.bits)
+        write!(f, "0x{:X}:{}", self.value(), self.bits)
     }
 }
 

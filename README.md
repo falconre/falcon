@@ -1,5 +1,50 @@
-# falcon
-Binary Static Analysis Library in Rust
+# Welcome to Falcon
+Falcon is a Binary Static Analysis Framework in Rust. The code here is not for sharing,
+be that public or private. If you haven't been invited to this repo, the code is not
+for you.
+
+This code is made available under the terms that should you,
+at some point in the future, make >$1k on a bug from Falcon, you owe me dinner.
+
+# When will Falcon be stabilized?
+
+When Falcon hits 0.1.0, it will be stable enough for use. Until 0.1.0, I reserve the
+right to make breaking changes (though this will not happen often).
+
+# What's being worked?
+
+I'm opening issues to try and track what's coming, so check there. If something needs
+to be done, open an issue. Additionally, I'm going through the code base randomly with
+[https://github.com/Manishearth/rust-clippy](https://github.com/Manishearth/rust-clippy) 
+and making changes to clean things up. Every commit will have some of these until the
+codebase is sufficiently rust-idiomatic.
+
+  Rough priorities, in order:
+
+  * Loading of binary formats (Elf)
+  * Scripting with (ketos)[https://github.com/murarth/ketos]
+  * Inter-procedural analysis
+  * Constraint generation
+  * Constraint solving
+  * Flushing out the rest of X86
+  * MIPS
+  * ARM
+
+# Contributing
+
+I am not accepting contributions in the form of code at this time. I am accepting
+feature requests and bug reports.
+
+# Rust Compatibility
+
+Due to some unknown error with [goblin](https://crates.io/crates/goblin), docs will only
+build with nightly. Outside of that, everything works with stable (1.17).
+
+This will get you squared away:
+
+```
+rustup run nigthly cargo doc
+```
 
 # Falcon Intermediate Language
 

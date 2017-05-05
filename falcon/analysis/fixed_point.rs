@@ -102,7 +102,7 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
         }
 
         // handle empty blocks
-        if block.instructions().len() == 0 {
+        if block.instructions().is_empty() {
             let analysis_location = AnalysisLocation::empty_block(block.index());
 
             states.insert(
@@ -120,7 +120,7 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
     for entry in &predecessor_locations {
         let successor_location = entry.0;
         for predecessor_location in entry.1 {
-            match successor_locations.get_mut(&predecessor_location) {
+            match successor_locations.get_mut(predecessor_location) {
                 Some(ref mut sl) => sl.push(successor_location.clone()),
                 None => bail!(
                     "error processing successor location {}",
@@ -132,7 +132,7 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
 
 
     // for every instruction in the queue
-    while queue.len() > 0 {
+    while !queue.is_empty() {
         let analysis_location = queue.pop_front().unwrap();
 
         let predlocs = match predecessor_locations.get(&analysis_location) {
@@ -149,7 +149,7 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
                 0 => None,
                 1 => Some(states[predlocs.first().unwrap()].clone()),
                 _ => {
-                    let mut state = states[&predlocs.first().unwrap()].clone();
+                    let mut state = states[predlocs.first().unwrap()].clone();
                     for analysis_location in predlocs {
                         state = analysis.join(state, &states[analysis_location])?;
                     }
@@ -157,9 +157,7 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
                 }
             };
 
-            let out_state = analysis.trans(&analysis_location, &in_state)?;
-
-            out_state
+            analysis.trans(&analysis_location, &in_state)?
         };
 
         if out_state == states[&analysis_location] {
@@ -168,7 +166,7 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
 
         states.insert(analysis_location.clone(), out_state);
         for successor_location in &successor_locations[&analysis_location] {
-            if !queue.contains(&successor_location) {
+            if !queue.contains(successor_location) {
                 queue.push_back(successor_location.clone());
             }
         }

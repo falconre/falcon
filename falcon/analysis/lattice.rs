@@ -24,18 +24,18 @@ impl LatticeValue {
     /// Joins the values of the `other` lattice with this lattice by performing
     /// a set union.
     pub fn join(&self, other: &LatticeValue) -> LatticeValue {
-        match self {
-            &Join => self.clone(),
-            &Values(ref lhs_) => {
-                match other {
-                    &Join => other.clone(),
-                    &Values(ref rhs_) => {
+        match *self {
+            Join => self.clone(),
+            Values(ref lhs_) => {
+                match *other {
+                    Join => other.clone(),
+                    Values(ref rhs_) => {
                         LatticeValue::Values(lhs_.bitor(rhs_))
                     },
-                    &Meet => self.clone()
+                    Meet => self.clone()
                 }
             },
-            &Meet => other.clone()
+            Meet => other.clone()
         }
     }
 
@@ -50,23 +50,23 @@ impl LatticeValue {
 
 impl Ord for LatticeValue {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self {
-            &Join => {
-                match other {
-                    &Join => Ordering::Equal,
+        match *self {
+            Join => {
+                match *other {
+                    Join => Ordering::Equal,
                     _ => Ordering::Less
                 }
             },
-            &Values(ref values) => {
-                match other {
-                    &Join => Ordering::Greater,
-                    &Values(ref other_values) => values.cmp(other_values),
-                    &Meet => Ordering::Less
+            Values(ref values) => {
+                match *other {
+                    Join => Ordering::Greater,
+                    Values(ref other_values) => values.cmp(other_values),
+                    Meet => Ordering::Less
                 }
             },
-            &Meet => {
-                match other {
-                    &Meet => Ordering::Equal,
+            Meet => {
+                match *other {
+                    Meet => Ordering::Equal,
                     _ => Ordering::Greater
                 }
             }
@@ -82,15 +82,15 @@ impl PartialOrd for LatticeValue {
 
 impl fmt::Display for LatticeValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Join => write!(f, "Join"),
-            &Values(ref values) => {
+        match *self {
+            Join => write!(f, "Join"),
+            Values(ref values) => {
                 write!(f, "({})", values.iter()
                                      .map(|c| format!("{}", c))
                                      .collect::<Vec<String>>()
                                      .join(", "))
             },
-            &Meet => write!(f, "Meet")
+            Meet => write!(f, "Meet")
         }
     }
 }
@@ -99,48 +99,46 @@ impl fmt::Display for LatticeValue {
 
 fn lattice_value_binop<F>(lhs: &LatticeValue, rhs: &LatticeValue, op: F) -> LatticeValue
 where F: Fn(il::Constant, il::Constant) -> Expression {
-    match lhs {
-        &Join => LatticeValue::Join,
-        &Values(ref lhs_) => {
-            match rhs {
-                &Join => LatticeValue::Join,
-                &Values(ref rhs_) => {
+    match *lhs {
+        Join => LatticeValue::Join,
+        Values(ref lhs_) => {
+            match *rhs {
+                Join => LatticeValue::Join,
+                Values(ref rhs_) => {
                     let mut sum = BTreeSet::new();
                     for l in lhs_.iter() {
                         for r in rhs_.iter() {
                             let expr = op(l.clone(), r.clone());
-                            match executor::constants_expression(&expr) {
-                                Ok(c) => { sum.insert(c); },
-                                Err(_) => {}
+                            if let Ok(c) = executor::constants_expression(&expr) {
+                                sum.insert(c);
                             }
                         }
                     }
                     LatticeValue::Values(sum)
                 },
-                &Meet => LatticeValue::Meet
+                Meet => LatticeValue::Meet
             }
         },
-        &Meet => LatticeValue::Meet
+        Meet => LatticeValue::Meet
     }
 }
 
 
 fn lattice_extend_op<F>(rhs: &LatticeValue, op: F) -> LatticeValue
 where F: Fn(il::Constant) -> Expression {
-    match rhs {
-        &Join => rhs.clone(),
-        &Values(ref rhs_) => {
+    match *rhs {
+        Join |
+        Meet => rhs.clone(),
+        Values(ref rhs_) => {
             let mut sum = BTreeSet::new();
             for r in rhs_ {
                 let expr = op(r.clone());
-                match executor::constants_expression(&expr) {
-                    Ok(c) => { sum.insert(c); },
-                    Err(_) => {}
+                if let Ok(c) = executor::constants_expression(&expr) {
+                    sum.insert(c);
                 }
             }
             LatticeValue::Values(sum)
-        },
-        &Meet => rhs.clone()
+        }
     }
 }
 
@@ -185,7 +183,7 @@ impl LatticeAssignments {
 
             if let Some(lv) = self.variables.get(variable) {
                 let lv = lv.join(&lattice_value);
-                if let &Values(ref values) = &lv {
+                if let Values(ref values) = lv {
                     if values.len() > self.max {
                         lattice_value = LatticeValue::Join
                     }
@@ -219,28 +217,28 @@ impl LatticeAssignments {
     /// `LatticeAssignments` for variables.
     pub fn eval(&self, expr: &Expression) -> LatticeValue {
         let lattice_value = self.eval_(expr);
-        if let &Values(ref values) = &lattice_value {
+        if let Values(ref values) = lattice_value {
             if values.len() > self.max {
                 return LatticeValue::Join;
             }
         }
-        return lattice_value;
+        lattice_value
     }
 
     fn eval_(&self, expr: &Expression) -> LatticeValue {
-        match expr {
+        match *expr {
 
-            &Expression::Variable(ref variable) => {
+            Expression::Variable(ref variable) => {
                 match self.variables.get(variable) {
                     Some(lattice_value) => lattice_value.clone(),
                     None => LatticeValue::Meet
                 }
             },
 
-            &Expression::Constant(ref constant) =>
+            Expression::Constant(ref constant) =>
                 LatticeValue::value(constant.clone()),
 
-            &Expression::Add(ref lhs, ref rhs) => {
+            Expression::Add(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -249,7 +247,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Sub(ref lhs, ref rhs) => {
+            Expression::Sub(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -258,7 +256,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Mulu(ref lhs, ref rhs) => {
+            Expression::Mulu(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -267,7 +265,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Divu(ref lhs, ref rhs) => {
+            Expression::Divu(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -276,7 +274,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Modu(ref lhs, ref rhs) => {
+            Expression::Modu(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -285,7 +283,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Muls(ref lhs, ref rhs) => {
+            Expression::Muls(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -294,7 +292,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Divs(ref lhs, ref rhs) => {
+            Expression::Divs(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -303,7 +301,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Mods(ref lhs, ref rhs) => {
+            Expression::Mods(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -312,7 +310,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::And(ref lhs, ref rhs) => {
+            Expression::And(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -321,7 +319,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Or(ref lhs, ref rhs) => {
+            Expression::Or(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -330,7 +328,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Xor(ref lhs, ref rhs) => {
+            Expression::Xor(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -339,7 +337,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Shl(ref lhs, ref rhs) => {
+            Expression::Shl(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -348,7 +346,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Shr(ref lhs, ref rhs) => {
+            Expression::Shr(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -357,7 +355,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Cmpeq(ref lhs, ref rhs) => {
+            Expression::Cmpeq(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -366,7 +364,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Cmpneq(ref lhs, ref rhs) => {
+            Expression::Cmpneq(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -375,7 +373,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Cmplts(ref lhs, ref rhs) => {
+            Expression::Cmplts(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -384,7 +382,7 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Cmpltu(ref lhs, ref rhs) => {
+            Expression::Cmpltu(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
@@ -393,21 +391,21 @@ impl LatticeAssignments {
                 )
             },
 
-            &Expression::Zext(bits, ref rhs) => {
+            Expression::Zext(bits, ref rhs) => {
                 lattice_extend_op(
                     &self.eval_(rhs),
                     |rhs: il::Constant| Expression::zext(bits, rhs.into()).unwrap()
                 )
             },
 
-            &Expression::Sext(bits, ref rhs) => {
+            Expression::Sext(bits, ref rhs) => {
                 lattice_extend_op(
                     &self.eval_(rhs),
                     |rhs: il::Constant| Expression::sext(bits, rhs.into()).unwrap()
                 )
             },
 
-            &Expression::Trun(bits, ref rhs) => {
+            Expression::Trun(bits, ref rhs) => {
                 lattice_extend_op(
                     &self.eval_(rhs),
                     |rhs: il::Constant| Expression::trun(bits, rhs.into()).unwrap()

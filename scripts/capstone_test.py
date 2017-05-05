@@ -18,7 +18,12 @@ CODE = b"\xc2\x14\x00"
 # repe stosd
 CODE = b"\xf3\xab"
 
+# lea esp, [ebc - 0xc]
+CODE = b"\x8d\x65\xf4"
+
 
 md = Cs(CS_ARCH_X86, CS_MODE_32)
 md.detail = True
 d = md.disasm(CODE, 0x1000).next()
+
+

@@ -41,15 +41,15 @@ impl X86Register {
     /// This handles things like al/ah/ax/eax
     pub fn get(&self) -> Result<Expression> {
         if self.is_full() {
-            return Ok(expr_var(self.name, self.size));
+            Ok(expr_var(self.name, self.size))
         }
         else if self.offset == 0 {
-            return Expr::trun(self.size, self.get_full()?.get()?);
+            Expr::trun(self.size, self.get_full()?.get()?)
         }
         else {
             let full_reg = self.get_full()?;
             let expr = Expr::shr(full_reg.get()?, expr_const(self.offset as u64, full_reg.size))?;
-            return Expr::trun(self.size, expr);
+            Expr::trun(self.size, expr)
         }
     }
 
@@ -59,14 +59,14 @@ impl X86Register {
     pub fn set(&self, block: &mut Block, value: Expression) -> Result<()> {
         if self.is_full() {
             block.assign(var(self.name, self.size), value);
-            return Ok(())
+            Ok(())
         }
         else if self.offset == 0 {
             let full_reg = self.get_full()?;
             let mask = !0 << self.size;
             let expr = Expr::and(full_reg.get()?, expr_const(mask, full_reg.size))?;
             let expr = Expr::or(expr, Expr::zext(full_reg.size, value)?)?;
-            return full_reg.set(block, expr);
+            full_reg.set(block, expr)
         }
         else {
             let full_reg = self.get_full()?;
@@ -74,7 +74,7 @@ impl X86Register {
             let expr = Expr::and(full_reg.get()?, expr_const(mask, full_reg.size))?;
             let value = Expr::zext(full_reg.size, value)?;
             let expr = Expr::or(expr, Expr::shl(value, expr_const(self.offset as u64, full_reg.size))?)?;
-            return full_reg.set(block, expr);
+            full_reg.set(block, expr)
         }
     }
 }
@@ -109,14 +109,14 @@ const X86REGISTERS : &'static [X86Register] = &[
 ];
 
 
-/// Takes a capstone register enum and returns an X86Register
+/// Takes a capstone register enum and returns an `X86Register`
 pub fn get_register(capstone_id: x86_reg) -> Result<&'static X86Register> {
     for register in X86REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
             return Ok(&register);
         }
     }
-    return Err("Could not find register".into());
+    Err("Could not find register".into())
 }
 
 
@@ -137,7 +137,7 @@ pub fn operand_value(block: &Block, operand: &cs_x86_op) -> Result<Expression> {
         x86_op_type::X86_OP_INVALID => Err("Invalid operand".into()),
         x86_op_type::X86_OP_REG => {
             // Get the register value
-            return get_register(*operand.reg())?.get();
+            get_register(*operand.reg())?.get()
         }
         x86_op_type::X86_OP_MEM => {
             let mem = operand.mem();
@@ -177,16 +177,17 @@ pub fn operand_value(block: &Block, operand: &cs_x86_op) -> Result<Expression> {
             };
 
             if mem.disp > 0 {
-                let constant = Expr::constant(Constant::new(mem.disp as u64, 32));
-                let add = Expr::add(op, constant)?;
-                return Ok(add);
+                Ok(Expr::add(op, expr_const(mem.disp as u64, 32))?)
+            }
+            else if mem.disp < 0 {
+                Ok(Expr::sub(op, expr_const(mem.disp.abs() as u64, 32))?)
             }
             else {
-                return Ok(op);
+                Ok(op)
             }
         },
         x86_op_type::X86_OP_IMM => {
-            return Ok(expr_const(operand.imm() as u64, operand.size as usize * 8));
+            Ok(expr_const(operand.imm() as u64, operand.size as usize * 8))
         }
         x86_op_type::X86_OP_FP => Err("Unhandled operand".into()),
     }
@@ -202,26 +203,26 @@ pub fn operand_load(block: &mut Block, operand: &cs_x86_op) -> Result<Expression
         block.load(temp.clone(), op);
         return Ok(temp.into());
     }
-    return Ok(op);
+    Ok(op)
 }
 
 
 /// Stores a value in an operand, performing any stores as necessary.
 pub fn operand_store(mut block: &mut Block, operand: &cs_x86_op, value: Expression) -> Result<()> {
     match operand.type_ {
-        x86_op_type::X86_OP_INVALID => return Err("operand_store called on invalid operand".into()),
-        x86_op_type::X86_OP_IMM => return Err("operand_store called on immediate operand".into()),
+        x86_op_type::X86_OP_INVALID => Err("operand_store called on invalid operand".into()),
+        x86_op_type::X86_OP_IMM => Err("operand_store called on immediate operand".into()),
         x86_op_type::X86_OP_REG => {
             let dst_register = get_register(*operand.reg())?;
-            return dst_register.set(&mut block, value);
+            dst_register.set(&mut block, value)
         },
         x86_op_type::X86_OP_MEM => {
             let address = operand_value(&mut block, operand)?;
             block.store(address, value);
-            return Ok(());
+            Ok(())
         },
         x86_op_type::X86_OP_FP => {
-            return Err("operand_store called on fp operand".into());
+            Err("operand_store called on fp operand".into())
         }
     }
 }
@@ -234,7 +235,7 @@ pub fn pop_value(block: &mut Block) -> Result<Expression> {
     block.load(temp.clone(), expr_var("esp", 32));
     block.assign(var("esp", 32), Expr::add(expr_var("esp", 32), expr_const(4, 32))?);
 
-    return Ok(temp.into());
+    Ok(temp.into())
 }
 
 
@@ -283,56 +284,54 @@ pub fn set_cf(block: &mut Block, result: Expression, lhs: Expression) -> Result<
 
 /// Returns a condition which is true if a conditional jump should be taken
 pub fn jcc_condition(instruction: &capstone::Instr) -> Result<Expression> {
-    let expr = if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+    if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
         match instruction_id {
             capstone::x86_insn::X86_INS_JA => {
                 let cf = Expr::cmpeq(expr_var("CF", 1), expr_const(0, 1))?;
                 let zf = Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1))?;
-                Expr::and(cf, zf)?
+                Expr::and(cf, zf)
             },
-            capstone::x86_insn::X86_INS_JAE => Expr::cmpeq(expr_var("CF", 1), expr_const(0, 1))?,
-            capstone::x86_insn::X86_INS_JB => Expr::cmpeq(expr_var("CF", 1), expr_const(1, 1))?,
+            capstone::x86_insn::X86_INS_JAE => Expr::cmpeq(expr_var("CF", 1), expr_const(0, 1)),
+            capstone::x86_insn::X86_INS_JB => Expr::cmpeq(expr_var("CF", 1), expr_const(1, 1)),
             capstone::x86_insn::X86_INS_JBE => {
                 let cf = Expr::cmpeq(expr_var("CF", 1), expr_const(1, 1))?;
                 let zf = Expr::cmpeq(expr_var("ZF", 1), expr_const(1, 1))?;
-                Expr::or(cf, zf)?
+                Expr::or(cf, zf)
             },
             capstone::x86_insn::X86_INS_JCXZ => {
                 let cx = get_register(x86_reg::X86_REG_CX)?.get()?;
-                Expr::cmpeq(cx, expr_const(0, 16))?
+                Expr::cmpeq(cx, expr_const(0, 16))
             },
             capstone::x86_insn::X86_INS_JECXZ => {
                 let cx = get_register(x86_reg::X86_REG_ECX)?.get()?;
-                Expr::cmpeq(cx, expr_const(0, 32))?
+                Expr::cmpeq(cx, expr_const(0, 32))
             },
-            capstone::x86_insn::X86_INS_JE => Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1))?,
+            capstone::x86_insn::X86_INS_JE => Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1)),
             capstone::x86_insn::X86_INS_JG => {
                 let sfof = Expr::cmpeq(expr_var("SF", 1), expr_var("OF", 1))?;
                 let zf = Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1))?;
-                Expr::and(sfof, zf)?
+                Expr::and(sfof, zf)
             },
-            capstone::x86_insn::X86_INS_JGE => Expr::cmpeq(expr_var("SF", 1), expr_var("OF", 1))?,
-            capstone::x86_insn::X86_INS_JL => Expr::cmpneq(expr_var("SF", 1), expr_var("OF", 1))?,
+            capstone::x86_insn::X86_INS_JGE => Expr::cmpeq(expr_var("SF", 1), expr_var("OF", 1)),
+            capstone::x86_insn::X86_INS_JL => Expr::cmpneq(expr_var("SF", 1), expr_var("OF", 1)),
             capstone::x86_insn::X86_INS_JLE => {
                 let sfof = Expr::cmpneq(expr_var("SF", 1), expr_var("OF", 1))?;
                 let zf = Expr::cmpeq(expr_var("ZF", 1), expr_const(1, 1))?;
-                Expr::and(sfof, zf)?
+                Expr::and(sfof, zf)
             },
-            capstone::x86_insn::X86_INS_JNE => Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1))?,
-            capstone::x86_insn::X86_INS_JNO => Expr::cmpeq(expr_var("OF", 1), expr_const(0, 1))?,
-            capstone::x86_insn::X86_INS_JNP => Expr::cmpeq(expr_var("PF", 1), expr_const(0, 1))?,
-            capstone::x86_insn::X86_INS_JNS => Expr::cmpeq(expr_var("SF", 1), expr_const(0, 1))?,
-            capstone::x86_insn::X86_INS_JO  => Expr::cmpeq(expr_var("OF", 1), expr_const(1, 1))?,
-            capstone::x86_insn::X86_INS_JP  => Expr::cmpeq(expr_var("PF", 1), expr_const(1, 1))?,
-            capstone::x86_insn::X86_INS_JS  => Expr::cmpeq(expr_var("SF", 1), expr_const(1, 1))?,
+            capstone::x86_insn::X86_INS_JNE => Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1)),
+            capstone::x86_insn::X86_INS_JNO => Expr::cmpeq(expr_var("OF", 1), expr_const(0, 1)),
+            capstone::x86_insn::X86_INS_JNP => Expr::cmpeq(expr_var("PF", 1), expr_const(0, 1)),
+            capstone::x86_insn::X86_INS_JNS => Expr::cmpeq(expr_var("SF", 1), expr_const(0, 1)),
+            capstone::x86_insn::X86_INS_JO  => Expr::cmpeq(expr_var("OF", 1), expr_const(1, 1)),
+            capstone::x86_insn::X86_INS_JP  => Expr::cmpeq(expr_var("PF", 1), expr_const(1, 1)),
+            capstone::x86_insn::X86_INS_JS  => Expr::cmpeq(expr_var("SF", 1), expr_const(1, 1)),
             _ => bail!("unhandled jcc")
         }
     }
     else {
         bail!("not an x86 instruction")
-    };
-
-    Ok(expr)
+    }
 }
 
 
@@ -340,27 +339,24 @@ pub fn jcc_condition(instruction: &capstone::Instr) -> Result<Expression> {
 pub fn loop_condition(instruction: &capstone::Instr) -> Result<Expression> {
     let ecx = var("ecx", 32);
 
-    let expr = if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+    if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
         match instruction_id {
-            capstone::x86_insn::X86_INS_LOOP => Expr::cmpneq(ecx.clone().into(), expr_const(0, ecx.bits()))?,
+            capstone::x86_insn::X86_INS_LOOP =>
+                Expr::cmpneq(ecx.clone().into(), expr_const(0, ecx.bits())),
             capstone::x86_insn::X86_INS_LOOPE => {
                 let expr = Expr::cmpneq(ecx.clone().into(), expr_const(0, ecx.bits()))?;
-                let expr = Expr::and(expr, Expr::cmpeq(expr_var("ZF", 1), expr_const(1, 1))?);
-                return expr;
+                Expr::and(expr, Expr::cmpeq(expr_var("ZF", 1), expr_const(1, 1))?)
             }
             capstone::x86_insn::X86_INS_LOOPNE => {
                 let expr = Expr::cmpneq(ecx.clone().into(), expr_const(0, ecx.bits()))?;
-                let expr = Expr::and(expr, Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1))?);
-                return expr;
+                Expr::and(expr, Expr::cmpeq(expr_var("ZF", 1), expr_const(0, 1))?)
             }
             _ => bail!("unhandled loop")
         }
     }
     else {
         bail!("not an x86 instruction")
-    };
-
-    Ok(expr)
+    }
 }
 
 
@@ -1299,14 +1295,12 @@ pub fn div(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
             32 => {
                 let expr_dx = Expr::zext(32, get_register(x86_reg::X86_REG_DX)?.get()?)?;
                 let expr_dx = Expr::shl(expr_dx, expr_const(16, 32))?;
-                let expr = Expr::or(expr_dx, Expr::zext(32, get_register(x86_reg::X86_REG_AX)?.get()?)?)?;
-                expr
+                Expr::or(expr_dx, Expr::zext(32, get_register(x86_reg::X86_REG_AX)?.get()?)?)?
             },
             64 => {
                 let expr_edx = Expr::zext(64, get_register(x86_reg::X86_REG_EDX)?.get()?)?;
                 let expr_edx = Expr::shl(expr_edx, expr_const(32, 64))?;
-                let expr = Expr::or(expr_edx, Expr::zext(64, get_register(x86_reg::X86_REG_EAX)?.get()?)?)?;
-                expr
+                Expr::or(expr_edx, Expr::zext(64, get_register(x86_reg::X86_REG_EAX)?.get()?)?)?
             },
             _ => return Err("invalid bit-width in x86 div".into())
         };
@@ -1365,14 +1359,12 @@ pub fn idiv(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
             32 => {
                 let expr_dx = Expr::zext(32, get_register(x86_reg::X86_REG_DX)?.get()?)?;
                 let expr_dx = Expr::shl(expr_dx, expr_const(16, 32))?;
-                let expr = Expr::or(expr_dx, Expr::zext(32, get_register(x86_reg::X86_REG_AX)?.get()?)?)?;
-                expr
+                Expr::or(expr_dx, Expr::zext(32, get_register(x86_reg::X86_REG_AX)?.get()?)?)?
             },
             64 => {
                 let expr_edx = Expr::zext(64, get_register(x86_reg::X86_REG_EDX)?.get()?)?;
                 let expr_edx = Expr::shl(expr_edx, expr_const(32, 64))?;
-                let expr = Expr::or(expr_edx, Expr::zext(64, get_register(x86_reg::X86_REG_EAX)?.get()?)?)?;
-                expr
+                Expr::or(expr_edx, Expr::zext(64, get_register(x86_reg::X86_REG_EAX)?.get()?)?)?
             },
             _ => return Err("invalid bit-width in x86 div".into())
         };

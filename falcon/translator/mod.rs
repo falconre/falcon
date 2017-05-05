@@ -86,7 +86,7 @@ pub trait Arch {
 
             // enqueue all successors
             for successor in block_translation_result.successors().iter() {
-                translation_queue.push_back((successor.0));
+                translation_queue.push_back(successor.0);
             }
 
             translation_results.insert(block_address, block_translation_result);

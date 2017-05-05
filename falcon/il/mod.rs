@@ -12,6 +12,7 @@ pub mod expression;
 pub mod function;
 pub mod instruction;
 pub mod operation;
+pub mod program;
 pub mod variable;
 
 pub use self::block::*;
@@ -21,6 +22,7 @@ pub use self::expression::*;
 pub use self::function::*;
 pub use self::instruction::*;
 pub use self::operation::*;
+pub use self::program::*;
 pub use self::variable::*;
 
 /// A convenience function to createa a new expression constant.

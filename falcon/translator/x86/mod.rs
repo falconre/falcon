@@ -50,6 +50,12 @@ impl Arch for X86 {
                     instruction.op_str
                 );
                 */
+                trace!(
+                    "Disassembling {:02X}: {} {}",
+                    address + length as u64,
+                    instruction.mnemonic,
+                    instruction.op_str
+                );
 
                 length += instruction.size as usize;
                 

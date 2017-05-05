@@ -32,11 +32,11 @@ pub struct Analysis<'a> {
 impl<'a> Analysis<'a> {
     pub fn initialize(control_flow_graph: &'a il::ControlFlowGraph)
     -> Result<Analysis<'a>> {
-        println!("Calculating Reaching Definitions");
+        debug!("Calculating Reaching Definitions");
         let rd = reaching_definitions::compute(control_flow_graph)?;
-        println!("Calculating Def Use Chains");
+        debug!("Calculating Def Use Chains");
         let du = def_use::def_use(&rd, control_flow_graph)?;
-        println!("Calculating Def Use Chains");
+        debug!("Calculating Def Use Chains");
         let ud = def_use::use_def(&rd, control_flow_graph)?;
         Ok(Analysis {
             control_flow_graph: control_flow_graph,

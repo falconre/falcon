@@ -206,7 +206,7 @@ impl ControlFlowGraph {
     pub fn temp(&self, bits: usize) -> Variable {
         let next_index = self.next_temp_index.get();
         self.next_temp_index.set(next_index + 1);
-        return Variable::new(format!("temp_{}", next_index), bits);
+        Variable::new(format!("temp_{}", next_index), bits)
     }
 
 
@@ -766,7 +766,7 @@ impl ControlFlowGraph {
         for block in self.blocks_mut() {
             let mut phi_indices = Vec::new();
             for instruction in block.instructions_mut() {
-                if let &Operation::Phi{dst:_, src:_} = instruction.operation() {
+                if let &Operation::Phi{..} = instruction.operation() {
                     phi_indices.push(instruction.index());
                     continue;
                 }

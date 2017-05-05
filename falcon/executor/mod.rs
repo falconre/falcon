@@ -143,7 +143,7 @@ pub fn constants_expression(expr: &il::Expression) -> Result<il::Constant> {
 
         &il::Expression::Sext(bits, ref rhs) => {
             let rhs = ece(rhs)?;
-            if rhs.value() >> rhs.bits() - 1 == 1 {
+            if rhs.value() >> (rhs.bits() - 1) == 1 {
                 let mask = !((1 << rhs.bits()) - 1);
                 Ok(il::Constant::new(rhs.value() | mask, bits))
             }
