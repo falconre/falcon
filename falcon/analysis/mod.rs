@@ -4,12 +4,14 @@ pub mod analysis_location;
 mod dead_code_elimination;
 mod def_use;
 mod fixed_point;
+pub mod lattice;
 mod reaching_definitions;
 mod value_set;
 
 use error::*;
 use il;
 use self::analysis_location::AnalysisLocation;
+pub use self::lattice::*;
 pub use self::reaching_definitions::Reaches;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -30,8 +32,11 @@ pub struct Analysis<'a> {
 impl<'a> Analysis<'a> {
     pub fn initialize(control_flow_graph: &'a il::ControlFlowGraph)
     -> Result<Analysis<'a>> {
+        println!("Calculating Reaching Definitions");
         let rd = reaching_definitions::compute(control_flow_graph)?;
+        println!("Calculating Def Use Chains");
         let du = def_use::def_use(&rd, control_flow_graph)?;
+        println!("Calculating Def Use Chains");
         let ud = def_use::use_def(&rd, control_flow_graph)?;
         Ok(Analysis {
             control_flow_graph: control_flow_graph,
@@ -64,5 +69,14 @@ impl<'a> Analysis<'a> {
     /// Performs dead code elimination and returns the result in a new graph.
     pub fn dead_code_elimination(&self) -> Result<il::ControlFlowGraph> {
         dead_code_elimination::dead_code_elimination(self)
+    }
+
+    /// Returns the result of value set analysis
+    ///
+    /// `max` is the maximum number of values a `LatticeValue::Values` will
+    /// hold before being transformed into a `LatticeValue::Join`
+    pub fn value_set_analysis(&self, max: usize)
+    -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
+        value_set::compute(self.control_flow_graph, max)
     }
 }

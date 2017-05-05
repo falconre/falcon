@@ -34,17 +34,22 @@ pub fn dead_code_elimination(analysis: &Analysis) -> Result<il::ControlFlowGraph
             }
             marked.insert(il.into());
         }
-        // BUG: If a block with no out-going edges also has no operations,
-        // we will not properly calculate all assignments reaching that block
-        // as essential.
-        if    block.instructions().len() > 0
-           && cfg.graph().edges_out(block.index())?.len() == 0 {
-            let al = AnalysisLocation::instruction(
-                block.index(),
-                block.instructions().last().unwrap().index()
-            );
-            for al in analysis.reaching_definitions()[&al].out() {
-                work_queue.push_back(al.clone());
+
+        if cfg.graph().edges_out(block.index())?.len() == 0 {
+            if block.instructions().len() == 0 {
+                let al = AnalysisLocation::empty_block(block.index());
+                for al in analysis.reaching_definitions()[&al].out() {
+                    work_queue.push_back(al.clone());
+                }
+            }
+            else {
+                let al = AnalysisLocation::instruction(
+                    block.index(),
+                    block.instructions().last().unwrap().index()
+                );
+                for al in analysis.reaching_definitions()[&al].out() {
+                    work_queue.push_back(al.clone());
+                }
             }
         }
     }
@@ -74,6 +79,8 @@ pub fn dead_code_elimination(analysis: &Analysis) -> Result<il::ControlFlowGraph
                 &AnalysisLocation::Instruction(ref il) => {
                     work_queue.push_back(il.clone().into());
                 }
+                // empty blocks don't define anything
+                &AnalysisLocation::EmptyBlock(_) => {}
             }
         }
     }
@@ -81,11 +88,12 @@ pub fn dead_code_elimination(analysis: &Analysis) -> Result<il::ControlFlowGraph
     for kill in marked.iter() {
         match kill {
             // We shouldn't be removing edges
-            &AnalysisLocation::Edge(ref el) => continue,
+            &AnalysisLocation::Edge(_) => continue,
             &AnalysisLocation::Instruction(ref il) => {
                 let mut block = cfg.block_mut(il.block_index())?;
                 block.remove_instruction(il.instruction_index())?;
-            }
+            },
+            &AnalysisLocation::EmptyBlock(_) => continue
         }
     }
 

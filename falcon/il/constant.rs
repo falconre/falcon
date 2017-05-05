@@ -16,7 +16,12 @@ impl Constant {
     }
 
     pub fn value(&self) -> u64 {
-        self.value
+        if self.bits == 64 {
+            self.value
+        }
+        else {
+            self.value & ((1 << self.bits) - 1)
+        }
     }
 
     pub fn bits(&self) -> usize {

@@ -16,7 +16,8 @@ use analysis::analysis_location::AnalysisLocation::*;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum AnalysisLocation {
     Edge(EdgeLocation),
-    Instruction(InstructionLocation)
+    Instruction(InstructionLocation),
+    EmptyBlock(EmptyBlockLocation)
 }
 
 impl Ord for AnalysisLocation {
@@ -24,11 +25,18 @@ impl Ord for AnalysisLocation {
         match self {
             &Edge(ref edge_self) => match other {
                 &Edge(ref edge_other) => edge_self.cmp(edge_other),
-                &Instruction(ref ins_other) => Ordering::Greater
+                &Instruction(_) => Ordering::Greater,
+                &EmptyBlock(_) => Ordering::Less
             },
             &Instruction(ref ins_self) => match other {
-                &Edge(ref edge_other) => Ordering::Less,
-                &Instruction(ref ins_other) => ins_self.cmp(ins_other)
+                &Edge(_) => Ordering::Less,
+                &Instruction(ref ins_other) => ins_self.cmp(ins_other),
+                &EmptyBlock(_) => Ordering::Less
+            },
+            &EmptyBlock(ref eb_self) => match other {
+                &Edge(_) => Ordering::Greater,
+                &Instruction(_) => Ordering::Greater,
+                &EmptyBlock(ref eb_other) => eb_self.cmp(eb_other)
             }
         }
     }
@@ -48,9 +56,14 @@ impl AnalysisLocation {
         AnalysisLocation::Instruction(ii)
     }
 
-    // Crate a new EdgeLocation
+    // Create a new EdgeLocation
     pub fn edge(head: u64, tail: u64) -> AnalysisLocation {
         AnalysisLocation::Edge(EdgeLocation::new(head, tail))
+    }
+
+    // Create a new EmptyBlockLocation
+    pub fn empty_block(block_index: u64) -> AnalysisLocation {
+        AnalysisLocation::EmptyBlock(EmptyBlockLocation::new(block_index))
     }
 }
 
@@ -59,7 +72,8 @@ impl fmt::Display for AnalysisLocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Edge(ref edge) => write!(f, "E({})", edge),
-            &Instruction(ref ins) => write!(f, "I({})", ins)
+            &Instruction(ref ins) => write!(f, "I({})", ins),
+            &EmptyBlock(ref eb) => write!(f, "EB({})", eb)
         }
     }
 }
@@ -71,6 +85,53 @@ pub fn set_string(set: &BTreeSet<AnalysisLocation>) -> String {
                          .map(|al| format!("{}", al))
                          .collect::<Vec<String>>()
                          .join(", "))
+}
+
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct EmptyBlockLocation {
+    block_index: u64
+}
+
+impl Ord for EmptyBlockLocation {
+    fn cmp(&self, other: &EmptyBlockLocation) -> Ordering {
+        self.block_index.cmp(&other.block_index) 
+    }
+}
+
+impl PartialOrd for EmptyBlockLocation {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl EmptyBlockLocation {
+    pub fn new(block_index: u64) -> EmptyBlockLocation {
+        EmptyBlockLocation {
+            block_index: block_index
+        }
+    }
+
+    pub fn block_index(&self) -> u64 {
+        self.block_index
+    }
+
+    pub fn find<'f>(&self, control_flow_graph: &'f il::ControlFlowGraph)
+    -> Result<&'f il::Block> {
+        control_flow_graph.block(self.block_index)
+    }
+}
+
+impl fmt::Display for EmptyBlockLocation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{:X}", self.block_index,)
+    }
+}
+
+impl Into<AnalysisLocation> for EmptyBlockLocation {
+    fn into(self) -> AnalysisLocation {
+        AnalysisLocation::EmptyBlock(self)
+    }
 }
 
 
@@ -158,7 +219,7 @@ impl fmt::Display for InstructionLocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "0x{:X}.{:0X}",
+            "0x{:X}.{:02X}",
             self.block_index,
             self.instruction_index
         )

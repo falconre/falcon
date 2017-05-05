@@ -33,8 +33,10 @@ pub fn def_use(
                                       .variables_read()
                                       .iter()
                                       .map(|v| (*v).clone())
-                                      .collect::<Vec<il::Variable>>()
+                                      .collect::<Vec<il::Variable>>(),
+            &EmptyBlock(_) => Vec::new()
         };
+
         // for each reaching definition that reaches here
         for def_location in def_locations.in_() {
             if let &Instruction(ref def_location) = def_location {
@@ -86,7 +88,8 @@ pub fn use_def(
                                       .variables_read()
                                       .iter()
                                       .map(|v| (*v).clone())
-                                      .collect::<Vec<il::Variable>>()
+                                      .collect::<Vec<il::Variable>>(),
+            &EmptyBlock(_) => Vec::new()
         };
 
         // for each reaching definition that reaches here

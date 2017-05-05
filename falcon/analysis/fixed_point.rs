@@ -55,6 +55,12 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
                 predlocs.push(AnalysisLocation::instruction(edge.head(), ins.index()));
                 predecessor_locations.insert(analysis_location.clone(), predlocs);
             }
+            // If the last block is empty, we need to handle that case as well.
+            else {
+                let mut predlocs = Vec::new();
+                predlocs.push(AnalysisLocation::empty_block(edge.head()));
+                predecessor_locations.insert(analysis_location.clone(), predlocs);
+            }
 
             // And an edges from this instruction to the first instruction of
             // the next block, which we prepare here, and initialize state for
@@ -93,6 +99,20 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
 
             // Add this analysis_location to the queue for processing
             queue.push_back(analysis_location);
+        }
+
+        // handle empty blocks
+        if block.instructions().len() == 0 {
+            let analysis_location = AnalysisLocation::empty_block(block.index());
+
+            states.insert(
+                analysis_location.clone(),
+                analysis.initial(&analysis_location)?
+            );
+
+            predecessor_locations.insert(analysis_location.clone(), predlocs);
+
+            successor_locations.insert(analysis_location.clone(), Vec::new());
         }
     }
 

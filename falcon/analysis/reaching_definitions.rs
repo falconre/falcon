@@ -215,7 +215,8 @@ impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
                 }
 
                 Ok(reaches_out)
-            }
+            },
+            &EmptyBlock(_) => return Ok(reaches_out)
         }
     }
 

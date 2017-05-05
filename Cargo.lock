@@ -5,6 +5,7 @@ dependencies = [
  "base64 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "capstone_rust 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
