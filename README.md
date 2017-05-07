@@ -15,7 +15,7 @@ right to make breaking changes (though this will not happen often).
 
 I'm opening issues to try and track what's coming, so check there. If something needs
 to be done, open an issue. Additionally, I'm going through the code base randomly with
-[https://github.com/Manishearth/rust-clippy](https://github.com/Manishearth/rust-clippy) 
+[clippy](https://github.com/Manishearth/rust-clippy) 
 and making changes to clean things up. Every commit will have some of these until the
 codebase is sufficiently rust-idiomatic.
 
