@@ -1039,7 +1039,9 @@ pub fn call(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
         // get started
         let dst = operand_load(&mut block, &detail.operands[0])?;
 
-        push_value(&mut block, expr_var("eip", 32))?;
+        let ret_addr = instruction.address + instruction.size as u64;
+
+        push_value(&mut block, expr_const(ret_addr, 32))?;
 
         block.brc(dst, expr_const(1, 1));
 

@@ -71,7 +71,6 @@ fn run () -> Result<()> {
     if let Some(function) = program.function(0x80488CA) {
         let analysis = Analysis::new(function.control_flow_graph())?;
         let mut control_flow_graph = analysis.dead_code_elimination()?;
-        //let mut control_flow_graph = function.control_flow_graph().clone();
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -87,7 +86,7 @@ fn run () -> Result<()> {
         control_flow_graph.set_entry(block_index)?;
 
         let analysis = Analysis::new(&control_flow_graph)?;
-        let value_sets = analysis.value_set_analysis(73, elf.architecture()?.endian().into())?;
+        let value_sets = analysis.value_set_analysis(128, elf.architecture()?.endian().into())?;
 
         let mut control_flow_graph = control_flow_graph.clone();
         for (al, assignments) in value_sets {
@@ -140,6 +139,7 @@ fn run () -> Result<()> {
         let mut file = File::create("/tmp/check.dot")?;
         file.write_all(&control_flow_graph.graph().dot_graph().into_bytes())?;
 
+        /*
         let value_sets = analysis.value_set_analysis(16, elf.architecture()?.endian().into())?;
 
         for (al, assignments) in value_sets {
@@ -157,6 +157,7 @@ fn run () -> Result<()> {
                 _ => {}
             }
         }
+        */
 
     }
 

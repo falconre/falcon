@@ -143,9 +143,9 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                     &il::Operation::Store { ref address, ref src } => {
                         let state_out_test = state_out.clone();
                         let address = state_out.eval(address);
-                        let value = state_out.eval(src);
+                        let mut value = state_out.eval(src);
                         if self.endian == Endian::Little {
-                            let value = value.endian_swap()?;
+                            value = value.endian_swap()?;
                         }
                         state_out.store(&address, value, src.bits());
                         state_out
@@ -154,9 +154,14 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                         let address = state_out.eval(address);
                         match state_out.load(&address, dst.bits()) {
                             Some(value) => {
-                                state_out.set(dst.clone(), value);
+                                if self.endian == Endian::Little {
+                                    state_out.set(dst.clone(), value.endian_swap()?);
+                                } else {
+                                    state_out.set(dst.clone(), value);
+                                }
+
                             }
-                            None => {}//state_out.set(dst.clone(), LatticeValue::Meet)
+                            None => state_out.set(dst.clone(), LatticeValue::Meet)
                         }
                         state_out
                     }

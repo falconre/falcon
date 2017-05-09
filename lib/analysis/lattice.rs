@@ -312,6 +312,13 @@ impl LatticeMemoryValue {
     }
 }
 
+impl fmt::Display for LatticeMemoryValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(:{}, {})", self.bits, self.value)
+    }
+}
+
+
 /// A mapping of addresses to values
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct LatticeMemory {
@@ -344,7 +351,7 @@ impl LatticeMemory {
                 let mut lmv = lmv.clone();
 
                 // Deal with all values which start at, or after, the value we
-                // are inserting 
+                // are inserting
                 for f in forward {
                     let forward_address = f.0.clone();
                     let forward_lmv = f.1;
@@ -631,20 +638,37 @@ impl LatticeMemory {
     ///
     /// The value received here is big-endian. If it needs to be
     /// little-endian, you should swap it before passing to this function.
-    pub fn store(&mut self, address: &LatticeValue, value: LatticeValue, bits: usize) {
+    pub fn store(
+        &mut self,
+        address: &LatticeValue,
+        value: LatticeValue,
+        bits: usize,
+        max: usize
+    ) {
         if bits == 0 {
             panic!("0 bits for store");
         }
+
         match *address {
             Join |
             Meet => {}, // TODO is this the right thing to do here?
             Values(ref addresses) => {
+                // If we just create a new LatticeMemory, and join it with ourself,
+                // this is effectively a store.
+                let mut lmv = LatticeMemory::new();
                 for addr in addresses {
+                    lmv.memory.insert(
+                        addr.value() as u64,
+                        LatticeMemoryValue::new_with_value(bits, value.clone())
+                    );
+                    /*
                     self.store_(
                         addr.value() as u64,
                         LatticeMemoryValue::new_with_value(bits, value.clone())
                     );
+                    */
                 }
+                *self = self.clone().join(&lmv, max);
             }
         }
     }
@@ -715,7 +739,6 @@ impl LatticeMemory {
                     }
                     // If it's too small, concat it and keep looping
                     else {
-                        trace!("lmv = {:?}", lmv);
                         lmv_result = lmv_result.concat(&lmv);
                     }
                 }
@@ -846,7 +869,7 @@ impl LatticeAssignments {
     }
 
     pub fn store(&mut self, address: &LatticeValue, value: LatticeValue, bits: usize) {
-        self.memory.store(address, value, bits);
+        self.memory.store(address, value, bits, self.max);
     }
 
     pub fn load(
