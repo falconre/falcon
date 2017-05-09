@@ -25,7 +25,13 @@ pub use self::operation::*;
 pub use self::program::*;
 pub use self::variable::*;
 
-/// A convenience function to createa a new expression constant.
+/// A convenience function to create a new constant.
+pub fn const_(value: u64, bits: usize) -> Constant {
+    Constant::new(value, bits)
+}
+
+
+/// A convenience function to create a new expression constant.
 pub fn expr_const(value: u64, bits: usize) -> Expression {
     Expression::constant(Constant::new(value, bits))
 }

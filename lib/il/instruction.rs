@@ -112,8 +112,8 @@ impl Instruction {
     }
 
 
-    pub fn set_comment<S>(&mut self, comment: S) where S: Into<String> {
-        self.comment = Some(comment.into());
+    pub fn set_comment(&mut self, comment: Option<String>) {
+        self.comment = comment;
     }
 
 

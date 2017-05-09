@@ -1,6 +1,7 @@
 //! Loading executable binaries into Falcon
 
 pub mod elf;
+pub mod json;
 pub mod memory;
 
 use error::*;
@@ -10,12 +11,39 @@ use il;
 use std::collections::BTreeMap;
 use std::fmt;
 
+#[derive(Clone, Debug)]
 pub enum Architecture {
     X86
 }
 
 
-#[derive(Clone, Debug, ForeignValue, IntoValue, PartialEq)]
+impl Architecture {
+    pub fn endian(&self) -> Endian {
+        match *self {
+            Architecture::X86 => Endian::Little
+        }
+    }
+}
+
+
+#[derive(Clone, Debug)]
+pub enum Endian {
+    Big,
+    Little
+}
+
+
+impl Into<translator::Endian> for Endian {
+    fn into(self) -> translator::Endian {
+        match self {
+            Endian::Little => translator::Endian::Little,
+            Endian::Big => translator::Endian::Big
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct FunctionEntry {
     address: u64,
     name: String
@@ -56,7 +84,7 @@ impl fmt::Display for FunctionEntry {
 
 
 /// Generic trait for all loaders
-pub trait Loader {
+pub trait Loader: ::std::fmt::Debug + Clone {
     /// Get a model of the memory contained in the binary
     fn memory(&self) -> Result<memory::Memory>;
 
@@ -68,6 +96,7 @@ pub trait Loader {
 
     /// Turn this into an il::Program
     fn to_program(&self) -> Result<il::Program> {
+        // Get out architecture-specific translator
         let translator = match self.architecture() {
             Ok(arch) => match arch {
                 Architecture::X86 => translator::x86::X86::new()
@@ -75,7 +104,10 @@ pub trait Loader {
             Err(_) => bail!("Unsupported Architecture")
         };
 
+        // Create a mapping of the file memory
         let memory = self.memory()?;
+
+        // Insert all of the functions the program knows about.
         let mut functions = BTreeMap::new();
         for function_entry in self.function_entries()? {
             info!("Translating function {}", function_entry.name());

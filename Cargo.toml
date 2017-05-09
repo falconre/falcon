@@ -14,12 +14,12 @@ base64 = "0.5"
 bitflags = "0.8"
 capstone_rust = "0.2"
 clap = "2.24"
-dyon = "0.24"
 error-chain = "0.10"
 goblin = "0.0.9"
 ketos = "0.9"
 ketos_derive = "0.1"
 log = "0.3"
+serde_json = "1.0"
 
 
 [lib]

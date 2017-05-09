@@ -2,9 +2,10 @@ pub use analysis::analysis_location::*;
 use error::*;
 use il;
 use std::collections::{BTreeMap, VecDeque};
+use std::fmt::Debug;
 
 
-pub trait FixedPointAnalysis<State: Clone + PartialEq> {
+pub trait FixedPointAnalysis<State: Clone + Debug + PartialEq + Eq> {
     /// Create an initial state for a block.
     fn initial(&self, analysis_location: &AnalysisLocation) -> Result<State>;
 
@@ -26,7 +27,7 @@ pub fn fixed_point<Analysis, State>(
     analysis: &Analysis,
     control_flow_graph: &il::ControlFlowGraph
 )-> Result<BTreeMap<AnalysisLocation, State>> 
-where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
+where Analysis: FixedPointAnalysis<State>, State: Clone + Debug + PartialEq + Eq {
 
     let mut states: BTreeMap<AnalysisLocation, State> = BTreeMap::new();
     let mut predecessor_locations = BTreeMap::new();
@@ -130,7 +131,6 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
         }
     }
 
-
     // for every instruction in the queue
     while !queue.is_empty() {
         let analysis_location = queue.pop_front().unwrap();
@@ -165,6 +165,7 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + PartialEq {
         }
 
         states.insert(analysis_location.clone(), out_state);
+
         for successor_location in &successor_locations[&analysis_location] {
             if !queue.contains(successor_location) {
                 queue.push_back(successor_location.clone());

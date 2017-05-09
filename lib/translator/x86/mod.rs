@@ -1,7 +1,7 @@
 use capstone_rust::{capstone, capstone_sys};
 use error::*;
 use il::*;
-use translator::{Arch, BlockTranslationResult};
+use translator::{Arch, BlockTranslationResult, Endian};
 
 
 pub mod semantics;
@@ -17,6 +17,10 @@ impl X86 {
 
 
 impl Arch for X86 {
+    fn endian(&self) -> Endian {
+        Endian::Little
+    }
+
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
         let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_X86, capstone::cs_mode::CS_MODE_32) {
             Ok(cs) => cs,
@@ -41,21 +45,6 @@ impl Arch for X86 {
         for instruction in instructions.iter() {
 
             if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
-
-                /*
-                println!(
-                    "translating {:08X}: {} {}",
-                    address + length as u64,
-                    instruction.mnemonic,
-                    instruction.op_str
-                );
-                */
-                trace!(
-                    "Disassembling {:02X}: {} {}",
-                    address + length as u64,
-                    instruction.mnemonic,
-                    instruction.op_str
-                );
 
                 length += instruction.size as usize;
                 

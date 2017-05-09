@@ -1178,12 +1178,10 @@ pub fn cmp(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let mut block = control_flow_graph.new_block()?;
 
         let lhs = operand_load(&mut block, &detail.operands[0])?;
-        let mut rhs = operand_load(&mut block, &detail.operands[0])?;
+        let mut rhs = operand_load(&mut block, &detail.operands[1])?;
 
         if rhs.bits() != lhs.bits() {
-            let temp = block.temp(lhs.bits());
-            block.assign(temp.clone(), Expr::sext(lhs.bits(), rhs.into())?);
-            rhs = temp.into();
+            rhs = Expr::sext(lhs.bits(), rhs.into())?;
         }
 
         let result = block.temp(lhs.bits());
@@ -1588,7 +1586,6 @@ pub fn jmp(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         // at translation time
         if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
             let dst = operand_load(&mut block, &detail.operands[0])?;
-            let expr = jcc_condition(&instruction)?;
             block.brc(dst, expr_const(1, 1));
         }
 

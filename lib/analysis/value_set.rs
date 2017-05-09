@@ -5,30 +5,80 @@ use error::*;
 use il;
 use std::collections::BTreeMap;
 
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Endian {
+    Big,
+    Little
+}
+
+
+impl Into<::translator::Endian> for Endian {
+    fn into(self) -> ::translator::Endian {
+        match self {
+            Endian::Big => ::translator::Endian::Big,
+            Endian::Little => ::translator::Endian::Little
+        }
+    }
+}
+
+
+impl From<::translator::Endian> for Endian {
+    fn from(e: ::translator::Endian) -> Endian {
+        match e {
+            ::translator::Endian::Big => Endian::Big,
+            ::translator::Endian::Little => Endian::Little
+        }
+    }
+}
+
+
+impl From<::loader::Endian> for Endian {
+    fn from(e: ::loader::Endian) -> Endian {
+        match e {
+            ::loader::Endian::Big => Endian::Big,
+            ::loader::Endian::Little => Endian::Little
+        }
+    }
+}
+
+
 struct ValueSetAnalysis<'v> {
     control_flow_graph: &'v il::ControlFlowGraph,
-    max: usize
+    max: usize,
+    endian: Endian
 }
 
 
 impl<'v> ValueSetAnalysis<'v> {
-    pub fn new(control_flow_graph: &'v il::ControlFlowGraph, max: usize)
-    -> ValueSetAnalysis<'v> {
+    pub fn new(
+        control_flow_graph: &'v il::ControlFlowGraph,
+        max: usize,
+        endian: Endian
+    ) -> ValueSetAnalysis<'v> {
         ValueSetAnalysis {
             control_flow_graph: control_flow_graph,
-            max: max
+            max: max,
+            endian: endian
         }
     }
 
     pub fn control_flow_graph(&self) -> &il::ControlFlowGraph {
         &self.control_flow_graph
     }
+
+    pub fn endian(&self) -> &Endian {
+        &self.endian
+    }
 }
 
 
-pub fn compute(control_flow_graph: &il::ControlFlowGraph, max: usize)
--> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
-    let value_set_analysis = ValueSetAnalysis::new(control_flow_graph, max);
+pub fn compute(
+    control_flow_graph: &il::ControlFlowGraph,
+    max: usize,
+    endian: Endian
+) -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
+    let value_set_analysis = ValueSetAnalysis::new(control_flow_graph, max, endian);
     fixed_point(&value_set_analysis, value_set_analysis.control_flow_graph())
 }
 
@@ -55,7 +105,10 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
             // If the conditional expression evaluates to a single value of 0,
             // we will not pass through state_in, as the destination of this
             // branch is currently unreachable.
+            //
+            // This idea is buggy, just pass state_out through
             Edge(ref el) => {
+                /*
                 let edge = el.find(self.control_flow_graph)?;
                 if let Some(ref condition) = *edge.condition() {
                     let condition_value = state_out.eval(condition);
@@ -76,23 +129,35 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                 else {
                     state_out
                 }
+                */
+                state_out
             },
             Instruction(ref il) => {
                 let operation = il.find(&self.control_flow_graph)?.operation();
                 match operation {
                     &il::Operation::Assign { ref dst, ref src } => {
-                        for variable in operation.variables_read() {
-                        }
                         let lattice_value = state_out.eval(src);
-                        //info!("{} = {}", operation, lattice_value);
                         state_out.set(dst.clone(), lattice_value);
                         state_out
                     }
                     &il::Operation::Store { ref address, ref src } => {
+                        let state_out_test = state_out.clone();
+                        let address = state_out.eval(address);
+                        let value = state_out.eval(src);
+                        if self.endian == Endian::Little {
+                            let value = value.endian_swap()?;
+                        }
+                        state_out.store(&address, value, src.bits());
                         state_out
                     }
                     &il::Operation::Load { ref dst, ref address } => {
-                        state_out.set(dst.clone(), LatticeValue::Join);
+                        let address = state_out.eval(address);
+                        match state_out.load(&address, dst.bits()) {
+                            Some(value) => {
+                                state_out.set(dst.clone(), value);
+                            }
+                            None => {}//state_out.set(dst.clone(), LatticeValue::Meet)
+                        }
                         state_out
                     }
                     &il::Operation::Brc { ref dst, ref condition } => {
@@ -104,14 +169,14 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                             state_out
                         }
                         else {
-                            let lattice_value = match state_out.get(src.first()
-                                                                       .unwrap()) {
+                            let mut lattice_value = match state_out.get(src.first()
+                                                                           .unwrap()) {
                                 Some(lv) => lv.clone(),
                                 None => LatticeValue::Meet
                             };
                             let meet = LatticeValue::Meet;
                             for lv in src {
-                                let lattice_value = lattice_value.join(match state_out.get(&lv) {
+                                lattice_value = lattice_value.join(match state_out.get(&lv) {
                                     Some(lv) => lv,
                                     None => &&meet
                                 });

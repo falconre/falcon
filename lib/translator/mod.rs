@@ -9,6 +9,12 @@ use std::collections::{BTreeMap, VecDeque};
 pub mod x86;
 
 
+pub enum Endian {
+    Big,
+    Little
+}
+
+
 /// The result of a block translation
 pub struct BlockTranslationResult {
     /// A control flow graph which holds the semantics of this block
@@ -58,6 +64,9 @@ impl BlockTranslationResult {
 pub trait Arch {
     /// Translates a basic block
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;
+
+
+    fn endian(&self) -> Endian;
 
 
     /// Translates a function

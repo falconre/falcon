@@ -1,12 +1,15 @@
 #![allow(dead_code, unused_variables)]
 
-#[macro_use] extern crate bitflags;
+extern crate base64;
+#[macro_use]
+extern crate bitflags;
 extern crate capstone_rust;
-#[macro_use] extern crate error_chain;
+#[macro_use]
+extern crate error_chain;
 extern crate goblin;
-extern crate ketos;
-#[macro_use] extern crate ketos_derive;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
+extern crate serde_json;
 
 
 pub mod analysis;
@@ -24,8 +27,11 @@ pub mod error {
         }
 
         foreign_links {
+            Base64(::base64::DecodeError);
             Goblin(::goblin::error::Error);
             Io(::std::io::Error);
+            Json(::serde_json::Error);
+            Utf8(::std::string::FromUtf8Error);
         }
 
         errors {

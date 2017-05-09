@@ -1,6 +1,5 @@
 (define filename "/Users/dev/code/falcon/test_binaries/Palindrome/Palindrome")
 
-
 (println "test")
 
 (define elf (elf-from-file filename))

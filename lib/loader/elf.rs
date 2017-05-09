@@ -99,6 +99,7 @@ impl Loader for Elf {
 
         let mut functions_added: BTreeSet<u64> = BTreeSet::new();
 
+        // dynamic symbols
         for sym in elf.dynsyms.iter() {
             if sym.is_function() && sym.st_value != 0 {
                 let name = elf.dynstrtab.get(sym.st_name).to_string();
@@ -107,6 +108,7 @@ impl Loader for Elf {
             }
         }
 
+        // normal symbols
         for sym in elf.syms.iter() {
             if sym.is_function() && sym.st_value != 0 {
                 let name = elf.strtab.get(sym.st_name).to_string();
@@ -114,6 +116,7 @@ impl Loader for Elf {
                 functions_added.insert(sym.st_value);
             }
         }
+
 
         if !functions_added.contains(&elf.header.e_entry) {
             function_entries.push(FunctionEntry::new(elf.header.e_entry, None));

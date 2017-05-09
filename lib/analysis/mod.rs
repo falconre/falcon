@@ -10,9 +10,10 @@ mod value_set;
 
 use error::*;
 use il;
-use self::analysis_location::AnalysisLocation;
+pub use self::analysis_location::*;
 pub use self::lattice::*;
 pub use self::reaching_definitions::Reaches;
+pub use self::value_set::Endian;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// `Analysis` holds several types of analysis results.
@@ -30,13 +31,10 @@ pub struct Analysis<'a> {
 
 
 impl<'a> Analysis<'a> {
-    pub fn initialize(control_flow_graph: &'a il::ControlFlowGraph)
+    pub fn new(control_flow_graph: &'a il::ControlFlowGraph)
     -> Result<Analysis<'a>> {
-        debug!("Calculating Reaching Definitions");
         let rd = reaching_definitions::compute(control_flow_graph)?;
-        debug!("Calculating Def Use Chains");
         let du = def_use::def_use(&rd, control_flow_graph)?;
-        debug!("Calculating Def Use Chains");
         let ud = def_use::use_def(&rd, control_flow_graph)?;
         Ok(Analysis {
             control_flow_graph: control_flow_graph,
@@ -75,8 +73,8 @@ impl<'a> Analysis<'a> {
     ///
     /// `max` is the maximum number of values a `LatticeValue::Values` will
     /// hold before being transformed into a `LatticeValue::Join`
-    pub fn value_set_analysis(&self, max: usize)
+    pub fn value_set_analysis(&self, max: usize, endian: value_set::Endian)
     -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
-        value_set::compute(self.control_flow_graph, max)
+        value_set::compute(self.control_flow_graph, max, endian)
     }
 }

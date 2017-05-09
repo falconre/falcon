@@ -22,14 +22,19 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, Error> {
 }
 
 
-fn elf_from_file(filename: &Path) -> Result<Elf, Error> {
-    Ok(Elf::from_file(filename).unwrap())
+#[derive(Clone, Debug, ForeignValue, FromValue, FromValueRef, IntoValue)]
+struct KElf { elf: Elf }
+#[derive(Clone, Debug, ForeignValue, FromValue, FromValueRef, IntoValue)]
+struct KFunctionEntry { fe: FunctionEntry }
+
+
+fn elf_from_file(filename: &Path) -> Result<KElf, Error> {
+    Ok(KElf{ elf: Elf::from_file(filename).unwrap() })
 }
 
-// fn elf_function_entries(elf: &Elf)
-// -> Result<Vec<falcon::loader::FunctionEntry>, Error> {
-//     Ok(elf.function_entries().unwrap())
-// }
+fn elf_function_entries(kelf: &KElf) -> Vec<KFunctionEntry> {
+
+}
 
 
 pub fn run(script: &str) {
@@ -39,7 +44,7 @@ pub fn run(script: &str) {
         fn base64_decode(input: &str) -> Vec<u8> }
 
     ketos_fn! { interp.scope() => "elf-from-file" =>
-        fn elf_from_file(filename: &Path) -> Elf }
+        fn elf_from_file(filename: &Path) -> KElf }
 
     // ketos_fn!{ interp.scope() => "elf-function-entries" =>
     //     fn elf_function_entries(elf: &Elf) -> Vec<falcon::loader::FunctionEntry>}

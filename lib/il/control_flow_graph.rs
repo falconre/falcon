@@ -36,8 +36,8 @@ impl Edge {
     pub fn head(&self) -> u64 { self.head }
     pub fn tail(&self) -> u64 { self.tail }
 
-    pub fn set_comment<S>(&mut self, comment: S) where S: Into<String> {
-        self.comment = Some(comment.into());
+    pub fn set_comment(&mut self, comment: Option<String>) {
+        self.comment = comment;
     }
 
     pub fn comment(&self) -> &Option<String> {
@@ -87,7 +87,7 @@ impl graph::Edge for Rc<Edge> {
 
 
 /// A graph of IL blocks
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ControlFlowGraph {
     // The internal graph used to store our blocks.
     graph: graph::Graph<Block, Edge>,

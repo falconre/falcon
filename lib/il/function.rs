@@ -1,6 +1,7 @@
 use il::*;
 
 
+#[derive(Clone, Debug)]
 pub struct Function {
     address: u64,
     control_flow_graph: ControlFlowGraph,
