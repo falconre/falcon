@@ -346,6 +346,8 @@ impl LatticeMemory {
                 let mut remove: Vec<u64> = Vec::new();
                 let mut insert: Vec<(u64, LatticeMemoryValue)> = Vec::new();
 
+                // Every entry which has a start address that lands within
+                // where the value we are inserting will lang.
                 let forward = self.memory.range(address..(address + lmv.bytes() as u64));
 
                 let mut lmv = lmv.clone();
@@ -355,6 +357,7 @@ impl LatticeMemory {
                 for f in forward {
                     let forward_address = f.0.clone();
                     let forward_lmv = f.1;
+
                     // if this fits entirely within the current lmv
                     if forward_address + (forward_lmv.bytes() as u64) <= address + (lmv.bytes() as u64) {
                         let mut forward_lv = forward_lmv.value.clone();
@@ -406,10 +409,11 @@ impl LatticeMemory {
                     else {
                         // Start by extracting the relevant portion of the forward_lmv
                         let offset = ((forward_address - address) * 8) as usize;
-                        let length = if forward_lmv.bits() - offset > lmv.bits() {
-                            lmv.bits()
-                        } else {
-                            forward_lmv.bits() - offset
+                        let length = if lmv.bits() - offset > forward_lmv.bits() {
+                            forward_lmv.bits()
+                        }
+                        else {
+                            lmv.bits() - offset
                         };
                         let join_forward_lmv = forward_lmv.extract(offset, length);
                         let mut join_forward_lv = join_forward_lmv.value.clone();
@@ -545,6 +549,9 @@ impl LatticeMemory {
                     panic!("insert 0 bits backwards");
                 }
                 self.memory.insert(i.0, i.1);
+            }
+            if lmv.bits() == 0 {
+                panic!("insert 0 bits");
             }
             self.memory.insert(address, lmv);
         }

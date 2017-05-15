@@ -5,14 +5,17 @@ use std::fmt;
 /// A representation of a program by il::Function
 #[derive(Clone, Debug)]
 pub struct Program {
-    functions: BTreeMap<u64, Function>
+    functions: BTreeMap<u64, Function>,
+    // The next index to assign to a function when added to the program.
+    next_index: u64
 }
 
 
 impl Program {
-    pub fn new(functions: BTreeMap<u64, Function>) -> Program {
+    pub fn new() -> Program {
         Program {
-            functions: functions
+            functions: BTreeMap::new(),
+            next_index: 0
         }
     }
 
@@ -29,7 +32,9 @@ impl Program {
 
 
     /// Sets a function entry in the program
-    pub fn set_function(&mut self, function: Function) {
+    pub fn set_function(&mut self, mut function: Function) {
+        function.set_index(Some(self.next_index));
+        self.next_index += 1;
         self.functions.insert(function.address(), function);
     }
 }

@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use error::*;
 
 
-pub trait Vertex {
+pub trait Vertex: Clone + Debug + Eq + PartialEq {
     // The index of this vertex.
     fn index(&self) -> u64;
     // A string to display in dot graphviz format.
@@ -14,7 +14,7 @@ pub trait Vertex {
 }
 
 
-pub trait Edge {
+pub trait Edge: Clone + Debug + Eq + PartialEq {
     /// The index of the head vertex.
     fn head(&self) -> u64;
     /// The index of the tail vertex.
@@ -25,7 +25,7 @@ pub trait Edge {
 
 
 /// An empty vertex for creating structures when data is not required
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NullVertex {
     index: u64
 }
@@ -47,7 +47,7 @@ impl Vertex for NullVertex {
 
 
 /// An empty edge for creating structures when data is not required
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NullEdge {
     head: u64,
     tail: u64
@@ -73,7 +73,7 @@ impl Edge for NullEdge {
 
 
 /// A directed graph.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Graph<V, E> {
     head: Option<u64>,
     vertices: BTreeMap<u64, V>,
@@ -83,7 +83,7 @@ pub struct Graph<V, E> {
 }
 
 
-impl<V, E> Graph<V, E> where V: Vertex + Clone + Debug, E: Edge + Clone + Debug {
+impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
     pub fn new() -> Graph<V, E> {
         Graph {
             head: None,

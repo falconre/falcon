@@ -33,7 +33,7 @@ impl MemorySegment {
         self.address
     }
 
-    fn bytes(&self) -> &[u8] {
+    pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }
 

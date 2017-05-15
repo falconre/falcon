@@ -59,6 +59,87 @@ impl log::Log for StdoutLogger {
 }
 
 
+fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian: Endian)
+-> Result<()> {
+    let cfg = control_flow_graph.clone();
+    let analysis = Analysis::new(&cfg)?;
+    let value_sets = analysis.value_set(32, endian)?;
+
+    for (al, assignments) in value_sets {
+        match al {
+            AnalysisLocation::Instruction(il) => {
+                let comment = il.find(&control_flow_graph)?
+                                .variables_read()
+                                .iter()
+                                .map(|var_read| {
+                                    format!(
+                                        "{}={}",
+                                        var_read.name(),
+                                        match assignments.get(var_read) {
+                                            Some(lv) => format!("{}", lv),
+                                            None => String::from("?")
+                                        }
+                                    )
+                                })
+                                .collect::<Vec<String>>()
+                                .join(", ");
+                il.find_mut(control_flow_graph)?
+                  .set_comment(Some(comment));
+            },
+            AnalysisLocation::Edge(el) => {
+                let comment = match el.find(&control_flow_graph)?
+                                      .condition() {
+                    &Some(ref condition) => Some(condition.collect_variables()
+                                                .iter()
+                                                .map(|v| {
+                                                    format!(
+                                                        "{}={}",
+                                                        v.name(),
+                                                        match assignments.get(v) {
+                                                            Some(lv) => format!("{}", lv),
+                                                            None => String::from("?")
+                                                        }
+                                                    )
+                                                })
+                                                .collect::<Vec<String>>()
+                                                .join(", ")),
+                    &None => None
+                };
+                el.find_mut(control_flow_graph)?
+                  .set_comment(comment);
+            }
+            _ => {},
+        }
+    }
+
+    Ok(())
+}
+
+
+fn label_def_use(ref mut control_flow_graph: &mut il::ControlFlowGraph)
+-> Result<()> {
+    let cfg = control_flow_graph.clone();
+    let analysis = Analysis::new(&cfg)?;
+    let def_use = analysis.def_use();
+
+    for (def, uses) in def_use {
+        match *def {
+            AnalysisLocation::Instruction(ref il) => {
+                let comment = uses.iter()
+                                  .map(|al| format!("{}", al))
+                                  .collect::<Vec<String>>()
+                                  .join(", ");
+                il.find_mut(control_flow_graph)?
+                  .set_comment(Some(comment));
+            },
+            _ => {},
+        }
+    }
+
+    Ok(())
+}
+
+
 fn run () -> Result<()> {
     let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
     let elf = falcon::loader::json::Json::from_file(filename)?;
@@ -71,11 +152,13 @@ fn run () -> Result<()> {
     if let Some(function) = program.function(0x80488CA) {
         let analysis = Analysis::new(function.control_flow_graph())?;
         let mut control_flow_graph = analysis.dead_code_elimination()?;
+        // let mut control_flow_graph = analysis.optimize()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
             block.assign(il::var("esp", 32), il::expr_const(0xC0000000, 32));
+            block.assign(il::var("DF", 1), il::expr_const(0x0, 1));
 
             block.index()
         };
@@ -85,56 +168,8 @@ fn run () -> Result<()> {
         control_flow_graph.unconditional_edge(block_index, entry)?;
         control_flow_graph.set_entry(block_index)?;
 
-        let analysis = Analysis::new(&control_flow_graph)?;
-        let value_sets = analysis.value_set_analysis(128, elf.architecture()?.endian().into())?;
-
-        let mut control_flow_graph = control_flow_graph.clone();
-        for (al, assignments) in value_sets {
-            match al {
-                AnalysisLocation::Instruction(il) => {
-                    let comment = il.find(&control_flow_graph)?
-                                    .variables_read()
-                                    .iter()
-                                    .map(|var_read| {
-                                        format!(
-                                            "{}={}",
-                                            var_read.name(),
-                                            match assignments.get(var_read) {
-                                                Some(lv) => format!("{}", lv),
-                                                None => String::from("?")
-                                            }
-                                        )
-                                    })
-                                    .collect::<Vec<String>>()
-                                    .join(", ");
-                    il.find_mut(&mut control_flow_graph)?
-                      .set_comment(Some(comment));
-                },
-                AnalysisLocation::Edge(el) => {
-                    let comment = match el.find(&control_flow_graph)?
-                                          .condition() {
-                        &Some(ref condition) => Some(condition.collect_variables()
-                                                    .iter()
-                                                    .map(|v| {
-                                                        format!(
-                                                            "{}={}",
-                                                            v.name(),
-                                                            match assignments.get(v) {
-                                                                Some(lv) => format!("{}", lv),
-                                                                None => String::from("?")
-                                                            }
-                                                        )
-                                                    })
-                                                    .collect::<Vec<String>>()
-                                                    .join(", ")),
-                        &None => None
-                    };
-                    el.find_mut(&mut control_flow_graph)?
-                      .set_comment(comment);
-                }
-                _ => {},
-            }
-        }
+        label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
+        //label_def_use(&mut control_flow_graph)?;
 
         let mut file = File::create("/tmp/check.dot")?;
         file.write_all(&control_flow_graph.graph().dot_graph().into_bytes())?;

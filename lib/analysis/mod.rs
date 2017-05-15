@@ -6,6 +6,7 @@ mod def_use;
 mod fixed_point;
 pub mod lattice;
 mod reaching_definitions;
+mod simplification;
 mod value_set;
 
 use error::*;
@@ -64,6 +65,30 @@ impl<'a> Analysis<'a> {
         &self.use_def
     }
 
+    /// Performs multiple, non-semantic altering optimizations
+    pub fn optimize(&self) -> Result<il::ControlFlowGraph> {
+        let mut rolling_graph = self.control_flow_graph.clone();
+        loop {
+            let new_graph = {
+                let analysis = Analysis::new(&rolling_graph);
+                let cfg = self.simplification()?;
+                let analysis = Analysis::new(&cfg)?;
+                analysis.dead_code_elimination()?
+            };
+            if new_graph == rolling_graph {
+                return Ok(new_graph);
+            }
+            else {
+                rolling_graph = new_graph;
+            }
+        }
+    }
+
+    /// Simplifies the IL
+    pub fn simplification(&self) -> Result<il::ControlFlowGraph> {
+        simplification::simplification(self)
+    }
+
     /// Performs dead code elimination and returns the result in a new graph.
     pub fn dead_code_elimination(&self) -> Result<il::ControlFlowGraph> {
         dead_code_elimination::dead_code_elimination(self)
@@ -73,7 +98,7 @@ impl<'a> Analysis<'a> {
     ///
     /// `max` is the maximum number of values a `LatticeValue::Values` will
     /// hold before being transformed into a `LatticeValue::Join`
-    pub fn value_set_analysis(&self, max: usize, endian: value_set::Endian)
+    pub fn value_set(&self, max: usize, endian: value_set::Endian)
     -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
         value_set::compute(self.control_flow_graph, max, endian)
     }

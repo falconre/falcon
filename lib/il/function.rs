@@ -3,9 +3,14 @@ use il::*;
 
 #[derive(Clone, Debug)]
 pub struct Function {
+    // The address where this function was found
     address: u64,
+    // The `ControlFlowGraph` capturing semantics of the function
     control_flow_graph: ControlFlowGraph,
-    name: Option<String>
+    // The name of the function
+    name: Option<String>,
+    // Functions which belong to Programs have indices
+    index: Option<u64>
 }
 
 
@@ -14,7 +19,8 @@ impl Function {
         Function {
             address: address,
             control_flow_graph: control_flow_graph,
-            name: None
+            name: None,
+            index: None
         }
     }
 
@@ -44,5 +50,15 @@ impl Function {
 
     pub fn set_name(&mut self, name: Option<String>) {
         self.name = name;
+    }
+
+
+    pub fn index(&self) -> Option<u64> {
+        self.index
+    }
+
+
+    pub fn set_index(&mut self, index: Option<u64>) {
+        self.index = index;
     }
 }

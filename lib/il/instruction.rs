@@ -107,6 +107,11 @@ impl Instruction {
     }
 
 
+    pub fn operation_mut(&mut self) -> &mut Operation {
+        &mut self.operation
+    }
+
+
     pub fn index(&self) -> u64 {
         self.index
     }

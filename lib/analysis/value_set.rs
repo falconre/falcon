@@ -101,12 +101,6 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
         };
         
         Ok(match *analysis_location {
-            // For edges, we will first evaluate the conditional expression.
-            // If the conditional expression evaluates to a single value of 0,
-            // we will not pass through state_in, as the destination of this
-            // branch is currently unreachable.
-            //
-            // This idea is buggy, just pass state_out through
             Edge(ref el) => {
                 /*
                 let edge = el.find(self.control_flow_graph)?;
@@ -133,6 +127,7 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                 state_out
             },
             Instruction(ref il) => {
+                trace!("{}: {}", il, il.find(&self.control_flow_graph)?);
                 let operation = il.find(&self.control_flow_graph)?.operation();
                 match operation {
                     &il::Operation::Assign { ref dst, ref src } => {

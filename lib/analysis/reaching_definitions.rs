@@ -183,7 +183,7 @@ impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
             Instruction(ref ii) => { 
                 // If this instruction writes to a variable
                 if let Some(this_dst) = ii.find(self.control_flow_graph)?
-                                        .variable_written() {
+                                          .variable_written() {
 
                     let mut to_kill = Vec::new();
                     // Evaluate every location that reaches this location as a

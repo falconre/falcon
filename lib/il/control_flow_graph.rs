@@ -5,7 +5,7 @@ use il::*;
 
 
 /// Edge between IL blocks
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Edge {
     head: u64,
     tail: u64,
@@ -87,7 +87,7 @@ impl graph::Edge for Rc<Edge> {
 
 
 /// A graph of IL blocks
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ControlFlowGraph {
     // The internal graph used to store our blocks.
     graph: graph::Graph<Block, Edge>,
@@ -245,6 +245,11 @@ impl ControlFlowGraph {
 
                 // if we do not have just one successor, we will not merge this block
                 if successors.len() != 1 {
+                    continue;
+                }
+
+                // If this successor has a condition, we will not merge this block
+                if successors.first().unwrap().condition().is_some() {
                     continue;
                 }
 

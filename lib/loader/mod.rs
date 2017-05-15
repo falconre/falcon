@@ -8,7 +8,6 @@ use error::*;
 use translator;
 use translator::Arch;
 use il;
-use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Clone, Debug)]
@@ -107,16 +106,15 @@ pub trait Loader: ::std::fmt::Debug + Clone {
         // Create a mapping of the file memory
         let memory = self.memory()?;
 
-        // Insert all of the functions the program knows about.
-        let mut functions = BTreeMap::new();
+        let mut program = il::Program::new();
+
         for function_entry in self.function_entries()? {
-            info!("Translating function {}", function_entry.name());
             let address = function_entry.address();
             let mut function = translator.translate_function(&memory, address)?;
             function.set_name(Some(function_entry.name().to_string()));
-            functions.insert(address, function);
+            program.set_function(function);
         }
 
-        Ok(il::Program::new(functions))
+        Ok(program)
     }
 }
