@@ -121,6 +121,7 @@ fn label_def_use(ref mut control_flow_graph: &mut il::ControlFlowGraph)
     let cfg = control_flow_graph.clone();
     let analysis = Analysis::new(&cfg)?;
     let def_use = analysis.def_use();
+    // let def_use = analysis.use_def();
 
     for (def, uses) in def_use {
         match *def {
@@ -150,9 +151,12 @@ fn run () -> Result<()> {
 
 
     if let Some(function) = program.function(0x80488CA) {
-        let analysis = Analysis::new(function.control_flow_graph())?;
-        let mut control_flow_graph = analysis.dead_code_elimination()?;
-        // let mut control_flow_graph = analysis.optimize()?;
+        let control_flow_graph = ssa(function.control_flow_graph().clone())?;
+        let analysis = Analysis::new(&control_flow_graph)?;
+        // let mut control_flow_graph = analysis.dead_code_elimination()?;
+        let mut control_flow_graph = analysis.optimize()?;
+        // let mut control_flow_graph = analysis.control_flow_graph().clone();
+        // let mut control_flow_graph = analysis.simplification()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -168,8 +172,8 @@ fn run () -> Result<()> {
         control_flow_graph.unconditional_edge(block_index, entry)?;
         control_flow_graph.set_entry(block_index)?;
 
-        label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
-        //label_def_use(&mut control_flow_graph)?;
+        // label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
+        label_def_use(&mut control_flow_graph)?;
 
         let mut file = File::create("/tmp/check.dot")?;
         file.write_all(&control_flow_graph.graph().dot_graph().into_bytes())?;

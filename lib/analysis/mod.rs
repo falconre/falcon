@@ -7,12 +7,14 @@ mod fixed_point;
 pub mod lattice;
 mod reaching_definitions;
 mod simplification;
+pub mod ssa;
 mod value_set;
 
 use error::*;
 use il;
 pub use self::analysis_location::*;
 pub use self::lattice::*;
+pub use self::ssa::*;
 pub use self::reaching_definitions::Reaches;
 pub use self::value_set::Endian;
 use std::collections::{BTreeMap, BTreeSet};
@@ -70,9 +72,9 @@ impl<'a> Analysis<'a> {
         let mut rolling_graph = self.control_flow_graph.clone();
         loop {
             let new_graph = {
-                let analysis = Analysis::new(&rolling_graph);
-                let cfg = self.simplification()?;
-                let analysis = Analysis::new(&cfg)?;
+                let analysis = Analysis::new(&rolling_graph)?;
+                // let cfg = analysis.simplification()?;
+                // let analysis = Analysis::new(&cfg)?;
                 analysis.dead_code_elimination()?
             };
             if new_graph == rolling_graph {

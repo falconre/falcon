@@ -33,6 +33,7 @@ fn assignment_propagation(analysis: &Analysis) -> Result<il::ControlFlowGraph> {
         let al = du.0.clone();
         let uses = du.1;
 
+        // Phi assignments will be skipped
         if let AnalysisLocation::Instruction(ref il) = al {
             let instruction = il.find(analysis.control_flow_graph())?;
             if instruction.is_phi() {
@@ -40,17 +41,23 @@ fn assignment_propagation(analysis: &Analysis) -> Result<il::ControlFlowGraph> {
             }
         }
 
+        // If we only have one use
         if uses.len() == 1 {
+            // Get that one use
             let use_ = uses.iter().next().unwrap();
+            // That one use must be an instruction
             if let AnalysisLocation::Instruction(ref il) = *use_ {
                 let use_ins = il.find(&analysis.control_flow_graph())?;
+                // And the operation for that instruction must be assign
                 if !use_ins.is_assign() {
                     continue;
                 }
             }
+            // Get the defs for that use
             if let Some(defs) = use_def.get(use_) {
+                // There must be only one def
                 if defs.len() == 1 {
-                    //trace!("{} has one use and is the only def for that use", al);
+                    trace!("{} has one use {} and is the only def for that use", al, use_);
                     single_assignments.insert(use_.clone(), al.clone());
                 }
             }
@@ -69,6 +76,8 @@ fn assignment_propagation(analysis: &Analysis) -> Result<il::ControlFlowGraph> {
     for def in &single_assignments {
         let target_al = def.0.clone();
         let mut source_al = def.1.clone();
+
+        trace!("processing single_assignment {} {}", target_al, source_al);
 
         while single_assignments.contains_key(&source_al) {
             trace!("source_al = {}", source_al);

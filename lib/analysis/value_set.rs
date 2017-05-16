@@ -127,7 +127,6 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                 state_out
             },
             Instruction(ref il) => {
-                trace!("{}: {}", il, il.find(&self.control_flow_graph)?);
                 let operation = il.find(&self.control_flow_graph)?.operation();
                 match operation {
                     &il::Operation::Assign { ref dst, ref src } => {
