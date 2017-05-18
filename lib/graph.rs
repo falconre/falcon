@@ -25,7 +25,7 @@ pub trait Edge: Clone + Debug + Eq + PartialEq {
 
 
 /// An empty vertex for creating structures when data is not required
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct NullVertex {
     index: u64
 }
@@ -47,7 +47,7 @@ impl Vertex for NullVertex {
 
 
 /// An empty edge for creating structures when data is not required
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct NullEdge {
     head: u64,
     tail: u64
@@ -73,7 +73,7 @@ impl Edge for NullEdge {
 
 
 /// A directed graph.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Graph<V, E> {
     head: Option<u64>,
     vertices: BTreeMap<u64, V>,

@@ -11,6 +11,7 @@ opt-level = 1
 
 [dependencies]
 base64 = "0.5"
+bincode = "0.8"
 bitflags = "0.8"
 capstone_rust = "0.2"
 clap = "2.24"
@@ -19,6 +20,8 @@ goblin = "0.0.9"
 ketos = "0.9"
 ketos_derive = "0.1"
 log = "0.3"
+serde = "1.0"
+serde_derive = "1.0"
 serde_json = "1.0"
 
 

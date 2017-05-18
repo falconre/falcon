@@ -1,4 +1,5 @@
 extern crate base64;
+extern crate bincode;
 extern crate clap;
 // #[macro_use]
 // extern crate dyon;
@@ -28,6 +29,7 @@ pub mod error {
 
         foreign_links {
             Base64Decode(::base64::DecodeError);
+            Bincode(::bincode::Error);
             Falcon(::falcon::error::Error);
             Io(::std::io::Error);
         }
@@ -63,7 +65,7 @@ fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian
 -> Result<()> {
     let cfg = control_flow_graph.clone();
     let analysis = Analysis::new(&cfg)?;
-    let value_sets = analysis.value_set(32, endian)?;
+    let value_sets = analysis.value_set(128, endian)?;
 
     for (al, assignments) in value_sets {
         match al {
@@ -172,54 +174,17 @@ fn run () -> Result<()> {
         control_flow_graph.unconditional_edge(block_index, entry)?;
         control_flow_graph.set_entry(block_index)?;
 
-        // label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
-        label_def_use(&mut control_flow_graph)?;
+        label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
+        // label_def_use(&mut control_flow_graph)?;
 
         let mut file = File::create("/tmp/check.dot")?;
         file.write_all(&control_flow_graph.graph().dot_graph().into_bytes())?;
 
-        /*
-        let value_sets = analysis.value_set_analysis(16, elf.architecture()?.endian().into())?;
-
-        for (al, assignments) in value_sets {
-            match al {
-                AnalysisLocation::Instruction(il) => {
-                    if let Some(esp) = assignments.get(&il::var("esp", 32)) {
-                        println!("{} esp={}", il, esp);
-                    }
-                }
-                AnalysisLocation::Edge(el) => {
-                    if let Some(esp) = assignments.get(&il::var("esp", 32)) {
-                        println!("{} esp={}", el, esp);
-                    }
-                }
-                _ => {}
-            }
-        }
-        */
+        let mut file = File::create("/tmp/check.bincode")?;
+        file.write_all(&bincode::serialize(&control_flow_graph, bincode::Infinite)?)?;
 
     }
 
-    /*
-    let matches = App::new("Falcon")
-                    .version("0.0.1")
-                    .author("Alex Eubanks <endeavor@rainbowsandpwnies.com>")
-                    .about("Static Analysis Framework for Binaries")
-                    .arg(Arg::with_name("script")
-                        .short("s")
-                        .value_name("SCRIPT")
-                        .help("Path to script to execute")
-                        .takes_value(true)
-                        .required(true))
-                    .get_matches();
-
-    let script_filename = matches.value_of("script").unwrap();
-
-    let mut script_file = File::open(script_filename)?;
-    let mut script_string = String::new();
-    script_file.read_to_string(&mut script_string)?;
-    script_engine::run(&script_string);
-    */
     Ok(())
 }
 

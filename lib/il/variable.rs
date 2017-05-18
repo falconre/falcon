@@ -4,7 +4,7 @@ use il::*;
 
 
 /// An IL variable.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Variable {
     name: String,
     bits: usize,

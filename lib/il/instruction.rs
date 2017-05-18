@@ -2,53 +2,42 @@ use il::*;
 use std::fmt;
 
 
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Instruction {
     operation: Operation,
     index: u64,
-    comment: Option<String>
+    comment: Option<String>,
+    address: Option<u64>
 }
 
 
 impl Instruction {
-    pub fn assign(index: u64, dst: Variable, src: Expression) -> Instruction {
+    pub fn new(index: u64, operation: Operation) -> Instruction {
         Instruction {
-            operation: Operation::Assign { dst: dst, src: src },
+            operation: operation,
             index: index,
-            comment: None
+            comment: None,
+            address: None
         }
+    }
+    pub fn assign(index: u64, dst: Variable, src: Expression) -> Instruction {
+        Instruction::new(index, Operation::Assign { dst: dst, src: src })
     }
 
     pub fn store(index: u64, address: Expression, src: Expression) -> Instruction {
-        Instruction {
-            operation: Operation::Store { address: address, src: src },
-            index: index,
-            comment: None
-        }
+        Instruction::new(index, Operation::Store { address: address, src: src })
     }
 
     pub fn load(index: u64, dst: Variable, address: Expression) -> Instruction {
-        Instruction {
-            operation: Operation::Load { dst: dst, address: address },
-            index: index,
-            comment: None
-        }
+        Instruction::new(index, Operation::Load { dst: dst, address: address })
     }
 
     pub fn brc(index: u64, dst: Expression, condition: Expression) -> Instruction {
-        Instruction {
-            operation: Operation::Brc { dst: dst, condition: condition },
-            index: index,
-            comment: None
-        }
+        Instruction::new(index, Operation::Brc { dst: dst, condition: condition })
     }
 
     pub fn phi(index: u64, dst: Variable, src: Vec<Variable>) -> Instruction {
-        Instruction {
-            operation: Operation::Phi { dst: dst, src: src },
-            index: index,
-            comment: None
-        }
+        Instruction::new(index, Operation::Phi { dst: dst, src: src })
     }
 
 
@@ -117,8 +106,23 @@ impl Instruction {
     }
 
 
+    pub fn comment(&self) -> &Option<String> {
+        &self.comment
+    }
+
+
     pub fn set_comment(&mut self, comment: Option<String>) {
         self.comment = comment;
+    }
+
+
+    pub fn address(&self) -> &Option<u64> {
+        &self.address
+    }
+
+
+    pub fn set_address(&mut self, address: Option<u64>) {
+        self.address = address;
     }
 
 
@@ -126,7 +130,8 @@ impl Instruction {
         Instruction {
             operation: self.operation.clone(),
             index: index,
-            comment: self.comment.clone()
+            comment: self.comment.clone(),
+            address: self.address.clone()
         }
     }
 
@@ -155,17 +160,17 @@ impl Instruction {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let prefix = match self.address {
+            Some(address) => 
+                format!("{:X} {:02X} {}", address, self.index, self.operation),
+            None =>
+                format!("{:02X} {}", self.index, self.operation)
+        };
         if let Some(ref comment) = self.comment {
-            write!(
-                f,
-                "{:02X} {} // {}",
-                self.index,
-                self.operation,
-                comment
-            )
+            write!(f, "{} // {}", prefix, comment)
         }
         else {
-            write!(f, "{:02X} {}", self.index, self.operation)
+            write!(f, "{}", prefix)
         }
     }
 }

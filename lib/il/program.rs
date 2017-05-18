@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 /// A representation of a program by il::Function
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Program {
     functions: BTreeMap<u64, Function>,
     // The next index to assign to a function when added to the program.

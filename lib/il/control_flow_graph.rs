@@ -1,11 +1,11 @@
 use std::cell::Cell;
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap};
 use std::fmt;
 use il::*;
 
 
 /// Edge between IL blocks
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Edge {
     head: u64,
     tail: u64,
@@ -87,7 +87,7 @@ impl graph::Edge for Rc<Edge> {
 
 
 /// A graph of IL blocks
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ControlFlowGraph {
     // The internal graph used to store our blocks.
     graph: graph::Graph<Block, Edge>,
@@ -190,6 +190,18 @@ impl ControlFlowGraph {
 
     pub fn edges_mut(&mut self) -> Vec<&mut Edge> {
         self.graph.edges_mut()
+    }
+
+
+    /// Sets the address for all instructions in this `ControlFlowGraph`.
+    ///
+    /// Useful for translators to set address information.
+    pub fn set_address(&mut self, address: Option<u64>) {
+        for mut block in self.blocks_mut() {
+            for mut instruction in block.instructions_mut() {
+                instruction.set_address(address);
+            }
+        }
     }
 
 

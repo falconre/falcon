@@ -79,16 +79,11 @@ pub fn compute(
     endian: Endian
 ) -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
     let value_set_analysis = ValueSetAnalysis::new(control_flow_graph, max, endian);
-    fixed_point(&value_set_analysis, value_set_analysis.control_flow_graph())
+    fixed_point_forward(&value_set_analysis, value_set_analysis.control_flow_graph())
 }
 
 
 impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
-    fn initial(&self, analysis_location: &AnalysisLocation) -> Result<LatticeAssignments> {
-        Ok(LatticeAssignments::new(self.max))
-    }
-
-
     fn trans(
         &self,
         analysis_location: &AnalysisLocation,

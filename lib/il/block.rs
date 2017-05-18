@@ -3,7 +3,7 @@ use il::*;
 
 
 /// A basic block.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Block {
     /// The index of the block.
     index: u64,

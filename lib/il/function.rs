@@ -1,7 +1,7 @@
 use il::*;
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Function {
     // The address where this function was found
     address: u64,

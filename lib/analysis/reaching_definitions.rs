@@ -142,18 +142,13 @@ impl<'a> ReachingDefinitions<'a> {
     }
 
     pub fn compute(&self) -> Result<BTreeMap<AnalysisLocation, Reaches>> {
-        fixed_point(self, self.control_flow_graph)
+        fixed_point_forward(self, self.control_flow_graph)
     }
 }
 
 
 
 impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
-    fn initial(&self, analysis_location: &AnalysisLocation) -> Result<Reaches> {
-        Ok(Reaches::new())
-    }
-
-
     fn trans(
         &self,
         analysis_location: &AnalysisLocation,

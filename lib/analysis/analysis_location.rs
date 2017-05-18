@@ -88,21 +88,9 @@ pub fn set_string(set: &BTreeSet<AnalysisLocation>) -> String {
 }
 
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EmptyBlockLocation {
     block_index: u64
-}
-
-impl Ord for EmptyBlockLocation {
-    fn cmp(&self, other: &EmptyBlockLocation) -> Ordering {
-        self.block_index.cmp(&other.block_index) 
-    }
-}
-
-impl PartialOrd for EmptyBlockLocation {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 impl EmptyBlockLocation {
@@ -124,7 +112,7 @@ impl EmptyBlockLocation {
 
 impl fmt::Display for EmptyBlockLocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{:X}", self.block_index,)
+        write!(f, "0x{:X}", self.block_index)
     }
 }
 
@@ -137,34 +125,10 @@ impl Into<AnalysisLocation> for EmptyBlockLocation {
 
 
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct InstructionLocation {
     block_index: u64,
     instruction_index: u64
-}
-
-impl Ord for InstructionLocation {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.block_index < other.block_index {
-            return Ordering::Less
-        }
-        if self.block_index > other.block_index {
-            return Ordering::Greater
-        }
-        if self.instruction_index < other.instruction_index {
-            return Ordering::Less
-        }
-        if self.instruction_index > other.instruction_index {
-            return Ordering::Greater
-        }
-        Ordering::Equal
-    }
-}
-
-impl PartialOrd for InstructionLocation {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 
@@ -176,12 +140,12 @@ impl InstructionLocation {
         }
     }
 
-    // Return the index of the block where this instruction is held.
+    /// Return the index of the block where this instruction is held.
     pub fn block_index(&self) -> u64 {
         self.block_index
     }
 
-    // Return the index of the instruction.
+    /// Return the index of the instruction.
     pub fn instruction_index(&self) -> u64 {
         self.instruction_index
     }

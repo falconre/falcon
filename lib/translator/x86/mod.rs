@@ -45,8 +45,6 @@ impl Arch for X86 {
         for instruction in instructions.iter() {
 
             if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
-
-                length += instruction.size as usize;
                 
                 let mut instruction_graph = ControlFlowGraph::new();
 
@@ -151,7 +149,11 @@ impl Arch for X86 {
                     semantics::rep_prefix(&mut instruction_graph, &instruction)?;
                 }
 
+                instruction_graph.set_address(Some(instruction.address));
+
                 block_graph.append(&instruction_graph)?;
+
+                length += instruction.size as usize;
 
                 // instructions that terminate blocks
                 match instruction_id {
