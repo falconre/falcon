@@ -1,10 +1,5 @@
 # Welcome to Falcon
-Falcon is a Binary Static Analysis Framework in Rust. The code here is not for sharing,
-be that public or private. If you haven't been invited to this repo, the code is not
-for you.
-
-This code is made available under the terms that should you,
-at some point in the future, make >$1k on a bug from Falcon, you owe me dinner.
+Falcon is a Binary Static Analysis Framework in Rust.
 
 # When will Falcon be stabilized?
 
@@ -21,19 +16,14 @@ codebase is sufficiently rust-idiomatic.
 
   Rough priorities, in order:
 
-  * Loading of binary formats (Elf)
-  * Scripting with [ketos](https://github.com/murarth/ketos)
+  * Loading of binary formats (Elf) [done]
+  * Scripting with [ketos](https://github.com/murarth/ketos) [abandoned]
   * Inter-procedural analysis
   * Constraint generation
   * Constraint solving
   * Flushing out the rest of X86
   * MIPS
   * ARM
-
-# Contributing
-
-I am not accepting contributions in the form of code at this time. I am accepting
-feature requests and bug reports.
 
 # Rust Compatibility
 
@@ -92,6 +82,9 @@ There are 5 operations:
   * Phi
 
 Operations take operands, which are either `il::Variable` or `il::Expression`
+
+I plan on adding another Operation in the near future, "Raise," which will
+take the place of architecture-specific instructions such as `syscall`.
 
 ### `il::Expression`
 
