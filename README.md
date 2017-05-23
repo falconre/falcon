@@ -15,6 +15,9 @@ as an example of what this looks like now, or the
 [FixedPoint](https://github.com/endeav0r/falcon/blob/master/lib/analysis/fixed_point.rs)
 trait.
 
+[Example image](http://tfpwn.com/files/check.png) of WIP ValueSet Analysis over the `check`
+function from the CGC Palindrome challenge.
+
 # When will Falcon be stabilized?
 
 When Falcon hits 0.1.0, it will be stable enough for use. Until 0.1.0, I reserve the
