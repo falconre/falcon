@@ -71,7 +71,7 @@ The core struct in Falcon IL is `il::ControlFlowGraph`.
 lifted, their path-guards are translated into conditions over their edges. Edges without
 conditions are unconditional.
 
-`il::Edge`` conditions are of type `il::Expression`.
+`il::Edge` conditions are of type `il::Expression`.
 
 ### `il::Block`
 
