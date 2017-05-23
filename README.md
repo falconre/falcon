@@ -1,5 +1,19 @@
 # Welcome to Falcon
+
 Falcon is a Binary Static Analysis Framework in Rust.
+
+Falcon is not the only Binary Analysis Framework in Rust.
+[Panopticon](https://github.com/das-labor/panopticon) looks cool, and shows promise. 
+I've created RREIL-like ILs for analysis before though, and inspired by 
+[Binary Ninja](https://binary.ninja/)'s IL, I wanted an expression-based IL. Panopticon 
+is certainly worth checking out.
+
+Falcon is similar in design to jakstab/bindead, in that it has a Fixed Point engine
+and analyses are implemented over this engine. See
+[Reaching Definitions](https://github.com/endeav0r/falcon/blob/master/lib/analysis/reaching_definitions.rs)
+as an example of what this looks like now, or the
+[FixedPoint](https://github.com/endeav0r/falcon/blob/master/lib/analysis/fixed_point.rs)
+trait.
 
 # When will Falcon be stabilized?
 
