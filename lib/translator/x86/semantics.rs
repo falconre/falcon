@@ -1553,6 +1553,27 @@ pub fn inc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
+pub fn int(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = try!(details(instruction));
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let expr = operand_load(&mut block, &detail.operands[0])?;
+
+        block.raise(expr);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn jcc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = try!(details(instruction));
 

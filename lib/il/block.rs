@@ -155,6 +155,12 @@ impl Block {
         self.push(Instruction::phi(index, dst, src));
     }
 
+    /// Adds a raise operation to the end of this block.
+    pub fn raise(&mut self, expr: Expression) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::raise(index, expr));
+    }
+
     /// Prepends an operation to the beginning of this block
     pub fn prepend_phi(&mut self, dst: Variable, src: Vec<Variable>) {
         let index = self.new_instruction_index();

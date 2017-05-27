@@ -40,6 +40,10 @@ impl Instruction {
         Instruction::new(index, Operation::Phi { dst: dst, src: src })
     }
 
+    pub fn raise(index: u64, expr: Expression) -> Instruction {
+        Instruction::new(index, Operation::Raise { expr: expr })
+    }
+
 
     pub fn is_assign(&self) -> bool {
         if let Operation::Assign{..} = self.operation {

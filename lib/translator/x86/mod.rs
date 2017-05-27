@@ -74,6 +74,7 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_IDIV => semantics::idiv(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_IMUL => semantics::imul(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_INC  => semantics::inc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_INT  => semantics::int(&mut instruction_graph, &instruction),
                     // conditional jumps will only emit a brc if the destination is undetermined at
                     // translation time
                     capstone::x86_insn::X86_INS_JA   => semantics::jcc(&mut instruction_graph, &instruction),

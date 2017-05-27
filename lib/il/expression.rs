@@ -120,7 +120,7 @@ impl Expression {
             Expression::Variable(ref mut variable) => {
                 variables.push(variable)
             },
-            Expression::Constant(_)  => {}
+            Expression::Constant(_) => {},
             Expression::Add(ref mut lhs, ref mut rhs) |
             Expression::Sub(ref mut lhs, ref mut rhs) |
             Expression::Mulu(ref mut lhs, ref mut rhs) |
@@ -148,6 +148,42 @@ impl Expression {
             }
         }
         variables
+    }
+
+    pub fn collect_variable_exprs_mut(&mut self) -> Vec<&mut Expression> {
+        let mut variable_exprs: Vec<&mut Expression> = Vec::new();
+        match *self {
+            Expression::Variable(_) => {
+                variable_exprs.push(self)
+            },
+            Expression::Constant(_) => {},
+            Expression::Add(ref mut lhs, ref mut rhs) |
+            Expression::Sub(ref mut lhs, ref mut rhs) |
+            Expression::Mulu(ref mut lhs, ref mut rhs) |
+            Expression::Divu(ref mut lhs, ref mut rhs) |
+            Expression::Modu(ref mut lhs, ref mut rhs) |
+            Expression::Muls(ref mut lhs, ref mut rhs) |
+            Expression::Divs(ref mut lhs, ref mut rhs) |
+            Expression::Mods(ref mut lhs, ref mut rhs) |
+            Expression::And(ref mut lhs, ref mut rhs) |
+            Expression::Or(ref mut lhs, ref mut rhs) |
+            Expression::Xor(ref mut lhs, ref mut rhs) |
+            Expression::Shl(ref mut lhs, ref mut rhs) |
+            Expression::Shr(ref mut lhs, ref mut rhs) |
+            Expression::Cmpeq(ref mut lhs, ref mut rhs) |
+            Expression::Cmpneq(ref mut lhs, ref mut rhs) |
+            Expression::Cmplts(ref mut lhs, ref mut rhs) |
+            Expression::Cmpltu(ref mut lhs, ref mut rhs) => {
+                variable_exprs.append(&mut lhs.collect_variable_exprs_mut());
+                variable_exprs.append(&mut rhs.collect_variable_exprs_mut());
+            },
+            Expression::Zext(bits, ref mut rhs) |
+            Expression::Sext(bits, ref mut rhs) |
+            Expression::Trun(bits, ref mut rhs) => {
+                variable_exprs.append(&mut rhs.collect_variable_exprs_mut());
+            }
+        }
+        variable_exprs
     }
 
     /// Create a new expression from a variable.

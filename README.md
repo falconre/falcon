@@ -73,18 +73,20 @@ Instructions are uniquely-indexed per-Block, and are displayed as `{:02X}` by co
 
 ### `il::Operation`
 
-There are 5 operations:
+There are 6 operations:
 
-  * Assign
-  * Store
-  * Load
-  * Brc
-  * Phi
+  * `Assign` - `dst: Variable` <- `src: Expression`
+  * `Store` - `address: Expression` <- `src: Expression`
+  * `Load` - `dst: Expression` <- `address: Expression`
+  * `Brc` - if (`condition: Expression` == 1) goto `dst: Expression`
+  * `Phi` - `dst: Variable` <- `src: Vec<Variable>`
+  * `Raise` - raise(`expr: Expression`)
 
 Operations take operands, which are either `il::Variable` or `il::Expression`
 
-I plan on adding another Operation in the near future, "Raise," which will
-take the place of architecture-specific instructions such as `syscall`.
+`Phi` operations are added by SSA analysis.
+
+`Raise` instructions are used to handle system calls.
 
 ### `il::Expression`
 
