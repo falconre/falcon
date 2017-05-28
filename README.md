@@ -18,10 +18,13 @@ trait.
 [Example image](http://tfpwn.com/files/check.png) of WIP ValueSet Analysis over the `check`
 function from the CGC Palindrome challenge.
 
-# When will Falcon be stabilized?
+# Should I use Falcon? / When will Falcon be stabilized?
 
-When Falcon hits 0.1.0, it will be stable enough for use. Until 0.1.0, I reserve the
-right to make breaking changes (though this will not happen often).
+When Falcon hits 0.1.0, I will deem Falcon stable enough to use, and I will send it to crates.io. *Until Falcon hits 0.1.0 I recommend you do not use it, even for experiments.* As I implement and experiment with things, I occasionally change the underlying IL, and your analyses will break.
+
+When Falcon hits 0.1.0, it may be nice for playing around, but I'm not sure if Falcon will ever be, "Production-ready." I currently do not have plans to implement the verbose-instruction set lifting of BAP, McSema/Remill, VEX IR, GDSL, etc.
+
+Falcon still serves as, "Yet Another Analysis Framework," so if you're looking for more examples/ideas of how people do things, read away.
 
 # What's being worked?
 
@@ -107,7 +110,50 @@ Operations take operands, which are either `il::Variable` or `il::Expression`
 
 ### `il::Expression`
 
-A typical arithmetic expression. Implemented expression as of this writing are:
+Implemented expressions as of this writing are:
 
-Variable, Constant, Add, Sub, Mulu, Divu, Modu, Muls, Divs, Mods, And, Or, Xor, Shl, Shr,
-Cmpeq, Cmpneq, Cmplts, Zext, Sext, Trun.
+  * `Variable(il::Variable)`
+  * `Constant(il::Constant)`
+  * `Add(il::Expression, il::Expression)`
+  * `Sub(il::Expression, il::Expression)`
+  * `Mul(il::Expression, il::Expression)`
+  * `Divu(il::Expression, il::Expression)`
+  * `Modu(il::Expression, il::Expression)`
+  * `Divs(il::Expression, il::Expression)`
+  * `Mods(il::Expression, il::Expression)`
+  * `And(il::Expression, il::Expression)`
+  * `Or(il::Expression, il::Expression)`
+  * `Xor(il::Expression, il::Expression)`
+  * `Shl(il::Expression, il::Expression)`
+  * `Shr(il::Expression, il::Expression)`
+  * `Cmpeq(il::Expression, il::Expression)`
+  * `Cmpneq(il::Expression, il::Expression)`
+  * `Cmplts(il::Expression, il::Expression)`
+  * `Cmpltu(il::Expression, il::Expression)`
+  * `Zext(usize, il::Expression)`
+  * `Sext(usize, il::Expression)`
+  * `Trun(usize, il::Expression)`
+
+We have 4 groups.
+
+#### Terminators
+
+`Variable`, `Constant`, as expected.
+
+#### Binary Arithmetic Operations
+
+`Add`, `Sub`, `Mul`, `Divu`, `Modu`, `Divs`, `Mods`, `And`, `Or`, `Xor`, `Shl`, `Shr`
+
+These take two `il::Expression`s of the same bit-width, and produce an `il::Expression` of the same bit-width.
+
+#### Binary Comparison Operations
+
+`Cmpeq`, `Cmpneq`, `Cmplts`, `Cmpltu`
+
+These take two `il::Expression`s of the same bit-width, and produce an `il::Expression` of bit-width 1. When the produced expression has a value of 1, this condition evaluates to true. When the produced expression has a value of 0, this condition evaluates to false.
+
+#### Bit-Extension
+
+`Zext`, `Sext`, `Trun`
+
+These take a desired bit-width, and either zero-extend, sign-extend, or truncate the given expression to match that bit-width. It is an error to extend an expression to a size <= its current size, or to truncate to a size >= its current size.
