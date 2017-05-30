@@ -3,7 +3,7 @@ use il::*;
 
 
 /// A basic block.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Block {
     /// The index of the block.
     index: u64,
@@ -118,29 +118,29 @@ impl Block {
     }
 
 
-    /// Generates a temporary variable unique to this block.
-    pub fn temp(&mut self, bits: usize) -> Variable {
+    /// Generates a temporary scalar unique to this block.
+    pub fn temp(&mut self, bits: usize) -> Scalar {
         let next_index = self.next_temp_index;
         self.next_temp_index = next_index + 1;
-        Variable::new(format!("temp_{}.{}", self.index, next_index), bits)
+        Scalar::new(format!("temp_{}.{}", self.index, next_index), bits)
     }
 
     /// Adds an assign operation to the end of this block.
-    pub fn assign(&mut self, dst: Variable, src: Expression) {
+    pub fn assign(&mut self, dst: Scalar, src: Expression) {
         let index = self.new_instruction_index();
         self.push(Instruction::assign(index, dst, src));
     }
 
     /// Adds a store operation to the end of this block.
-    pub fn store(&mut self, address: Expression, src: Expression) {
+    pub fn store(&mut self, dst: Array, address: Expression, src: Expression) {
         let index = self.new_instruction_index();
-        self.push(Instruction::store(index, address, src))
+        self.push(Instruction::store(index, dst, address, src))
     }
 
     /// Adds a load operation to the end of this block.
-    pub fn load(&mut self, dst: Variable, address: Expression) {
+    pub fn load(&mut self, dst: Scalar, address: Expression, src: Array) {
         let index = self.new_instruction_index();
-        self.push(Instruction::load(index, dst, address));
+        self.push(Instruction::load(index, dst, address, src));
     }
 
     /// Adds a conditional branch operation to the end of this block.

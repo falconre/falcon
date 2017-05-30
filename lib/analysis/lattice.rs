@@ -7,7 +7,7 @@ use il::Expression;
 use std::collections::{BTreeMap, BTreeSet};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt;
-use std::ops::BitOr;
+use std::ops::{BitOr, Deref};
 
 
 /// A lattice of `il::Constant` values
@@ -79,7 +79,6 @@ impl LatticeValue {
                 let mut swapped: BTreeSet<il::Constant> = BTreeSet::new();
                 // We're creating a LatticeAssignments for eval. Admittedly not
                 // the best solution
-                let la = LatticeAssignments::new(self.bits().unwrap());
                 for value in values.iter() {
                     let expr = executor::swap_bytes(&value.clone().into())?;
                     let const_ = executor::constants_expression(&expr)?; 
@@ -714,12 +713,6 @@ impl LatticeMemory {
                 // to return
                 if addr + lmv.bytes() as u64 >= address + (bits / 8) as u64 {
                     let offset = (address - addr) as usize * 8;
-                    let trun_bits = if lmv.bits() - offset > bits {
-                            bits
-                        }
-                        else {
-                            lmv.bits()
-                    };
                     return Some(lmv.extract(offset, bits).value.clone());
                 }
             }
@@ -798,10 +791,10 @@ impl LatticeMemory {
 }
 
 
-/// A mapping of variables and memory addresses to their lattice values
+/// A mapping of scalars and memory addresses to their lattice values
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct LatticeAssignments {
-    variables: BTreeMap<il::Variable, LatticeValue>,
+    scalars: BTreeMap<il::Scalar, LatticeValue>,
     memory: LatticeMemory,
     /// The max number of elements for each LatticeValue before converting it
     /// to Join
@@ -816,16 +809,16 @@ impl LatticeAssignments {
     /// hold before being transformed into `LatticeValue::Join`
     pub fn new(max: usize) -> LatticeAssignments {
         LatticeAssignments {
-            variables: BTreeMap::new(),
+            scalars: BTreeMap::new(),
             memory: LatticeMemory::new(),
             max: max
         }
     }
 
-    /// Get the `LatticeValue` for a variable
-    pub fn value(&self) -> &BTreeMap<il::Variable, LatticeValue> {
-        &self.variables
-    }
+    /// Get the `LatticeValue` for a scalar
+    // pub fn value(&self) -> &BTreeMap<il::Scalar, LatticeValue> {
+    //     &self.variables
+    // }
 
     /// Get max number of values a `LatticeValue` can have before Join
     pub fn max(&self) -> usize {
@@ -834,12 +827,12 @@ impl LatticeAssignments {
 
     pub fn join(mut self, other: &LatticeAssignments) -> LatticeAssignments {
         // for every assignment in the other LatticeAssignment
-        for assignment in &other.variables {
-            let variable = assignment.0;
+        for assignment in &other.scalars {
+            let scalar = assignment.0;
             let mut lattice_value = assignment.1.clone();
 
-            // If the variable exists here
-            if let Some(lv) = self.variables.get(variable) {
+            // If the scalars exists here
+            if let Some(lv) = self.scalars.get(scalar) {
                 // Join the two values
                 let lv = lv.clone().join(&lattice_value);
                 // If the join is a vlue (not Meet/Join)
@@ -857,7 +850,7 @@ impl LatticeAssignments {
                 }
             }
 
-            self.variables.insert(variable.clone(), lattice_value);
+            self.scalars.insert(scalar.clone(), lattice_value);
         }
 
         self.memory = self.memory.join(&other.memory, self.max);
@@ -865,14 +858,14 @@ impl LatticeAssignments {
         self
     }
 
-    /// Set the `LatticeValue` for an `il::Variable`
-    pub fn set(&mut self, variable: il::Variable, value: LatticeValue) {
-        self.variables.insert(variable, value);
+    /// Set the `LatticeValue` for an `il::Scalar`
+    pub fn set(&mut self, scalar: il::Scalar, value: LatticeValue) {
+        self.scalars.insert(scalar, value);
     }
 
-    /// Get the `LatticeValue` for a `Variable`.
-    pub fn get(&self, variable: &il::Variable) -> Option<&LatticeValue> {
-        self.variables.get(variable)
+    /// Get the `LatticeValue` for an `il::Scalar`.
+    pub fn get(&self, scalar: &il::Scalar) -> Option<&LatticeValue> {
+        self.scalars.get(scalar)
     }
 
     pub fn store(&mut self, address: &LatticeValue, value: LatticeValue, bits: usize) {
@@ -888,7 +881,7 @@ impl LatticeAssignments {
     }
 
     /// Evaluates an `il::Expression`, using the values in this
-    /// `LatticeAssignments` for variables.
+    /// `LatticeAssignments` for scalars.
     pub fn eval(&self, expr: &Expression) -> LatticeValue {
         let lattice_value = self.eval_(expr);
         if let Values(ref values) = lattice_value {
@@ -902,8 +895,8 @@ impl LatticeAssignments {
     fn eval_(&self, expr: &Expression) -> LatticeValue {
         match *expr {
 
-            Expression::Variable(ref variable) => {
-                match self.variables.get(variable) {
+            Expression::Scalar(ref scalar) => {
+                match self.scalars.get(scalar.borrow().deref()) {
                     Some(lattice_value) => lattice_value.clone(),
                     None => LatticeValue::Meet
                 }
@@ -930,12 +923,12 @@ impl LatticeAssignments {
                 )
             },
 
-            Expression::Mulu(ref lhs, ref rhs) => {
+            Expression::Mul(ref lhs, ref rhs) => {
                 lattice_value_binop(
                     &self.eval_(lhs),
                     &self.eval_(rhs),
                     |lhs: il::Constant, rhs: il::Constant| 
-                        Expression::mulu(lhs.into(), rhs.into()).unwrap()
+                        Expression::mul(lhs.into(), rhs.into()).unwrap()
                 )
             },
 
@@ -954,15 +947,6 @@ impl LatticeAssignments {
                     &self.eval_(rhs),
                     |lhs: il::Constant, rhs: il::Constant| 
                         Expression::modu(lhs.into(), rhs.into()).unwrap()
-                )
-            },
-
-            Expression::Muls(ref lhs, ref rhs) => {
-                lattice_value_binop(
-                    &self.eval_(lhs),
-                    &self.eval_(rhs),
-                    |lhs: il::Constant, rhs: il::Constant| 
-                        Expression::muls(lhs.into(), rhs.into()).unwrap()
                 )
             },
 

@@ -1,20 +1,21 @@
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 use il::*;
-
 /// An IL Expression.
 /// Expressions form the building blocks of instructions, and always evaluate
 /// some value.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Expression {
-    Variable(Variable),
     Constant(Constant),
+    Scalar(Rc<RefCell<Scalar>>),
+
     Add(Box<Expression>, Box<Expression>),
     Sub(Box<Expression>, Box<Expression>),
-    Mulu(Box<Expression>, Box<Expression>),
+    Mul(Box<Expression>, Box<Expression>),
     Divu(Box<Expression>, Box<Expression>),
     Modu(Box<Expression>, Box<Expression>),
-    Muls(Box<Expression>, Box<Expression>),
     Divs(Box<Expression>, Box<Expression>),
     Mods(Box<Expression>, Box<Expression>),
     And(Box<Expression>, Box<Expression>),
@@ -22,13 +23,15 @@ pub enum Expression {
     Xor(Box<Expression>, Box<Expression>),
     Shl(Box<Expression>, Box<Expression>),
     Shr(Box<Expression>, Box<Expression>),
+
     Cmpeq(Box<Expression>, Box<Expression>),
     Cmpneq(Box<Expression>, Box<Expression>),
     Cmplts(Box<Expression>, Box<Expression>),
     Cmpltu(Box<Expression>, Box<Expression>),
+
     Zext(usize, Box<Expression>),
     Sext(usize, Box<Expression>),
-    Trun(usize, Box<Expression>)
+    Trun(usize, Box<Expression>),
 }
 
 
@@ -36,28 +39,27 @@ impl Expression {
     /// Return the bit-sort of this expression.
     pub fn bits(&self) -> usize {
         match self {
-            &Expression::Variable(ref variable) => variable.bits(),
+            &Expression::Scalar(ref scalar) => scalar.borrow().bits(),
             &Expression::Constant(ref constant) => constant.bits(),
-            &Expression::Add(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Sub(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Mulu(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Divu(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Modu(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Muls(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Divs(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Mods(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::And(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Or(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Xor(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Shl(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Shr(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Cmpeq(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Cmpneq(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Cmplts(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Cmpltu(ref lhs, ref rhs) => lhs.bits(),
-            &Expression::Zext(bits, ref rhs) => bits,
-            &Expression::Sext(bits, ref rhs) => bits,
-            &Expression::Trun(bits, ref rhs) => bits
+            &Expression::Add(ref lhs, _) => lhs.bits(),
+            &Expression::Sub(ref lhs, _) => lhs.bits(),
+            &Expression::Mul(ref lhs, _) => lhs.bits(),
+            &Expression::Divu(ref lhs, _) => lhs.bits(),
+            &Expression::Modu(ref lhs, _) => lhs.bits(),
+            &Expression::Divs(ref lhs, _) => lhs.bits(),
+            &Expression::Mods(ref lhs, _) => lhs.bits(),
+            &Expression::And(ref lhs, _) => lhs.bits(),
+            &Expression::Or(ref lhs, _) => lhs.bits(),
+            &Expression::Xor(ref lhs, _) => lhs.bits(),
+            &Expression::Shl(ref lhs, _) => lhs.bits(),
+            &Expression::Shr(ref lhs, _) => lhs.bits(),
+            &Expression::Cmpeq(ref lhs, _) => lhs.bits(),
+            &Expression::Cmpneq(ref lhs, _) => lhs.bits(),
+            &Expression::Cmplts(ref lhs, _) => lhs.bits(),
+            &Expression::Cmpltu(ref lhs, _) => lhs.bits(),
+            &Expression::Zext(bits, _) => bits,
+            &Expression::Sext(bits, _) => bits,
+            &Expression::Trun(bits, _) => bits
         }
     }
 
@@ -78,19 +80,18 @@ impl Expression {
     }
 
     /// Returns all variables used in the expression
-    pub fn collect_variables(&self) -> Vec<&Variable> {
-        let mut variables: Vec<&Variable> = Vec::new();
+    pub fn collect_scalars(&self) -> Vec<Rc<RefCell<Scalar>>> {
+        let mut variables: Vec<Rc<RefCell<Scalar>>> = Vec::new();
         match *self {
-            Expression::Variable(ref variable) => {
-                variables.push(&variable)
+            Expression::Scalar(ref scalar) => {
+                variables.push(scalar.clone())
             }
             Expression::Constant(_) => {}
             Expression::Add(ref lhs, ref rhs) |
             Expression::Sub(ref lhs, ref rhs) |
-            Expression::Mulu(ref lhs, ref rhs) |
+            Expression::Mul(ref lhs, ref rhs) |
             Expression::Divu(ref lhs, ref rhs) |
             Expression::Modu(ref lhs, ref rhs) |
-            Expression::Muls(ref lhs, ref rhs) |
             Expression::Divs(ref lhs, ref rhs) |
             Expression::Mods(ref lhs, ref rhs) |
             Expression::And(ref lhs, ref rhs) |
@@ -102,49 +103,13 @@ impl Expression {
             Expression::Cmpneq(ref lhs, ref rhs) |
             Expression::Cmplts(ref lhs, ref rhs) |
             Expression::Cmpltu(ref lhs, ref rhs) => {
-                variables.append(&mut lhs.collect_variables());
-                variables.append(&mut rhs.collect_variables());
+                variables.append(&mut lhs.collect_scalars());
+                variables.append(&mut rhs.collect_scalars());
             },
-            Expression::Zext(bits, ref rhs) |
-            Expression::Sext(bits, ref rhs) |
-            Expression::Trun(bits, ref rhs) => {
-                variables.append(&mut rhs.collect_variables());
-            }
-        }
-        variables
-    }
-
-    pub fn collect_variables_mut(&mut self) -> Vec<&mut Variable> {
-        let mut variables: Vec<&mut Variable> = Vec::new();
-        match *self {
-            Expression::Variable(ref mut variable) => {
-                variables.push(variable)
-            },
-            Expression::Constant(_) => {},
-            Expression::Add(ref mut lhs, ref mut rhs) |
-            Expression::Sub(ref mut lhs, ref mut rhs) |
-            Expression::Mulu(ref mut lhs, ref mut rhs) |
-            Expression::Divu(ref mut lhs, ref mut rhs) |
-            Expression::Modu(ref mut lhs, ref mut rhs) |
-            Expression::Muls(ref mut lhs, ref mut rhs) |
-            Expression::Divs(ref mut lhs, ref mut rhs) |
-            Expression::Mods(ref mut lhs, ref mut rhs) |
-            Expression::And(ref mut lhs, ref mut rhs) |
-            Expression::Or(ref mut lhs, ref mut rhs) |
-            Expression::Xor(ref mut lhs, ref mut rhs) |
-            Expression::Shl(ref mut lhs, ref mut rhs) |
-            Expression::Shr(ref mut lhs, ref mut rhs) |
-            Expression::Cmpeq(ref mut lhs, ref mut rhs) |
-            Expression::Cmpneq(ref mut lhs, ref mut rhs) |
-            Expression::Cmplts(ref mut lhs, ref mut rhs) |
-            Expression::Cmpltu(ref mut lhs, ref mut rhs) => {
-                variables.append(&mut lhs.collect_variables_mut());
-                variables.append(&mut rhs.collect_variables_mut());
-            },
-            Expression::Zext(bits, ref mut rhs) |
-            Expression::Sext(bits, ref mut rhs) |
-            Expression::Trun(bits, ref mut rhs) => {
-                variables.append(&mut rhs.collect_variables_mut());
+            Expression::Zext(_, ref rhs) |
+            Expression::Sext(_, ref rhs) |
+            Expression::Trun(_, ref rhs) => {
+                variables.append(&mut rhs.collect_scalars());
             }
         }
         variables
@@ -153,16 +118,15 @@ impl Expression {
     pub fn collect_variable_exprs_mut(&mut self) -> Vec<&mut Expression> {
         let mut variable_exprs: Vec<&mut Expression> = Vec::new();
         match *self {
-            Expression::Variable(_) => {
+            Expression::Scalar(_) => {
                 variable_exprs.push(self)
             },
             Expression::Constant(_) => {},
             Expression::Add(ref mut lhs, ref mut rhs) |
             Expression::Sub(ref mut lhs, ref mut rhs) |
-            Expression::Mulu(ref mut lhs, ref mut rhs) |
+            Expression::Mul(ref mut lhs, ref mut rhs) |
             Expression::Divu(ref mut lhs, ref mut rhs) |
             Expression::Modu(ref mut lhs, ref mut rhs) |
-            Expression::Muls(ref mut lhs, ref mut rhs) |
             Expression::Divs(ref mut lhs, ref mut rhs) |
             Expression::Mods(ref mut lhs, ref mut rhs) |
             Expression::And(ref mut lhs, ref mut rhs) |
@@ -177,18 +141,18 @@ impl Expression {
                 variable_exprs.append(&mut lhs.collect_variable_exprs_mut());
                 variable_exprs.append(&mut rhs.collect_variable_exprs_mut());
             },
-            Expression::Zext(bits, ref mut rhs) |
-            Expression::Sext(bits, ref mut rhs) |
-            Expression::Trun(bits, ref mut rhs) => {
+            Expression::Zext(_, ref mut rhs) |
+            Expression::Sext(_, ref mut rhs) |
+            Expression::Trun(_, ref mut rhs) => {
                 variable_exprs.append(&mut rhs.collect_variable_exprs_mut());
             }
         }
         variable_exprs
     }
 
-    /// Create a new expression from a variable.
-    pub fn variable(variable: Variable) -> Expression {
-        Expression::Variable(variable)
+    /// Create a new expression from a scalar.
+    pub fn scalar(scalar: Scalar) -> Expression {
+        Expression::Scalar(Rc::new(RefCell::new(scalar)))
     }
 
     /// Create a new expression from a constant.
@@ -215,9 +179,9 @@ impl Expression {
     /// Create an unsigned multiplication expression.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn mulu(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn mul(lhs: Expression, rhs: Expression) -> Result<Expression> {
         try!(Expression::ensure_sort(&lhs, &rhs, true));
-        Ok(Expression::Mulu(Box::new(lhs), Box::new(rhs)))
+        Ok(Expression::Mul(Box::new(lhs), Box::new(rhs)))
     }
 
     /// Create an unsigned division expression.
@@ -234,14 +198,6 @@ impl Expression {
     pub fn modu(lhs: Expression, rhs: Expression) -> Result<Expression> {
         try!(Expression::ensure_sort(&lhs, &rhs, true));
         Ok(Expression::Modu(Box::new(lhs), Box::new(rhs)))
-    }
-
-    /// Create a signed multiplication expression.
-    /// # Error
-    /// The sort of the lhs and the rhs are not the same.
-    pub fn muls(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
-        Ok(Expression::Muls(Box::new(lhs), Box::new(rhs)))
     }
 
     /// Create a signed division expression.
@@ -369,20 +325,18 @@ impl Expression {
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Expression::Variable(ref v) => v.fmt(f),
+            Expression::Scalar(ref s) => s.borrow().fmt(f),
             Expression::Constant(ref c) => c.fmt(f),
             Expression::Add(ref lhs, ref rhs) => 
                 write!(f, "({} + {})", lhs, rhs),
             Expression::Sub(ref lhs, ref rhs) =>
                 write!(f, "({} - {})", lhs, rhs),
-            Expression::Mulu(ref lhs, ref rhs) =>
-                write!(f, "({} *u {})", lhs, rhs),
+            Expression::Mul(ref lhs, ref rhs) =>
+                write!(f, "({} * {})", lhs, rhs),
             Expression::Divu(ref lhs, ref rhs) =>
                 write!(f, "({} /u {})", lhs, rhs),
             Expression::Modu(ref lhs, ref rhs) =>
                 write!(f, "({} %u {})", lhs, rhs),
-            Expression::Muls(ref lhs, ref rhs) =>
-                write!(f, "({} *s {})", lhs, rhs),
             Expression::Divs(ref lhs, ref rhs) =>
                 write!(f, "({} /s {})", lhs, rhs),
             Expression::Mods(ref lhs, ref rhs) =>

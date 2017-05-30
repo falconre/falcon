@@ -23,17 +23,17 @@ pub fn def_use(
         let haystack = match *this_location {
             Edge(ref el) => match *el.find(control_flow_graph)?
                                      .condition() {
-                Some(ref condition) => condition.collect_variables()
-                                                 .iter()
-                                                 .map(|v| (*v).clone())
-                                                 .collect::<Vec<il::Variable>>(),
+                Some(ref condition) => condition.collect_scalars()
+                                            .iter()
+                                            .map(|v| il::Variable::scalar(v.clone()))
+                                            .collect::<Vec<il::Variable>>(),
                 None => Vec::new()
             },
             Instruction(ref il) => il.find(control_flow_graph)?
-                                      .variables_read()
-                                      .iter()
-                                      .map(|v| (*v).clone())
-                                      .collect::<Vec<il::Variable>>(),
+                                     .variables_read()
+                                     .iter()
+                                     .map(|v| v.clone())
+                                     .collect::<Vec<il::Variable>>(),
             EmptyBlock(_) => Vec::new()
         };
 
@@ -44,7 +44,7 @@ pub fn def_use(
               if let Some(variable_written) = def_location
                                           .find(control_flow_graph)?
                                           .variable_written() {
-                  if haystack.contains(variable_written) {
+                  if haystack.contains(&variable_written) {
                       du.get_mut(&def_location.clone().into())
                         .unwrap()
                         .insert(this_location.clone());
@@ -78,16 +78,16 @@ pub fn use_def(
         let haystack = match *this_location {
             Edge(ref el) => match *el.find(control_flow_graph)?
                                       .condition() {
-                Some(ref condition) => condition.collect_variables()
-                                                .iter()
-                                                .map(|v| (*v).clone())
-                                                .collect::<Vec<il::Variable>>(),
+                Some(ref condition) => condition.collect_scalars()
+                                            .iter()
+                                            .map(|v| il::Variable::scalar(v.clone()))
+                                            .collect::<Vec<il::Variable>>(),
                 None => Vec::new()
             },
             Instruction(ref il) => il.find(control_flow_graph)?
                                      .variables_read()
                                      .iter()
-                                     .map(|v| (*v).clone())
+                                     .map(|v| v.clone())
                                      .collect::<Vec<il::Variable>>(),
            EmptyBlock(_) => Vec::new()
         };
@@ -99,7 +99,7 @@ pub fn use_def(
               if let Some(variable_written) = def_location
                                           .find(control_flow_graph)?
                                           .variable_written() {
-                  if haystack.contains(variable_written) {
+                  if haystack.contains(&variable_written) {
                       ud.get_mut(&this_location.clone())
                         .unwrap()
                         .insert(def_location.clone().into());

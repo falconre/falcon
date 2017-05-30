@@ -24,7 +24,7 @@ impl Arch for X86 {
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
         let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_X86, capstone::cs_mode::CS_MODE_32) {
             Ok(cs) => cs,
-            Err(e) => return Err("Capstone Error".into())
+            Err(_) => return Err("Capstone Error".into())
         };
 
         cs.option(capstone::cs_opt_type::CS_OPT_DETAIL, capstone::cs_opt_value::CS_OPT_ON).unwrap();

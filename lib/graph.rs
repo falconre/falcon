@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use error::*;
 
 
-pub trait Vertex: Clone + Debug + Eq + PartialEq {
+pub trait Vertex: Clone + Eq + PartialEq {
     // The index of this vertex.
     fn index(&self) -> u64;
     // A string to display in dot graphviz format.

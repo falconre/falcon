@@ -1,65 +1,59 @@
-use std::fmt;
 use il::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 
-
-/// An IL variable.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Variable {
-    name: String,
-    bits: usize,
-    ssa: Option<u32>
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum Variable {
+    Array(Rc<RefCell<Array>>),
+    Scalar(Rc<RefCell<Scalar>>)
 }
 
 
 impl Variable {
-    pub fn new<S>(name: S, bits: usize) -> Variable where S: Into<String> {
-        Variable {
-            name: name.into(),
-            bits: bits,
-            ssa: None
+    pub fn array(array: Rc<RefCell<Array>>) -> Variable {
+        Variable::Array(array)
+    }
+
+    pub fn scalar(scalar: Rc<RefCell<Scalar>>) -> Variable {
+        Variable::Scalar(scalar)
+    }
+
+    pub fn name(&self) -> String {
+        match *self {
+            Variable::Array(ref array) => array.borrow().name().to_string(),
+            Variable::Scalar(ref scalar) => scalar.borrow().name().to_string()
         }
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
     pub fn bits(&self) -> usize {
-        self.bits
-    }
-
-    /// A variable uniquely identifies the variable in the form `<name>:<bits>#<ssa>`
-    pub fn identifier(&self) -> String {
-        format!(
-            "{}:{}{}",
-            self.name,
-            self.bits,
-            match self.ssa {
-                Some(ssa) => format!("#{}", ssa),
-                None => String::new()
-        })
+        match *self {
+            Variable::Array(_) => 8,
+            Variable::Scalar(ref scalar) => scalar.borrow().bits()
+        }
     }
 
     pub fn ssa(&self) -> Option<u32> {
-        self.ssa
+        match *self {
+            Variable::Array(ref array) => array.borrow().ssa(),
+            Variable::Scalar(ref scalar) => scalar.borrow().ssa()
+        }
     }
 
     pub fn set_ssa(&mut self, ssa: Option<u32>) {
-        self.ssa = ssa;
+        match *self {
+            Variable::Array(ref mut array) => array.borrow_mut().set_ssa(ssa),
+            Variable::Scalar(ref mut scalar) => scalar.borrow_mut().set_ssa(ssa)
+        }
     }
 }
 
 
-impl fmt::Display for Variable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.identifier())
-    }
-}
-
-
-impl Into<Expression> for Variable {
-    fn into(self) -> Expression {
-        Expression::variable(self)
+impl ::std::fmt::Display for Variable {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match *self {
+            Variable::Array(ref array) => array.borrow().fmt(f),
+            Variable::Scalar(ref scalar) => scalar.borrow().fmt(f)
+        }
     }
 }

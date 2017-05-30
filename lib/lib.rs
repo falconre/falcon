@@ -4,6 +4,7 @@ extern crate base64;
 #[macro_use]
 extern crate bitflags;
 extern crate capstone_rust;
+extern crate core;
 #[macro_use]
 extern crate error_chain;
 extern crate goblin;
@@ -20,6 +21,7 @@ pub mod executor;
 pub mod graph;
 pub mod il;
 pub mod loader;
+// pub mod solver;
 pub mod translator;
 
 

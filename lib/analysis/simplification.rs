@@ -15,7 +15,7 @@ use analysis::analysis_location::*;
 use error::*;
 use il;
 use std::collections::{BTreeMap};
-
+use std::ops::Deref;
 
 
 
@@ -107,7 +107,9 @@ fn assignment_propagation(analysis: &Analysis) -> Result<il::ControlFlowGraph> {
 
         // Find the variable we are assigning to
         let target_variable = match *target_ins.operation() {
-            il::Operation::Assign{ref dst, src: _} => dst.clone(),
+            il::Operation::Assign{ref dst, src: _} => dst.borrow()
+                                                         .deref()
+                                                         .clone(),
             _ => bail!("Invalid target instruction in simplification: {}",
                 target_il.find(analysis.control_flow_graph())?)
         };
@@ -116,8 +118,12 @@ fn assignment_propagation(analysis: &Analysis) -> Result<il::ControlFlowGraph> {
         let operation = match *source_ins.operation() {
             il::Operation::Assign{dst: _, ref src} => 
                 il::Operation::assign(target_variable, src.clone()),
-            il::Operation::Load{dst: _, ref address} =>
-                il::Operation::load(target_variable, address.clone()),
+            il::Operation::Load{dst: _, ref index, ref src} =>
+                il::Operation::load(
+                    target_variable,
+                    index.clone(),
+                    src.borrow().deref().clone()
+                ),
             _ => bail!("Invalid source instruction in simplification")
         };
 

@@ -18,6 +18,7 @@ use falcon::analysis::*;
 use falcon::il;
 use falcon::loader::Loader;
 use log::{LogRecord, LogLevel, LogLevelFilter, LogMetadata};
+use std::ops::Deref;
 use std::path::Path;
 
 
@@ -63,6 +64,7 @@ impl log::Log for StdoutLogger {
 
 fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian: Endian)
 -> Result<()> {
+    println!("label_value_set");
     let cfg = control_flow_graph.clone();
     let analysis = Analysis::new(&cfg)?;
     let value_sets = analysis.value_set(128, endian)?;
@@ -73,17 +75,19 @@ fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian
                 let comment = il.find(&control_flow_graph)?
                                 .variables_read()
                                 .iter()
-                                .map(|var_read| {
-                                    format!(
-                                        "{}={}",
-                                        var_read.name(),
-                                        match assignments.get(var_read) {
-                                            Some(lv) => format!("{}", lv),
-                                            None => String::from("?")
-                                        }
-                                    )
+                                .fold(Vec::new(), |mut v, var_read| {
+                                    if let il::Variable::Scalar(ref scalar) = *var_read {
+                                        v.push(format!(
+                                            "{}={}",
+                                            scalar.borrow().name(),
+                                            match assignments.get(scalar.borrow().deref()) {
+                                                Some(lv) => format!("{}", lv),
+                                                None => String::from("?")
+                                            }
+                                        ))
+                                    }
+                                    v
                                 })
-                                .collect::<Vec<String>>()
                                 .join(", ");
                 il.find_mut(control_flow_graph)?
                   .set_comment(Some(comment));
@@ -91,13 +95,13 @@ fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian
             AnalysisLocation::Edge(el) => {
                 let comment = match el.find(&control_flow_graph)?
                                       .condition() {
-                    &Some(ref condition) => Some(condition.collect_variables()
+                    &Some(ref condition) => Some(condition.collect_scalars()
                                                 .iter()
-                                                .map(|v| {
+                                                .map(|s| {
                                                     format!(
                                                         "{}={}",
-                                                        v.name(),
-                                                        match assignments.get(v) {
+                                                        s.borrow().name(),
+                                                        match assignments.get(s.borrow().deref()) {
                                                             Some(lv) => format!("{}", lv),
                                                             None => String::from("?")
                                                         }
@@ -120,10 +124,10 @@ fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian
 
 fn label_def_use(ref mut control_flow_graph: &mut il::ControlFlowGraph)
 -> Result<()> {
+    println!("label def_use");
     let cfg = control_flow_graph.clone();
     let analysis = Analysis::new(&cfg)?;
     let def_use = analysis.def_use();
-    // let def_use = analysis.use_def();
 
     for (def, uses) in def_use {
         match *def {
@@ -143,6 +147,50 @@ fn label_def_use(ref mut control_flow_graph: &mut il::ControlFlowGraph)
 }
 
 
+// fn label_constraints(ref mut control_flow_graph: &mut il::ControlFlowGraph)
+// -> Result<()> {
+//     println!("label_constraints");
+//     let cfg = control_flow_graph.clone();
+//     let analysis = Analysis::new(&cfg)?;
+//     let constraints = analysis.constraints()?;
+
+//     for (al, constraints) in constraints {
+//         let comment = constraints.variable_constraints().iter()
+//             .map(|constraint| {
+//                 let al = constraint.0;
+//                 let expr = constraint.1;
+//                 format!("{} {}", al, expr)
+//             })
+//             .collect::<Vec<String>>()
+//             .join(", ");
+//         let comment = comment + " / " + &constraints.memory_constraints()
+//             .iter()
+//             .map(|memory_constraint| {
+//                 let al = memory_constraint.0;
+//                 let ref address = (memory_constraint.1).0;
+//                 let ref expr = (memory_constraint.1).1;
+//                 format!("{} [{}] # {}", al, address, expr)
+//             })
+//             .collect::<Vec<String>>()
+//             .join(", ");
+//         println!("{} {}", al, comment);
+//         match al {
+//             AnalysisLocation::Edge(ref el) => {
+//                 el.find_mut(control_flow_graph)?
+//                   .set_comment(Some(comment));
+//             }
+//             AnalysisLocation::Instruction(ref il) => {
+//                 il.find_mut(control_flow_graph)?
+//                   .set_comment(Some(comment));
+//             }
+//             _ => {}
+//         }
+//     }
+
+//     Ok(())
+// }
+
+
 fn run () -> Result<()> {
     let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
     let elf = falcon::loader::json::Json::from_file(filename)?;
@@ -153,18 +201,18 @@ fn run () -> Result<()> {
 
 
     if let Some(function) = program.function(0x80488CA) {
-        let control_flow_graph = ssa(function.control_flow_graph().clone())?;
-        let analysis = Analysis::new(&control_flow_graph)?;
-        // let mut control_flow_graph = analysis.dead_code_elimination()?;
-        let mut control_flow_graph = analysis.optimize()?;
+        // let control_flow_graph = ssa(function.control_flow_graph().clone())?;
+        let analysis = Analysis::new(function.control_flow_graph())?;
+        let mut control_flow_graph = analysis.dead_code_elimination()?;
+        // let mut control_flow_graph = analysis.optimize()?;
         // let mut control_flow_graph = analysis.control_flow_graph().clone();
         // let mut control_flow_graph = analysis.simplification()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
-            block.assign(il::var("esp", 32), il::expr_const(0xC0000000, 32));
-            block.assign(il::var("DF", 1), il::expr_const(0x0, 1));
+            block.assign(il::scalar("esp", 32), il::expr_const(0xC0000000, 32));
+            block.assign(il::scalar("DF", 1), il::expr_const(0x0, 1));
 
             block.index()
         };
@@ -176,6 +224,7 @@ fn run () -> Result<()> {
 
         label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
         // label_def_use(&mut control_flow_graph)?;
+        // label_constraints(&mut control_flow_graph)?;
 
         let mut file = File::create("/tmp/check.dot")?;
         file.write_all(&control_flow_graph.graph().dot_graph().into_bytes())?;

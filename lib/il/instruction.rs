@@ -2,7 +2,7 @@ use il::*;
 use std::fmt;
 
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Instruction {
     operation: Operation,
     index: u64,
@@ -20,25 +20,48 @@ impl Instruction {
             address: None
         }
     }
-    pub fn assign(index: u64, dst: Variable, src: Expression) -> Instruction {
-        Instruction::new(index, Operation::Assign { dst: dst, src: src })
+
+
+    pub fn assign(index: u64, dst: Scalar, src: Expression) -> Instruction {
+        Instruction::new(index, Operation::assign(dst, src))
     }
 
-    pub fn store(index: u64, address: Expression, src: Expression) -> Instruction {
-        Instruction::new(index, Operation::Store { address: address, src: src })
+
+    pub fn store(
+        instruction_index: u64,
+        dst: Array,
+        dst_index: Expression,
+        src: Expression
+    ) -> Instruction {
+
+        Instruction::new(instruction_index, Operation::store(dst, dst_index, src))
     }
 
-    pub fn load(index: u64, dst: Variable, address: Expression) -> Instruction {
-        Instruction::new(index, Operation::Load { dst: dst, address: address })
+
+    pub fn load(
+        instruction_index: u64,
+        dst: Scalar,
+        src_index: Expression,
+        src: Array
+    ) -> Instruction {
+
+        Instruction::new(instruction_index, Operation::load(dst, src_index, src))
     }
 
-    pub fn brc(index: u64, dst: Expression, condition: Expression) -> Instruction {
-        Instruction::new(index, Operation::Brc { dst: dst, condition: condition })
+
+    pub fn brc(index: u64, target: Expression, condition: Expression)
+    -> Instruction {
+
+        Instruction::new(index, Operation::brc(target, condition))
     }
 
-    pub fn phi(index: u64, dst: Variable, src: Vec<Variable>) -> Instruction {
-        Instruction::new(index, Operation::Phi { dst: dst, src: src })
+
+    pub fn phi(index: u64, dst: Variable, src: Vec<Variable>)
+    -> Instruction {
+
+        Instruction::new(index, Operation::phi(dst, src))
     }
+
 
     pub fn raise(index: u64, expr: Expression) -> Instruction {
         Instruction::new(index, Operation::Raise { expr: expr })
@@ -140,23 +163,13 @@ impl Instruction {
     }
 
 
-    pub fn variable_written(&self) -> Option<&Variable> {
+    pub fn variable_written(&self) -> Option<Variable> {
         self.operation.variable_written()
     }
 
 
-    pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
-        self.operation.variable_written_mut()
-    }
-
-
-    pub fn variables_read(&self) -> Vec<&Variable> {
+    pub fn variables_read(&self) -> Vec<Variable> {
         self.operation.variables_read()
-    }
-
-
-    pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
-        self.operation.variables_read_mut()
     }
 }
 

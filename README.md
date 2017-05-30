@@ -1,5 +1,7 @@
 # Welcome to Falcon
 
+**For all that is good in this world, do not use Falcon right now. The IL is in flux.**
+
 Falcon is a Binary Static Analysis Framework in Rust.
 
 Falcon is not the only Binary Analysis Framework in Rust.
@@ -59,6 +61,8 @@ rustup run nigthly cargo doc
 # Falcon Intermediate Language
 
 Falcon IL is an expression-based Intermediate Language.
+
+**This is all old news bears. Don't bother until version `0.1.0`.**
 
 ### `il::ControlFlowGraph`
 The core struct in Falcon IL is `il::ControlFlowGraph`.

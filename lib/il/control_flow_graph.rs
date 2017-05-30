@@ -214,11 +214,11 @@ impl ControlFlowGraph {
     }
 
 
-    /// Generates a temporary variable unique to this control flow graph.
-    pub fn temp(&self, bits: usize) -> Variable {
+    /// Generates a temporary scalar unique to this control flow graph.
+    pub fn temp(&self, bits: usize) -> Scalar {
         let next_index = self.next_temp_index.get();
         self.next_temp_index.set(next_index + 1);
-        Variable::new(format!("temp_{}", next_index), bits)
+        Scalar::new(format!("temp_{}", next_index), bits)
     }
 
 

@@ -4,6 +4,7 @@ use analysis::lattice::*;
 use error::*;
 use il;
 use std::collections::BTreeMap;
+use std::ops::Deref;
 
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -96,7 +97,7 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
         };
         
         Ok(match *analysis_location {
-            Edge(ref el) => {
+            Edge(_) => {
                 /*
                 let edge = el.find(self.control_flow_graph)?;
                 if let Some(ref condition) = *edge.condition() {
@@ -123,61 +124,92 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
             },
             Instruction(ref il) => {
                 let operation = il.find(&self.control_flow_graph)?.operation();
-                match operation {
-                    &il::Operation::Assign { ref dst, ref src } => {
+                match *operation {
+                    il::Operation::Assign { ref dst, ref src } => {
                         let lattice_value = state_out.eval(src);
-                        state_out.set(dst.clone(), lattice_value);
+                        state_out.set(
+                            dst.borrow().deref().clone(),
+                            lattice_value
+                        );
                         state_out
                     }
-                    &il::Operation::Store { ref address, ref src } => {
-                        let state_out_test = state_out.clone();
-                        let address = state_out.eval(address);
+                    il::Operation::Store { dst: _, ref index, ref src } => {
+                        let index = state_out.eval(index);
                         let mut value = state_out.eval(src);
                         if self.endian == Endian::Little {
                             value = value.endian_swap()?;
                         }
-                        state_out.store(&address, value, src.bits());
+                        state_out.store(&index, value, src.bits());
                         state_out
                     }
-                    &il::Operation::Load { ref dst, ref address } => {
-                        let address = state_out.eval(address);
-                        match state_out.load(&address, dst.bits()) {
+                    il::Operation::Load { ref dst, ref index, src: _ } => {
+                        let index = state_out.eval(index);
+                        match state_out.load(&index, dst.borrow().bits()) {
                             Some(value) => {
                                 if self.endian == Endian::Little {
-                                    state_out.set(dst.clone(), value.endian_swap()?);
+                                    state_out.set(
+                                        dst.borrow().deref().clone(),
+                                        value.endian_swap()?
+                                    );
                                 } else {
-                                    state_out.set(dst.clone(), value);
+                                    state_out.set(
+                                        dst.borrow().deref().clone(),
+                                        value
+                                    );
                                 }
 
                             }
-                            None => state_out.set(dst.clone(), LatticeValue::Meet)
+                            None => state_out.set(
+                                dst.borrow().deref().clone(),
+                                LatticeValue::Meet
+                            )
                         }
                         state_out
                     }
-                    &il::Operation::Brc { ref dst, ref condition } => {
-                        state_out
-                    }
-                    &il::Operation::Phi { ref dst, ref src } => {
-                        if src.len() == 0 {
-                            state_out.set(dst.clone(), LatticeValue::Meet);
-                            state_out
+                    il::Operation::Phi { ref dst, ref src } => {
+                        if let il::Variable::Scalar(ref dst) = *dst {
+                            if src.len() == 0 {
+                                state_out.set(
+                                    dst.borrow().deref().clone(),
+                                    LatticeValue::Meet
+                                );
+                                state_out
+                            }
+                            else {
+                                let mut src_: Vec<il::Scalar> = Vec::new();
+                                for s in src {
+                                    if let il::Variable::Scalar(ref s) = *s {
+                                        src_.push(s.borrow().deref().clone());
+                                    }
+                                }
+
+                                let src = src_;
+                                let mut lattice_value = match state_out.get(src.first()
+                                                                               .unwrap()) {
+                                    Some(lv) => lv.clone(),
+                                    None => LatticeValue::Meet
+                                };
+                                let meet = LatticeValue::Meet;
+                                for lv in src {
+                                    lattice_value = lattice_value.join(match state_out.get(&lv) {
+                                        Some(lv) => lv,
+                                        None => &&meet
+                                    });
+                                }
+                                state_out.set(
+                                    dst.borrow().deref().clone(),
+                                    lattice_value.clone()
+                                );
+                                state_out
+                            }
                         }
                         else {
-                            let mut lattice_value = match state_out.get(src.first()
-                                                                           .unwrap()) {
-                                Some(lv) => lv.clone(),
-                                None => LatticeValue::Meet
-                            };
-                            let meet = LatticeValue::Meet;
-                            for lv in src {
-                                lattice_value = lattice_value.join(match state_out.get(&lv) {
-                                    Some(lv) => lv,
-                                    None => &&meet
-                                });
-                            }
-                            state_out.set(dst.clone(), lattice_value.clone());
                             state_out
                         }
+                    }
+                    il::Operation::Raise { expr: _ } |
+                    il::Operation::Brc { target: _, condition: _ } => {
+                        state_out
                     }
                 }
             },

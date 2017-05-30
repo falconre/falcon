@@ -334,8 +334,12 @@ where Analysis: FixedPointAnalysis<State>, State: Clone + Debug + PartialEq + Eq
         };
 
         if let Some(in_state) = states.get(&analysis_location) {
-            continue;
+            if out_state == *in_state {
+                continue;
+            }
         }
+
+        info!("adding predecessors");
 
         states.insert(analysis_location.clone(), out_state);
 

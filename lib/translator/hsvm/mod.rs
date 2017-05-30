@@ -119,7 +119,7 @@ fn decode_operation(bytes: &[u8]) -> Result<il::Operation, Error> {
             }),
             4 => Ok(il::Instruction::Assign {
                 dst: dst,
-                src: il::Expression::Mulu(Box::new(lhs), Box::new(rhs))
+                src: il::Expression::Mul(Box::new(lhs), Box::new(rhs))
             }),
             6 => Ok(il::Instruction::Assign {
                 dst: dst,
