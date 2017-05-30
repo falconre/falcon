@@ -1,15 +1,19 @@
-dist: xenial
-
+dist: trusty
+sudo: required
 language: rust
 
 rust:
   - stable
 
+env:
+  - LIBCLANG_PATH=/usr/lib/x86_64-linux-gnu/
+
 before_install:
   - wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-  - sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main"
-  - sudo apt-get -qq update
-  - sudo apt-get install -y llvm-3.9-dev libclang-3.9-dev clang-3.9
+  - sudo apt-add-repository "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.9 main"
+  - sudo apt-get update -qq
+  - sudo apt-get install -y llvm-3.9-dev libclang-3.9-dev libclang1-3.9 clang-3.9
+  - sudo ln -s /usr/lib/x86_64-linux-gnu/libclang-3.9.so.1 /usr/lib/x86_64-linux-gnu/libclang.so
 
 install:
   - wget https://github.com/aquynh/capstone/archive/3.0.4.tar.gz
