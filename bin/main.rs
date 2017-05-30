@@ -1,13 +1,9 @@
 extern crate base64;
 extern crate bincode;
 extern crate clap;
-// #[macro_use]
-// extern crate dyon;
 #[macro_use]
 extern crate error_chain;
 extern crate falcon;
-// #[macro_use] extern crate ketos;
-// #[macro_use] extern crate ketos_derive;
 // #[macro_use]
 extern crate log;
 
