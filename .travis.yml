@@ -1,14 +1,13 @@
 dist: xenial
-
+sudo: required
 language: rust
 
 rust:
   - stable
 
 before_install:
-
   - wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-  - sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial main"
+  - sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main"
   - sudo apt-get update -qq
   - sudo apt-get install -y llvm-3.9-dev libclang-3.9-dev clang-3.9
 
