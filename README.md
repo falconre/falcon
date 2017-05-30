@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/endeav0r/falcon.svg?branch=master)](https://travis-ci.org/endeav0r/falcon)
+
 # Welcome to Falcon
 
 **For all that is good in this world, do not use Falcon right now. The IL is in flux.**
