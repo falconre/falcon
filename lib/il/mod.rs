@@ -6,27 +6,27 @@ use error::*;
 use graph;
 
 pub mod array;
-pub mod block;
+// pub mod block;
 pub mod constant;
-pub mod control_flow_graph;
+// pub mod control_flow_graph;
 pub mod expression;
-pub mod function;
-pub mod instruction;
+// pub mod function;
+// pub mod instruction;
 pub mod operation;
 pub mod scalar;
-pub mod program;
+// pub mod program;
 pub mod variable;
 
 pub use self::array::*;
-pub use self::block::*;
+// pub use self::block::*;
 pub use self::constant::*;
-pub use self::control_flow_graph::*;
+// pub use self::control_flow_graph::*;
 pub use self::expression::*;
-pub use self::function::*;
-pub use self::instruction::*;
+// pub use self::function::*;
+// pub use self::instruction::*;
 pub use self::operation::*;
 pub use self::scalar::*;
-pub use self::program::*;
+// pub use self::program::*;
 pub use self::variable::*;
 
 /// A convenience function to create a new constant.

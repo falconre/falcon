@@ -8,20 +8,20 @@ use il::*;
 pub enum Operation {
     /// Assign the value given in expression to the variable indicated.
     Assign {
-        dst: Rc<RefCell<Scalar>>,
+        dst: Scalar,
         src: Expression
     },
     /// Store the value given by expression at the address given.
     Store {
-        dst: Rc<RefCell<Array>>,
+        dst: Array,
         index: Expression,
         src: Expression
     },
     /// Load the value given by address and place the result in the variable dst.
     Load {
-        dst: Rc<RefCell<Scalar>>,
+        dst: Scalar,
         index: Expression,
-        src: Rc<RefCell<Array>>
+        src: Array
     },
     /// If condition is non-zero, branch to the value given by dst.
     Brc {
@@ -30,8 +30,8 @@ pub enum Operation {
     },
     /// Phi operation for SSA
     Phi {
-        dst: Variable,
-        src: Vec<Variable>
+        dst: MultiVar,
+        src: Vec<MultiVar>
     },
     /// Raise operation for handling things such as system calls
     Raise {
@@ -43,32 +43,24 @@ pub enum Operation {
 impl Operation {
     pub fn assign(dst: Scalar, src: Expression) -> Operation {
         Operation::Assign {
-            dst: Rc::new(RefCell::new(dst)),
+            dst: dst,
             src: src
         }
     }
 
     pub fn store(dst: Array, index: Expression, src: Expression) -> Operation {
-        Operation::Store {
-            dst: Rc::new(RefCell::new(dst)),
-            index: index,
-            src: src
-        }
+        Operation::Store { dst: dst, index: index, src: src }
     }
 
     pub fn load(dst: Scalar, index: Expression, src: Array) -> Operation {
-        Operation::Load {
-            dst: Rc::new(RefCell::new(dst)),
-            index: index,
-            src: Rc::new(RefCell::new(src))
-        }
+        Operation::Load { dst: dst, index: index, src: src }
     }
 
     pub fn brc(target: Expression, condition: Expression) -> Operation {
         Operation::Brc { target: target, condition: condition }
     }
 
-    pub fn phi(dst: Variable, src: Vec<Variable>) -> Operation {
+    pub fn phi(dst: MultiVar, src: Vec<MultiVar>) -> Operation {
         Operation::Phi { dst: dst, src: src }
     }
 
@@ -76,16 +68,14 @@ impl Operation {
         Operation::Raise { expr: expr }
     }
 
-    pub fn variables_read(&self) -> Vec<Variable> {
-
-        fn collect_scalars(expr: &Expression) -> Vec<Variable> {
+    pub fn variables_read<V>(&self) -> Vec<&V> where V: Variable {
+        fn collect_scalars<V: Variable>(expr: &Expression) -> Vec<&V> {
             expr.collect_scalars()
                 .iter()
-                .map(|s| Variable::scalar(s.clone()))
-                .collect::<Vec<Variable>>()
+                .map(|s| *s as &V)
+                .collect::<Vec<&V>>()
         }
-
-        let mut read: Vec<Variable> = Vec::new();
+        let mut read: Vec<&V> = Vec::new();
         match *self {
             Operation::Assign { dst: _, ref src } => {
                 read.append(&mut collect_scalars(src));
@@ -96,15 +86,15 @@ impl Operation {
             },
             Operation::Load { dst: _, ref index, ref src } => {
                 read.append(&mut collect_scalars(index));
-                read.push(Variable::array(src.clone()));
+                read.push(src);
             },
             Operation::Brc { ref target, ref condition } => {
                 read.append(&mut collect_scalars(target));
                 read.append(&mut collect_scalars(condition));
             },
             Operation::Phi { dst: _, ref src } => {
-                for variable in src {
-                    read.push(variable.clone());
+                for multi_var in src {
+                    read.push(multi_var as &V);
                 }
             },
             Operation::Raise { ref expr } => {
@@ -114,16 +104,13 @@ impl Operation {
         read
     }
 
-    pub fn variable_written(&self) -> Option<Variable> {
+    pub fn variable_written<V>(&self) -> Option<&V> where V: Variable {
         match *self {
-            Operation::Assign { ref dst, src: _ } =>
-                Some(Variable::scalar(dst.clone())),
-            Operation::Store { ref dst, index: _, src: _ } =>
-                Some(Variable::array(dst.clone())),
-            Operation::Load { ref dst, index: _ , src:_ } =>
-                Some(Variable::scalar(dst.clone())),
+            Operation::Assign { ref dst, src: _ } => Some(dst),
+            Operation::Store { ref dst, index: _, src: _ } => Some(dst),
+            Operation::Load { ref dst, index: _ , src:_ } => Some(dst),
             Operation::Brc { target: _, condition: _ } => None,
-            Operation::Phi { ref dst, src: _ } => Some(dst.clone()),
+            Operation::Phi { ref dst, src: _ } => Some(dst),
             Operation::Raise { expr: _ } => None
         }
     }
@@ -134,11 +121,11 @@ impl fmt::Display for Operation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Operation::Assign { ref dst, ref src } =>
-                write!(f, "{} = {}", dst.borrow().deref(), src),
+                write!(f, "{} = {}", dst, src),
             Operation::Store { ref dst, ref index, ref src } =>
-                write!(f, "{}[{}] = {}", dst.borrow().deref(), index, src),
+                write!(f, "{}[{}] = {}", dst, index, src),
             Operation::Load { ref dst, ref index, ref src } =>
-                write!(f, "{} = {}[{}]", dst.borrow().deref(), src.borrow().deref(), index),
+                write!(f, "{} = {}[{}]", dst, src, index),
             Operation::Brc { ref target, ref condition } =>
                 write!(f, "brc {} ? {}", target, condition),
             Operation::Phi { ref dst, ref src } => 

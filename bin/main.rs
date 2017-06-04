@@ -218,6 +218,8 @@ fn run () -> Result<()> {
         control_flow_graph.unconditional_edge(block_index, entry)?;
         control_flow_graph.set_entry(block_index)?;
 
+        let mut control_flow_graph = ssa(control_flow_graph)?;
+
         label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
         // label_def_use(&mut control_flow_graph)?;
         // label_constraints(&mut control_flow_graph)?;

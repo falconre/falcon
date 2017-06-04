@@ -1,5 +1,5 @@
 use std::fmt;
-
+use il::*;
 
 /// An IL variable.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -37,12 +37,19 @@ impl Array {
                 None => String::new()
         })
     }
+}
 
-    pub fn ssa(&self) -> Option<u32> {
+
+impl Variable for Array {
+    fn bits(&self) -> usize {
+        8
+    }
+
+    fn ssa(&self) -> Option<u32> {
         self.ssa
     }
 
-    pub fn set_ssa(&mut self, ssa: Option<u32>) {
+    fn set_ssa(&mut self, ssa: Option<u32>) {
         self.ssa = ssa;
     }
 }

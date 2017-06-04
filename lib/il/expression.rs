@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
 
 use il::*;
 /// An IL Expression.
@@ -9,7 +7,7 @@ use il::*;
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Expression {
     Constant(Constant),
-    Scalar(Rc<RefCell<Scalar>>),
+    Scalar(Scalar),
 
     Add(Box<Expression>, Box<Expression>),
     Sub(Box<Expression>, Box<Expression>),
@@ -39,7 +37,7 @@ impl Expression {
     /// Return the bit-sort of this expression.
     pub fn bits(&self) -> usize {
         match self {
-            &Expression::Scalar(ref scalar) => scalar.borrow().bits(),
+            &Expression::Scalar(ref scalar) => scalar.bits(),
             &Expression::Constant(ref constant) => constant.bits(),
             &Expression::Add(ref lhs, _) => lhs.bits(),
             &Expression::Sub(ref lhs, _) => lhs.bits(),
@@ -80,11 +78,11 @@ impl Expression {
     }
 
     /// Returns all variables used in the expression
-    pub fn collect_scalars(&self) -> Vec<Rc<RefCell<Scalar>>> {
-        let mut variables: Vec<Rc<RefCell<Scalar>>> = Vec::new();
+    pub fn collect_scalars(&self) -> Vec<&Scalar> {
+        let mut scalars: Vec<&Scalar> = Vec::new();
         match *self {
             Expression::Scalar(ref scalar) => {
-                variables.push(scalar.clone())
+                scalars.push(scalar)
             }
             Expression::Constant(_) => {}
             Expression::Add(ref lhs, ref rhs) |
@@ -103,23 +101,58 @@ impl Expression {
             Expression::Cmpneq(ref lhs, ref rhs) |
             Expression::Cmplts(ref lhs, ref rhs) |
             Expression::Cmpltu(ref lhs, ref rhs) => {
-                variables.append(&mut lhs.collect_scalars());
-                variables.append(&mut rhs.collect_scalars());
+                scalars.append(&mut lhs.collect_scalars());
+                scalars.append(&mut rhs.collect_scalars());
             },
             Expression::Zext(_, ref rhs) |
             Expression::Sext(_, ref rhs) |
             Expression::Trun(_, ref rhs) => {
-                variables.append(&mut rhs.collect_scalars());
+                scalars.append(&mut rhs.collect_scalars());
             }
         }
-        variables
+        scalars
     }
 
-    pub fn collect_variable_exprs_mut(&mut self) -> Vec<&mut Expression> {
-        let mut variable_exprs: Vec<&mut Expression> = Vec::new();
+    pub fn collect_scalars_mut(&mut self) -> Vec<&mut Scalar> {
+        let mut scalars: Vec<&mut Scalar> = Vec::new();
+        match *self {
+            Expression::Scalar(ref mut scalar) => {
+                scalars.push(scalar)
+            }
+            Expression::Constant(_) => {}
+            Expression::Add(ref mut lhs, ref mut rhs) |
+            Expression::Sub(ref mut lhs, ref mut rhs) |
+            Expression::Mul(ref mut lhs, ref mut rhs) |
+            Expression::Divu(ref mut lhs, ref mut rhs) |
+            Expression::Modu(ref mut lhs, ref mut rhs) |
+            Expression::Divs(ref mut lhs, ref mut rhs) |
+            Expression::Mods(ref mut lhs, ref mut rhs) |
+            Expression::And(ref mut lhs, ref mut rhs) |
+            Expression::Or(ref mut lhs, ref mut rhs) |
+            Expression::Xor(ref mut lhs, ref mut rhs) |
+            Expression::Shl(ref mut lhs, ref mut rhs) |
+            Expression::Shr(ref mut lhs, ref mut rhs) |
+            Expression::Cmpeq(ref mut lhs, ref mut rhs) |
+            Expression::Cmpneq(ref mut lhs, ref mut rhs) |
+            Expression::Cmplts(ref mut lhs, ref mut rhs) |
+            Expression::Cmpltu(ref mut lhs, ref mut rhs) => {
+                scalars.append(&mut lhs.collect_scalars_mut());
+                scalars.append(&mut rhs.collect_scalars_mut());
+            },
+            Expression::Zext(_, ref mut rhs) |
+            Expression::Sext(_, ref mut rhs) |
+            Expression::Trun(_, ref mut rhs) => {
+                scalars.append(&mut rhs.collect_scalars_mut());
+            }
+        }
+        scalars
+    }
+
+    pub fn collect_scalar_exprs_mut(&mut self) -> Vec<&mut Expression> {
+        let mut scalar_exprs: Vec<&mut Expression> = Vec::new();
         match *self {
             Expression::Scalar(_) => {
-                variable_exprs.push(self)
+                scalar_exprs.push(self)
             },
             Expression::Constant(_) => {},
             Expression::Add(ref mut lhs, ref mut rhs) |
@@ -138,21 +171,21 @@ impl Expression {
             Expression::Cmpneq(ref mut lhs, ref mut rhs) |
             Expression::Cmplts(ref mut lhs, ref mut rhs) |
             Expression::Cmpltu(ref mut lhs, ref mut rhs) => {
-                variable_exprs.append(&mut lhs.collect_variable_exprs_mut());
-                variable_exprs.append(&mut rhs.collect_variable_exprs_mut());
+                scalar_exprs.append(&mut lhs.collect_scalar_exprs_mut());
+                scalar_exprs.append(&mut rhs.collect_scalar_exprs_mut());
             },
             Expression::Zext(_, ref mut rhs) |
             Expression::Sext(_, ref mut rhs) |
             Expression::Trun(_, ref mut rhs) => {
-                variable_exprs.append(&mut rhs.collect_variable_exprs_mut());
+                scalar_exprs.append(&mut rhs.collect_scalar_exprs_mut());
             }
         }
-        variable_exprs
+        scalar_exprs
     }
 
     /// Create a new expression from a scalar.
     pub fn scalar(scalar: Scalar) -> Expression {
-        Expression::Scalar(Rc::new(RefCell::new(scalar)))
+        Expression::Scalar(scalar)
     }
 
     /// Create a new expression from a constant.
@@ -325,7 +358,7 @@ impl Expression {
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Expression::Scalar(ref s) => s.borrow().fmt(f),
+            Expression::Scalar(ref s) => s.fmt(f),
             Expression::Constant(ref c) => c.fmt(f),
             Expression::Add(ref lhs, ref rhs) => 
                 write!(f, "({} + {})", lhs, rhs),

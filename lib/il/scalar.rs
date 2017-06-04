@@ -24,10 +24,6 @@ impl Scalar {
         self.name.to_string()
     }
 
-    pub fn bits(&self) -> usize {
-        self.bits
-    }
-
     /// An identifier uniquely identifies the variable in the form `<name>:<bits>#<ssa>`
     pub fn identifier(&self) -> String {
         format!(
@@ -39,12 +35,19 @@ impl Scalar {
                 None => String::new()
         })
     }
+}
 
-    pub fn ssa(&self) -> Option<u32> {
+
+impl Variable for Scalar {
+    fn bits(&self) -> usize {
+        self.bits
+    }
+
+    fn ssa(&self) -> Option<u32> {
         self.ssa
     }
 
-    pub fn set_ssa(&mut self, ssa: Option<u32>) {
+    fn set_ssa(&mut self, ssa: Option<u32>) {
         self.ssa = ssa;
     }
 }

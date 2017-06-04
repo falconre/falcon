@@ -1,59 +1,57 @@
 use il::*;
+use serde;
 use std::cell::RefCell;
+use std::hash::Hash;
+use std::fmt;
 use std::rc::Rc;
 
 
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-pub enum Variable {
-    Array(Rc<RefCell<Array>>),
-    Scalar(Rc<RefCell<Scalar>>)
+pub trait Variable : Clone + serde::de::DeserializeOwned + fmt::Debug + 
+                     fmt::Display + Eq + Hash + Ord + PartialEq + PartialOrd +
+                     serde::Serialize {
+    fn bits(&self) -> usize;
+    fn ssa(&self) -> Option<u32>;
+    fn set_ssa(&mut self, ssa: Option<u32>);
 }
 
 
-impl Variable {
-    pub fn array(array: Rc<RefCell<Array>>) -> Variable {
-        Variable::Array(array)
-    }
+/// Holds multiple types of variables.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum MultiVar {
+    Array(Array),
+    Scalar(Scalar)
+}
 
-    pub fn scalar(scalar: Rc<RefCell<Scalar>>) -> Variable {
-        Variable::Scalar(scalar)
-    }
 
-    pub fn name(&self) -> String {
+impl Variable for MultiVar {
+    fn bits(&self) -> usize {
         match *self {
-            Variable::Array(ref array) => array.borrow().name().to_string(),
-            Variable::Scalar(ref scalar) => scalar.borrow().name().to_string()
+            MultiVar::Array(ref array) => array.bits(),
+            MultiVar::Scalar(ref scalar) => scalar.bits()
         }
     }
 
-    pub fn bits(&self) -> usize {
+    fn ssa(&self) -> Option<u32> {
         match *self {
-            Variable::Array(_) => 8,
-            Variable::Scalar(ref scalar) => scalar.borrow().bits()
+            MultiVar::Array(ref array) => array.ssa(),
+            MultiVar::Scalar(ref scalar) => scalar.ssa()
         }
     }
 
-    pub fn ssa(&self) -> Option<u32> {
+    fn set_ssa(&mut self, ssa: Option<u32>) {
         match *self {
-            Variable::Array(ref array) => array.borrow().ssa(),
-            Variable::Scalar(ref scalar) => scalar.borrow().ssa()
-        }
-    }
-
-    pub fn set_ssa(&mut self, ssa: Option<u32>) {
-        match *self {
-            Variable::Array(ref mut array) => array.borrow_mut().set_ssa(ssa),
-            Variable::Scalar(ref mut scalar) => scalar.borrow_mut().set_ssa(ssa)
+            MultiVar::Array(ref mut array) => array.set_ssa(ssa),
+            MultiVar::Scalar(ref mut scalar) => scalar.set_ssa(ssa)
         }
     }
 }
 
 
-impl ::std::fmt::Display for Variable {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl fmt::Display for MultiVar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Variable::Array(ref array) => array.borrow().fmt(f),
-            Variable::Scalar(ref scalar) => scalar.borrow().fmt(f)
+            MultiVar::Array(ref array) => array.fmt(f),
+            MultiVar::Scalar(ref scalar) => scalar.fmt(f)
         }
     }
 }
