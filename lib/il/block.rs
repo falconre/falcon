@@ -150,7 +150,7 @@ impl Block {
     }
 
     /// Adds a phi operation to the end of this block.
-    pub fn phi(&mut self, dst: Variable, src: Vec<Variable>) {
+    pub fn phi(&mut self, dst: MultiVar, src: Vec<MultiVar>) {
         let index = self.new_instruction_index();
         self.push(Instruction::phi(index, dst, src));
     }
@@ -162,7 +162,7 @@ impl Block {
     }
 
     /// Prepends an operation to the beginning of this block
-    pub fn prepend_phi(&mut self, dst: Variable, src: Vec<Variable>) {
+    pub fn prepend_phi(&mut self, dst: MultiVar, src: Vec<MultiVar>) {
         let index = self.new_instruction_index();
         let phi = Instruction::phi(index, dst, src);
         self.instructions.insert(0, phi);

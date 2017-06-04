@@ -56,7 +56,7 @@ impl Instruction {
     }
 
 
-    pub fn phi(index: u64, dst: Variable, src: Vec<Variable>)
+    pub fn phi(index: u64, dst: MultiVar, src: Vec<MultiVar>)
     -> Instruction {
 
         Instruction::new(index, Operation::phi(dst, src))
@@ -163,13 +163,23 @@ impl Instruction {
     }
 
 
-    pub fn variable_written(&self) -> Option<Variable> {
+    pub fn variable_written(&self) -> Option<&Variable> {
         self.operation.variable_written()
     }
 
 
-    pub fn variables_read(&self) -> Vec<Variable> {
+    pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
+        self.operation.variable_written_mut()
+    }
+
+
+    pub fn variables_read(&self) -> Vec<&Variable> {
         self.operation.variables_read()
+    }
+
+
+    pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
+        self.operation.variables_read_mut()
     }
 }
 

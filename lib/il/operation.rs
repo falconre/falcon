@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::fmt;
-use std::ops::Deref;
 use il::*;
 
 /// An IL Operation updates some state.
@@ -68,14 +66,14 @@ impl Operation {
         Operation::Raise { expr: expr }
     }
 
-    pub fn variables_read<V>(&self) -> Vec<&V> where V: Variable {
-        fn collect_scalars<V: Variable>(expr: &Expression) -> Vec<&V> {
+    pub fn variables_read(&self) -> Vec<&Variable> {
+        fn collect_scalars(expr: &Expression) -> Vec<&Variable> {
             expr.collect_scalars()
                 .iter()
-                .map(|s| *s as &V)
-                .collect::<Vec<&V>>()
+                .map(|s| *s as &Variable)
+                .collect::<Vec<&Variable>>()
         }
-        let mut read: Vec<&V> = Vec::new();
+        let mut read: Vec<&Variable> = Vec::new();
         match *self {
             Operation::Assign { dst: _, ref src } => {
                 read.append(&mut collect_scalars(src));
@@ -94,7 +92,7 @@ impl Operation {
             },
             Operation::Phi { dst: _, ref src } => {
                 for multi_var in src {
-                    read.push(multi_var as &V);
+                    read.push(multi_var);
                 }
             },
             Operation::Raise { ref expr } => {
@@ -104,13 +102,64 @@ impl Operation {
         read
     }
 
-    pub fn variable_written<V>(&self) -> Option<&V> where V: Variable {
+    pub fn variables_read_mut<'v>(&'v mut self) -> Vec<&'v mut Variable> {
+        fn collect_scalars_mut(expr: &mut Expression) -> Vec<&mut Variable> {
+            let mut v: Vec<&mut Variable> = Vec::new();
+            for s in expr.collect_scalars_mut() {
+                v.push(s)
+            }
+            v
+        }
+
+        let mut read: Vec<&mut Variable> = Vec::new();
+
+        match *self {
+            Operation::Assign { dst: _, ref mut src } => {
+                read.append(&mut collect_scalars_mut(src));
+            },
+            Operation::Store { dst: _, ref mut index, ref mut src } => {
+                read.append(&mut collect_scalars_mut(index));
+                read.append(&mut collect_scalars_mut(src));
+            },
+            Operation::Load { dst: _, ref mut index, ref mut src } => {
+                read.append(&mut collect_scalars_mut(index));
+                read.push(src);
+            },
+            Operation::Brc { ref mut target, ref mut condition } => {
+                read.append(&mut collect_scalars_mut(target));
+                read.append(&mut collect_scalars_mut(condition));
+            },
+            Operation::Phi { dst: _, ref mut src } => {
+                for multi_var in src {
+                    read.push(multi_var);
+                }
+            },
+            Operation::Raise { ref mut expr } => {
+                read.append(&mut collect_scalars_mut(expr));
+            }
+        }
+
+        read
+    }
+
+    pub fn variable_written(&self) -> Option<&Variable> {
         match *self {
             Operation::Assign { ref dst, src: _ } => Some(dst),
             Operation::Store { ref dst, index: _, src: _ } => Some(dst),
             Operation::Load { ref dst, index: _ , src:_ } => Some(dst),
             Operation::Brc { target: _, condition: _ } => None,
             Operation::Phi { ref dst, src: _ } => Some(dst),
+            Operation::Raise { expr: _ } => None
+        }
+    }
+
+    pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
+        match *self {
+            Operation::Assign { ref mut dst, src: _ } => Some(dst),
+            Operation::Store { ref mut dst, index: _, src: _ } => Some(dst),
+            Operation::Load { ref mut dst, index: _ , src:_ } => Some(dst),
+            Operation::Brc { target: _, condition: _ } => None,
+            Operation::Phi { ref mut dst, src: _ } => Some(dst),
             Operation::Raise { expr: _ } => None
         }
     }

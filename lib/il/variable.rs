@@ -1,14 +1,8 @@
 use il::*;
-use serde;
-use std::cell::RefCell;
-use std::hash::Hash;
 use std::fmt;
-use std::rc::Rc;
 
 
-pub trait Variable : Clone + serde::de::DeserializeOwned + fmt::Debug + 
-                     fmt::Display + Eq + Hash + Ord + PartialEq + PartialOrd +
-                     serde::Serialize {
+pub trait Variable : fmt::Debug + fmt::Display {
     fn bits(&self) -> usize;
     fn ssa(&self) -> Option<u32>;
     fn set_ssa(&mut self, ssa: Option<u32>);

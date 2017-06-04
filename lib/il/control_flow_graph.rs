@@ -72,20 +72,6 @@ impl graph::Edge for Edge {
 }
 
 
-impl graph::Vertex for Rc<Block> {
-    fn index(&self) -> u64 { self.as_ref().index() }
-    fn dot_label(&self) -> String { self.as_ref().dot_label() }
-}
-
-
-
-impl graph::Edge for Rc<Edge> {
-    fn head(&self) -> u64 { self.as_ref().head() }
-    fn tail(&self) -> u64 { self.as_ref().tail() }
-    fn dot_label(&self) -> String { self.as_ref().dot_label() }
-}
-
-
 /// A graph of IL blocks
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ControlFlowGraph {
