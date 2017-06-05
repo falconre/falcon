@@ -158,7 +158,7 @@ impl Instruction {
             operation: self.operation.clone(),
             index: index,
             comment: self.comment.clone(),
-            address: self.address.clone()
+            address: self.address
         }
     }
 

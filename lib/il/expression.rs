@@ -36,28 +36,28 @@ pub enum Expression {
 impl Expression {
     /// Return the bit-sort of this expression.
     pub fn bits(&self) -> usize {
-        match self {
-            &Expression::Scalar(ref scalar) => scalar.bits(),
-            &Expression::Constant(ref constant) => constant.bits(),
-            &Expression::Add(ref lhs, _) => lhs.bits(),
-            &Expression::Sub(ref lhs, _) => lhs.bits(),
-            &Expression::Mul(ref lhs, _) => lhs.bits(),
-            &Expression::Divu(ref lhs, _) => lhs.bits(),
-            &Expression::Modu(ref lhs, _) => lhs.bits(),
-            &Expression::Divs(ref lhs, _) => lhs.bits(),
-            &Expression::Mods(ref lhs, _) => lhs.bits(),
-            &Expression::And(ref lhs, _) => lhs.bits(),
-            &Expression::Or(ref lhs, _) => lhs.bits(),
-            &Expression::Xor(ref lhs, _) => lhs.bits(),
-            &Expression::Shl(ref lhs, _) => lhs.bits(),
-            &Expression::Shr(ref lhs, _) => lhs.bits(),
-            &Expression::Cmpeq(ref lhs, _) => lhs.bits(),
-            &Expression::Cmpneq(ref lhs, _) => lhs.bits(),
-            &Expression::Cmplts(ref lhs, _) => lhs.bits(),
-            &Expression::Cmpltu(ref lhs, _) => lhs.bits(),
-            &Expression::Zext(bits, _) => bits,
-            &Expression::Sext(bits, _) => bits,
-            &Expression::Trun(bits, _) => bits
+        match *self {
+            Expression::Scalar(ref scalar) => scalar.bits(),
+            Expression::Constant(ref constant) => constant.bits(),
+            Expression::Add(ref lhs, _) |
+            Expression::Sub(ref lhs, _) |
+            Expression::Mul(ref lhs, _) |
+            Expression::Divu(ref lhs, _) |
+            Expression::Modu(ref lhs, _) |
+            Expression::Divs(ref lhs, _) |
+            Expression::Mods(ref lhs, _) |
+            Expression::And(ref lhs, _) |
+            Expression::Or(ref lhs, _) |
+            Expression::Xor(ref lhs, _) |
+            Expression::Shl(ref lhs, _) |
+            Expression::Shr(ref lhs, _) |
+            Expression::Cmpeq(ref lhs, _) |
+            Expression::Cmpneq(ref lhs, _) |
+            Expression::Cmplts(ref lhs, _) |
+            Expression::Cmpltu(ref lhs, _) => lhs.bits(),
+            Expression::Zext(bits, _) |
+            Expression::Sext(bits, _) |
+            Expression::Trun(bits, _) => bits
         }
     }
 
@@ -66,10 +66,8 @@ impl Expression {
     /// Also ensures this expression doesn't include flags (which have a sort
     /// of 0)
     fn ensure_sort(lhs: &Expression, rhs: &Expression, no_flags: bool) -> Result<()> {
-        if lhs.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
-        }
-        else if no_flags == true && lhs.bits() == 0 {
+        if    lhs.bits() != rhs.bits() 
+           || (no_flags && lhs.bits() == 0) {
             Err(ErrorKind::Sort.into())
         }
         else {

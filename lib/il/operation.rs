@@ -75,14 +75,14 @@ impl Operation {
         }
         let mut read: Vec<&Variable> = Vec::new();
         match *self {
-            Operation::Assign { dst: _, ref src } => {
+            Operation::Assign { ref src, .. } => {
                 read.append(&mut collect_scalars(src));
             },
-            Operation::Store { dst: _, ref index, ref src } => {
+            Operation::Store { ref index, ref src, .. } => {
                 read.append(&mut collect_scalars(index));
                 read.append(&mut collect_scalars(src));
             },
-            Operation::Load { dst: _, ref index, ref src } => {
+            Operation::Load { ref index, ref src, .. } => {
                 read.append(&mut collect_scalars(index));
                 read.push(src);
             },
@@ -90,7 +90,7 @@ impl Operation {
                 read.append(&mut collect_scalars(target));
                 read.append(&mut collect_scalars(condition));
             },
-            Operation::Phi { dst: _, ref src } => {
+            Operation::Phi { ref src, .. } => {
                 for multi_var in src {
                     read.push(multi_var);
                 }
@@ -102,7 +102,7 @@ impl Operation {
         read
     }
 
-    pub fn variables_read_mut<'v>(&'v mut self) -> Vec<&'v mut Variable> {
+    pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
         fn collect_scalars_mut(expr: &mut Expression) -> Vec<&mut Variable> {
             let mut v: Vec<&mut Variable> = Vec::new();
             for s in expr.collect_scalars_mut() {
@@ -114,14 +114,14 @@ impl Operation {
         let mut read: Vec<&mut Variable> = Vec::new();
 
         match *self {
-            Operation::Assign { dst: _, ref mut src } => {
+            Operation::Assign { ref mut src, .. } => {
                 read.append(&mut collect_scalars_mut(src));
             },
-            Operation::Store { dst: _, ref mut index, ref mut src } => {
+            Operation::Store { ref mut index, ref mut src, .. } => {
                 read.append(&mut collect_scalars_mut(index));
                 read.append(&mut collect_scalars_mut(src));
             },
-            Operation::Load { dst: _, ref mut index, ref mut src } => {
+            Operation::Load { ref mut index, ref mut src, .. } => {
                 read.append(&mut collect_scalars_mut(index));
                 read.push(src);
             },
@@ -129,7 +129,7 @@ impl Operation {
                 read.append(&mut collect_scalars_mut(target));
                 read.append(&mut collect_scalars_mut(condition));
             },
-            Operation::Phi { dst: _, ref mut src } => {
+            Operation::Phi { ref mut src, .. } => {
                 for multi_var in src {
                     read.push(multi_var);
                 }
@@ -144,23 +144,23 @@ impl Operation {
 
     pub fn variable_written(&self) -> Option<&Variable> {
         match *self {
-            Operation::Assign { ref dst, src: _ } => Some(dst),
-            Operation::Store { ref dst, index: _, src: _ } => Some(dst),
-            Operation::Load { ref dst, index: _ , src:_ } => Some(dst),
-            Operation::Brc { target: _, condition: _ } => None,
-            Operation::Phi { ref dst, src: _ } => Some(dst),
-            Operation::Raise { expr: _ } => None
+            Operation::Assign { ref dst, .. } |
+            Operation::Load   { ref dst, .. } => Some(dst),
+            Operation::Store  { ref dst, .. } => Some(dst),
+            Operation::Phi    { ref dst, .. } => Some(dst),
+            Operation::Brc    { .. } |
+            Operation::Raise  { .. } => None
         }
     }
 
     pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
         match *self {
-            Operation::Assign { ref mut dst, src: _ } => Some(dst),
-            Operation::Store { ref mut dst, index: _, src: _ } => Some(dst),
-            Operation::Load { ref mut dst, index: _ , src:_ } => Some(dst),
-            Operation::Brc { target: _, condition: _ } => None,
-            Operation::Phi { ref mut dst, src: _ } => Some(dst),
-            Operation::Raise { expr: _ } => None
+            Operation::Assign { ref mut dst, .. } |
+            Operation::Load   { ref mut dst, .. } => Some(dst),
+            Operation::Store  { ref mut dst, .. } => Some(dst),
+            Operation::Phi    { ref mut dst, .. } => Some(dst),
+            Operation::Brc    { .. } |
+            Operation::Raise  { .. } => None
         }
     }
 }

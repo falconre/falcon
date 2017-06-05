@@ -29,7 +29,7 @@ pub struct Elf {
 
 impl Elf {
     pub fn new(bytes: Vec<u8>) -> Result<Elf> {
-        let peek_bytes: [u8; 16] = clone_into_array(bytes.get(0..16).unwrap());
+        let peek_bytes: [u8; 16] = clone_into_array(&bytes[0..16]);
         match goblin::peek_bytes(&peek_bytes)? {
             Hint::Elf(_) => {
                 Ok(Elf {
@@ -100,7 +100,7 @@ impl Loader for Elf {
         let mut functions_added: BTreeSet<u64> = BTreeSet::new();
 
         // dynamic symbols
-        for sym in elf.dynsyms.iter() {
+        for sym in &elf.dynsyms {
             if sym.is_function() && sym.st_value != 0 {
                 let name = elf.dynstrtab.get(sym.st_name).to_string();
                 function_entries.push(FunctionEntry::new(sym.st_value, Some(name)));
@@ -109,7 +109,7 @@ impl Loader for Elf {
         }
 
         // normal symbols
-        for sym in elf.syms.iter() {
+        for sym in &elf.syms {
             if sym.is_function() && sym.st_value != 0 {
                 let name = elf.strtab.get(sym.st_name).to_string();
                 function_entries.push(FunctionEntry::new(sym.st_value, Some(name)));

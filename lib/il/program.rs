@@ -2,7 +2,7 @@ use il::*;
 use std::collections::BTreeMap;
 use std::fmt;
 
-/// A representation of a program by il::Function
+/// A representation of a program by `il::Function`
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Program {
     functions: BTreeMap<u64, Function>,
@@ -21,7 +21,7 @@ impl Program {
 
 
     pub fn functions(&self) -> Vec<&Function> {
-        self.functions.values().map(|v| v).collect::<Vec<&Function>>()
+        self.functions.values().collect::<Vec<&Function>>()
     }
 
 

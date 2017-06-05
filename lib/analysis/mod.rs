@@ -2,13 +2,13 @@
 
 pub mod analysis_location;
 // mod constraints;
-// mod dead_code_elimination;
+mod dead_code_elimination;
 mod def_use;
 mod fixed_point;
 // pub mod lattice;
 mod reaching_definitions;
 // mod simplification;
-// pub mod ssa;
+pub mod ssa;
 // mod value_set;
 
 use error::*;
@@ -57,13 +57,13 @@ impl<'a> Analysis<'a> {
 
     /// Returns the ControlFlowGraph all analysis was performed over.
     pub fn control_flow_graph(&self) -> &il::ControlFlowGraph {
-        &self.control_flow_graph
+        self.control_flow_graph
     }
 
     // /// Performs dead code elimination and returns the result in a new graph.
-    // pub fn dead_code_elimination(&self) -> Result<il::ControlFlowGraph> {
-    //     dead_code_elimination::dead_code_elimination(self)
-    // }
+    pub fn dead_code_elimination(&self) -> Result<il::ControlFlowGraph> {
+        dead_code_elimination::dead_code_elimination(self)
+    }
 
     /// Def Use chains for this `Analysis`.
     pub fn def_use(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
