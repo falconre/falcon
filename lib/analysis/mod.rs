@@ -29,8 +29,8 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct Analysis<'a> {
     control_flow_graph: &'a il::ControlFlowGraph,
     reaching_definitions: BTreeMap<AnalysisLocation, Reaches>,
-    // def_use: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
-    // use_def: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
+    def_use: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
+    use_def: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
 }
 
 
@@ -38,13 +38,13 @@ impl<'a> Analysis<'a> {
     pub fn new(control_flow_graph: &'a il::ControlFlowGraph)
     -> Result<Analysis<'a>> {
         let rd = reaching_definitions::compute(control_flow_graph)?;
-        // let du = def_use::def_use(&rd, control_flow_graph)?;
-        // let ud = def_use::use_def(&rd, control_flow_graph)?;
+        let du = def_use::def_use(&rd, control_flow_graph)?;
+        let ud = def_use::use_def(&rd, control_flow_graph)?;
         Ok(Analysis {
             control_flow_graph: control_flow_graph,
             reaching_definitions: rd,
-            // def_use: du,
-            // use_def: ud
+            def_use: du,
+            use_def: ud
         })
     }
 
@@ -65,10 +65,15 @@ impl<'a> Analysis<'a> {
     //     dead_code_elimination::dead_code_elimination(self)
     // }
 
-    // /// Def Use chains for this `Analysis`.
-    // pub fn def_use(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
-    //     &self.def_use
-    // }
+    /// Def Use chains for this `Analysis`.
+    pub fn def_use(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
+        &self.def_use
+    }
+
+    /// Use Def chains for this `Analysis`.
+    pub fn use_def(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
+        &self.use_def
+    }
 
     // /// Performs multiple, non-semantic altering optimizations
     // pub fn optimize(&self) -> Result<il::ControlFlowGraph> {
@@ -97,11 +102,6 @@ impl<'a> Analysis<'a> {
     // /// Simplifies the IL
     // pub fn simplification(&self) -> Result<il::ControlFlowGraph> {
     //     simplification::simplification(self)
-    // }
-
-    // /// Use Def chains for this `Analysis`.
-    // pub fn use_def(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
-    //     &self.use_def
     // }
 
     // /// Returns the result of value set analysis
