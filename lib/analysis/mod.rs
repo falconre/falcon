@@ -2,22 +2,22 @@
 
 pub mod analysis_location;
 // mod constraints;
-mod dead_code_elimination;
+// mod dead_code_elimination;
 mod def_use;
 mod fixed_point;
-pub mod lattice;
+// pub mod lattice;
 mod reaching_definitions;
-mod simplification;
-pub mod ssa;
-mod value_set;
+// mod simplification;
+// pub mod ssa;
+// mod value_set;
 
 use error::*;
 use il;
 pub use self::analysis_location::*;
-pub use self::lattice::*;
-pub use self::ssa::*;
+// pub use self::lattice::*;
+// pub use self::ssa::*;
 pub use self::reaching_definitions::Reaches;
-pub use self::value_set::Endian;
+// pub use self::value_set::Endian;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// `Analysis` holds several types of analysis results.
@@ -29,8 +29,8 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct Analysis<'a> {
     control_flow_graph: &'a il::ControlFlowGraph,
     reaching_definitions: BTreeMap<AnalysisLocation, Reaches>,
-    def_use: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
-    use_def: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
+    // def_use: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
+    // use_def: BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>>,
 }
 
 
@@ -38,17 +38,17 @@ impl<'a> Analysis<'a> {
     pub fn new(control_flow_graph: &'a il::ControlFlowGraph)
     -> Result<Analysis<'a>> {
         let rd = reaching_definitions::compute(control_flow_graph)?;
-        let du = def_use::def_use(&rd, control_flow_graph)?;
-        let ud = def_use::use_def(&rd, control_flow_graph)?;
+        // let du = def_use::def_use(&rd, control_flow_graph)?;
+        // let ud = def_use::use_def(&rd, control_flow_graph)?;
         Ok(Analysis {
             control_flow_graph: control_flow_graph,
             reaching_definitions: rd,
-            def_use: du,
-            use_def: ud
+            // def_use: du,
+            // use_def: ud
         })
     }
 
-    /// Returns the result of constraint analysis.
+    // /// Returns the result of constraint analysis.
     // pub fn constraints(&self) ->
     // Result<BTreeMap<AnalysisLocation, constraints::Constraints>> {
     //     let ca = constraints::ConstraintAnalysis::new(self.control_flow_graph);
@@ -60,56 +60,56 @@ impl<'a> Analysis<'a> {
         &self.control_flow_graph
     }
 
-    /// Performs dead code elimination and returns the result in a new graph.
-    pub fn dead_code_elimination(&self) -> Result<il::ControlFlowGraph> {
-        dead_code_elimination::dead_code_elimination(self)
-    }
+    // /// Performs dead code elimination and returns the result in a new graph.
+    // pub fn dead_code_elimination(&self) -> Result<il::ControlFlowGraph> {
+    //     dead_code_elimination::dead_code_elimination(self)
+    // }
 
-    /// Def Use chains for this `Analysis`.
-    pub fn def_use(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
-        &self.def_use
-    }
+    // /// Def Use chains for this `Analysis`.
+    // pub fn def_use(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
+    //     &self.def_use
+    // }
 
-    /// Performs multiple, non-semantic altering optimizations
-    pub fn optimize(&self) -> Result<il::ControlFlowGraph> {
-        let mut rolling_graph = self.control_flow_graph.clone();
-        loop {
-            let new_graph = {
-                let analysis = Analysis::new(&rolling_graph)?;
-                // let cfg = analysis.simplification()?;
-                // let analysis = Analysis::new(&cfg)?;
-                analysis.dead_code_elimination()?
-            };
-            if new_graph == rolling_graph {
-                return Ok(new_graph);
-            }
-            else {
-                rolling_graph = new_graph;
-            }
-        }
-    }
+    // /// Performs multiple, non-semantic altering optimizations
+    // pub fn optimize(&self) -> Result<il::ControlFlowGraph> {
+    //     let mut rolling_graph = self.control_flow_graph.clone();
+    //     loop {
+    //         let new_graph = {
+    //             let analysis = Analysis::new(&rolling_graph)?;
+    //             // let cfg = analysis.simplification()?;
+    //             // let analysis = Analysis::new(&cfg)?;
+    //             analysis.dead_code_elimination()?
+    //         };
+    //         if new_graph == rolling_graph {
+    //             return Ok(new_graph);
+    //         }
+    //         else {
+    //             rolling_graph = new_graph;
+    //         }
+    //     }
+    // }
 
     /// Reaching definitions for this `Analysis`.
     pub fn reaching_definitions(&self) -> &BTreeMap<AnalysisLocation, Reaches> {
         &self.reaching_definitions
     }
 
-    /// Simplifies the IL
-    pub fn simplification(&self) -> Result<il::ControlFlowGraph> {
-        simplification::simplification(self)
-    }
+    // /// Simplifies the IL
+    // pub fn simplification(&self) -> Result<il::ControlFlowGraph> {
+    //     simplification::simplification(self)
+    // }
 
-    /// Use Def chains for this `Analysis`.
-    pub fn use_def(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
-        &self.use_def
-    }
+    // /// Use Def chains for this `Analysis`.
+    // pub fn use_def(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
+    //     &self.use_def
+    // }
 
-    /// Returns the result of value set analysis
-    ///
-    /// `max` is the maximum number of values a `LatticeValue::Values` will
-    /// hold before being transformed into a `LatticeValue::Join`
-    pub fn value_set(&self, max: usize, endian: value_set::Endian)
-    -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
-        value_set::compute(self.control_flow_graph, max, endian)
-    }
+    // /// Returns the result of value set analysis
+    // ///
+    // /// `max` is the maximum number of values a `LatticeValue::Values` will
+    // /// hold before being transformed into a `LatticeValue::Join`
+    // pub fn value_set(&self, max: usize, endian: value_set::Endian)
+    // -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
+    //     value_set::compute(self.control_flow_graph, max, endian)
+    // }
 }

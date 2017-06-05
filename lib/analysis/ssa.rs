@@ -69,7 +69,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
     // Returns the ssa values for all variable assignments on block exit
     // This should be called after ssa block, and all written variables
     // should have SSA assignments.
-    fn get_block_ssa_assignments(block: &il::Block) -> BTreeMap<String, il::Variable> {
+    fn get_block_ssa_assignments(block: &il::Block) -> BTreeMap<&str, &il::Variable> {
         let mut assignments: BTreeMap<String, il::Variable> = BTreeMap::new();
 
         for operation in block.instructions() {
@@ -85,7 +85,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
     }
 
     // Returns a vector of all variables without SSA set on exit
-    fn get_block_ssa_unassigned(block: &il::Block) -> Vec<il::Variable> {
+    fn get_block_ssa_unassigned(block: &il::Block) -> Vec<&il::Variable> {
         let mut unassigned: Vec<il::Variable> = Vec::new();
 
         for operation in block.instructions() {
@@ -101,7 +101,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
 
     fn find_assignments(
         block: &il::Block,
-        mut unassigned: Vec<il::Variable>,
+        mut unassigned: Vec<&il::Variable>,
         mut visited: BTreeSet<u64>,
         graph: &graph::Graph<il::Block, il::Edge>,
     ) -> Result<BTreeMap<String, BTreeSet<u32>>> {

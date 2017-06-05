@@ -3,9 +3,11 @@ use std::fmt;
 
 
 pub trait Variable : fmt::Debug + fmt::Display {
-    fn bits(&self) -> usize;
     fn ssa(&self) -> Option<u32>;
     fn set_ssa(&mut self, ssa: Option<u32>);
+    fn name(&self) -> &str;
+    fn identifier(&self) -> String;
+    fn multi_var_clone(&self) -> MultiVar;
 }
 
 
@@ -18,10 +20,17 @@ pub enum MultiVar {
 
 
 impl Variable for MultiVar {
-    fn bits(&self) -> usize {
+    fn identifier(&self) -> String {
         match *self {
-            MultiVar::Array(ref array) => array.bits(),
-            MultiVar::Scalar(ref scalar) => scalar.bits()
+            MultiVar::Array(ref array) => array.identifier(),
+            MultiVar::Scalar(ref scalar) => scalar.identifier()
+        }
+    }
+
+    fn name(&self) -> &str {
+        match *self {
+            MultiVar::Array(ref array) => array.name(),
+            MultiVar::Scalar(ref scalar) => scalar.name()
         }
     }
 
@@ -37,6 +46,17 @@ impl Variable for MultiVar {
             MultiVar::Array(ref mut array) => array.set_ssa(ssa),
             MultiVar::Scalar(ref mut scalar) => scalar.set_ssa(ssa)
         }
+    }
+
+    fn multi_var_clone(&self) -> MultiVar {
+        self.clone()
+    }
+}
+
+
+impl<'v> Into<MultiVar> for &'v Variable {
+    fn into(self) -> MultiVar {
+        self.multi_var_clone()
     }
 }
 

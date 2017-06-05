@@ -1,8 +1,6 @@
 use std::fmt;
 use il::*;
 
-
-/// An IL variable.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Scalar {
     name: String,
@@ -20,12 +18,20 @@ impl Scalar {
         }
     }
 
-    pub fn name(&self) -> String {
-        self.name.to_string()
+    pub fn bits(&self) -> usize {
+        self.bits
+    }
+}
+
+
+impl Variable for Scalar {
+    fn name(&self) -> &str {
+        &self.name
     }
 
-    /// An identifier uniquely identifies the variable in the form `<name>:<bits>#<ssa>`
-    pub fn identifier(&self) -> String {
+    /// An identifier uniquely identifies the variable in the form
+    /// `<name>:<bits>#<ssa>`
+    fn identifier(&self) -> String {
         format!(
             "{}:{}{}",
             self.name,
@@ -35,13 +41,6 @@ impl Scalar {
                 None => String::new()
         })
     }
-}
-
-
-impl Variable for Scalar {
-    fn bits(&self) -> usize {
-        self.bits
-    }
 
     fn ssa(&self) -> Option<u32> {
         self.ssa
@@ -49,6 +48,10 @@ impl Variable for Scalar {
 
     fn set_ssa(&mut self, ssa: Option<u32>) {
         self.ssa = ssa;
+    }
+
+    fn multi_var_clone(&self) -> MultiVar {
+        MultiVar::Scalar(self.clone())
     }
 }
 

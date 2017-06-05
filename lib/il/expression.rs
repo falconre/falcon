@@ -148,6 +148,14 @@ impl Expression {
         scalars
     }
 
+    pub fn collect_variables(&self) -> Vec<&Variable> {
+        let mut v: Vec<&Variable> = Vec::new();
+        for s in self.collect_scalars() {
+            v.push(s);
+        }
+        v
+    }
+
     pub fn collect_scalar_exprs_mut(&mut self) -> Vec<&mut Expression> {
         let mut scalar_exprs: Vec<&mut Expression> = Vec::new();
         match *self {
