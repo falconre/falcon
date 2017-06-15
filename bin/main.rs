@@ -197,7 +197,7 @@ fn run () -> Result<()> {
 
 
     if let Some(function) = program.function(0x80488CA) {
-        // let control_flow_graph = ssa(function.control_flow_graph().clone())?;
+        let control_flow_graph = ssa(function.control_flow_graph().clone())?;
         let analysis = Analysis::new(function.control_flow_graph())?;
         let mut control_flow_graph = analysis.dead_code_elimination()?;
         // let mut control_flow_graph = analysis.optimize()?;
@@ -217,6 +217,8 @@ fn run () -> Result<()> {
 
         control_flow_graph.unconditional_edge(block_index, entry)?;
         control_flow_graph.set_entry(block_index)?;
+
+        let mut control_flow_graph = ssa(control_flow_graph)?;
 
         label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
         // label_def_use(&mut control_flow_graph)?;

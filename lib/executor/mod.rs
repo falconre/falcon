@@ -244,7 +244,8 @@ pub fn constants_expression(expr: &il::Expression) -> Result<il::Constant> {
             }
         },
 
-        il::Expression::Zext(bits, ref rhs) => {
+        il::Expression::Zext(bits, ref rhs) |
+        il::Expression::Trun(bits, ref rhs) => {
             Ok(il::Constant::new(ece(rhs)?.value(), bits))
         },
 
@@ -257,10 +258,6 @@ pub fn constants_expression(expr: &il::Expression) -> Result<il::Constant> {
             else {
                 Ok(il::Constant::new(rhs.value(), bits))
             }
-        },
-
-        il::Expression::Trun(bits, ref rhs) => {
-            Ok(il::Constant::new(ece(rhs)?.value(), bits))
         }
     }
 }

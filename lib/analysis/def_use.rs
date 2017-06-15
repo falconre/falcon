@@ -20,21 +20,21 @@ pub fn def_use(
         let this_location = rd.0;
         let def_locations = rd.1;
         // build our haystack of uses to search for defs against
-        let haystack = match *this_location {
+        let haystack: BTreeSet<il::MultiVar> = match *this_location {
             Edge(ref el) => match *el.find(control_flow_graph)?
                                      .condition() {
-                Some(ref condition) => condition.collect_scalars()
-                                            .iter()
-                                            .map(|v| il::Variable::scalar(v.clone()))
-                                            .collect::<Vec<il::Variable>>(),
-                None => Vec::new()
+                Some(ref condition) => condition.collect_variables()
+                                                .iter()
+                                                .map(|v| v.multi_var_clone())
+                                                .collect::<BTreeSet<il::MultiVar>>(),
+                None => BTreeSet::new()
             },
             Instruction(ref il) => il.find(control_flow_graph)?
                                      .variables_read()
                                      .iter()
-                                     .map(|v| v.clone())
-                                     .collect::<Vec<il::Variable>>(),
-            EmptyBlock(_) => Vec::new()
+                                     .map(|v| v.multi_var_clone())
+                                     .collect::<BTreeSet<il::MultiVar>>(),
+            EmptyBlock(_) => BTreeSet::new()
         };
 
         // for each reaching definition that reaches here
@@ -44,7 +44,7 @@ pub fn def_use(
               if let Some(variable_written) = def_location
                                           .find(control_flow_graph)?
                                           .variable_written() {
-                  if haystack.contains(&variable_written) {
+                  if haystack.contains(&variable_written.multi_var_clone()) {
                       du.get_mut(&def_location.clone().into())
                         .unwrap()
                         .insert(this_location.clone());
@@ -75,21 +75,21 @@ pub fn use_def(
         let this_location = rd.0;
         let def_locations = rd.1;
         // build our haystack of uses to search for defs against
-        let haystack = match *this_location {
+        let haystack: BTreeSet<il::MultiVar> = match *this_location {
             Edge(ref el) => match *el.find(control_flow_graph)?
                                       .condition() {
-                Some(ref condition) => condition.collect_scalars()
+                Some(ref condition) => condition.collect_variables()
                                             .iter()
-                                            .map(|v| il::Variable::scalar(v.clone()))
-                                            .collect::<Vec<il::Variable>>(),
-                None => Vec::new()
+                                            .map(|v| (*v).multi_var_clone())
+                                            .collect::<BTreeSet<il::MultiVar>>(),
+                None => BTreeSet::new()
             },
             Instruction(ref il) => il.find(control_flow_graph)?
                                      .variables_read()
                                      .iter()
-                                     .map(|v| v.clone())
-                                     .collect::<Vec<il::Variable>>(),
-           EmptyBlock(_) => Vec::new()
+                                     .map(|v| v.multi_var_clone())
+                                     .collect::<BTreeSet<il::MultiVar>>(),
+           EmptyBlock(_) => BTreeSet::new()
         };
 
         // for each reaching definition that reaches here
@@ -99,7 +99,7 @@ pub fn use_def(
               if let Some(variable_written) = def_location
                                           .find(control_flow_graph)?
                                           .variable_written() {
-                  if haystack.contains(&variable_written) {
+                  if haystack.contains(&variable_written.multi_var_clone()) {
                       ud.get_mut(&this_location.clone())
                         .unwrap()
                         .insert(def_location.clone().into());

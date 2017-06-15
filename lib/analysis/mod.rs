@@ -5,19 +5,19 @@ pub mod analysis_location;
 mod dead_code_elimination;
 mod def_use;
 mod fixed_point;
-pub mod lattice;
+// pub mod lattice;
 mod reaching_definitions;
-mod simplification;
+// mod simplification;
 pub mod ssa;
-mod value_set;
+// mod value_set;
 
 use error::*;
 use il;
 pub use self::analysis_location::*;
-pub use self::lattice::*;
-pub use self::ssa::*;
+// pub use self::lattice::*;
+// pub use self::ssa::*;
 pub use self::reaching_definitions::Reaches;
-pub use self::value_set::Endian;
+// pub use self::value_set::Endian;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// `Analysis` holds several types of analysis results.
@@ -48,7 +48,7 @@ impl<'a> Analysis<'a> {
         })
     }
 
-    /// Returns the result of constraint analysis.
+    // /// Returns the result of constraint analysis.
     // pub fn constraints(&self) ->
     // Result<BTreeMap<AnalysisLocation, constraints::Constraints>> {
     //     let ca = constraints::ConstraintAnalysis::new(self.control_flow_graph);
@@ -57,10 +57,10 @@ impl<'a> Analysis<'a> {
 
     /// Returns the ControlFlowGraph all analysis was performed over.
     pub fn control_flow_graph(&self) -> &il::ControlFlowGraph {
-        &self.control_flow_graph
+        self.control_flow_graph
     }
 
-    /// Performs dead code elimination and returns the result in a new graph.
+    // /// Performs dead code elimination and returns the result in a new graph.
     pub fn dead_code_elimination(&self) -> Result<il::ControlFlowGraph> {
         dead_code_elimination::dead_code_elimination(self)
     }
@@ -70,46 +70,46 @@ impl<'a> Analysis<'a> {
         &self.def_use
     }
 
-    /// Performs multiple, non-semantic altering optimizations
-    pub fn optimize(&self) -> Result<il::ControlFlowGraph> {
-        let mut rolling_graph = self.control_flow_graph.clone();
-        loop {
-            let new_graph = {
-                let analysis = Analysis::new(&rolling_graph)?;
-                // let cfg = analysis.simplification()?;
-                // let analysis = Analysis::new(&cfg)?;
-                analysis.dead_code_elimination()?
-            };
-            if new_graph == rolling_graph {
-                return Ok(new_graph);
-            }
-            else {
-                rolling_graph = new_graph;
-            }
-        }
+    /// Use Def chains for this `Analysis`.
+    pub fn use_def(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
+        &self.use_def
     }
+
+    // /// Performs multiple, non-semantic altering optimizations
+    // pub fn optimize(&self) -> Result<il::ControlFlowGraph> {
+    //     let mut rolling_graph = self.control_flow_graph.clone();
+    //     loop {
+    //         let new_graph = {
+    //             let analysis = Analysis::new(&rolling_graph)?;
+    //             // let cfg = analysis.simplification()?;
+    //             // let analysis = Analysis::new(&cfg)?;
+    //             analysis.dead_code_elimination()?
+    //         };
+    //         if new_graph == rolling_graph {
+    //             return Ok(new_graph);
+    //         }
+    //         else {
+    //             rolling_graph = new_graph;
+    //         }
+    //     }
+    // }
 
     /// Reaching definitions for this `Analysis`.
     pub fn reaching_definitions(&self) -> &BTreeMap<AnalysisLocation, Reaches> {
         &self.reaching_definitions
     }
 
-    /// Simplifies the IL
-    pub fn simplification(&self) -> Result<il::ControlFlowGraph> {
-        simplification::simplification(self)
-    }
+    // /// Simplifies the IL
+    // pub fn simplification(&self) -> Result<il::ControlFlowGraph> {
+    //     simplification::simplification(self)
+    // }
 
-    /// Use Def chains for this `Analysis`.
-    pub fn use_def(&self) -> &BTreeMap<AnalysisLocation, BTreeSet<AnalysisLocation>> {
-        &self.use_def
-    }
-
-    /// Returns the result of value set analysis
-    ///
-    /// `max` is the maximum number of values a `LatticeValue::Values` will
-    /// hold before being transformed into a `LatticeValue::Join`
-    pub fn value_set(&self, max: usize, endian: value_set::Endian)
-    -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
-        value_set::compute(self.control_flow_graph, max, endian)
-    }
+    // /// Returns the result of value set analysis
+    // ///
+    // /// `max` is the maximum number of values a `LatticeValue::Values` will
+    // /// hold before being transformed into a `LatticeValue::Join`
+    // pub fn value_set(&self, max: usize, endian: value_set::Endian)
+    // -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
+    //     value_set::compute(self.control_flow_graph, max, endian)
+    // }
 }

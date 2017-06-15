@@ -1,7 +1,5 @@
 //! Falcon Intermediate Language
 
-use std::rc::Rc;
-
 use error::*;
 use graph;
 
