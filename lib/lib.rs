@@ -17,6 +17,7 @@ extern crate serde_json;
 
 
 pub mod analysis;
+pub mod engine;
 pub mod executor;
 pub mod graph;
 pub mod il;

@@ -4,16 +4,16 @@ version = "0.0.1"
 authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
 
 
-[profile.dev]
-codegen-units = 8
-opt-level = 1
+#[profile.dev]
+#codegen-units = 8
+#opt-level = 1
 
 
 [dependencies]
 base64 = "0.5"
 bincode = "0.8"
 bitflags = "0.8"
-capstone_rust = { git = "https://github.com/endeav0r/capstone-rust" }
+capstone_rust = { git = "https://github.com/endeav0r/capstone-rust", rev="981b2fc0" }
 clap = "2.24"
 error-chain = "0.10"
 goblin = "0.0.9"

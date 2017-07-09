@@ -45,6 +45,10 @@ impl MemorySegment {
         self.bytes.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+
     fn truncate(&mut self, new_size: usize) {
         self.bytes.truncate(new_size)
     }
@@ -84,9 +88,9 @@ impl Memory {
         // handle overlapping segments
         let mut add_segments = Vec::new();
         let mut del_segments = Vec::new();
-        for ref mut s in self.segments.iter_mut() {
+        for ref mut s in &mut self.segments {
             let address = s.0;
-            let ref mut s = s.1;
+            let s = &mut s.1;
             // if a segment runs into this one, truncate it
             if s.address() + s.len() as u64 > segment.address() {
                 s.truncate((segment.address() - *address) as usize);

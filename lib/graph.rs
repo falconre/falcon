@@ -169,8 +169,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         // find the index of this edge in edges_out
         let mut index = None;
         let mut edges_out = self.edges_out.get_mut(&head).unwrap();
-        for i in 0..edges_out.len() {
-            let edge = edges_out.get(i).unwrap();
+        for (i, edge) in edges_out.iter().enumerate() {
             if edge.head() == head && edge.tail() == tail {
                 index = Some(i);
                 break;
@@ -183,8 +182,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         // find the index of this edge in edges_in
         let mut index = None;
         let mut edges_in = self.edges_in.get_mut(&tail).unwrap();
-        for i in 0..edges_in.len() {
-            let edge = edges_in.get(i).unwrap();
+        for (i, edge) in edges_in.iter().enumerate() {
             if edge.head() == head && edge.tail() == tail {
                 index = Some(i);
                 break;
@@ -234,7 +232,9 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
             bail!("Vertex {} does not exist and therefor has no successors", index);
         }
 
-        let vertices = self.edges_out.get(&index).unwrap().iter().map(|e| self.vertex(e.tail()));
+        let vertices = self.edges_out[&index]
+                           .iter()
+                           .map(|e| self.vertex(e.tail()));
 
         Ok(vertices.fold(Vec::new(), |mut v, vx| {
             v.push(vx.unwrap());
@@ -249,7 +249,9 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
             bail!("Vertex {} does not exist and therefor has no predecessors", index);
         }
 
-        let vertices = self.edges_in.get(&index).unwrap().iter().map(|e| self.vertex(e.head()));
+        let vertices = self.edges_in[&index]
+                           .iter()
+                           .map(|e| self.vertex(e.head()));
 
         Ok(vertices.fold(Vec::new(), |mut v, vx| {
             v.push(vx.unwrap());
@@ -275,8 +277,8 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         for vertex in &self.vertices {
             let vertex_index: u64 = *vertex.0;
 
-            if self.edges_in.get(&vertex_index).unwrap().len() >= 2 {
-                for edge in self.edges_in.get(&vertex_index).unwrap() {
+            if self.edges_in[&vertex_index].len() >= 2 {
+                for edge in &self.edges_in[&vertex_index] {
                     let mut runner = edge.head();
                     while idoms.contains_key(&edge.head()) && runner != idoms[&edge.head()] {
                         df.get_mut(&runner).unwrap().insert(vertex_index);
@@ -302,7 +304,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         for vertex in &self.vertices {
             let vertex_index: u64 = *vertex.0;
 
-            let mut sdoms = dominators.get(&vertex_index).unwrap().clone();
+            let mut sdoms = dominators[&vertex_index].clone();
             sdoms.remove(&vertex_index);
 
             // find the strict dominator that dominates no other strict
@@ -313,7 +315,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
                     if sdom == sdom2 {
                         continue;
                     }
-                    if dominators.get(sdom2).unwrap().contains(sdom) {
+                    if dominators[sdom2].contains(sdom) {
                         is_idom = false;
                         break;
                     }
@@ -332,7 +334,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
     /// Computes dominators for all vertices in the graph
     pub fn compute_dominators(&self, start_index: u64) -> Result<BTreeMap<u64, BTreeSet<u64>>> {
-        if self.vertices.contains_key(&start_index) == false {
+        if !self.vertices.contains_key(&start_index) {
             bail!("vertex {} not in graph", start_index);
         }
 
@@ -347,14 +349,14 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
         // add all successors of start vertex to queue
         let mut queue = VecDeque::new();
-        for edge in self.edges_out.get(&start_index).unwrap() {
+        for edge in &self.edges_out[&start_index] {
             queue.push_back(edge.tail());
         }
 
         let dag = self.compute_acyclic(start_index)?;
         let predecessors = dag.compute_predecessors()?;
 
-        while queue.len() > 0 {
+        while !queue.is_empty() {
             let vertex_index: u64 = queue.pop_front().unwrap();
 
             // are dominators for all predecessors of this block already set?
@@ -376,15 +378,13 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
             // this vertex's dominators are the intersection of all
             // immediate predecessors' dominators, plus itself
             let mut doms: BTreeSet<u64> = match dag.edges_in(vertex_index)?.first() {
-                Some(predecessor_edge) => dominators.get(&predecessor_edge.head())
-                                                    .unwrap()
-                                                    .clone(),
+                Some(predecessor_edge) => dominators[&predecessor_edge.head()].clone(),
                 None => BTreeSet::new()
             };
 
-            for edge in self.edges_in.get(&vertex_index).unwrap() {
+            for edge in &self.edges_in[&vertex_index] {
                 if predecessors[&vertex_index].contains(&edge.head()) {
-                    doms = &doms & dominators.get(&edge.head()).unwrap();
+                    doms = &doms & &dominators[&edge.head()];
                 }
             }
 
@@ -393,8 +393,8 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
             dominators.insert(vertex_index, doms.clone());
 
             // add successors to the queue
-            for edge in dag.edges_out.get(&vertex_index).unwrap() {
-                if queue.contains(&edge.tail()) == false {
+            for edge in &dag.edges_out[&vertex_index] {
+                if !queue.contains(&edge.tail()) {
                     queue.push_back(edge.tail());
                 }
             }
@@ -425,18 +425,18 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         }
 
         // for every vertex
-        while queue.len() > 0 {
+        while !queue.is_empty() {
             let vertex_index = queue.pop_front().unwrap();
 
             // for each predecessor of this vertex
             let mut to_add: Vec<u64> = Vec::new();
             {
-                let ref this_predecessors = &predecessors.get(&vertex_index).unwrap();
-                for predecessor in predecessors.get(&vertex_index).unwrap().iter() {
+                let this_predecessors = &predecessors[&vertex_index];
+                for predecessor in &predecessors[&vertex_index] {
                     // ensure each of this predecessor's predecessors are predecessors
                     // of this vertex
-                    for pp in predecessors.get(predecessor).unwrap().iter() {
-                        if this_predecessors.contains(pp) == false {
+                    for pp in &predecessors[predecessor] {
+                        if !this_predecessors.contains(pp) {
                             to_add.push(*pp);
                         }
                     }
@@ -444,11 +444,11 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
             }
 
             let mut this_predecessors = predecessors.get_mut(&vertex_index).unwrap();
-            for predecessor in to_add.iter() {
+            for predecessor in &to_add {
                 this_predecessors.insert(*predecessor);
             }
 
-            if to_add.len() > 0 {
+            if !to_add.is_empty() {
                 for successor in self.edges_out(vertex_index)?.iter() {
                     queue.push_back(successor.tail());
                 }
@@ -472,14 +472,14 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         let mut queue = VecDeque::new();
         queue.push_back(start_index);
 
-        while queue.len() > 0 {
+        while !queue.is_empty() {
             let vertex_index = queue.pop_front().unwrap();
 
             visited.insert(vertex_index);
 
-            let vertex_predecessors = predecessors.get(&vertex_index).unwrap();
+            let vertex_predecessors = &predecessors[&vertex_index];
 
-            for edge in self.edges_out.get(&vertex_index).unwrap() {
+            for edge in &self.edges_out[&vertex_index] {
                 // skip edges that would create a loop
                 if visited.contains(&edge.tail()) && vertex_predecessors.contains(&edge.tail()) {
                     continue;
@@ -505,7 +505,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
     pub fn vertices_mut(&mut self) -> Vec<&mut V> {
         let mut vec = Vec::new();
-        for vertex in self.vertices.iter_mut() {
+        for vertex in &mut self.vertices {
             vec.push(vertex.1);
         }
         vec
@@ -514,7 +514,9 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
     /// Fetches an index from the graph by index.
     pub fn vertex(&self, index: u64) -> Result<&V> {
-        self.vertices.get(&index).ok_or(format!("index {} does not exist", index).into())
+        self.vertices
+            .get(&index)
+            .ok_or_else(|| format!("index {} does not exist", index).into())
     }
 
 
@@ -522,21 +524,21 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
     pub fn vertex_mut(&mut self, index: u64) -> Result<&mut V> {
         self.vertices
             .get_mut(&index)
-            .ok_or(format!("index {} des not exist", index).into())
+            .ok_or_else(|| format!("index {} des not exist", index).into())
     }
 
 
     pub fn edge(&self, head: u64, tail: u64) -> Result<&E> {
         self.edges
             .get(&(head, tail))
-            .ok_or(format!("edge {}->{} does not exist", head, tail).into())
+            .ok_or_else(|| format!("edge {}->{} does not exist", head, tail).into())
     }
 
 
     pub fn edge_mut(&mut self, head: u64, tail: u64) -> Result<&mut E> {
         self.edges
             .get_mut(&(head, tail))
-            .ok_or(format!("edge {}->{} does not exist", head, tail).into())
+            .ok_or_else(|| format!("edge {}->{} does not exist", head, tail).into())
     }
 
 
@@ -548,7 +550,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
     pub fn edges_mut(&mut self) -> Vec<&mut E> {
         let mut vec = Vec::new();
-        for edge in self.edges.iter_mut() {
+        for edge in &mut self.edges {
             vec.push(edge.1);
         }
         vec
@@ -557,13 +559,17 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
     /// Return all edges out for a vertex
     pub fn edges_out(&self, index: u64) -> Result<&Vec<E>> {
-        self.edges_out.get(&index).ok_or("vertex does not exist".into())
+        self.edges_out
+            .get(&index)
+            .ok_or_else(|| "vertex does not exist".into())
     }
 
 
     /// Return all edges in for a vertex
     pub fn edges_in(&self, index: u64) -> Result<&Vec<E>> {
-        self.edges_in.get(&index).ok_or("vertex does not exist".into())
+        self.edges_in
+            .get(&index)
+            .ok_or_else(|| "vertex does not exist".into())
     }
 
 

@@ -69,14 +69,14 @@ impl Block {
     pub fn instruction(&self, index: u64) -> Result<&Instruction> {
         for instruction in &self.instructions {
             if instruction.index() == index {
-                return Ok(&instruction);
+                return Ok(instruction);
             }
         }
         bail!("No instruction with index of {}", index);
     }
 
 
-    pub fn instruction_mut<'a>(&'a mut self, index: u64) -> Result<&'a mut Instruction> {
+    pub fn instruction_mut<>(&mut self, index: u64) -> Result<&mut Instruction> {
         let mut location = None;
         for i in 0..self.instructions.len() {
             if self.instructions[i].index() == index {
@@ -85,7 +85,7 @@ impl Block {
             }
         }
         match location {
-            Some(i) => Ok(self.instructions.get_mut(i).unwrap()),
+            Some(i) => Ok(&mut self.instructions[i]),
             None => bail!("No instruction with index of {}", index)
         }
     }
@@ -150,7 +150,7 @@ impl Block {
     }
 
     /// Adds a phi operation to the end of this block.
-    pub fn phi(&mut self, dst: Variable, src: Vec<Variable>) {
+    pub fn phi(&mut self, dst: MultiVar, src: Vec<MultiVar>) {
         let index = self.new_instruction_index();
         self.push(Instruction::phi(index, dst, src));
     }
@@ -162,7 +162,7 @@ impl Block {
     }
 
     /// Prepends an operation to the beginning of this block
-    pub fn prepend_phi(&mut self, dst: Variable, src: Vec<Variable>) {
+    pub fn prepend_phi(&mut self, dst: MultiVar, src: Vec<MultiVar>) {
         let index = self.new_instruction_index();
         let phi = Instruction::phi(index, dst, src);
         self.instructions.insert(0, phi);

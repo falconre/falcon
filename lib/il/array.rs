@@ -1,7 +1,6 @@
 use std::fmt;
+use il::*;
 
-
-/// An IL variable.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Array {
     name: String,
@@ -19,16 +18,20 @@ impl Array {
         }
     }
 
-    pub fn name(&self) -> String {
-        self.name.to_string()
-    }
-
     pub fn size(&self) -> u64 {
         self.size
     }
+}
 
-    /// An identifier uniquely identifies the variable in the form `<name>[]#<ssa>`
-    pub fn identifier(&self) -> String {
+
+impl Variable for Array {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// An identifier uniquely identifies the variable in the form
+    /// `<name>[]#<ssa>`
+    fn identifier(&self) -> String {
         format!(
             "{}[]{}",
             self.name,
@@ -38,12 +41,16 @@ impl Array {
         })
     }
 
-    pub fn ssa(&self) -> Option<u32> {
+    fn ssa(&self) -> Option<u32> {
         self.ssa
     }
 
-    pub fn set_ssa(&mut self, ssa: Option<u32>) {
+    fn set_ssa(&mut self, ssa: Option<u32>) {
         self.ssa = ssa;
+    }
+
+    fn multi_var_clone(&self) -> MultiVar {
+        MultiVar::Array(self.clone())
     }
 }
 

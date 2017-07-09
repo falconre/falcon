@@ -1,12 +1,10 @@
-//! Applies Static Single Assignment to the ControlFlowGraph, inserting
+//! Applies Static Single Assignment to the `il::ControlFlowGraph`, inserting
 //! intermediate blocks with Phi instructions as required.
-//!
-//! # Warning
-//! TODO: Handle ControlFlowGraphs which are loops
 
 use error::*;
 use graph;
 use il;
+use il::Variable;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFlowGraph> {
@@ -47,19 +45,19 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         let mut block_set: BTreeMap<String, u32> = BTreeMap::new();
 
         for operation in block.instructions_mut() {
-            for mut variable in operation.variables_read() {
-                if block_set.contains_key(&variable.name()) {
-                    let name = variable.name().to_string();
+            for variable in operation.variables_read_mut() {
+                if block_set.contains_key(variable.name()) {
+                    let name = variable.name().to_owned();
                     variable.set_ssa(Some(block_set[&name]));
                 }
             }
-            if let Some(mut variable) = operation.variable_written() {
+            if let Some(mut variable) = operation.variable_written_mut() {
                 if variable.ssa().is_none() {
-                    let name = variable.name().to_string();
+                    let name = variable.name().to_owned();
                     variable.set_ssa(Some(assigner.set(name)));
                 }
                 block_set.insert(
-                    variable.name().to_string(),
+                    variable.name().to_owned(),
                     variable.ssa().unwrap()
                 );
             }
@@ -69,8 +67,8 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
     // Returns the ssa values for all variable assignments on block exit
     // This should be called after ssa block, and all written variables
     // should have SSA assignments.
-    fn get_block_ssa_assignments(block: &il::Block) -> BTreeMap<String, il::Variable> {
-        let mut assignments: BTreeMap<String, il::Variable> = BTreeMap::new();
+    fn get_block_ssa_assignments(block: &il::Block) -> BTreeMap<&str, &il::Variable> {
+        let mut assignments: BTreeMap<&str, &il::Variable> = BTreeMap::new();
 
         for operation in block.instructions() {
             if let Some(variable) = operation.variable_written() {
@@ -85,13 +83,13 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
     }
 
     // Returns a vector of all variables without SSA set on exit
-    fn get_block_ssa_unassigned(block: &il::Block) -> Vec<il::Variable> {
-        let mut unassigned: Vec<il::Variable> = Vec::new();
+    fn get_block_ssa_unassigned(block: &il::Block) -> Vec<il::MultiVar> {
+        let mut unassigned: Vec<il::MultiVar> = Vec::new();
 
         for operation in block.instructions() {
-            for variable in operation.variables_read().iter() {
-                if variable.ssa().is_none() && !unassigned.contains(variable) {
-                    unassigned.push(variable.clone());
+            for variable in operation.variables_read() {
+                if variable.ssa().is_none() && !unassigned.contains(&variable.multi_var_clone()) {
+                    unassigned.push(variable.multi_var_clone());
                 }
             }
         }
@@ -101,7 +99,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
 
     fn find_assignments(
         block: &il::Block,
-        mut unassigned: Vec<il::Variable>,
+        mut unassigned: Vec<il::MultiVar>,
         mut visited: BTreeSet<u64>,
         graph: &graph::Graph<il::Block, il::Edge>,
     ) -> Result<BTreeMap<String, BTreeSet<u32>>> {
@@ -117,26 +115,26 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
             let mut found_this_block = Vec::new();
 
             for una in unassigned.clone() {
-                if let Some(_) = assignments.get(&una.name()) {
-                    if !found.contains_key(&una.name()) {
-                        found.insert(una.name(), BTreeSet::new());
+                if assignments.get(una.name()).is_some() {
+                    if !found.contains_key(una.name()) {
+                        found.insert(una.name().to_string(), BTreeSet::new());
                     }
-                    found.get_mut(&una.name())
+                    found.get_mut(una.name())
                          .unwrap()
-                         .insert(assignments[&una.name()].ssa().unwrap());
+                         .insert(assignments[una.name()].ssa().unwrap());
                     found_this_block.push(una);
                 }
             }
 
             for ftb in found_this_block {
                 unassigned.iter()
-                          .position(|ref n| **n == ftb)
+                          .position(|n| *n == ftb)
                           .map(|e| unassigned.remove(e));
             }
             visited.insert(block.index());
         }
 
-        if unassigned.len() > 0 {
+        if !unassigned.is_empty() {
             for predecessor in graph.predecessors(block.index())? {
                 if visited.contains(&predecessor.index()) {
                     continue;
@@ -192,7 +190,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
                                                                    .unwrap())?;
     let mut ssa_set: BTreeSet<u64> = BTreeSet::new();
 
-    while queue.len() > 0 {
+    while !queue.is_empty() {
         let block_index = queue.pop_front().unwrap();
 
         // ensure all predecessors are set according to DAG
@@ -218,13 +216,13 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         let (found, unassigned) = {
             let block = control_flow_graph.block(block_index)?;
 
-            let unassigned = get_block_ssa_unassigned(&block); 
+            let unassigned = get_block_ssa_unassigned(block); 
 
             let mut visited = BTreeSet::new();
             visited.insert(block.index());
 
             let found = find_assignments(
-                &block,
+                block,
                 unassigned.clone(),
                 visited,
                 control_flow_graph.graph()
@@ -233,13 +231,12 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         };
 
         for una in &unassigned {
-            if let Some(assignments) = found.get(&una.name()) {
+            if let Some(assignments) = found.get(una.name()) {
                 if assignments.len() == 1 {
                     let block = control_flow_graph.block_mut(block_index)?;
                     for ref mut operation in block.instructions_mut() {
-                        for mut variable in operation.variables_read() {
+                        for ref mut variable in operation.variables_read_mut() {
                             if    variable.name() == una.name()
-                               && variable.bits() == una.bits()
                                && variable.ssa() == None {
                                 variable.set_ssa(Some(*assignments.iter()
                                                                   .next()
@@ -258,7 +255,12 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
                         src.push(var);
                     }
                     control_flow_graph.block_mut(block_index)?
-                                      .prepend_phi(dst, src);
+                                      .prepend_phi(
+                                        dst.multi_var_clone(),
+                                        src.iter()
+                                           .map(|v| v.multi_var_clone())
+                                           .collect::<Vec<il::MultiVar>>()
+                                      );
                 }
             }
         }
@@ -289,13 +291,13 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
             continue;
         }
 
-        let unassigned: Vec<il::Variable> = edge.condition()
+        let unassigned: Vec<il::MultiVar> = edge.condition()
                                                 .clone()
-                                             .unwrap()
-                                          .collect_scalars()
-                                       .iter()
-                                    .map(|v| il::Variable::scalar((*v).clone()))
-                                    .collect();
+                                                .unwrap()
+                                                .collect_variables()
+                                                .iter()
+                                                .map(|v| v.multi_var_clone())
+                                                .collect();
 
         let found = find_assignments(
             control_flow_graph.graph().vertex(edge.head())?,
@@ -308,33 +310,32 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         let block_index = edge.head();
 
         // Assign SSA to edges
-        let mut phis_to_add: Vec<(u64, il::Variable, Vec<il::Variable>)> = Vec::new();
+        let mut phis_to_add: Vec<(u64, il::MultiVar, Vec<il::MultiVar>)> = Vec::new();
 
         {
             let mut edge = control_flow_graph.edge_mut(edge.head(), edge.tail())?;
 
-            if let &mut Some(ref mut condition) = edge.condition_mut() {
-                for scalar in condition.collect_scalars() {
-                    if let Some(assignments) = found.get(&scalar.borrow().name()) {
+            if let Some(ref mut condition) = *edge.condition_mut() {
+                for scalar in condition.collect_scalars_mut() {
+                    if let Some(assignments) = found.get(scalar.name()) {
                         if assignments.len() == 1 {
-                            scalar.borrow_mut()
-                                  .set_ssa(Some(*assignments.iter()
+                            scalar.set_ssa(Some(*assignments.iter()
                                                             .next()
                                                             .unwrap()));
                             continue;
                         }
-                        let dst = scalar.clone();
-                        dst.borrow_mut().set_ssa(Some(assigner.get(scalar.borrow().name())));
-                        scalar.borrow_mut().set_ssa(Some(dst.borrow().ssa().unwrap()));
+                        let mut dst = scalar.clone();
+                        dst.set_ssa(Some(assigner.get(scalar.name())));
+                        scalar.set_ssa(Some(dst.ssa().unwrap()));
                         let mut src = Vec::new();
                         for assignment in assignments.iter() {
-                            let var = scalar.clone();
-                            var.borrow_mut().set_ssa(Some(*assignment));
-                            src.push(il::Variable::scalar(var.clone()));
+                            let mut var = scalar.clone();
+                            var.set_ssa(Some(*assignment));
+                            src.push(var.multi_var_clone());
                         }
                         phis_to_add.push((
                             block_index,
-                            il::Variable::scalar(dst),
+                            dst.multi_var_clone(),
                             src
                         ));
                     }
@@ -359,14 +360,14 @@ pub fn clear_ssa(mut control_flow_graph: il::ControlFlowGraph)
     for block in control_flow_graph.blocks_mut() {
         let mut phi_indices = Vec::new();
         for instruction in block.instructions_mut() {
-            if let &il::Operation::Phi{..} = instruction.operation() {
+            if let il::Operation::Phi{..} = *instruction.operation() {
                 phi_indices.push(instruction.index());
                 continue;
             }
-            for mut variable in instruction.variables_read() {
+            for variable in instruction.variables_read_mut() {
                 variable.set_ssa(None);
             }
-            if let Some(mut variable) = instruction.variable_written() {
+            if let Some(mut variable) = instruction.variable_written_mut() {
                 variable.set_ssa(None);
             }
         }
@@ -377,9 +378,9 @@ pub fn clear_ssa(mut control_flow_graph: il::ControlFlowGraph)
 
     for edge in control_flow_graph.edges_mut() {
         let condition = edge.condition_mut();
-        if let &mut Some(ref mut condition) = condition {
-            for scalar in condition.collect_scalars() {
-                scalar.borrow_mut().set_ssa(None);
+        if let Some(ref mut condition) = *condition {
+            for scalar in condition.collect_scalars_mut() {
+                scalar.set_ssa(None);
             }
         }
     }

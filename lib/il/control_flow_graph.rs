@@ -48,10 +48,10 @@ impl Edge {
 
 impl fmt::Display for Edge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let &Some(ref comment) = &self.comment {
+        if let Some(ref comment) = self.comment {
             write!(f, "// {}\n", comment)?
         }
-        if let &Some(ref condition) = &self.condition {
+        if let Some(ref condition) = self.condition {
             write!(
                 f,
                 "(0x{:X}->0x{:X}) ? ({})",
@@ -69,20 +69,6 @@ impl graph::Edge for Edge {
     fn head(&self) -> u64 { self.head }
     fn tail(&self) -> u64 { self.tail }
     fn dot_label(&self) -> String { format!("{}", self) }
-}
-
-
-impl graph::Vertex for Rc<Block> {
-    fn index(&self) -> u64 { self.as_ref().index() }
-    fn dot_label(&self) -> String { self.as_ref().dot_label() }
-}
-
-
-
-impl graph::Edge for Rc<Edge> {
-    fn head(&self) -> u64 { self.as_ref().head() }
-    fn tail(&self) -> u64 { self.as_ref().tail() }
-    fn dot_label(&self) -> String { self.as_ref().dot_label() }
 }
 
 
@@ -330,7 +316,7 @@ impl ControlFlowGraph {
             _ => false
         };
 
-        if is_empty == false && (self.entry().is_none() || self.exit().is_none()) {
+        if !is_empty && (self.entry().is_none() || self.exit().is_none()) {
             return Err("entry/exit not set for dest ControlFlowGraph::append".into());
         }
         
@@ -350,28 +336,28 @@ impl ControlFlowGraph {
 
         // Now set all new edges
         for edge in other.graph().edges() {
-            let new_head: u64 = *block_map.get(&edge.head()).unwrap();
-            let new_tail: u64 = *block_map.get(&edge.tail()).unwrap();
+            let new_head: u64 = block_map[&edge.head()];
+            let new_tail: u64 = block_map[&edge.tail()];
             let new_edge = Edge::new(new_head, new_tail, edge.condition().clone());
             self.graph.insert_edge(new_edge)?;
         }
 
 
         if is_empty {
-            self.entry = Some(*block_map.get(&other.entry().unwrap()).unwrap());
+            self.entry = Some(block_map[&other.entry().unwrap()]);
         }
         else {
             // Create an edge from the exit of this graph to the head of the other
             // graph
             let transition_edge = Edge::new(
                 self.exit.unwrap(),
-                *block_map.get(&(other.entry().unwrap())).unwrap(),
+                block_map[&(other.entry().unwrap())],
                 None
             );
             self.graph.insert_edge(transition_edge)?;
         }
 
-        self.exit = Some(*block_map.get(&other.exit().unwrap()).unwrap());
+        self.exit = Some(block_map[&other.exit().unwrap()]);
 
         Ok(())
     }
@@ -416,8 +402,8 @@ impl ControlFlowGraph {
 
         // insert edges
         for edge in other.graph().edges() {
-            let new_head: u64 = *block_map.get(&edge.head()).unwrap();
-            let new_tail: u64 = *block_map.get(&edge.tail()).unwrap();
+            let new_head: u64 = block_map[&edge.head()];
+            let new_tail: u64 = block_map[&edge.tail()];
             let new_edge = Edge::new(new_head, new_tail, edge.condition().clone());
             self.graph.insert_edge(new_edge)?;
         }
