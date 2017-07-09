@@ -182,7 +182,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         // find the index of this edge in edges_in
         let mut index = None;
         let mut edges_in = self.edges_in.get_mut(&tail).unwrap();
-        for (i, edge) in edges_out.iter().enumerate() {
+        for (i, edge) in edges_in.iter().enumerate() {
             if edge.head() == head && edge.tail() == tail {
                 index = Some(i);
                 break;
