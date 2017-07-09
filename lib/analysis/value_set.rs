@@ -4,7 +4,6 @@ use analysis::lattice::*;
 use error::*;
 use il;
 use std::collections::BTreeMap;
-use std::ops::Deref;
 
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -128,7 +127,7 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                     il::Operation::Assign { ref dst, ref src } => {
                         let lattice_value = state_out.eval(src);
                         state_out.set(
-                            dst.borrow().deref().clone(),
+                            dst.clone(),
                             lattice_value
                         );
                         state_out
@@ -144,33 +143,33 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                     }
                     il::Operation::Load { ref dst, ref index, src: _ } => {
                         let index = state_out.eval(index);
-                        match state_out.load(&index, dst.borrow().bits()) {
+                        match state_out.load(&index, dst.bits()) {
                             Some(value) => {
                                 if self.endian == Endian::Little {
                                     state_out.set(
-                                        dst.borrow().deref().clone(),
+                                        dst.clone(),
                                         value.endian_swap()?
                                     );
                                 } else {
                                     state_out.set(
-                                        dst.borrow().deref().clone(),
+                                        dst.clone(),
                                         value
                                     );
                                 }
 
                             }
                             None => state_out.set(
-                                dst.borrow().deref().clone(),
+                                dst.clone(),
                                 LatticeValue::Meet
                             )
                         }
                         state_out
                     }
                     il::Operation::Phi { ref dst, ref src } => {
-                        if let il::Variable::Scalar(ref dst) = *dst {
+                        if let il::MultiVar::Scalar(ref dst) = *dst {
                             if src.len() == 0 {
                                 state_out.set(
-                                    dst.borrow().deref().clone(),
+                                    dst.clone(),
                                     LatticeValue::Meet
                                 );
                                 state_out
@@ -178,8 +177,8 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                             else {
                                 let mut src_: Vec<il::Scalar> = Vec::new();
                                 for s in src {
-                                    if let il::Variable::Scalar(ref s) = *s {
-                                        src_.push(s.borrow().deref().clone());
+                                    if let il::MultiVar::Scalar(ref s) = *s {
+                                        src_.push(s.clone());
                                     }
                                 }
 
@@ -197,7 +196,7 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                                     });
                                 }
                                 state_out.set(
-                                    dst.borrow().deref().clone(),
+                                    dst.clone(),
                                     lattice_value.clone()
                                 );
                                 state_out

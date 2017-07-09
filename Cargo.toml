@@ -28,6 +28,6 @@ name = "falcon"
 path = "lib/lib.rs"
 
 
-#[[bin]]
-#name = "falcon_bin"
-#path = "bin/main.rs"
+[[bin]]
+name = "falcon_bin"
+path = "bin/main.rs"

@@ -5,19 +5,19 @@ pub mod analysis_location;
 mod dead_code_elimination;
 mod def_use;
 mod fixed_point;
-// pub mod lattice;
+pub mod lattice;
 mod reaching_definitions;
 // mod simplification;
 pub mod ssa;
-// mod value_set;
+mod value_set;
 
 use error::*;
 use il;
 pub use self::analysis_location::*;
-// pub use self::lattice::*;
-// pub use self::ssa::*;
+pub use self::lattice::*;
+pub use self::ssa::*;
 pub use self::reaching_definitions::Reaches;
-// pub use self::value_set::Endian;
+pub use self::value_set::Endian;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// `Analysis` holds several types of analysis results.
@@ -104,12 +104,12 @@ impl<'a> Analysis<'a> {
     //     simplification::simplification(self)
     // }
 
-    // /// Returns the result of value set analysis
-    // ///
-    // /// `max` is the maximum number of values a `LatticeValue::Values` will
-    // /// hold before being transformed into a `LatticeValue::Join`
-    // pub fn value_set(&self, max: usize, endian: value_set::Endian)
-    // -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
-    //     value_set::compute(self.control_flow_graph, max, endian)
-    // }
+    /// Returns the result of value set analysis
+    ///
+    /// `max` is the maximum number of values a `LatticeValue::Values` will
+    /// hold before being transformed into a `LatticeValue::Join`
+    pub fn value_set(&self, max: usize, endian: value_set::Endian)
+    -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
+        value_set::compute(self.control_flow_graph, max, endian)
+    }
 }

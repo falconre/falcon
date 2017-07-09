@@ -12,9 +12,9 @@ extern crate log;
 // use clap::{Arg, App};
 use falcon::analysis::*;
 use falcon::il;
+use falcon::il::Variable;
 use falcon::loader::Loader;
 use log::{LogRecord, LogLevel, LogLevelFilter, LogMetadata};
-use std::ops::Deref;
 use std::path::Path;
 
 
@@ -58,8 +58,10 @@ impl log::Log for StdoutLogger {
 }
 
 
-fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian: Endian)
--> Result<()> {
+fn label_value_set(
+    ref mut control_flow_graph: &mut il::ControlFlowGraph,
+    endian: Endian
+) -> Result<()> {
     println!("label_value_set");
     let cfg = control_flow_graph.clone();
     let analysis = Analysis::new(&cfg)?;
@@ -72,11 +74,12 @@ fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian
                                 .variables_read()
                                 .iter()
                                 .fold(Vec::new(), |mut v, var_read| {
-                                    if let il::Variable::Scalar(ref scalar) = *var_read {
+                                    let mv = var_read.multi_var_clone();
+                                    if let il::MultiVar::Scalar(scalar) = mv {
                                         v.push(format!(
                                             "{}={}",
-                                            scalar.borrow().name(),
-                                            match assignments.get(scalar.borrow().deref()) {
+                                            scalar.name(),
+                                            match assignments.get(&scalar) {
                                                 Some(lv) => format!("{}", lv),
                                                 None => String::from("?")
                                             }
@@ -96,8 +99,8 @@ fn label_value_set(ref mut control_flow_graph: &mut il::ControlFlowGraph, endian
                                                 .map(|s| {
                                                     format!(
                                                         "{}={}",
-                                                        s.borrow().name(),
-                                                        match assignments.get(s.borrow().deref()) {
+                                                        s.name(),
+                                                        match assignments.get(s) {
                                                             Some(lv) => format!("{}", lv),
                                                             None => String::from("?")
                                                         }
@@ -195,7 +198,6 @@ fn run () -> Result<()> {
 
     println!("{}", program);
 
-
     if let Some(function) = program.function(0x80488CA) {
         let control_flow_graph = ssa(function.control_flow_graph().clone())?;
         let analysis = Analysis::new(function.control_flow_graph())?;
@@ -220,7 +222,7 @@ fn run () -> Result<()> {
 
         let mut control_flow_graph = ssa(control_flow_graph)?;
 
-        label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
+        // label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
         // label_def_use(&mut control_flow_graph)?;
         // label_constraints(&mut control_flow_graph)?;
 

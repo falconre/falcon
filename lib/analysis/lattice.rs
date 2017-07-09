@@ -7,7 +7,7 @@ use il::Expression;
 use std::collections::{BTreeMap, BTreeSet};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt;
-use std::ops::{BitOr, Deref};
+use std::ops::BitOr;
 
 
 /// A lattice of `il::Constant` values
@@ -896,7 +896,7 @@ impl LatticeAssignments {
         match *expr {
 
             Expression::Scalar(ref scalar) => {
-                match self.scalars.get(scalar.borrow().deref()) {
+                match self.scalars.get(scalar) {
                     Some(lattice_value) => lattice_value.clone(),
                     None => LatticeValue::Meet
                 }

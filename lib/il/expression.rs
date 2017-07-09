@@ -6,8 +6,8 @@ use il::*;
 /// some value.
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Expression {
-    Constant(Constant),
     Scalar(Scalar),
+    Constant(Constant),
 
     Add(Box<Expression>, Box<Expression>),
     Sub(Box<Expression>, Box<Expression>),
