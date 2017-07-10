@@ -3,7 +3,7 @@ use il;
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
-pub enum Endianness {
+pub enum Endian {
     Big,
     Little
 }
@@ -11,16 +11,16 @@ pub enum Endianness {
 #[derive(Clone)]
 pub struct SymbolicMemory {
     address_width: usize,
-    endianness: Endianness,
+    endian: Endian,
     cells: BTreeMap<u64, il::Expression>
 }
 
 
 impl SymbolicMemory {
-    pub fn new(address_width: usize, endianness: Endianness) -> SymbolicMemory {
+    pub fn new(address_width: usize, endian: Endian) -> SymbolicMemory {
         SymbolicMemory {
             address_width: address_width,
-            endianness: endianness,
+            endian: endian,
             cells: BTreeMap::new()
         }
     }
@@ -31,8 +31,8 @@ impl SymbolicMemory {
     }
 
 
-    pub fn endianness(&self) -> &Endianness {
-        &self.endianness
+    pub fn endian(&self) -> &Endian {
+        &self.endian
     }
 
 
@@ -50,9 +50,9 @@ impl SymbolicMemory {
             let bytes = value.bits() / 8;
             for offset in 0..bytes {
                 let offset = offset as u64;
-                let shift = match self.endianness {
-                    Endianness::Little => offset * 8,
-                    Endianness::Big => (bytes as u64 - offset) * 8
+                let shift = match self.endian {
+                    Endian::Little => offset * 8,
+                    Endian::Big => (bytes as u64 - offset) * 8
                 };
                 let shift = il::expr_const(shift, value.bits());
                 let value = il::Expression::shr(value.clone(), shift)?;
@@ -90,9 +90,9 @@ impl SymbolicMemory {
                 None => return Ok(None)
             };
             let expr = il::Expression::zext(bits, expr.clone())?;
-            let shift = match self.endianness {
-                Endianness::Little => (bytes - offset) * 8,
-                Endianness::Big => offset * 8
+            let shift = match self.endian {
+                Endian::Little => (bytes - offset) * 8,
+                Endian::Big => offset * 8
             };
             let shift = il::expr_const(shift, bits);
             let expr = il::Expression::shl(shift, expr)?;

@@ -139,4 +139,8 @@ impl Memory {
         }
         None
     }
+
+    pub fn segments(&self) -> &BTreeMap<u64, MemorySegment> {
+        &self.segments
+    }
 }

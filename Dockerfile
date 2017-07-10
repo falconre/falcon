@@ -7,8 +7,10 @@ RUN apt-get update && \
     echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" >> /etc/apt/sources.list && \
     wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
     apt-get update && \
-    apt-get -y install clang-3.9 \
+    apt-get -y install build-essential \
+                       clang-3.9 \
                        curl \
+                       git \
                        llvm-3.9-dev \
                        libcapstone3 \
                        libcapstone-dev \
@@ -19,6 +21,12 @@ RUN apt-get update && \
 RUN curl https://sh.rustup.rs -sSf > /tmp/install.sh && \
     chmod 755 /tmp/install.sh && \
     /tmp/install.sh -y
+
+RUN cd / && \
+    git clone https://github.com/Z3Prover/z3 && \
+    cd z3/ && \
+    python scripts/mk_make.py && \
+    cd build && make -j 4 && make install
 
 SHELL ["/bin/bash", "-c"]
 

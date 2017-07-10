@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+
 extern crate base64;
 extern crate bincode;
 extern crate clap;
@@ -33,6 +35,8 @@ pub mod error {
     }
 }
 
+mod symex;
+
 use error::*;
 
 // use analysis::analysis_location::AnalysisLocation::*;
@@ -60,7 +64,7 @@ impl log::Log for StdoutLogger {
 
 fn label_value_set(
     ref mut control_flow_graph: &mut il::ControlFlowGraph,
-    endian: Endian
+    endian: ::falcon::analysis::Endian
 ) -> Result<()> {
     println!("label_value_set");
     let cfg = control_flow_graph.clone();
@@ -246,5 +250,5 @@ fn main () {
         Box::new(StdoutLogger)
     }).unwrap();
 
-    run().unwrap();
+    symex::engine_test().unwrap();
 }

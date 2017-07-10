@@ -143,8 +143,8 @@ impl Instruction {
     }
 
 
-    pub fn address(&self) -> &Option<u64> {
-        &self.address
+    pub fn address(&self) -> Option<u64> {
+        self.address.clone()
     }
 
 

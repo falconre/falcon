@@ -1,10 +1,14 @@
+use engine::memory::SymbolicMemory;
+use engine::platform::Platform;
 use error::*;
 use executor;
 use il;
 use il::variable::Variable;
+use regex;
 use std::collections::{BTreeMap, BTreeSet};
-use engine::memory::SymbolicMemory;
-use engine::platform::Platform;
+use std::io::Read;
+use std::io::Write;
+use std::process;
 
 
 #[derive(Clone)]
@@ -83,10 +87,10 @@ impl SymbolicEngine {
     /// scalar to expression mapping, and if all scalars are currently constant,
     /// evaluate to constant and return that. Otherwise, return expression with
     /// symbolic values
-    pub fn symbolize_and_eval(&self, expression: il::Expression)
+    pub fn symbolize_and_eval(&self, expression: &il::Expression)
         -> Result<il::Expression> {
 
-        let expression = self.symbolize_expression(&expression)?;
+        let expression = self.symbolize_expression(expression)?;
         if all_constants(&expression) {
             let constant = executor::constants_expression(&expression)?;
             Ok(il::Expression::Constant(constant))
@@ -97,12 +101,44 @@ impl SymbolicEngine {
     }
 
     /// Replaces scalars in the expression with those in the engine's current
-    /// scalar to expression mapping, and then evaluates for a concrete value
-    /// TODO: You know, concretization given a solver...
-    pub fn symbolize_and_concretize(&self, expression: il::Expression)
-        -> il::Constant {
+    /// scalar to expression mapping, and then evaluates for a concrete value.
+    /// 
+    /// Returns None is there is no satisfiable solution, or a concrete value as
+    /// a constant if a concrete solution exists.
+    pub fn symbolize_and_concretize(
+        &self,
+        expression: &il::Expression,
+        mut assertions: Option<Vec<il::Expression>>
+    ) -> Result<Option<il::Constant>> {
 
-        panic!("Unimplemented");
+        let expression = self.symbolize_expression(expression)?;
+
+        assertions = match assertions {
+            None => None,
+            Some(assertions) => Some(assertions
+                .iter()
+                .map(|assertion| self.symbolize_expression(&assertion).unwrap())
+                .collect::<Vec<il::Expression>>())
+        };
+
+        if let Some(ref assertions) = assertions {
+            for assertion in assertions {
+                if !all_constants(&assertion) {
+                    return self.eval(&expression, Some(assertions.to_vec()))
+                }
+                if executor::constants_expression(&assertion)?.value() != 1 {
+                    return Ok(None);
+                }
+            }
+        }
+
+        // At this point, assertions are all constants
+        if all_constants(&expression) {
+            Ok(Some(executor::constants_expression(&expression)?))
+        }
+        else {
+            self.eval(&expression, assertions)
+        }
     }
 
 
@@ -189,10 +225,17 @@ impl SymbolicEngine {
     }
 
 
-    pub fn eval(&self, expr: &il::Expression) -> Option<u64> {
+    /// Evaluates an expression in the solver. If assertions are given, enforces
+    /// these extra assertions.
+    pub fn eval(
+        &self,
+        expr: &il::Expression,
+        assertions: Option<Vec<il::Expression>>
+    ) -> Result<Option<il::Constant>> {
+
         let mut solver_lines : Vec<String> = Vec::new();
         solver_lines.push("(set-option :produce-models true)".to_string());
-        solver_lines.push("(set-logic QF_AFBV)".to_string());
+        solver_lines.push("(set-logic QF_AUFBV)".to_string());
         solver_lines.push("(set-info :smt-lib-version 2.0)".to_string());
 
         // Collect all the scalars from our assertions
@@ -212,6 +255,10 @@ impl SymbolicEngine {
             );
         }
 
+        // Add in a special variable for this eval so we can get the result
+        assertion_scalars.insert(("EVAL_RESULT".to_string(), expr.bits()));
+
+        // Create all of our variable declarations
         for assertion_scalar in &assertion_scalars {
             solver_lines.push(format!("(declare-fun {} () (_ BitVec {}))",
                 assertion_scalar.0, assertion_scalar.1));
@@ -223,9 +270,49 @@ impl SymbolicEngine {
                 expr_to_smtlib2(&assertion)));
         }
 
-        println!("{}", solver_lines.join("\n"));
+        // Assert this expression
+        solver_lines.push(format!("(assert (= EVAL_RESULT {}))",
+            expr_to_smtlib2(expr)));
+        
+        solver_lines.push("(check-sat)".to_string());
+        solver_lines.push("(get-value (EVAL_RESULT))".to_string());
 
-        None
+        let child = process::Command::new("z3")
+            .arg("-in")
+            .stdin(process::Stdio::piped())
+            .stdout(process::Stdio::piped())
+            .spawn()
+            .expect("Failed to invoke solver");
+
+        let solver_input = solver_lines.join("\n");
+
+        let _ = child.stdin.unwrap().write_all(solver_input.as_bytes());
+
+        let mut solver_output = String::new();
+
+        let _ = child.stdout.unwrap().read_to_string(&mut solver_output).unwrap();
+
+        println!("{}", solver_input);
+
+        println!("solver output: {}", solver_output);
+
+        if solver_output.contains("unsat") || !solver_output.contains("sat") {
+            return Ok(None);
+        }
+
+        let re = regex::Regex::new("EVAL_RESULT #x([0-9a-f]+)")?;
+        if let Some(caps) = re.captures(&solver_output) {
+            let value = u64::from_str_radix(&caps[1], 16)?;
+            return Ok(Some(il::const_(value, expr.bits())));
+        }
+
+        let re = regex::Regex::new("EVAL_RESULT #b([0-1]+)")?;
+        if let Some(caps) = re.captures(&solver_output) {
+            let value = u64::from_str_radix(&caps[1], 2)?;
+            return Ok(Some(il::const_(value, expr.bits())));
+        }
+
+        panic!("Couldn't parse EVAL_RESULT in {}", solver_output);
     }
 
 
@@ -235,44 +322,58 @@ impl SymbolicEngine {
 
         Ok(match *operation {
             il::Operation::Assign { ref dst, ref src } => {
-                let src = self.symbolize_and_eval(src.clone())?;
+                let src = self.symbolize_and_eval(src)?;
                 self.scalars.insert(dst.name().to_string(), src);
                 vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
             },
             il::Operation::Store { ref dst, ref index, ref src } => {
-                let src = self.symbolize_and_eval(src.clone())?;
-                let index = self.symbolize_and_concretize(index.clone());
-                self.memory.store(index.value(), src)?;
-                vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
+                let src = self.symbolize_and_eval(src)?;
+                let index = self.symbolize_and_concretize(index, None)?;
+                if let Some(index) = index {
+                    self.memory.store(index.value(), src)?;
+                    vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
+                }
+                else {
+                    Vec::new()
+                }
             },
             il::Operation::Load { ref dst, ref index, ref src } => {
-                let index = self.symbolize_and_concretize(index.clone());
-                let value = self.memory.load(index.value(), dst.bits())?;
-                match value {
-                    Some(v) => {
-                        self.scalars.insert(dst.name().to_string(), v.clone());
-                        vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
-                    },
-                    None => Vec::new()
+                let index = self.symbolize_and_concretize(index, None)?;
+                if let Some(index) = index {
+                    let value = self.memory.load(index.value(), dst.bits())?;
+                    match value {
+                        Some(v) => {
+                            self.scalars.insert(dst.name().to_string(), v.clone());
+                            vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
+                        },
+                        None => Vec::new()
+                    }
+                }
+                else {
+                    Vec::new()
                 }
             },
             il::Operation::Brc { ref target, ref condition } => {
                 let mut successors = Vec::new();
-                if self.eval(condition) == None {
-                    let engine = self.fork();
-                    let successor = SymbolicSuccessor::new(
-                        engine,
-                        SuccessorType::FallThrough
-                    );
+                // Is it possible for this case not to be taken?
+                let null_case = il::Expression::cmpeq(condition.clone(), il::expr_const(0, 1))?;
+                let r = self.symbolize_and_concretize(&null_case, Some(vec![null_case.clone()]))?;
+                if let Some(r) = r {
+                    let mut engine = self.fork();
+                    engine.add_assertion(null_case);
+                    let successor = SymbolicSuccessor::new(engine, SuccessorType::FallThrough);
                     successors.push(successor);
                 }
-                if let Some(r) = self.eval(condition) {
-                    if let Some(target) = self.eval(target) {
+                // This is the true case
+                let r = self.symbolize_and_concretize(&condition, Some(vec![condition.clone()]))?;
+                if let Some(r) = r {
+                    let t = self.symbolize_and_concretize(target, Some(vec![condition.clone()]))?;
+                    if let Some(target) = t {
                         let mut engine = self.fork();
                         engine.add_assertion(condition.clone());
                         let successor = SymbolicSuccessor::new(
                             engine,
-                            SuccessorType::Branch(target)
+                            SuccessorType::Branch(target.value())
                         );
                         successors.push(successor);
                     }
@@ -312,7 +413,7 @@ fn all_constants(expr: &il::Expression) -> bool {
         il::Expression::Cmpneq(ref lhs, ref rhs) |
         il::Expression::Cmplts(ref lhs, ref rhs) |
         il::Expression::Cmpltu(ref lhs, ref rhs) =>
-            all_constants(lhs) || all_constants(rhs),
+            all_constants(lhs) && all_constants(rhs),
         il::Expression::Zext(_, ref src) |
         il::Expression::Sext(_, ref src) |
         il::Expression::Trun(_, ref src) =>
@@ -336,7 +437,7 @@ fn expr_to_smtlib2(expr: &il::Expression) -> String {
                 format!("#b{}", c.value())
             }
             else {
-                format!("#x{:0x}", c.value())
+                format!("#x{:01$x}", c.value(), c.bits() / 4)
             }
         },
         il::Expression::Scalar(ref s) => {

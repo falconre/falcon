@@ -34,8 +34,8 @@ impl Program {
     /// Sets a function entry in the program
     pub fn set_function(&mut self, mut function: Function) {
         function.set_index(Some(self.next_index));
+        self.functions.insert(self.next_index, function);
         self.next_index += 1;
-        self.functions.insert(function.address(), function);
     }
 }
 
