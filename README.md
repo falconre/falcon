@@ -17,6 +17,12 @@ as an example of what this looks like now, or the
 [FixedPoint](https://github.com/endeav0r/falcon/blob/master/lib/analysis/fixed_point.rs)
 trait.
 
+# Building
+
+As of 1.18, everything, including docs, builds with stable.
+
+You will need the correct dependencies for bindgen to build the capstone bindings, as well as `z3` on the commandline. The `Dockerfile` has everything required to get you set up.
+
 # Should I use Falcon? / When will Falcon be stabilized?
 
 When Falcon hits 0.1.0, I will deem Falcon stable enough to use, and I will send it to crates.io. *Until Falcon hits 0.1.0 I recommend you do not use it, even for experiments.* As I implement and experiment with things, I occasionally change the underlying IL, and your analyses will break.
@@ -42,21 +48,10 @@ codebase is sufficiently rust-idiomatic.
   * Loading of binary formats (Elf) [done]
   * Scripting with [ketos](https://github.com/murarth/ketos) [abandoned]
   * Inter-procedural analysis
-  * Symbolic Execution (working)
+  * Symbolic Execution [working]
   * Flushing out the rest of X86
   * MIPS
   * ARM
-
-# Rust Compatibility
-
-Due to some unknown error with [goblin](https://crates.io/crates/goblin), docs will only
-build with nightly. Outside of that, everything works with stable (1.17).
-
-This will get you squared away:
-
-```
-rustup run nigthly cargo doc
-```
 
 # Falcon Intermediate Language
 
