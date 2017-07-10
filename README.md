@@ -2,8 +2,6 @@
 
 # Welcome to Falcon
 
-**For all that is good in this world, do not use Falcon right now. The IL is in flux.**
-
 Falcon is a Binary Static Analysis Framework in Rust.
 
 Falcon is not the only Binary Analysis Framework in Rust.
@@ -19,9 +17,6 @@ as an example of what this looks like now, or the
 [FixedPoint](https://github.com/endeav0r/falcon/blob/master/lib/analysis/fixed_point.rs)
 trait.
 
-[Example image](http://tfpwn.com/files/check.png) of WIP ValueSet Analysis over the `check`
-function from the CGC Palindrome challenge.
-
 # Should I use Falcon? / When will Falcon be stabilized?
 
 When Falcon hits 0.1.0, I will deem Falcon stable enough to use, and I will send it to crates.io. *Until Falcon hits 0.1.0 I recommend you do not use it, even for experiments.* As I implement and experiment with things, I occasionally change the underlying IL, and your analyses will break.
@@ -29,6 +24,10 @@ When Falcon hits 0.1.0, I will deem Falcon stable enough to use, and I will send
 When Falcon hits 0.1.0, it may be nice for playing around, but I'm not sure if Falcon will ever be, "Production-ready." I currently do not have plans to implement the verbose-instruction set lifting of BAP, McSema/Remill, VEX IR, GDSL, etc.
 
 Falcon still serves as, "Yet Another Analysis Framework," so if you're looking for more examples/ideas of how people do things, read away.
+
+# But why?
+
+Because I like writing frameworks for program analysis, and rust seemed like a neat language to write a framework in. I also wanted to experiment with an IL for program analysis similar in nature to Binary Ninja's, but with a reduced number of operations. This of Falcon's IL as a mix between Binary Ninja's LLIL and RREIL.
 
 # What's being worked?
 
@@ -43,8 +42,7 @@ codebase is sufficiently rust-idiomatic.
   * Loading of binary formats (Elf) [done]
   * Scripting with [ketos](https://github.com/murarth/ketos) [abandoned]
   * Inter-procedural analysis
-  * Constraint generation
-  * Constraint solving
+  * Symbolic Execution (working)
   * Flushing out the rest of X86
   * MIPS
   * ARM
@@ -101,11 +99,11 @@ Instructions are uniquely-indexed per-Block, and are displayed as `{:02X}` by co
 
 There are 6 operations:
 
-  * `Assign` - `dst: Variable` <- `src: Expression`
-  * `Store` - `address: Expression` <- `src: Expression`
-  * `Load` - `dst: Expression` <- `address: Expression`
+  * `Assign` - `dst: Scalar` <- `src: Expression`
+  * `Store` - `dst: Array`, `address: Expression` <- `src: Expression`
+  * `Load` - `dst: Scalar` <- `address: Expression`, `src: Array`
   * `Brc` - if (`condition: Expression` == 1) goto `dst: Expression`
-  * `Phi` - `dst: Variable` <- `src: Vec<Variable>`
+  * `Phi` - `dst: MultiVar` <- `src: Vec<MultiVar>`
   * `Raise` - raise(`expr: Expression`)
 
 Operations take operands, which are either `il::Variable` or `il::Expression`
@@ -118,7 +116,7 @@ Operations take operands, which are either `il::Variable` or `il::Expression`
 
 Implemented expressions as of this writing are:
 
-  * `Variable(il::Variable)`
+  * `Scalar(il::Scalar)`
   * `Constant(il::Constant)`
   * `Add(il::Expression, il::Expression)`
   * `Sub(il::Expression, il::Expression)`
@@ -144,7 +142,7 @@ We have 4 groups.
 
 #### Terminators
 
-`Variable`, `Constant`, as expected.
+`Scalar`, `Constant`, as expected.
 
 #### Binary Arithmetic Operations
 
