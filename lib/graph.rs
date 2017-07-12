@@ -377,7 +377,9 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
             // this vertex's dominators are the intersection of all
             // immediate predecessors' dominators, plus itself
-            let mut doms: BTreeSet<u64> = match dag.edges_in(vertex_index)?.first() {
+            let mut doms: BTreeSet<u64> = match dag.edges_in(vertex_index)
+                                                   .unwrap()
+                                                   .first() {
                 Some(predecessor_edge) => dominators[&predecessor_edge.head()].clone(),
                 None => BTreeSet::new()
             };
@@ -417,7 +419,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
         // initial population
         for vertex in &self.vertices {
             let mut preds = BTreeSet::new();
-            for edge in self.edges_in(*vertex.0)? {
+            for edge in self.edges_in(*vertex.0).unwrap() {
                 preds.insert(edge.head());
             }
             predecessors.insert(*vertex.0, preds);
@@ -449,7 +451,7 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
             }
 
             if !to_add.is_empty() {
-                for successor in self.edges_out(vertex_index)?.iter() {
+                for successor in self.edges_out(vertex_index).unwrap() {
                     queue.push_back(successor.tail());
                 }
             }
@@ -513,32 +515,24 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
 
     /// Fetches an index from the graph by index.
-    pub fn vertex(&self, index: u64) -> Result<&V> {
-        self.vertices
-            .get(&index)
-            .ok_or_else(|| format!("index {} does not exist", index).into())
+    pub fn vertex(&self, index: u64) -> Option<&V> {
+        self.vertices.get(&index)
     }
 
 
     // Fetches a mutable instance of a vertex.
-    pub fn vertex_mut(&mut self, index: u64) -> Result<&mut V> {
-        self.vertices
-            .get_mut(&index)
-            .ok_or_else(|| format!("index {} des not exist", index).into())
+    pub fn vertex_mut(&mut self, index: u64) -> Option<&mut V> {
+        self.vertices.get_mut(&index)
     }
 
 
-    pub fn edge(&self, head: u64, tail: u64) -> Result<&E> {
-        self.edges
-            .get(&(head, tail))
-            .ok_or_else(|| format!("edge {}->{} does not exist", head, tail).into())
+    pub fn edge(&self, head: u64, tail: u64) -> Option<&E> {
+        self.edges.get(&(head, tail))
     }
 
 
-    pub fn edge_mut(&mut self, head: u64, tail: u64) -> Result<&mut E> {
-        self.edges
-            .get_mut(&(head, tail))
-            .ok_or_else(|| format!("edge {}->{} does not exist", head, tail).into())
+    pub fn edge_mut(&mut self, head: u64, tail: u64) -> Option<&mut E> {
+        self.edges.get_mut(&(head, tail))
     }
 
 
@@ -558,18 +552,14 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
 
     /// Return all edges out for a vertex
-    pub fn edges_out(&self, index: u64) -> Result<&Vec<E>> {
-        self.edges_out
-            .get(&index)
-            .ok_or_else(|| "vertex does not exist".into())
+    pub fn edges_out(&self, index: u64) -> Option<&Vec<E>> {
+        self.edges_out.get(&index)
     }
 
 
     /// Return all edges in for a vertex
-    pub fn edges_in(&self, index: u64) -> Result<&Vec<E>> {
-        self.edges_in
-            .get(&index)
-            .ok_or_else(|| "vertex does not exist".into())
+    pub fn edges_in(&self, index: u64) -> Option<&Vec<E>> {
+        self.edges_in.get(&index)
     }
 
 

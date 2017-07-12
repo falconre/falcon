@@ -30,6 +30,16 @@ impl Function {
     }
 
 
+    pub fn block(&self, index: u64) -> Option<&Block> {
+        self.control_flow_graph.block(index)
+    }
+
+
+    pub fn edge(&self, head: u64, tail: u64) -> Option<&Edge> {
+        self.control_flow_graph.edge(head, tail)
+    }
+
+
     pub fn control_flow_graph(&self) -> &ControlFlowGraph {
         &self.control_flow_graph
     }

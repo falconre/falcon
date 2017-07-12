@@ -21,7 +21,8 @@ pub fn def_use(
         let def_locations = rd.1;
         // build our haystack of uses to search for defs against
         let haystack: BTreeSet<il::MultiVar> = match *this_location {
-            Edge(ref el) => match *el.find(control_flow_graph)?
+            Edge(ref el) => match *el.find(control_flow_graph)
+                                     .unwrap()
                                      .condition() {
                 Some(ref condition) => condition.collect_variables()
                                                 .iter()
@@ -76,8 +77,9 @@ pub fn use_def(
         let def_locations = rd.1;
         // build our haystack of uses to search for defs against
         let haystack: BTreeSet<il::MultiVar> = match *this_location {
-            Edge(ref el) => match *el.find(control_flow_graph)?
-                                      .condition() {
+            Edge(ref el) => match *el.find(control_flow_graph)
+                                     .unwrap()
+                                     .condition() {
                 Some(ref condition) => condition.collect_variables()
                                             .iter()
                                             .map(|v| (*v).multi_var_clone())

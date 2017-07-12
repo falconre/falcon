@@ -667,7 +667,8 @@ pub fn bsf(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
             control_flow_graph.temp(rhs.bits())
         };
 
-        let mut head_block = control_flow_graph.block_mut(head_index)?;
+        let mut head_block = control_flow_graph.block_mut(head_index)
+                                               .ok_or("Could not find block")?;
         
         // This is the loop preamble, and we'll always execute it
         head_block.assign(scalar("ZF", 1), expr_const(0, 1));
@@ -773,7 +774,8 @@ pub fn bsr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
             control_flow_graph.temp(rhs.bits())
         };
 
-        let mut head_block = control_flow_graph.block_mut(head_index)?;
+        let mut head_block = control_flow_graph.block_mut(head_index)
+                                               .ok_or("Could not find block")?;
         
         // This is the loop preamble, and we'll always execute it
         head_block.assign(scalar("ZF", 1), expr_const(0, 1));

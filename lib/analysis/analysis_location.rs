@@ -106,7 +106,9 @@ impl EmptyBlockLocation {
 
     pub fn find<'f>(&self, control_flow_graph: &'f il::ControlFlowGraph)
     -> Result<&'f il::Block> {
-        control_flow_graph.block(self.block_index)
+        control_flow_graph
+            .block(self.block_index)
+            .ok_or("Could not find block".into())
     }
 }
 
@@ -153,15 +155,19 @@ impl InstructionLocation {
 
     pub fn find<'f>(&self, control_flow_graph: &'f il::ControlFlowGraph)
     -> Result<&'f il::Instruction> {
-        control_flow_graph.block(self.block_index)?
+        control_flow_graph.block(self.block_index)
+                          .ok_or("Could not find block")?
                           .instruction(self.instruction_index)
+                          .ok_or("Could not find instruction".into())
     }
 
 
     pub fn find_mut<'f>(&self, control_flow_graph: &'f mut il::ControlFlowGraph)
     -> Result<&'f mut il::Instruction> {
-        control_flow_graph.block_mut(self.block_index)?
+        control_flow_graph.block_mut(self.block_index)
+                          .ok_or("Could not find block")?
                           .instruction_mut(self.instruction_index)
+                          .ok_or("Could not find instruction".into())
     }
 }
 
@@ -250,13 +256,13 @@ impl EdgeLocation {
 
 
     pub fn find<'f>(&self, control_flow_graph: &'f il::ControlFlowGraph)
-    -> Result<&'f il::Edge> {
+    -> Option<&'f il::Edge> {
         control_flow_graph.edge(self.head, self.tail)
     }
 
 
     pub fn find_mut<'f>(&self, control_flow_graph: &'f mut il::ControlFlowGraph)
-    -> Result<&'f mut il::Edge> {
+    -> Option<&'f mut il::Edge> {
         control_flow_graph.edge_mut(self.head, self.tail)
     }
 }

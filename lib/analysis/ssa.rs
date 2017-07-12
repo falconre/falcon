@@ -195,7 +195,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
 
         // ensure all predecessors are set according to DAG
         let mut predecessors_set = true;
-        for edge in dag.edges_in(block_index)? {
+        for edge in dag.edges_in(block_index).unwrap() {
             let head = graph::Edge::head(edge);
             if !ssa_set.contains(&head) {
                 if !queue.contains(&head) {
@@ -214,7 +214,9 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         ssa_set.insert(block_index);
 
         let (found, unassigned) = {
-            let block = control_flow_graph.block(block_index)?;
+            let block = control_flow_graph
+                .block(block_index)
+                .ok_or("Could not find block")?;
 
             let unassigned = get_block_ssa_unassigned(block); 
 
@@ -233,7 +235,9 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         for una in &unassigned {
             if let Some(assignments) = found.get(una.name()) {
                 if assignments.len() == 1 {
-                    let block = control_flow_graph.block_mut(block_index)?;
+                    let block = control_flow_graph
+                        .block_mut(block_index)
+                        .ok_or("Could not find block")?;
                     for ref mut operation in block.instructions_mut() {
                         for ref mut variable in operation.variables_read_mut() {
                             if    variable.name() == una.name()
@@ -254,7 +258,8 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
                         var.set_ssa(Some(*assignment));
                         src.push(var);
                     }
-                    control_flow_graph.block_mut(block_index)?
+                    control_flow_graph.block_mut(block_index)
+                                      .ok_or("Could not find block")?
                                       .prepend_phi(
                                         dst.multi_var_clone(),
                                         src.iter()
@@ -266,7 +271,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         }
 
         // add all successors to the queue
-        for edge in control_flow_graph.graph().edges_out(block_index)? {
+        for edge in control_flow_graph.graph().edges_out(block_index).unwrap() {
             if !ssa_set.contains(&edge.tail()) && !queue.contains(&edge.tail()) {
                 queue.push_back(edge.tail());
             }
@@ -300,7 +305,8 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
                                                 .collect();
 
         let found = find_assignments(
-            control_flow_graph.graph().vertex(edge.head())?,
+            control_flow_graph.block(edge.head())
+                              .ok_or("Could not find block")?,
             unassigned,
             BTreeSet::new(),
             control_flow_graph.graph()
@@ -313,7 +319,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         let mut phis_to_add: Vec<(u64, il::MultiVar, Vec<il::MultiVar>)> = Vec::new();
 
         {
-            let mut edge = control_flow_graph.edge_mut(edge.head(), edge.tail())?;
+            let mut edge = control_flow_graph.edge_mut(edge.head(), edge.tail()).unwrap();
 
             if let Some(ref mut condition) = *edge.condition_mut() {
                 for scalar in condition.collect_scalars_mut() {
@@ -344,7 +350,8 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         }
         
         for phi_to_add in phis_to_add {
-            control_flow_graph.block_mut(phi_to_add.0)?
+            control_flow_graph.block_mut(phi_to_add.0)
+                              .ok_or("Could not find block")?
                               .phi(phi_to_add.1, phi_to_add.2);
         }
     }

@@ -96,7 +96,8 @@ fn label_value_set(
                   .set_comment(Some(comment));
             },
             AnalysisLocation::Edge(el) => {
-                let comment = match el.find(&control_flow_graph)?
+                let comment = match el.find(&control_flow_graph)
+                                      .unwrap()
                                       .condition() {
                     &Some(ref condition) => Some(condition.collect_scalars()
                                                 .iter()
@@ -114,7 +115,8 @@ fn label_value_set(
                                                 .join(", ")),
                     &None => None
                 };
-                el.find_mut(control_flow_graph)?
+                el.find_mut(control_flow_graph)
+                  .unwrap()
                   .set_comment(comment);
             }
             _ => {},

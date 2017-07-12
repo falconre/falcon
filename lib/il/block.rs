@@ -66,28 +66,23 @@ impl Block {
 
 
     /// Returns a copy of an instruction by index
-    pub fn instruction(&self, index: u64) -> Result<&Instruction> {
+    pub fn instruction(&self, index: u64) -> Option<&Instruction> {
         for instruction in &self.instructions {
             if instruction.index() == index {
-                return Ok(instruction);
+                return Some(instruction);
             }
         }
-        bail!("No instruction with index of {}", index);
+        None
     }
 
 
-    pub fn instruction_mut<>(&mut self, index: u64) -> Result<&mut Instruction> {
-        let mut location = None;
+    pub fn instruction_mut<>(&mut self, index: u64) -> Option<&mut Instruction> {
         for i in 0..self.instructions.len() {
             if self.instructions[i].index() == index {
-                location = Some(i);
-                break;
+                return Some(&mut self.instructions[i]);
             }
         }
-        match location {
-            Some(i) => Ok(&mut self.instructions[i]),
-            None => bail!("No instruction with index of {}", index)
-        }
+        None
     }
 
 

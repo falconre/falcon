@@ -20,24 +20,24 @@ pub enum SuccessorType {
 
 #[derive(Clone)]
 pub struct SymbolicSuccessor {
-    successor_type: SuccessorType,
+    type_: SuccessorType,
     engine: SymbolicEngine
 }
 
 
 impl SymbolicSuccessor {
-    pub fn new(engine: SymbolicEngine, successor_type: SuccessorType)
+    pub fn new(engine: SymbolicEngine, type_: SuccessorType)
         -> SymbolicSuccessor {
 
         SymbolicSuccessor {
             engine: engine,
-            successor_type: successor_type
+            type_: type_
         }
     }
 
 
-    pub fn successor_type(&self) -> &SuccessorType {
-        &self.successor_type
+    pub fn type_(&self) -> &SuccessorType {
+        &self.type_
     }
 
 
@@ -65,6 +65,11 @@ impl SymbolicEngine {
     }
 
 
+    /// Add an assertion to this state.
+    ///
+    /// This assertion must be equal to 0x1:1, or a 1-bit value of 1, for the
+    /// state to be satisfiable. This is the result of Falcon IL comparison
+    /// expressions.
     pub fn add_assertion(&mut self, assertion: il::Expression) {
         self.assertions.push(assertion);
     }
@@ -142,7 +147,8 @@ impl SymbolicEngine {
     }
 
 
-    /// Forks the state of the symbolic engine
+    /// Forks the state of the symbolic engine. In future iterations, this will
+    /// allow for Copy-On-Write optimizations.
     pub fn fork(&self) -> SymbolicEngine {
         SymbolicEngine {
             scalars: self.scalars.clone(),
@@ -313,6 +319,22 @@ impl SymbolicEngine {
         }
 
         panic!("Couldn't parse EVAL_RESULT in {}", solver_output);
+    }
+
+
+    /// Determine whether the assertions of this state are satisfiable
+    pub fn sat(&self, assertions: Option<Vec<il::Expression>>) -> Result<bool> {
+        // An expression that will always evaluate to true
+        let expression = il::Expression::cmpeq(
+            il::expr_const(1, 1),
+            il::expr_const(1, 1)
+        ).unwrap();
+        if self.eval(&expression, assertions)?.is_some() {
+            Ok(true)
+        }
+        else {
+            Ok(false)
+        }
     }
 
 

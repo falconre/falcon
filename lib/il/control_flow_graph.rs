@@ -138,12 +138,12 @@ impl ControlFlowGraph {
 
 
     /// Return a block by index
-    pub fn block(&self, index: u64) -> Result<&Block> {
+    pub fn block(&self, index: u64) -> Option<&Block> {
         self.graph.vertex(index)
     }
 
 
-    pub fn block_mut(&mut self, index: u64) -> Result<&mut Block> {
+    pub fn block_mut(&mut self, index: u64) -> Option<&mut Block> {
         self.graph.vertex_mut(index)
     }
 
@@ -159,12 +159,12 @@ impl ControlFlowGraph {
     }
 
 
-    pub fn edge(&self, head: u64, tail: u64) -> Result<&Edge> {
+    pub fn edge(&self, head: u64, tail: u64) -> Option<&Edge> {
         self.graph.edge(head, tail)
     }
 
 
-    pub fn edge_mut(&mut self, head: u64, tail: u64) -> Result<&mut Edge> {
+    pub fn edge_mut(&mut self, head: u64, tail: u64) -> Option<&mut Edge> {
         self.graph.edge_mut(head, tail)
     }
 
@@ -192,11 +192,13 @@ impl ControlFlowGraph {
 
 
     /// Returns the entry block for this ControlFlowGraph
-    pub fn entry_block(&self) -> Result<Block> {
+    pub fn entry_block(&self) -> Option<&Block> {
         if self.entry.is_none() {
-            bail!("entry is not set");
+            None
         }
-        Ok(self.graph.vertex(self.entry.unwrap())?.clone())
+        else {
+            self.block(self.entry.unwrap())
+        }
     }
 
 
@@ -214,7 +216,7 @@ impl ControlFlowGraph {
         self.next_index += 1;
         let block = Block::new(next_index);
         self.graph.insert_vertex(block)?;
-        self.graph.vertex_mut(next_index)
+        Ok(self.graph.vertex_mut(next_index).unwrap())
     }
 
 
@@ -239,7 +241,7 @@ impl ControlFlowGraph {
             let mut successor_index = None;
             for block in self.blocks() {
                 // check to see how many successors we have
-                let successors = self.graph.edges_out(block.index())?;
+                let successors = self.graph.edges_out(block.index()).unwrap();
 
                 // if we do not have just one successor, we will not merge this block
                 if successors.len() != 1 {
@@ -258,7 +260,7 @@ impl ControlFlowGraph {
                 };
 
                 // get all predecessors for this successor
-                let predecessors = self.graph.edges_in(successor)?;
+                let predecessors = self.graph.edges_in(successor).unwrap();
 
                 // if this successor does not have exactly one predecessor, we
                 // will not merge this block
@@ -279,12 +281,18 @@ impl ControlFlowGraph {
                 };
 
                 // merge the blocks
-                let successor_block = self.graph.vertex(successor_index)?.clone();
-                self.graph.vertex_mut(merge_index)?.append(&successor_block);
+                let successor_block = self.graph
+                                          .vertex(successor_index)
+                                          .ok_or("Could not find block")?
+                                          .clone();
+                self.graph
+                    .vertex_mut(merge_index)
+                    .ok_or("Could not find block")?
+                    .append(&successor_block);
 
                 // all of successor's successors become merge_block's successors
                 let mut new_edges = Vec::new();
-                for edge in self.graph.edges_out(successor_index)? {
+                for edge in self.graph.edges_out(successor_index).unwrap() {
                     let head = merge_index;
                     let tail = edge.tail();
                     let condition = edge.condition().clone();

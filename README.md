@@ -19,7 +19,7 @@ trait.
 
 # Building
 
-As of 1.18, everything, including docs, builds with stable.
+As of 1.18, everything, including docs, builds with rust stable.
 
 You will need the correct dependencies for bindgen to build the capstone bindings, as well as `z3` on the commandline. The `Dockerfile` has everything required to get you set up.
 

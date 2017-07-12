@@ -46,14 +46,16 @@ impl FPA {
             let mut predlocs: Vec<AnalysisLocation> = Vec::new();
 
             for edge in control_flow_graph.graph()
-                                          .edges_in(block.index())? {
+                                          .edges_in(block.index())
+                                          .unwrap() {
                 let analysis_location = AnalysisLocation::edge(edge.head(), edge.tail());
                 
                 // we need an edge from this edge to the last instruction of the
                 // head block
-                if let Some(ins) = control_flow_graph.block(edge.head())?
-                                                     .instructions()
-                                                     .last() {
+                if let Some(ins) = control_flow_graph.block(edge.head())
+                                                .ok_or("Could not find block")?
+                                                .instructions()
+                                                .last() {
                     let mut predlocs = Vec::new();
                     predlocs.push(AnalysisLocation::instruction(edge.head(), ins.index()));
                     predecessor_locations.insert(analysis_location.clone(), predlocs);

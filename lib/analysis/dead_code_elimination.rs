@@ -35,7 +35,7 @@ pub fn dead_code_elimination(analysis: &Analysis) -> Result<il::ControlFlowGraph
             marked.insert(il.into());
         }
 
-        if cfg.graph().edges_out(block.index())?.is_empty() {
+        if cfg.graph().edges_out(block.index()).unwrap().is_empty() {
             if block.instructions().is_empty() {
                 let al = AnalysisLocation::empty_block(block.index());
                 for al in analysis.reaching_definitions()[&al].out() {
@@ -91,7 +91,8 @@ pub fn dead_code_elimination(analysis: &Analysis) -> Result<il::ControlFlowGraph
             AnalysisLocation::EmptyBlock(_) |
             AnalysisLocation::Edge(_) => continue,
             AnalysisLocation::Instruction(ref il) => {
-                let mut block = cfg.block_mut(il.block_index())?;
+                let mut block = cfg.block_mut(il.block_index())
+                                   .ok_or("Could not find block")?;
                 block.remove_instruction(il.instruction_index())?;
             }
         }
