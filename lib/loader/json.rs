@@ -104,6 +104,16 @@ impl Loader for Json {
     }
 
 
+    fn program_entry(&self) -> u64 {
+        for entry in &self.function_entries {
+            if entry.name() == "main" {
+                return entry.address()
+            }
+        }
+        0
+    }
+
+
     fn architecture(&self) -> Result<Architecture> {
         Ok(self.architecture.clone())
     }

@@ -29,11 +29,6 @@ impl Arch for X86 {
 
         cs.option(capstone::cs_opt_type::CS_OPT_DETAIL, capstone::cs_opt_value::CS_OPT_ON).unwrap();
 
-        let instructions = match cs.disasm(bytes, address, 0) {
-            Ok(instructions) => instructions,
-            Err(_) => return Err("Capstone Error".into())
-        };
-
         // our graph for the block which we will build iteratively with each instruction
         let mut block_graph = ControlFlowGraph::new();
 
@@ -42,7 +37,21 @@ impl Arch for X86 {
 
         let mut successors = Vec::new();
 
-        for instruction in instructions.iter() {
+        let mut offset: usize = 0;
+
+        loop {
+            let disassembly_range = (offset)..(bytes.len() - offset);
+            let disassembly_bytes = bytes.get(disassembly_range).unwrap();
+            let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
+                Ok(instructions) => instructions,
+                Err(_) => return Err("Capstone Error".into())
+            };
+
+            if instructions.count() == 0 {
+                return Err("Capstone failed to disassemble any instruction".into());
+            }
+
+            let instruction = instructions.get(0).unwrap();
 
             if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
                 
@@ -54,6 +63,7 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_AND  => semantics::and(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_BSF  => semantics::bsf(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_BSR  => semantics::bsr(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_BSWAP => semantics::bswap(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_BT   => semantics::bt(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_BTC  => semantics::btc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_BTR  => semantics::bts(&mut instruction_graph, &instruction),
@@ -65,45 +75,67 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_CLD  => semantics::cld(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_CLI  => semantics::cli(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_CMC  => semantics::cmc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_CMP  => semantics::cmp(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_CWD  => semantics::cwd(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_CWDE => semantics::cwde(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_DEC  => semantics::dec(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_DIV  => semantics::div(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_HLT  => semantics::nop(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_IDIV => semantics::idiv(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_IMUL => semantics::imul(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_INC  => semantics::inc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_INT  => semantics::int(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_CMOVA  |
+                    capstone::x86_insn::X86_INS_CMOVAE |
+                    capstone::x86_insn::X86_INS_CMOVB  |
+                    capstone::x86_insn::X86_INS_CMOVBE |
+                    capstone::x86_insn::X86_INS_CMOVE  |
+                    capstone::x86_insn::X86_INS_CMOVG  |
+                    capstone::x86_insn::X86_INS_CMOVGE |
+                    capstone::x86_insn::X86_INS_CMOVL  |
+                    capstone::x86_insn::X86_INS_CMOVLE |
+                    capstone::x86_insn::X86_INS_CMOVNE |
+                    capstone::x86_insn::X86_INS_CMOVNO |
+                    capstone::x86_insn::X86_INS_CMOVNP |
+                    capstone::x86_insn::X86_INS_CMOVNS |
+                    capstone::x86_insn::X86_INS_CMOVO  |
+                    capstone::x86_insn::X86_INS_CMOVP  |
+                    capstone::x86_insn::X86_INS_CMOVS  => semantics::cmovcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_CMP    => semantics::cmp(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_CMPSB  => semantics::cmpsb(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_CMPXCHG => semantics::cmpxchg(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_CWD    => semantics::cwd(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_CWDE   => semantics::cwde(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_DEC    => semantics::dec(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_DIV    => semantics::div(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_HLT    => semantics::nop(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_IDIV   => semantics::idiv(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_IMUL   => semantics::imul(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_INC    => semantics::inc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_INT    => semantics::int(&mut instruction_graph, &instruction),
                     // conditional jumps will only emit a brc if the destination is undetermined at
                     // translation time
-                    capstone::x86_insn::X86_INS_JA   => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JAE  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JB   => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JBE  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JCXZ => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JECXZ => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JE   => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JG   => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JGE  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JL   => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JLE  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JNE  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JNO  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JNP  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JNS  => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JO   => semantics::jcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_JP   => semantics::jcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_JA   |
+                    capstone::x86_insn::X86_INS_JAE  |
+                    capstone::x86_insn::X86_INS_JB   |
+                    capstone::x86_insn::X86_INS_JBE  |
+                    capstone::x86_insn::X86_INS_JCXZ |
+                    capstone::x86_insn::X86_INS_JECXZ |
+                    capstone::x86_insn::X86_INS_JE   |
+                    capstone::x86_insn::X86_INS_JG   |
+                    capstone::x86_insn::X86_INS_JGE  |
+                    capstone::x86_insn::X86_INS_JL   |
+                    capstone::x86_insn::X86_INS_JLE  |
+                    capstone::x86_insn::X86_INS_JNE  |
+                    capstone::x86_insn::X86_INS_JNO  |
+                    capstone::x86_insn::X86_INS_JNP  |
+                    capstone::x86_insn::X86_INS_JNS  |
+                    capstone::x86_insn::X86_INS_JO   |
+                    capstone::x86_insn::X86_INS_JP   |
                     capstone::x86_insn::X86_INS_JS   => semantics::jcc(&mut instruction_graph, &instruction),
                     // unconditional jumps will only emit a brc if the destination is undetermined at
                     // translation time
-                    capstone::x86_insn::X86_INS_JMP  => semantics::jmp(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_LEA  => semantics::lea(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_JMP   => semantics::jmp(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_LEA   => semantics::lea(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_LEAVE => semantics::leave(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_LOOP => semantics::loop_(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_LODSB => semantics::lodsb(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_LOOP  => semantics::loop_(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_LOOPE => semantics::loop_(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_LOOPNE => semantics::loop_(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_MOV  => semantics::mov(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_MOV   => semantics::mov(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_MOVSB |
+                    capstone::x86_insn::X86_INS_MOVSW |
+                    capstone::x86_insn::X86_INS_MOVSD => semantics::movs(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_MOVSX => semantics::movsx(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_MOVZX => semantics::movzx(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_MUL  => semantics::mul(&mut instruction_graph, &instruction),
@@ -113,18 +145,22 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_OR   => semantics::or(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_POP  => semantics::pop(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_PUSH => semantics::push(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_RDTSC => semantics::nop(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_RET  => semantics::ret(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_ROL  => semantics::rol(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_ROR  => semantics::ror(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SAR  => semantics::sar(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SBB  => semantics::sbb(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SCASB => semantics::scasb(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETAE => semantics::setcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_SETA => semantics::setcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SETA  => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETBE => semantics::setcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_SETB => semantics::setcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_SETE => semantics::setcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SETB  => semantics::setcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SETE  => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETGE => semantics::setcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_SETG => semantics::setcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SETG  => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETLE => semantics::setcc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_SETL => semantics::setcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SETL  => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETNE => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETNO => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETNP => semantics::setcc(&mut instruction_graph, &instruction),
@@ -132,17 +168,23 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_SETO => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETP => semantics::setcc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETS => semantics::setcc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SHL  => semantics::shl(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SHR  => semantics::shr(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_STC => semantics::stc(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_STD => semantics::std(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_STI => semantics::std(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SHRD => semantics::shrd(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_STC  => semantics::stc(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_STD  => semantics::std(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_STI  => semantics::std(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_STOSD => semantics::stosd(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_SUB => semantics::sub(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SUB  => semantics::sub(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_TEST => semantics::test(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_XADD => semantics::xadd(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_XCHG => semantics::xchg(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_XOR => semantics::xor(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_XOR  => semantics::xor(&mut instruction_graph, &instruction),
 
-                    _ => return Err(format!("Unhandled instruction {}", instruction.mnemonic).into())
+                    _ => return Err(format!("Unhandled instruction {} at 0x{:x}",
+                        instruction.mnemonic,
+                        instruction.address
+                    ).into())
                 });
 
                 let detail = semantics::details(&instruction)?;
@@ -177,7 +219,7 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_JO |
                     capstone::x86_insn::X86_INS_JP |
                     capstone::x86_insn::X86_INS_JS => {
-                        let condition = semantics::jcc_condition(&instruction)?;
+                        let condition = semantics::cc_condition(&instruction)?;
                         successors.push((address + length as u64, Some(Expression::cmpeq(condition.clone(), expr_const(0, 1))?)));
                         let operand = semantics::details(&instruction)?.operands[0];
                         if operand.type_ == capstone_sys::x86_op_type::X86_OP_IMM {
@@ -213,6 +255,8 @@ impl Arch for X86 {
             else {
                 bail!("not an x86 instruction")
             }
+
+            offset = offset + instruction.size as usize;
         }
 
         Ok(BlockTranslationResult::new(block_graph, address, length, successors))

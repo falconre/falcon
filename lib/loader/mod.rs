@@ -90,6 +90,9 @@ pub trait Loader: ::std::fmt::Debug + Clone {
     /// Get addresses for known function entries
     fn function_entries(&self) -> Result<Vec<FunctionEntry>>;
 
+    /// The address program execution should begin at
+    fn program_entry(&self) -> u64;
+
     /// Get the architecture of the binary
     fn architecture(&self) -> Result<Architecture>;
 

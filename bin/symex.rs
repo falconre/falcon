@@ -179,7 +179,7 @@ impl ProgramLocation {
                         } // if instructions[i].index()
                     } // for i in 0..instructions.len()
                 },
-                FunctionLocation::Edge { head, tail } => {
+                FunctionLocation::Edge { head: _, tail } => {
                     // Get the successor block
                     let block = location.function(program).unwrap()
                                         .block(tail).unwrap();
@@ -277,6 +277,7 @@ impl<'e> EngineDriver<'e> {
                                       .instruction(instruction_index)
                                       .unwrap();
 
+                println!("Executing instruction {}", instruction);
                 let successors = self.engine.execute(instruction.operation())?;
 
                 for successor in successors {
@@ -306,7 +307,6 @@ impl<'e> EngineDriver<'e> {
                 } 
             },
             FunctionLocation::Edge { head, tail } => {
-                let mut new_engine_drivers = Vec::new();
                 let edge = self.location
                                .function(self.program)
                                .unwrap()
@@ -325,7 +325,7 @@ impl<'e> EngineDriver<'e> {
                         }
                     },
                     Some(ref condition) => {
-                        self.engine.add_assertion(condition.clone());
+                        self.engine.add_assertion(condition.clone())?;
                         if self.engine.sat(None)? {
                             for location in self.location.advance(self.program) {
                                 new_engine_drivers.push(EngineDriver::new(
@@ -365,8 +365,10 @@ impl<'e> EngineDriver<'e> {
 
 
 pub fn engine_test () -> Result<()> {
-    let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
-    let elf = ::falcon::loader::json::Json::from_file(filename)?;
+    // let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
+    // let elf = ::falcon::loader::json::Json::from_file(filename)?;
+    let filename = Path::new("test_binaries/simple-0/simple-0");
+    let elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
 
     let program = elf.to_program()?;
 
@@ -400,6 +402,24 @@ pub fn engine_test () -> Result<()> {
     engine.set_scalar("DF", il::expr_const(0, 1));
 
     // Get the first instruction we care about
+    let pl = ProgramLocation::from_address(0x804849b, &program).unwrap();
+    // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
+    let mut drivers = vec![EngineDriver::new(&program, pl, engine)];
+
+    let mut i = 0;
+    loop {
+        let mut new_drivers = Vec::new();
+        for driver in drivers {
+            new_drivers.append(&mut driver.step()?);
+        }
+        drivers = new_drivers;
+        i = i + 1;
+        if i >= 100 {
+            break;
+        }
+    }
+
+    /*
     let ia = instruction_address(&program, 0x804880f).unwrap();
 
     // Find the instruction
@@ -423,6 +443,7 @@ pub fn engine_test () -> Result<()> {
                 panic!("SuccessorType::Branch {}", address)
         };
     }
+    */
 
     Ok(())
 }

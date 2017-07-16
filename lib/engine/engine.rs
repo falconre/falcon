@@ -70,8 +70,13 @@ impl SymbolicEngine {
     /// This assertion must be equal to 0x1:1, or a 1-bit value of 1, for the
     /// state to be satisfiable. This is the result of Falcon IL comparison
     /// expressions.
-    pub fn add_assertion(&mut self, assertion: il::Expression) {
+    pub fn add_assertion(&mut self, mut assertion: il::Expression)
+        -> Result<()> {
+
+        assertion = self.symbolize_expression(&assertion)?;
         self.assertions.push(assertion);
+
+        Ok(())
     }
 
 
@@ -298,9 +303,9 @@ impl SymbolicEngine {
 
         let _ = child.stdout.unwrap().read_to_string(&mut solver_output).unwrap();
 
-        println!("{}", solver_input);
+        // println!("{}", solver_input);
 
-        println!("solver output: {}", solver_output);
+        // println!("solver output: {}", solver_output);
 
         if solver_output.contains("unsat") || !solver_output.contains("sat") {
             return Ok(None);
@@ -382,7 +387,7 @@ impl SymbolicEngine {
                 let r = self.symbolize_and_concretize(&null_case, Some(vec![null_case.clone()]))?;
                 if let Some(r) = r {
                     let mut engine = self.fork();
-                    engine.add_assertion(null_case);
+                    engine.add_assertion(null_case)?;
                     let successor = SymbolicSuccessor::new(engine, SuccessorType::FallThrough);
                     successors.push(successor);
                 }
@@ -392,7 +397,7 @@ impl SymbolicEngine {
                     let t = self.symbolize_and_concretize(target, Some(vec![condition.clone()]))?;
                     if let Some(target) = t {
                         let mut engine = self.fork();
-                        engine.add_assertion(condition.clone());
+                        engine.add_assertion(condition.clone())?;
                         let successor = SymbolicSuccessor::new(
                             engine,
                             SuccessorType::Branch(target.value())

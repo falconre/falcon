@@ -1,4 +1,5 @@
-#[allow(dead_code)]
+#![allow(dead_code)]
+#![deny(unused_must_use)]
 
 extern crate base64;
 extern crate bincode;

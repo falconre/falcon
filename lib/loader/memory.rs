@@ -110,7 +110,7 @@ impl Memory {
                     add_segments.push(new_segment);
                 }
                 del_segments.push(s.address());
-           }
+            }
         }
 
         // delete any overlapping segments
@@ -135,6 +135,21 @@ impl Memory {
                 let range = ((address - segment.address()) as usize)..(segment.len() as usize);
                 let address = segment.address();
                 return self.segments[&address].bytes().get(range);
+            }
+        }
+        None
+    }
+
+    /// Get a null-terminated string beginning at the given address
+    pub fn get_str(&self, address: u64) -> Option<String> {
+        if let Some(buf) = self.get(address) {
+            for i in 0..buf.len() {
+                if buf[i] == 0 {
+                    return Some(String::from_utf8(buf.get(0..i)
+                                                     .unwrap()
+                                                     .to_vec())
+                                                     .unwrap());
+                }
             }
         }
         None

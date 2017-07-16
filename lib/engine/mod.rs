@@ -1,3 +1,5 @@
+//! Symbolic Execution Engine for Falcon
+
 pub mod engine;
 pub mod memory;
 pub mod platform;

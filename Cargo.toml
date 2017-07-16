@@ -4,9 +4,9 @@ version = "0.0.1"
 authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
 
 
-#[profile.dev]
-#codegen-units = 8
-#opt-level = 1
+[profile.dev]
+codegen-units = 4
+opt-level = 0
 
 
 [dependencies]

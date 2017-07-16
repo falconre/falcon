@@ -91,11 +91,11 @@ impl SymbolicMemory {
             };
             let expr = il::Expression::zext(bits, expr.clone())?;
             let shift = match self.endian {
-                Endian::Little => (bytes - offset) * 8,
+                Endian::Little => (bytes - offset - 1) * 8,
                 Endian::Big => offset * 8
             };
             let shift = il::expr_const(shift, bits);
-            let expr = il::Expression::shl(shift, expr)?;
+            let expr = il::Expression::shl(expr, shift)?;
             result = match result {
                 Some(result) => Some(il::Expression::or(result, expr)?),
                 None => Some(expr)

@@ -50,11 +50,11 @@ impl Expression {
             Expression::Or(ref lhs, _) |
             Expression::Xor(ref lhs, _) |
             Expression::Shl(ref lhs, _) |
-            Expression::Shr(ref lhs, _) |
+            Expression::Shr(ref lhs, _) => lhs.bits(),
             Expression::Cmpeq(ref lhs, _) |
             Expression::Cmpneq(ref lhs, _) |
             Expression::Cmplts(ref lhs, _) |
-            Expression::Cmpltu(ref lhs, _) => lhs.bits(),
+            Expression::Cmpltu(ref lhs, _) => 1,
             Expression::Zext(bits, _) |
             Expression::Sext(bits, _) |
             Expression::Trun(bits, _) => bits
