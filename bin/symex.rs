@@ -408,6 +408,7 @@ pub fn engine_test () -> Result<()> {
 
     let mut i = 0;
     loop {
+        println!("i={}", i);
         let mut new_drivers = Vec::new();
         for driver in drivers {
             new_drivers.append(&mut driver.step()?);

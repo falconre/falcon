@@ -19,11 +19,15 @@ pub struct X86Register {
     /// The offset of this register. For example, ah is offset 8 bit into eax.
     offset: usize,
     /// The size of this register in bits
-    size: usize,
+    bits: usize,
 }
 
 
 impl X86Register {
+    pub fn bits(&self) -> usize {
+        self.bits
+    }
+
     /// Returns true if this is a full-width register (i.e. eax, ebx, etc)
     pub fn is_full(&self) -> bool {
         if self.capstone_reg == self.full_reg {
@@ -44,15 +48,15 @@ impl X86Register {
     /// This handles things like al/ah/ax/eax
     pub fn get(&self) -> Result<Expression> {
         if self.is_full() {
-            Ok(expr_scalar(self.name, self.size))
+            Ok(expr_scalar(self.name, self.bits))
         }
         else if self.offset == 0 {
-            Expr::trun(self.size, self.get_full()?.get()?)
+            Expr::trun(self.bits, self.get_full()?.get()?)
         }
         else {
             let full_reg = self.get_full()?;
-            let expr = Expr::shr(full_reg.get()?, expr_const(self.offset as u64, full_reg.size))?;
-            Expr::trun(self.size, expr)
+            let expr = Expr::shr(full_reg.get()?, expr_const(self.offset as u64, full_reg.bits))?;
+            Expr::trun(self.bits, expr)
         }
     }
 
@@ -61,22 +65,22 @@ impl X86Register {
     /// This handles things like al/ah/ax/eax
     pub fn set(&self, block: &mut Block, value: Expression) -> Result<()> {
         if self.is_full() {
-            block.assign(scalar(self.name, self.size), value);
+            block.assign(scalar(self.name, self.bits), value);
             Ok(())
         }
         else if self.offset == 0 {
             let full_reg = self.get_full()?;
-            let mask = !0 << self.size;
-            let expr = Expr::and(full_reg.get()?, expr_const(mask, full_reg.size))?;
-            let expr = Expr::or(expr, Expr::zext(full_reg.size, value)?)?;
+            let mask = !0 << self.bits;
+            let expr = Expr::and(full_reg.get()?, expr_const(mask, full_reg.bits))?;
+            let expr = Expr::or(expr, Expr::zext(full_reg.bits, value)?)?;
             full_reg.set(block, expr)
         }
         else {
             let full_reg = self.get_full()?;
-            let mask = ((1 << self.size) - 1) << self.offset;
-            let expr = Expr::and(full_reg.get()?, expr_const(mask, full_reg.size))?;
-            let value = Expr::zext(full_reg.size, value)?;
-            let expr = Expr::or(expr, Expr::shl(value, expr_const(self.offset as u64, full_reg.size))?)?;
+            let mask = ((1 << self.bits) - 1) << self.offset;
+            let expr = Expr::and(full_reg.get()?, expr_const(mask, full_reg.bits))?;
+            let value = Expr::zext(full_reg.bits, value)?;
+            let expr = Expr::or(expr, Expr::shl(value, expr_const(self.offset as u64, full_reg.bits))?)?;
             full_reg.set(block, expr)
         }
     }
@@ -85,30 +89,36 @@ impl X86Register {
 
 
 const X86REGISTERS : &'static [X86Register] = &[
-    X86Register { name: "ah", capstone_reg: x86_reg::X86_REG_AH, full_reg: x86_reg::X86_REG_EAX, offset: 8, size: 8 },
-    X86Register { name: "al", capstone_reg: x86_reg::X86_REG_AL, full_reg: x86_reg::X86_REG_EAX, offset: 0, size: 8 },
-    X86Register { name: "ax", capstone_reg: x86_reg::X86_REG_AX, full_reg: x86_reg::X86_REG_EAX, offset: 0, size: 16 },
-    X86Register { name: "eax", capstone_reg: x86_reg::X86_REG_EAX, full_reg: x86_reg::X86_REG_EAX, offset: 0, size: 32 },
-    X86Register { name: "bh", capstone_reg: x86_reg::X86_REG_BH, full_reg: x86_reg::X86_REG_EBX, offset: 8, size: 8 },
-    X86Register { name: "bl", capstone_reg: x86_reg::X86_REG_BL, full_reg: x86_reg::X86_REG_EBX, offset: 0, size: 8 },
-    X86Register { name: "bx", capstone_reg: x86_reg::X86_REG_BX, full_reg: x86_reg::X86_REG_EBX, offset: 0, size: 16 },
-    X86Register { name: "ebx", capstone_reg: x86_reg::X86_REG_EBX, full_reg: x86_reg::X86_REG_EBX, offset: 0, size: 32 },
-    X86Register { name: "ch", capstone_reg: x86_reg::X86_REG_CH, full_reg: x86_reg::X86_REG_ECX, offset: 8, size: 8 },
-    X86Register { name: "cl", capstone_reg: x86_reg::X86_REG_CL, full_reg: x86_reg::X86_REG_ECX, offset: 0, size: 8 },
-    X86Register { name: "cx", capstone_reg: x86_reg::X86_REG_CX, full_reg: x86_reg::X86_REG_ECX, offset: 0, size: 16 },
-    X86Register { name: "ecx", capstone_reg: x86_reg::X86_REG_ECX, full_reg: x86_reg::X86_REG_ECX, offset: 0, size: 32 },
-    X86Register { name: "dh", capstone_reg: x86_reg::X86_REG_DH, full_reg: x86_reg::X86_REG_EDX, offset: 8, size: 8 },
-    X86Register { name: "dl", capstone_reg: x86_reg::X86_REG_DL, full_reg: x86_reg::X86_REG_EDX, offset: 0, size: 8 },
-    X86Register { name: "dx", capstone_reg: x86_reg::X86_REG_DX, full_reg: x86_reg::X86_REG_EDX, offset: 0, size: 16 },
-    X86Register { name: "edx", capstone_reg: x86_reg::X86_REG_EDX, full_reg: x86_reg::X86_REG_EDX, offset: 0, size: 32 },
-    X86Register { name: "si", capstone_reg: x86_reg::X86_REG_SI, full_reg: x86_reg::X86_REG_ESI, offset: 0, size: 16 },
-    X86Register { name: "esi", capstone_reg: x86_reg::X86_REG_ESI, full_reg: x86_reg::X86_REG_ESI, offset: 0, size: 32 },
-    X86Register { name: "di", capstone_reg: x86_reg::X86_REG_DI, full_reg: x86_reg::X86_REG_EDI, offset: 0, size: 16 },
-    X86Register { name: "edi", capstone_reg: x86_reg::X86_REG_EDI, full_reg: x86_reg::X86_REG_EDI, offset: 0, size: 32 },
-    X86Register { name: "sp", capstone_reg: x86_reg::X86_REG_SP, full_reg: x86_reg::X86_REG_ESP, offset: 0, size: 16 },
-    X86Register { name: "esp", capstone_reg: x86_reg::X86_REG_ESP, full_reg: x86_reg::X86_REG_ESP, offset: 0, size: 32 },
-    X86Register { name: "bp", capstone_reg: x86_reg::X86_REG_BP, full_reg: x86_reg::X86_REG_EBP, offset: 0, size: 16 },
-    X86Register { name: "ebp", capstone_reg: x86_reg::X86_REG_EBP, full_reg: x86_reg::X86_REG_EBP, offset: 0, size: 32 },
+    X86Register { name: "ah", capstone_reg: x86_reg::X86_REG_AH, full_reg: x86_reg::X86_REG_EAX, offset: 8, bits: 8 },
+    X86Register { name: "al", capstone_reg: x86_reg::X86_REG_AL, full_reg: x86_reg::X86_REG_EAX, offset: 0, bits: 8 },
+    X86Register { name: "ax", capstone_reg: x86_reg::X86_REG_AX, full_reg: x86_reg::X86_REG_EAX, offset: 0, bits: 16 },
+    X86Register { name: "eax", capstone_reg: x86_reg::X86_REG_EAX, full_reg: x86_reg::X86_REG_EAX, offset: 0, bits: 32 },
+    X86Register { name: "bh", capstone_reg: x86_reg::X86_REG_BH, full_reg: x86_reg::X86_REG_EBX, offset: 8, bits: 8 },
+    X86Register { name: "bl", capstone_reg: x86_reg::X86_REG_BL, full_reg: x86_reg::X86_REG_EBX, offset: 0, bits: 8 },
+    X86Register { name: "bx", capstone_reg: x86_reg::X86_REG_BX, full_reg: x86_reg::X86_REG_EBX, offset: 0, bits: 16 },
+    X86Register { name: "ebx", capstone_reg: x86_reg::X86_REG_EBX, full_reg: x86_reg::X86_REG_EBX, offset: 0, bits: 32 },
+    X86Register { name: "ch", capstone_reg: x86_reg::X86_REG_CH, full_reg: x86_reg::X86_REG_ECX, offset: 8, bits: 8 },
+    X86Register { name: "cl", capstone_reg: x86_reg::X86_REG_CL, full_reg: x86_reg::X86_REG_ECX, offset: 0, bits: 8 },
+    X86Register { name: "cx", capstone_reg: x86_reg::X86_REG_CX, full_reg: x86_reg::X86_REG_ECX, offset: 0, bits: 16 },
+    X86Register { name: "ecx", capstone_reg: x86_reg::X86_REG_ECX, full_reg: x86_reg::X86_REG_ECX, offset: 0, bits: 32 },
+    X86Register { name: "dh", capstone_reg: x86_reg::X86_REG_DH, full_reg: x86_reg::X86_REG_EDX, offset: 8, bits: 8 },
+    X86Register { name: "dl", capstone_reg: x86_reg::X86_REG_DL, full_reg: x86_reg::X86_REG_EDX, offset: 0, bits: 8 },
+    X86Register { name: "dx", capstone_reg: x86_reg::X86_REG_DX, full_reg: x86_reg::X86_REG_EDX, offset: 0, bits: 16 },
+    X86Register { name: "edx", capstone_reg: x86_reg::X86_REG_EDX, full_reg: x86_reg::X86_REG_EDX, offset: 0, bits: 32 },
+    X86Register { name: "si", capstone_reg: x86_reg::X86_REG_SI, full_reg: x86_reg::X86_REG_ESI, offset: 0, bits: 16 },
+    X86Register { name: "esi", capstone_reg: x86_reg::X86_REG_ESI, full_reg: x86_reg::X86_REG_ESI, offset: 0, bits: 32 },
+    X86Register { name: "di", capstone_reg: x86_reg::X86_REG_DI, full_reg: x86_reg::X86_REG_EDI, offset: 0, bits: 16 },
+    X86Register { name: "edi", capstone_reg: x86_reg::X86_REG_EDI, full_reg: x86_reg::X86_REG_EDI, offset: 0, bits: 32 },
+    X86Register { name: "sp", capstone_reg: x86_reg::X86_REG_SP, full_reg: x86_reg::X86_REG_ESP, offset: 0, bits: 16 },
+    X86Register { name: "esp", capstone_reg: x86_reg::X86_REG_ESP, full_reg: x86_reg::X86_REG_ESP, offset: 0, bits: 32 },
+    X86Register { name: "bp", capstone_reg: x86_reg::X86_REG_BP, full_reg: x86_reg::X86_REG_EBP, offset: 0, bits: 16 },
+    X86Register { name: "ebp", capstone_reg: x86_reg::X86_REG_EBP, full_reg: x86_reg::X86_REG_EBP, offset: 0, bits: 32 },
+    X86Register { name: "fs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_FS, offset: 0, bits: 16 },
+    X86Register { name: "gs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_GS, offset: 0, bits: 16 },
+    X86Register { name: "ds", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_DS, offset: 0, bits: 16 },
+    X86Register { name: "es", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_ES, offset: 0, bits: 16 },
+    X86Register { name: "cs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_CS, offset: 0, bits: 16 },
+    X86Register { name: "ss", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_SS, offset: 0, bits: 16 },
 ];
 
 
@@ -232,11 +242,11 @@ pub fn operand_store(mut block: &mut Block, operand: &cs_x86_op, value: Expressi
 
 
 /// Convenience function to pop a value off the stack
-pub fn pop_value(block: &mut Block) -> Result<Expression> {
-    let temp = block.temp(32);
+pub fn pop_value(block: &mut Block, bits: usize) -> Result<Expression> {
+    let temp = block.temp(bits);
 
     block.load(temp.clone(), expr_scalar("esp", 32), array("mem", MEM_SIZE));
-    block.assign(scalar("esp", 32), Expr::add(expr_scalar("esp", 32), expr_const(4, 32))?);
+    block.assign(scalar("esp", 32), Expr::add(expr_scalar("esp", 32), expr_const(bits as u64 / 8, 32))?);
 
     Ok(temp.into())
 }
@@ -1922,7 +1932,7 @@ pub fn leave(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
         let mut block = control_flow_graph.new_block()?;
 
         block.assign(scalar("esp", 32), expr_scalar("ebp", 32));
-        let ebp = pop_value(&mut block)?;
+        let ebp = pop_value(&mut block, 32)?;
         block.assign(scalar("ebp", 32), ebp);
 
         block.index()
@@ -2325,7 +2335,12 @@ pub fn pop(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
-        let value = pop_value(&mut block)?;
+        let value = match detail.operands[0].type_ {
+            x86_op_type::X86_OP_MEM => pop_value(&mut block, detail.operands[0].size as usize * 8)?,
+            x86_op_type::X86_OP_REG => 
+                pop_value(&mut block, get_register(*detail.operands[0].reg())?.bits())?,
+            _ => bail!("invalid op type for `pop` instruction")
+        };
 
         operand_store(&mut block, &detail.operands[0], value)?;
 
@@ -2367,7 +2382,7 @@ pub fn ret(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
-        let value = pop_value(&mut block)?;
+        let value = pop_value(&mut block, 32)?;
 
         if detail.op_count == 1 {
             let imm = operand_load(&mut block, &detail.operands[0])?;
@@ -2836,6 +2851,53 @@ pub fn shr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
+pub fn shld(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = try!(details(instruction));
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        // get operands
+        let dst = operand_load(&mut block, &detail.operands[0])?;
+        let rhs = operand_load(&mut block, &detail.operands[1])?;
+        let count = operand_load(&mut block, &detail.operands[2])?;
+
+        let tmp = Expr::or(
+            Expr::shl(Expr::zext(dst.bits() * 2, dst.clone())?, expr_const(dst.bits() as u64, dst.bits() * 2))?,
+            Expr::zext(dst.bits() * 2, rhs)?
+        )?;
+
+        let result = Expr::shl(tmp.clone(), Expr::zext(tmp.bits(), count.clone())?)?;
+
+        let cf = Expr::trun(
+            1,
+            Expr::shl(
+                tmp.clone(),
+                Expr::zext(
+                    tmp.bits(),
+                    Expr::sub(count.clone(), expr_const(1, count.bits()))?
+                )?
+            )?
+        )?;
+
+        block.assign(scalar("CF", 1), cf);
+
+        set_zf(&mut block, result.clone())?;
+        set_sf(&mut block, result.clone())?;
+
+        operand_store(&mut block, &detail.operands[0], Expr::trun(dst.bits(), result)?)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn shrd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = try!(details(instruction));
 
@@ -2857,7 +2919,7 @@ pub fn shrd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
         let cf = Expr::trun(
             1,
             Expr::shr(
-                result.clone(),
+                tmp.clone(),
                 Expr::zext(
                     tmp.bits(),
                     Expr::sub(count.clone(), expr_const(1, count.bits()))?
@@ -2934,14 +2996,20 @@ pub fn sti(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn stosd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn stos(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = try!(details(instruction));
+
     // create a block for this instruction
-    let block_index = {
+    let (block_index, bits) = {
         let mut block = control_flow_graph.new_block()?;
 
-        block.store(array("mem", MEM_SIZE), expr_scalar("edi", 32), expr_scalar("eax", 32));
+        let src = operand_load(&mut block, &detail.operands[1])?;
 
-        block.index()
+        let bits = src.bits();
+
+        operand_store(&mut block, &detail.operands[0], src)?;
+
+        (block.index(), bits as u64)
     };
 
     let inc_index = {
@@ -2949,7 +3017,7 @@ pub fn stosd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
 
         inc_block.assign(
             scalar("edi", 32),
-            Expr::add(expr_scalar("edi", 32), expr_const(4, 32))?
+            Expr::add(expr_scalar("edi", 32), expr_const(bits / 8, 32))?
         );
 
         inc_block.index()
@@ -2960,7 +3028,7 @@ pub fn stosd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
 
         dec_block.assign(
             scalar("edi", 32),
-            Expr::sub(expr_scalar("edi", 32), expr_const(4, 32))?
+            Expr::sub(expr_scalar("edi", 32), expr_const(bits / 8, 32))?
         );
 
         dec_block.index()
