@@ -180,7 +180,8 @@ impl ElfSymbol {
 #[derive(Clone, Debug)]
 pub struct Elf {
     base_address: u64,
-    bytes: Vec<u8>
+    bytes: Vec<u8>,
+    user_function_entries: Vec<u64>
 }
 
 
@@ -192,7 +193,8 @@ impl Elf {
         let elf = match goblin::peek_bytes(&peek_bytes)? {
             Hint::Elf(_) => Elf {
                 base_address: base_address,
-                bytes: bytes
+                bytes: bytes,
+                user_function_entries: Vec::new()
             },
             _ => return Err("Not a valid elf".into())
         };
@@ -226,6 +228,11 @@ impl Elf {
     /// Load an elf from a file and use the base address of 0.
     pub fn from_file(filename: &Path) -> Result<Elf> {
         Elf::from_file_with_base_address(filename, 0)
+    }
+
+    // Allow the user to manually specify a function entry
+    pub fn add_user_function(&mut self, address: u64) {
+        self.user_function_entries.push(address);
     }
 
     /// Return the strings from the DT_NEEDED entries.
@@ -368,6 +375,7 @@ impl Loader for Elf {
         for sym in &elf.syms {
             if sym.is_function() && sym.st_value != 0 {
                 let name = elf.strtab.get(sym.st_name).to_string();
+                println!("found function symbol {} at {:x}", name, sym.st_value);
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
                     Some(name))
@@ -381,6 +389,17 @@ impl Loader for Elf {
             function_entries.push(FunctionEntry::new(
                 elf.header.e_entry + self.base_address,
                 None
+            ));
+        }
+
+        for user_function_entry in &self.user_function_entries {
+            if functions_added.get(&(user_function_entry + self.base_address)).is_some() {
+                continue;
+            }
+
+            function_entries.push(FunctionEntry::new(
+                user_function_entry + self.base_address,
+                Some(format!("user_function_{:x}", user_function_entry))
             ));
         }
 

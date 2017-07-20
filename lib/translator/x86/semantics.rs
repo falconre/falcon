@@ -174,29 +174,54 @@ pub fn operand_value(operand: &cs_x86_op) -> Result<Expression> {
                 None => None
             };
 
-            let op : Expression = if base.is_some() {
+            // Handle base and scale/index
+            let op : Option<Expression> = if base.is_some() {
                 if si.is_some() {
-                    Expr::add(base.unwrap(), si.unwrap()).unwrap()
+                    Some(Expr::add(base.unwrap(), si.unwrap()).unwrap())
                 }
                 else {
-                    base.unwrap()
+                    base
                 }
             }
             else if si.is_some() {
-                si.unwrap()
+                si
             }
             else {
-                return Ok(Expr::constant(Constant::new(mem.disp as u64, 32)));
+                None
             };
 
-            if mem.disp > 0 {
-                Ok(Expr::add(op, expr_const(mem.disp as u64, 32))?)
-            }
-            else if mem.disp < 0 {
-                Ok(Expr::sub(op, expr_const(mem.disp.abs() as u64, 32))?)
+            // handle disp
+            let op = if op.is_some() {
+                if mem.disp > 0 {
+                    Expr::add(op.unwrap(), expr_const(mem.disp as u64, 32))?
+                }
+                else if mem.disp < 0 {
+                    Expr::sub(op.unwrap(), expr_const(mem.disp.abs() as u64, 32))?
+                }
+                else {
+                    op.unwrap()
+                }
             }
             else {
-                Ok(op)
+                expr_const(mem.disp as u64, 32)
+            };
+
+            match x86_reg::from(mem.segment) {
+                x86_reg::X86_REG_INVALID =>
+                    Ok(op),
+                x86_reg::X86_REG_CS => 
+                    Ok(Expr::add(expr_scalar("cs_base", 32), op)?),
+                x86_reg::X86_REG_DS => 
+                    Ok(Expr::add(expr_scalar("ds_base", 32), op)?),
+                x86_reg::X86_REG_ES => 
+                    Ok(Expr::add(expr_scalar("es_base", 32), op)?),
+                x86_reg::X86_REG_FS => 
+                    Ok(Expr::add(expr_scalar("fs_base", 32), op)?),
+                x86_reg::X86_REG_GS => 
+                    Ok(Expr::add(expr_scalar("gs_base", 32), op)?),
+                x86_reg::X86_REG_SS => 
+                    Ok(Expr::add(expr_scalar("ss_base", 32), op)?),
+                _ => bail!("invalid segment register")
             }
         },
         x86_op_type::X86_OP_IMM => {

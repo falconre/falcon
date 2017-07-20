@@ -295,6 +295,7 @@ impl<'e> EngineDriver<'e> {
                             }
                         },
                         SuccessorType::Branch(address) => {
+                            println!("Branching to {:x}", address);
                             let location = ProgramLocation::from_address(address, self.program)
                                 .unwrap();
                             new_engine_drivers.push(EngineDriver::new(
@@ -367,8 +368,11 @@ impl<'e> EngineDriver<'e> {
 pub fn engine_test () -> Result<()> {
     // let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
     // let elf = ::falcon::loader::json::Json::from_file(filename)?;
+    // let elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
+
     let filename = Path::new("test_binaries/simple-0/simple-0");
-    let elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
+    let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
+    elf.add_user_function(0x8048350);
 
     let program = elf.to_program()?;
 
@@ -394,28 +398,32 @@ pub fn engine_test () -> Result<()> {
         memory.store(stack_address - stack_size + i, il::expr_const(0, 8))?;
     }
 
+    // Set up space for fs/gs from 0xbf000000 to 0xbf010000
+    for i in 0..0x10000 {
+        memory.store((0xbf000000 as u64 + i as u64), il::expr_const(0, 8))?;
+    }
+
     // Create the engine
     let mut engine = SymbolicEngine::new(memory);
 
     // Set our initial variables
     engine.set_scalar("esp", il::expr_const(initial_stack_pointer, 32));
     engine.set_scalar("DF", il::expr_const(0, 1));
+    engine.set_scalar("fs_base", il::expr_const(0xbf000000, 32));
+    engine.set_scalar("gs_base", il::expr_const(0xbf008000, 32));
 
     // Get the first instruction we care about
     let pl = ProgramLocation::from_address(0x804849b, &program).unwrap();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let mut drivers = vec![EngineDriver::new(&program, pl, engine)];
 
-    let mut i = 0;
     loop {
-        println!("i={}", i);
         let mut new_drivers = Vec::new();
         for driver in drivers {
             new_drivers.append(&mut driver.step()?);
         }
         drivers = new_drivers;
-        i = i + 1;
-        if i >= 100 {
+        if drivers.is_empty() {
             break;
         }
     }
