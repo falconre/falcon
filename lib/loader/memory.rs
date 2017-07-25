@@ -1,3 +1,4 @@
+use error::*;
 use std::collections::BTreeMap;
 use std::cmp::{Ord, Ordering, PartialOrd};
 
@@ -35,6 +36,10 @@ impl MemorySegment {
 
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
+    }
+
+    pub fn bytes_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.bytes
     }
 
     pub fn permissions(&self) -> MemoryPermissions {
@@ -138,6 +143,48 @@ impl Memory {
             }
         }
         None
+    }
+
+    pub fn get_u8(&self, address: u64) -> Option<u8> {
+        for segment in &self.segments {
+            if *segment.0 <= address && segment.0 + segment.1.len() as u64 > address {
+                return match segment.1.bytes().get((address - segment.0) as usize) {
+                    Some(u) => Some(u.to_owned()),
+                    None => None
+                }
+            }
+        }
+        None
+    }
+
+    pub fn set_u8(&mut self, address: u64, value: u8) -> Result<()> {
+        for segment in &mut self.segments {
+            if *segment.0 <= address && segment.0 + segment.1.len() as u64 > address {
+                segment.1.bytes_mut()[(address - segment.0) as usize] = value;
+                return Ok(())
+            }
+        }
+        bail!("Invalid index 0x{:x} into memory segments", address)
+    }
+
+    pub fn get_u32_le(&self, address: u64) -> Option<u32> {
+        let mut result: u32 = 0;
+        for i in 0..4 {
+            match self.get_u8(address + i as u64) {
+                None => return None,
+                Some(u) => result |= (u as u32) << ((i * 8) as u32)
+            }
+        }
+        Some(result)
+    }
+
+    pub fn set_u32_le(&mut self, address: u64, mut value: u32) -> Result<()> {
+        for i in address..(address + 4 as u64) {
+            let value_u8: u8 = (value & 0xff) as u8;
+            value >>= 8;
+            self.set_u8(i, value_u8)?;
+        }
+        Ok(())
     }
 
     /// Get a null-terminated string beginning at the given address

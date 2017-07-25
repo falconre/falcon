@@ -51,8 +51,8 @@ impl SymbolicMemory {
             for offset in 0..bytes {
                 let offset = offset as u64;
                 let shift = match self.endian {
-                    Endian::Little => offset * 8,
-                    Endian::Big => (bytes as u64 - offset) * 8
+                    Endian::Big => offset * 8,
+                    Endian::Little => (bytes as u64 - offset) * 8
                 };
                 let shift = il::expr_const(shift, value.bits());
                 let value = il::Expression::shr(value.clone(), shift)?;
@@ -91,8 +91,8 @@ impl SymbolicMemory {
             };
             let expr = il::Expression::zext(bits, expr.clone())?;
             let shift = match self.endian {
-                Endian::Little => (bytes - offset - 1) * 8,
-                Endian::Big => offset * 8
+                Endian::Big => (bytes - offset - 1) * 8,
+                Endian::Little => offset * 8
             };
             let shift = il::expr_const(shift, bits);
             let expr = il::Expression::shl(expr, shift)?;

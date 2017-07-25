@@ -25,6 +25,8 @@ fn clone_into_array<A, T>(slice: &[T]) -> A
 const DEFAULT_LIB_BASE: u64 = 0x80000000;
 /// The step in address between where we will load libraries.
 const LIB_BASE_STEP: u64    = 0x04000000;
+/// TLS address
+const TLS: u64              = 0xaf000000;
 
 
 // Loads and links multiple ELFs together
@@ -36,8 +38,12 @@ pub struct ElfLinker {
     loaded: BTreeMap<String, Elf>,
     /// The current memory mapping.
     memory: Memory,
+    /// A mapping of function symbol names to addresses
+    symbols: BTreeMap<String, u64>,
     /// The address we will place the next library at.
-    next_lib_address: u64
+    next_lib_address: u64,
+    /// Functions as specified by the user
+    user_functions: Vec<u64>
 }
 
 
@@ -47,7 +53,9 @@ impl ElfLinker {
             filename: filename.to_owned(),
             loaded: BTreeMap::new(),
             memory: Memory::new(),
-            next_lib_address: DEFAULT_LIB_BASE
+            symbols: BTreeMap::new(),
+            next_lib_address: DEFAULT_LIB_BASE,
+            user_functions: Vec::new(),
         };
 
         elf_linker.load_elf(filename, 0)?;
@@ -92,6 +100,21 @@ impl ElfLinker {
                                .to_string();
         self.loaded.insert(filename.clone(), elf);
 
+        {
+            let ref elf = self.loaded[&filename];
+
+            // Add its exported symbols to our symbols
+            for symbol in elf.exported_symbols() {
+                if self.symbols.get(symbol.name()).is_some() {
+                    continue;
+                }
+                self.symbols.insert(
+                    symbol.name().to_string(),
+                    elf.base_address() + symbol.address()
+                );
+            }
+        }
+
         // Ensure all shared objects we rely on are loaded
         for so_name in self.loaded[&filename].dt_needed()?.clone() {
             if self.loaded.get(&so_name).is_none() {
@@ -101,9 +124,106 @@ impl ElfLinker {
             }
         }
 
-        Ok(())
-
         // Process relocations
+        let ref elf = self.loaded[&filename];
+        let dynsyms = elf.elf().dynsyms;
+        let dynstrtab = elf.elf().dynstrtab;
+        for reloc in elf.elf()
+                        .dynrelas
+                        .iter()
+                        .chain(elf.elf()
+                                  .dynrels
+                                  .iter()
+                                  .chain(elf.elf()
+                                            .pltrelocs
+                                            .iter())) {
+            match reloc.r_type {
+                goblin::elf::reloc::R_386_32 => {
+                    let ref sym = dynsyms[reloc.r_sym];
+                    let sym_name = dynstrtab.get(sym.st_name);
+                    trace!("R_386_32 {}:0x{:x}:{}", filename, reloc.r_offset, sym_name);
+                    let value = match self.symbols.get(sym_name) {
+                        Some(v) => v.to_owned() as u32,
+                        None => bail!("Could not resolve symbol {}", sym_name)
+                    };
+                    self.memory.set_u32_le(
+                        reloc.r_offset as u64 + elf.base_address(),
+                        value
+                    )?;
+                }
+                goblin::elf::reloc::R_386_GOT32 => {
+                    bail!("R_386_GOT32");
+                },
+                goblin::elf::reloc::R_386_PLT32 => {
+                    let ref sym = dynsyms[reloc.r_sym];
+                    let sym_name = dynstrtab.get(sym.st_name);
+                    bail!("R_386_PLT32 {}:0x{:x}:{}", filename, reloc.r_offset, sym_name);
+                },
+                goblin::elf::reloc::R_386_COPY => {
+                    bail!("R_386_COPY");
+                },
+                goblin::elf::reloc::R_386_GLOB_DAT => {
+                    let ref sym = dynsyms[reloc.r_sym];
+                    let sym_name = dynstrtab.get(sym.st_name);
+                    trace!("R_386_GLOB_DAT {}:0x{:x}:{}", filename, reloc.r_offset, sym_name);
+                    let value = match self.symbols.get(sym_name) {
+                        Some(v) => v.to_owned() as u32,
+                        None => {
+                            warn!("Could not resolve symbol {}", sym_name);
+                            continue
+                        }
+                    };
+                    self.memory.set_u32_le(
+                        reloc.r_offset as u64 + elf.base_address(),
+                        value
+                    )?;
+                },
+                goblin::elf::reloc::R_386_JMP_SLOT => {
+                    let ref sym = dynsyms[reloc.r_sym];
+                    let sym_name = dynstrtab.get(sym.st_name);
+                    let value = match self.symbols.get(sym_name) {
+                        Some(v) => v.to_owned() as u32,
+                        None => bail!("Could not resolve symbol {}", sym_name)
+                    };
+                    self.memory.set_u32_le(
+                        reloc.r_offset as u64 + elf.base_address(),
+                        value
+                    )?;
+                    trace!("R_386_JMP_SLOT {}:0x{:x}:{} = 0x{:x}",
+                        filename,
+                        reloc.r_offset,
+                        sym_name,
+                        value);
+                },
+                goblin::elf::reloc::R_386_RELATIVE => {
+                    trace!("R_386_RELATIVE {}:{:x}", filename, reloc.r_offset);
+                    let value = self.memory.get_u32_le(reloc.r_offset as u64 + elf.base_address());
+                    let value = match value {
+                        Some(value) => elf.base_address() as u32 + value,
+                        None => bail!("Invalid address for R_386_RELATIVE {}:{:x}",
+                                      filename,
+                                      reloc.r_offset)
+                    };
+                    self.memory.set_u32_le(reloc.r_offset as u64 + elf.base_address(), value)?;
+                },
+                goblin::elf::reloc::R_386_GOTPC => {
+                    bail!("R_386_GOT_PC");
+                },
+                goblin::elf::reloc::R_386_TLS_TPOFF => {
+                    warn!("Ignoring R_386_TLS_TPOFF Relocation");
+                },
+                goblin::elf::reloc::R_386_IRELATIVE => {
+                    warn!("R_386_IRELATIVE {}:0x{:x} going unprocessed", filename, reloc.r_offset);
+                }
+                _ => bail!("unhandled relocation type {}", reloc.r_type)
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn add_user_function(&mut self, address: u64) {
+        self.user_functions.push(address);
     }
 }
 
@@ -121,6 +241,9 @@ impl Loader for ElfLinker {
             //     println!("{} 0x{:x}", loaded.0, e.address());
             // }
             function_entries.append(&mut loaded.1.function_entries()?);
+        }
+        for address in &self.user_functions {
+            function_entries.push(FunctionEntry::new(*address, None));
         }
         Ok(function_entries)
     }
@@ -293,15 +416,17 @@ impl Elf {
     }
 
     /// Return all symbols exported from this Elf
-    pub fn exported_functions(&self) -> Vec<ElfSymbol> {
+    pub fn exported_symbols(&self) -> Vec<ElfSymbol> {
         let mut v = Vec::new();
         let elf = self.elf();
         for sym in elf.dynsyms {
-            if ! sym.is_function() || sym.st_shndx == 0 {
+            if sym.st_value == 0 {
                 continue;
             }
-
-            v.push(ElfSymbol::new(elf.dynstrtab.get(sym.st_name), sym.st_value));
+            if    sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+               || sym.st_bind() == goblin::elf::sym::STB_WEAK {
+                v.push(ElfSymbol::new(elf.dynstrtab.get(sym.st_name), sym.st_value));
+            }
         }
 
         v
@@ -375,7 +500,6 @@ impl Loader for Elf {
         for sym in &elf.syms {
             if sym.is_function() && sym.st_value != 0 {
                 let name = elf.strtab.get(sym.st_name).to_string();
-                println!("found function symbol {} at {:x}", name, sym.st_value);
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
                     Some(name))

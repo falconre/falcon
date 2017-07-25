@@ -286,12 +286,22 @@ impl<'e> EngineDriver<'e> {
                             // Get the possible successor locations for the current
                             // location
                             let engine = successor.into_engine();
-                            for location in self.location.advance(self.program) {
+                            let locations = self.location.advance(self.program);
+                            if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program,
-                                    location,
-                                    engine.clone()
+                                    locations[0].clone(),
+                                    engine
                                 ));
+                            }
+                            else {
+                                for location in self.location.advance(self.program) {
+                                    new_engine_drivers.push(EngineDriver::new(
+                                        self.program,
+                                        location,
+                                        engine.clone()
+                                    ));
+                                }
                             }
                         },
                         SuccessorType::Branch(address) => {
@@ -368,15 +378,16 @@ impl<'e> EngineDriver<'e> {
 pub fn engine_test () -> Result<()> {
     // let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
     // let elf = ::falcon::loader::json::Json::from_file(filename)?;
-    // let elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
-
     let filename = Path::new("test_binaries/simple-0/simple-0");
-    let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
+    let mut elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
+    // let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
+    
     elf.add_user_function(0x8048350);
+    elf.add_user_function(0x8048360);
+    elf.add_user_function(0x8048370);
+    elf.add_user_function(0x8048380);
 
     let program = elf.to_program()?;
-
-    println!("{}", program);
 
     // Initialize memory.
     let mut memory = SymbolicMemory::new(32, ::falcon::engine::Endian::Little);
@@ -413,7 +424,7 @@ pub fn engine_test () -> Result<()> {
     engine.set_scalar("gs_base", il::expr_const(0xbf008000, 32));
 
     // Get the first instruction we care about
-    let pl = ProgramLocation::from_address(0x804849b, &program).unwrap();
+    let pl = ProgramLocation::from_address(elf.program_entry(), &program).unwrap();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let mut drivers = vec![EngineDriver::new(&program, pl, engine)];
 
