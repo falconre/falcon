@@ -51,12 +51,13 @@ impl SymbolicMemory {
             for offset in 0..bytes {
                 let offset = offset as u64;
                 let shift = match self.endian {
-                    Endian::Big => offset * 8,
-                    Endian::Little => (bytes as u64 - offset) * 8
+                    Endian::Big => (bytes as u64 - offset - 1) * 8,
+                    Endian::Little => offset * 8
                 };
                 let shift = il::expr_const(shift, value.bits());
                 let value = il::Expression::shr(value.clone(), shift)?;
                 let value = il::Expression::trun(8, value)?;
+                // trace!("STORE [{:x}]={}", address + offset, value);
                 self.cells.insert(address + offset, value);
             }
         }
@@ -89,6 +90,7 @@ impl SymbolicMemory {
                 Some(ref expr) => *expr,
                 None => return Ok(None)
             };
+            // trace!("LOAD [{:x}]={}", address + offset, expr);
             let expr = il::Expression::zext(bits, expr.clone())?;
             let shift = match self.endian {
                 Endian::Big => (bytes - offset - 1) * 8,

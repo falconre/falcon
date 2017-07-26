@@ -2,6 +2,7 @@ use error::*;
 use falcon::engine::*;
 use falcon::il;
 use falcon::loader::Loader;
+use std::rc::Rc;
 use std::collections::VecDeque;
 use std::path::Path;
 
@@ -237,8 +238,8 @@ impl ProgramLocation {
 
 
 #[derive(Clone)]
-pub struct EngineDriver<'e> {
-    program: &'e il::Program,
+pub struct EngineDriver {
+    program: Rc<il::Program>,
     location: ProgramLocation,
     engine: SymbolicEngine
 }
@@ -248,12 +249,12 @@ pub struct EngineDriver<'e> {
 
 
 /// An EngineDriver drive's a symbolic engine through a program
-impl<'e> EngineDriver<'e> {
+impl EngineDriver {
     pub fn new(
-        program: &'e il::Program,
+        program: Rc<il::Program>,
         location: ProgramLocation,
         engine: SymbolicEngine
-    ) -> EngineDriver<'e> {
+    ) -> EngineDriver {
 
         EngineDriver {
             program: program,
@@ -265,7 +266,7 @@ impl<'e> EngineDriver<'e> {
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of EngineDriver back depending on how many possible
     /// states are possible.
-    pub fn step(mut self) -> Result<Vec<EngineDriver<'e>>> {
+    pub fn step(self) -> Result<Vec<EngineDriver>> {
         let mut new_engine_drivers = Vec::new();
         match self.location.function_location {
             FunctionLocation::Instruction { block_index, instruction_index } => {
@@ -286,18 +287,18 @@ impl<'e> EngineDriver<'e> {
                             // Get the possible successor locations for the current
                             // location
                             let engine = successor.into_engine();
-                            let locations = self.location.advance(self.program);
+                            let locations = self.location.advance(&self.program);
                             if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
-                                    self.program,
+                                    self.program.clone(),
                                     locations[0].clone(),
                                     engine
                                 ));
                             }
                             else {
-                                for location in self.location.advance(self.program) {
+                                for location in self.location.advance(&self.program) {
                                     new_engine_drivers.push(EngineDriver::new(
-                                        self.program,
+                                        self.program.clone(),
                                         location,
                                         engine.clone()
                                     ));
@@ -305,11 +306,13 @@ impl<'e> EngineDriver<'e> {
                             }
                         },
                         SuccessorType::Branch(address) => {
-                            println!("Branching to {:x}", address);
-                            let location = ProgramLocation::from_address(address, self.program)
-                                .unwrap();
+                            println!("Branching to 0x{:x}", address);
+                            let location = match ProgramLocation::from_address(address, &self.program) {
+                                Some(location) => location,
+                                None => bail!("No instruction at address 0x{:x}", address)
+                            };
                             new_engine_drivers.push(EngineDriver::new(
-                                self.program,
+                                self.program.clone(),
                                 location,
                                 successor.into_engine()
                             ));
@@ -319,16 +322,16 @@ impl<'e> EngineDriver<'e> {
             },
             FunctionLocation::Edge { head, tail } => {
                 let edge = self.location
-                               .function(self.program)
+                               .function(&self.program)
                                .unwrap()
                                .edge(head, tail)
                                .unwrap();
                 match *edge.condition() {
                     None => {
                         if edge.condition().is_none() {
-                            for location in self.location.advance(self.program) {
+                            for location in self.location.advance(&self.program) {
                                 new_engine_drivers.push(EngineDriver::new(
-                                    self.program,
+                                    self.program.clone(),
                                     location,
                                     self.engine.clone()
                                 ));
@@ -336,14 +339,27 @@ impl<'e> EngineDriver<'e> {
                         }
                     },
                     Some(ref condition) => {
-                        self.engine.add_assertion(condition.clone())?;
-                        if self.engine.sat(None)? {
-                            for location in self.location.advance(self.program) {
+                        println!("Evaluating condition {}", condition);
+                        if self.engine.sat(Some(vec![condition.clone()]))? {
+                            println!("Expression sat");
+                            let mut engine = self.engine.clone();
+                            engine.add_assertion(condition.clone())?;
+                            let locations = self.location.advance(&self.program);
+                            if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
-                                    self.program,
-                                    location,
-                                    self.engine.clone()
+                                    self.program.clone(),
+                                    locations[0].clone(),
+                                    engine
                                 ));
+                            }
+                            else {
+                                for location in self.location.advance(&self.program) {
+                                    new_engine_drivers.push(EngineDriver::new(
+                                        self.program.clone(),
+                                        location,
+                                        engine.clone()
+                                    ));
+                                }
                             }
                         }
                     }
@@ -355,7 +371,7 @@ impl<'e> EngineDriver<'e> {
 
     /// Return the program for this driver
     pub fn program(&self) -> &il::Program {
-        self.program
+        &self.program
     }
 
     /// Return the location of this driver
@@ -382,10 +398,11 @@ pub fn engine_test () -> Result<()> {
     let mut elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
     // let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
     
-    elf.add_user_function(0x8048350);
-    elf.add_user_function(0x8048360);
-    elf.add_user_function(0x8048370);
-    elf.add_user_function(0x8048380);
+    elf.add_user_function(0x08048350);
+    elf.add_user_function(0x08048360);
+    elf.add_user_function(0x08048370);
+    elf.add_user_function(0x08048380);
+    elf.add_user_function(0x8411f999);
 
     let program = elf.to_program()?;
 
@@ -423,10 +440,20 @@ pub fn engine_test () -> Result<()> {
     engine.set_scalar("fs_base", il::expr_const(0xbf000000, 32));
     engine.set_scalar("gs_base", il::expr_const(0xbf008000, 32));
 
+    /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program
+    starts %edx contains a pointer to a function
+    which might be registered using atexit.
+    This provides a mean for the dynamic linker to call
+    DT_FINI functions for shared libraries that
+    have been loaded before the code runs.
+    A value of 0 tells we have no such handler.
+    */
+    engine.set_scalar("edx", il::expr_const(0, 32));
+
     // Get the first instruction we care about
     let pl = ProgramLocation::from_address(elf.program_entry(), &program).unwrap();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
-    let mut drivers = vec![EngineDriver::new(&program, pl, engine)];
+    let mut drivers = vec![EngineDriver::new(Rc::new(program), pl, engine)];
 
     loop {
         let mut new_drivers = Vec::new();

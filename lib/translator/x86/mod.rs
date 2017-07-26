@@ -221,6 +221,7 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_STOSW => semantics::stos(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_STOSD => semantics::stos(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SUB  => semantics::sub(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SYSENTER => semantics::sysenter(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_TEST => semantics::test(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_WAIT => semantics::nop(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_XADD => semantics::xadd(&mut instruction_graph, &instruction),

@@ -287,7 +287,8 @@ pub fn push_value(block: &mut Block, value: Expression) -> Result<()> {
 
 /// Convenience function set set the zf based on result
 pub fn set_zf(block: &mut Block, result: Expression) -> Result<()> {
-    block.assign(scalar("ZF", 1), Expr::cmpeq(result.clone(), expr_const(0, result.bits()))?);
+    let expr = Expr::cmpeq(result.clone(), expr_const(0, result.bits()))?;
+    block.assign(scalar("ZF", 1), expr);
     Ok(())
 }
 
@@ -353,7 +354,7 @@ pub fn cc_condition(instruction: &capstone::Instr) -> Result<Expression> {
             },
             capstone::x86_insn::X86_INS_CMOVE |
             capstone::x86_insn::X86_INS_JE =>
-                Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1)),
+                Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1)),
             capstone::x86_insn::X86_INS_CMOVG |
             capstone::x86_insn::X86_INS_JG => {
                 let sfof = Expr::cmpeq(expr_scalar("SF", 1), expr_scalar("OF", 1))?;
@@ -2416,6 +2417,8 @@ pub fn ret(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
         block.assign(scalar("eip", 32), value);
 
+        block.brc(expr_scalar("eip", 32), expr_const(1, 1));
+
         block.index()
     };
 
@@ -3110,6 +3113,27 @@ pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
         // store result
         operand_store(&mut block, &detail.operands[0], result.into())?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sysenter(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = try!(details(instruction));
+
+    // create a block for this instruction
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        // get operands
+        block.raise(expr_scalar("sysenter", 1));
 
         block.index()
     };

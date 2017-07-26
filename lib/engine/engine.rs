@@ -87,7 +87,7 @@ impl SymbolicEngine {
     }
 
 
-    /// Get the value of a symbolic value according to current state
+    /// Get the symbolic value of a scalar
     pub fn get_scalar(&self, name: &str) -> Option<&il::Expression> {
         self.scalars.get(name)
     }
@@ -249,9 +249,21 @@ impl SymbolicEngine {
         solver_lines.push("(set-logic QF_AUFBV)".to_string());
         solver_lines.push("(set-info :smt-lib-version 2.0)".to_string());
 
+        let assertions = match assertions {
+            Some(assertions) => {
+                let mut a = Vec::new();
+                for assertion in assertions {
+                    a.push(self.symbolize_and_eval(&assertion)?);
+                }
+                a.append(&mut self.assertions.clone());
+                a
+            },
+            None => self.assertions.clone()
+        };
+
         // Collect all the scalars from our assertions
         let mut assertion_scalars: BTreeSet<(String, usize)> = BTreeSet::new();
-        for assertion in &self.assertions {
+        for assertion in &assertions {
             for scalar in assertion.collect_scalars() {
                 assertion_scalars.insert(
                     (scalar.name().to_string(), scalar.bits())
@@ -276,7 +288,7 @@ impl SymbolicEngine {
         }
 
         // Assert our assertions
-        for assertion in &self.assertions {
+        for assertion in &assertions {
             solver_lines.push(format!("(assert (= #b1 {}))",
                 expr_to_smtlib2(&assertion)));
         }
@@ -350,7 +362,7 @@ impl SymbolicEngine {
         Ok(match *operation {
             il::Operation::Assign { ref dst, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
-                self.scalars.insert(dst.name().to_string(), src);
+                self.set_scalar(dst.name(), src);
                 vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
             },
             il::Operation::Store { ref dst, ref index, ref src } => {
@@ -365,18 +377,22 @@ impl SymbolicEngine {
                 }
             },
             il::Operation::Load { ref dst, ref index, ref src } => {
-                let index = self.symbolize_and_concretize(index, None)?;
-                if let Some(index) = index {
+                let index_ = self.symbolize_and_concretize(index, None)?;
+                if let Some(index) = index_ {
                     let value = self.memory.load(index.value(), dst.bits())?;
                     match value {
                         Some(v) => {
                             self.scalars.insert(dst.name().to_string(), v.clone());
                             vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
                         },
-                        None => Vec::new()
+                        None => {
+                            trace!("Got invalid concretized load address 0x{:x}", index.value());
+                            Vec::new()
+                        }
                     }
                 }
                 else {
+                    trace!("Could not resolve load address {}", index);
                     Vec::new()
                 }
             },
@@ -450,10 +466,7 @@ fn all_constants(expr: &il::Expression) -> bool {
 
 
 fn scalar_to_smtlib2(s: &il::Scalar) -> String {
-    format!("{}_ssa{}", s.name(), match s.ssa() {
-        Some(s) => format!("{}", s),
-        None => "".to_string()
-    })
+    s.name().to_string()
 }
 
 
@@ -493,7 +506,7 @@ fn expr_to_smtlib2(expr: &il::Expression) -> String {
         il::Expression::Shl ( ref lhs, ref rhs ) =>
             format!("(bvshl {} {})", expr_to_smtlib2(lhs), expr_to_smtlib2(rhs)),
         il::Expression::Shr ( ref lhs, ref rhs ) =>
-            format!("(bvshr {} {})", expr_to_smtlib2(lhs), expr_to_smtlib2(rhs)),
+            format!("(bvlshr {} {})", expr_to_smtlib2(lhs), expr_to_smtlib2(rhs)),
         il::Expression::Cmpeq ( ref lhs, ref rhs ) =>
             format!("(ite (= {} {}) #b1 #b0)",
                     expr_to_smtlib2(lhs),
@@ -511,7 +524,7 @@ fn expr_to_smtlib2(expr: &il::Expression) -> String {
                     expr_to_smtlib2(lhs),
                     expr_to_smtlib2(rhs)),
         il::Expression::Zext ( bits, ref rhs ) =>
-            format!("(concat (_ bv0 {}) {}",
+            format!("(concat (_ bv0 {}) {})",
                     bits - rhs.bits(),
                     expr_to_smtlib2(rhs)),
         il::Expression::Sext ( bits, ref rhs ) =>
