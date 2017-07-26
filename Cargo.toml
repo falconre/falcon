@@ -6,7 +6,7 @@ authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
 
 [profile.dev]
 codegen-units = 4
-opt-level = 2
+opt-level = 0
 
 
 [dependencies]
