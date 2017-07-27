@@ -15,6 +15,25 @@ pub enum Endian {
 }
 
 
+const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
+
+
+pub trait TranslationMemory {
+    fn get_u8(&self, address: u64) -> Option<u8>;
+
+    fn get_bytes(&self, address: u64, length: usize) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for i in 0..length {
+            match self.get_u8(address + i as u64) {
+                Some(u) => bytes.push(u),
+                None => break
+            };
+        }
+        bytes
+    }
+}
+
+
 /// The result of a block translation
 pub struct BlockTranslationResult {
     /// A control flow graph which holds the semantics of this block
@@ -72,7 +91,7 @@ pub trait Arch {
     /// Translates a function
     fn translate_function(
         &self,
-        memory: &Memory,
+        memory: &TranslationMemory,
         function_address: u64)
     -> Result<Function> {
         let mut translation_queue = VecDeque::new();
@@ -88,16 +107,10 @@ pub trait Arch {
                 continue;
             }
 
-            let block_bytes = match memory.get(block_address) {
-                Some(bytes) => bytes,
-                None => bail!(
-                    "Failed to get bytes for block at {}",
-                    block_address
-                )
-            };
+            let block_bytes = memory.get_bytes(block_address, DEFAULT_TRANSLATION_BLOCK_BYTES);
 
             // translate this block
-            let block_translation_result = self.translate_block(block_bytes, block_address)?;
+            let block_translation_result = self.translate_block(&block_bytes, block_address)?;
 
             // enqueue all successors
             for successor in block_translation_result.successors().iter() {

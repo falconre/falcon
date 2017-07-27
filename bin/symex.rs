@@ -404,7 +404,7 @@ pub fn engine_test () -> Result<()> {
     elf.add_user_function(0x08048380);
     elf.add_user_function(0x8411f999);
 
-    let program = elf.to_program()?;
+    let mut program = elf.to_program()?;
 
     // Initialize memory.
     let mut memory = SymbolicMemory::new(32, ::falcon::engine::Endian::Little);

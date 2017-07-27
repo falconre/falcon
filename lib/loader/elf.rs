@@ -1,3 +1,5 @@
+//! Load ELF binaries into Falcon
+
 use error::*;
 use goblin;
 use goblin::Hint;
@@ -48,6 +50,8 @@ pub struct ElfLinker {
 
 
 impl ElfLinker {
+    /// Takes a path to an Elf and loads the Elf, its dependencies, and links
+    /// them together.
     pub fn new(filename: &Path) -> Result<ElfLinker> {
         let mut elf_linker = ElfLinker {
             filename: filename.to_owned(),
@@ -64,6 +68,9 @@ impl ElfLinker {
     }
 
 
+    /// Takes the path to an Elf, and a base address the Elf should be loaded
+    /// at. Loads the Elf, all it's dependencies (DT_NEEDED), and then handles
+    /// the supported relocations.
     pub fn load_elf(&mut self, filename: &Path, base_address: u64)
         -> Result<()> {
 

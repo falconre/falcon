@@ -1,4 +1,5 @@
 use error::*;
+use translator::TranslationMemory;
 use std::collections::BTreeMap;
 use std::cmp::{Ord, Ordering, PartialOrd};
 
@@ -204,5 +205,12 @@ impl Memory {
 
     pub fn segments(&self) -> &BTreeMap<u64, MemorySegment> {
         &self.segments
+    }
+}
+
+
+impl TranslationMemory for Memory {
+    fn get_u8(&self, address: u64) -> Option<u8> {
+        self.get_u8(address)
     }
 }

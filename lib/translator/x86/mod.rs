@@ -56,7 +56,12 @@ impl Arch for X86 {
         let mut offset: usize = 0;
 
         loop {
-            let disassembly_range = (offset)..(bytes.len() - offset);
+            /* We must have at least 16 bytes left in the buffer. */
+            if bytes.len() - offset < 16 {
+                successors.push((address + offset as u64, None));
+                break;
+            }
+            let disassembly_range = (offset)..bytes.len();
             let disassembly_bytes = bytes.get(disassembly_range).unwrap();
             let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
                 Ok(instructions) => instructions,
