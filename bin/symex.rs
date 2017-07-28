@@ -2,6 +2,7 @@ use error::*;
 use falcon::engine::*;
 use falcon::il;
 use falcon::loader::Loader;
+use falcon::translator;
 use std::rc::Rc;
 use std::collections::VecDeque;
 use std::path::Path;
@@ -238,10 +239,11 @@ impl ProgramLocation {
 
 
 #[derive(Clone)]
-pub struct EngineDriver {
+pub struct EngineDriver<'e> {
     program: Rc<il::Program>,
     location: ProgramLocation,
-    engine: SymbolicEngine
+    engine: SymbolicEngine,
+    arch: &'e Box<translator::Arch>
 }
 
 
@@ -249,37 +251,41 @@ pub struct EngineDriver {
 
 
 /// An EngineDriver drive's a symbolic engine through a program
-impl EngineDriver {
+impl<'e> EngineDriver<'e> {
     pub fn new(
         program: Rc<il::Program>,
         location: ProgramLocation,
-        engine: SymbolicEngine
+        engine: SymbolicEngine,
+        arch: &'e Box<translator::Arch>
     ) -> EngineDriver {
 
         EngineDriver {
             program: program,
             location: location,
-            engine: engine
+            engine: engine,
+            arch: arch
         }
     }
 
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of EngineDriver back depending on how many possible
     /// states are possible.
-    pub fn step(self) -> Result<Vec<EngineDriver>> {
+    pub fn step(mut self) -> Result<Vec<EngineDriver<'e>>> {
         let mut new_engine_drivers = Vec::new();
         match self.location.function_location {
             FunctionLocation::Instruction { block_index, instruction_index } => {
-                let instruction = self.program
-                                      .function(self.location.function_index())
-                                      .unwrap()
-                                      .block(block_index)
-                                      .unwrap()
-                                      .instruction(instruction_index)
-                                      .unwrap();
+                let successors = {
+                    let instruction = self.program
+                                          .function(self.location.function_index())
+                                          .unwrap()
+                                          .block(block_index)
+                                          .unwrap()
+                                          .instruction(instruction_index)
+                                          .unwrap();
 
-                println!("Executing instruction {}", instruction);
-                let successors = self.engine.execute(instruction.operation())?;
+                    println!("Executing instruction {}", instruction);
+                    self.engine.execute(instruction.operation())?
+                };
 
                 for successor in successors {
                     match *successor.type_() {
@@ -292,7 +298,8 @@ impl EngineDriver {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
                                     locations[0].clone(),
-                                    engine
+                                    engine,
+                                    self.arch
                                 ));
                             }
                             else {
@@ -300,22 +307,47 @@ impl EngineDriver {
                                     new_engine_drivers.push(EngineDriver::new(
                                         self.program.clone(),
                                         location,
-                                        engine.clone()
+                                        engine.clone(),
+                                        self.arch
                                     ));
                                 }
                             }
                         },
                         SuccessorType::Branch(address) => {
                             println!("Branching to 0x{:x}", address);
-                            let location = match ProgramLocation::from_address(address, &self.program) {
-                                Some(location) => location,
-                                None => bail!("No instruction at address 0x{:x}", address)
+                            match ProgramLocation::from_address(address, &self.program) {
+                                // We have already disassembled the branch target. Go straight to it.
+                                Some(location) => new_engine_drivers.push(EngineDriver::new(
+                                    self.program.clone(),
+                                    location,
+                                    successor.into_engine(),
+                                    self.arch
+                                )),
+                                // There's no instruction at this address. We will attempt
+                                // disassembling a function here.
+                                None => {
+                                    let engine = successor.into_engine();
+                                    let function = self.arch.translate_function(&engine, address);
+                                    match function {
+                                        Ok(function) => {
+                                            Rc::make_mut(&mut self.program).set_function(function);
+                                            let location = ProgramLocation::from_address(address, &self.program);
+                                            if let Some(location) = location {
+                                                new_engine_drivers.push(EngineDriver::new(
+                                                    self.program.clone(),
+                                                    location,
+                                                    engine,
+                                                    self.arch
+                                                ));
+                                            }
+                                            else {
+                                                bail!("No instruction at address 0x{:x}", address)
+                                            }
+                                        },
+                                        Err(_) => bail!("Failed to lift function at address 0x{:x}", address)
+                                    }
+                                }
                             };
-                            new_engine_drivers.push(EngineDriver::new(
-                                self.program.clone(),
-                                location,
-                                successor.into_engine()
-                            ));
                         }
                     }
                 } 
@@ -333,7 +365,8 @@ impl EngineDriver {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
                                     location,
-                                    self.engine.clone()
+                                    self.engine.clone(),
+                                    self.arch
                                 ));
                             }
                         }
@@ -349,7 +382,8 @@ impl EngineDriver {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
                                     locations[0].clone(),
-                                    engine
+                                    engine,
+                                    self.arch
                                 ));
                             }
                             else {
@@ -357,7 +391,8 @@ impl EngineDriver {
                                     new_engine_drivers.push(EngineDriver::new(
                                         self.program.clone(),
                                         location,
-                                        engine.clone()
+                                        engine.clone(),
+                                        self.arch
                                     ));
                                 }
                             }
@@ -395,16 +430,10 @@ pub fn engine_test () -> Result<()> {
     // let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
     // let elf = ::falcon::loader::json::Json::from_file(filename)?;
     let filename = Path::new("test_binaries/simple-0/simple-0");
-    let mut elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
+    let elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
     // let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
-    
-    elf.add_user_function(0x08048350);
-    elf.add_user_function(0x08048360);
-    elf.add_user_function(0x08048370);
-    elf.add_user_function(0x08048380);
-    elf.add_user_function(0x8411f999);
 
-    let mut program = elf.to_program()?;
+    let program = elf.to_program()?;
 
     // Initialize memory.
     let mut memory = SymbolicMemory::new(32, ::falcon::engine::Endian::Little);
@@ -453,7 +482,9 @@ pub fn engine_test () -> Result<()> {
     // Get the first instruction we care about
     let pl = ProgramLocation::from_address(elf.program_entry(), &program).unwrap();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
-    let mut drivers = vec![EngineDriver::new(Rc::new(program), pl, engine)];
+    let translator = elf.translator()?;
+    let driver = EngineDriver::new(Rc::new(program), pl, engine, &translator);
+    let mut drivers = vec![driver];
 
     loop {
         let mut new_drivers = Vec::new();
@@ -465,32 +496,6 @@ pub fn engine_test () -> Result<()> {
             break;
         }
     }
-
-    /*
-    let ia = instruction_address(&program, 0x804880f).unwrap();
-
-    // Find the instruction
-    let function = program.function(ia.0).unwrap();
-    let control_flow_graph = function.control_flow_graph();
-
-    // Let's execute everything in the first block
-    for instruction in control_flow_graph.block(ia.1).unwrap().instructions() {
-        println!("Executing {}", instruction);
-        let mut successors = engine.execute(instruction.operation())?;
-        if successors.is_empty() {
-            panic!("No successors");
-        }
-        if successors.len() > 1 {
-            panic!("More than one successor");
-        }
-        let successor = successors.remove(0);
-        engine = match *successor.type_() {
-            SuccessorType::FallThrough => successor.into_engine(),
-            SuccessorType::Branch(address) =>
-                panic!("SuccessorType::Branch {}", address)
-        };
-    }
-    */
 
     Ok(())
 }

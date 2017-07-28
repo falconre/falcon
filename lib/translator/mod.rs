@@ -2,7 +2,6 @@
 
 use error::*;
 use il::*;
-use loader::memory::Memory;
 use std::boxed::Box;
 use std::collections::{BTreeMap, VecDeque};
 

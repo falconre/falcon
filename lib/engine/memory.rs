@@ -76,34 +76,40 @@ impl SymbolicMemory {
     /// Returns None if no value is at the given address.
     pub fn load(&self, address: u64, bits: usize) -> Result<Option<il::Expression>> {
         if bits % 8 != 0 {
-            return Err(format!("Loading symbolic memory with non-8 bit-width {}",
-                bits).into());
+            Err(format!("Loading symbolic memory with non-8 bit-width {}", bits).into())
         }
         else if bits == 0 {
-            return Err("Loading symbolic memory with 0 bit-width".into());
+            Err("Loading symbolic memory with 0 bit-width".into())
         }
-
-        let mut result = None;
-        let bytes = (bits / 8) as u64;
-        for offset in 0..bytes {
-            let expr = match self.cells.get(&(address + offset)) {
-                Some(ref expr) => *expr,
-                None => return Ok(None)
-            };
-            // trace!("LOAD [{:x}]={}", address + offset, expr);
-            let expr = il::Expression::zext(bits, expr.clone())?;
-            let shift = match self.endian {
-                Endian::Big => (bytes - offset - 1) * 8,
-                Endian::Little => offset * 8
-            };
-            let shift = il::expr_const(shift, bits);
-            let expr = il::Expression::shl(expr, shift)?;
-            result = match result {
-                Some(result) => Some(il::Expression::or(result, expr)?),
-                None => Some(expr)
-            };
+        else if bits == 8 {
+            match self.cells.get(&address) {
+                Some(expr) => Ok(Some(expr.clone())),
+                None => Ok(None)
+            }
         }
+        else {
+            let mut result = None;
+            let bytes = (bits / 8) as u64;
+            for offset in 0..bytes {
+                let expr = match self.cells.get(&(address + offset)) {
+                    Some(expr) => expr,
+                    None => return Ok(None)
+                };
+                // trace!("LOAD [{:x}]={}", address + offset, expr);
+                let expr = il::Expression::zext(bits, expr.clone())?;
+                let shift = match self.endian {
+                    Endian::Big => (bytes - offset - 1) * 8,
+                    Endian::Little => offset * 8
+                };
+                let shift = il::expr_const(shift, bits);
+                let expr = il::Expression::shl(expr, shift)?;
+                result = match result {
+                    Some(result) => Some(il::Expression::or(result, expr)?),
+                    None => Some(expr)
+                };
+            }
 
-        Ok(result)
+            Ok(result)
+        }
     }
 }

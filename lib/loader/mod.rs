@@ -6,7 +6,6 @@ pub mod memory;
 
 use error::*;
 use translator;
-use translator::Arch;
 use il;
 use std::fmt;
 
@@ -96,15 +95,20 @@ pub trait Loader: ::std::fmt::Debug + Clone {
     /// Get the architecture of the binary
     fn architecture(&self) -> Result<Architecture>;
 
+    /// Get the translator for this binary's architecture
+    fn translator(&self) -> Result<Box<translator::Arch>> {
+        match self.architecture() {
+            Ok(arch) => match arch {
+                Architecture::X86 => Ok(Box::new(translator::x86::X86::new()))
+            },
+            Err(_) => bail!("Unsupported Architecture")
+        }
+    }
+
     /// Turn this into an il::Program
     fn to_program(&self) -> Result<il::Program> {
         // Get out architecture-specific translator
-        let translator = match self.architecture() {
-            Ok(arch) => match arch {
-                Architecture::X86 => translator::x86::X86::new()
-            },
-            Err(_) => bail!("Unsupported Architecture")
-        };
+        let translator = self.translator()?;
 
         // Create a mapping of the file memory
         let memory = self.memory()?;

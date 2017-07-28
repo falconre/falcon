@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::io::Write;
 use std::process;
+use translator::TranslationMemory;
 
 
 #[derive(Clone)]
@@ -339,6 +340,24 @@ impl SymbolicEngine {
     }
 
 
+    /// Loads a single byte from memory. This byte must have a concrete value.
+    fn load_only_concrete(&self, address: u64) -> Result<Option<u8>> {
+        let byte = self.memory.load(address, 8)?;
+        let byte = match byte {
+            Some(byte) => byte,
+            None => return Ok(None)
+        };
+
+        if all_constants(&byte) {
+            let value = executor::constants_expression(&byte)?;
+            Ok(Some(value.value() as u8))
+        }
+        else {
+            Ok(None)
+        }
+    }
+
+
     /// Determine whether the assertions of this state are satisfiable
     pub fn sat(&self, assertions: Option<Vec<il::Expression>>) -> Result<bool> {
         // An expression that will always evaluate to true
@@ -432,6 +451,14 @@ impl SymbolicEngine {
         })
     }
 }
+
+
+impl TranslationMemory for SymbolicEngine {
+    fn get_u8(&self, address: u64) -> Option<u8> {
+        self.load_only_concrete(address).unwrap()
+    }
+}
+
 
 
 /// Return true if an expression is all constants (and we can therefor evaluate
