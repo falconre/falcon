@@ -24,3 +24,5 @@ As of 1.18, everything, including docs, builds with rust stable.
 You will need the correct dependencies for bindgen to build the capstone bindings, as well as `z3` on the commandline. The `Dockerfile` has everything required to get you set up.
 
 Build and run the docker to see the latest output of whatever I'm working on. Things will be cleaned up for `0.1.0`.
+
+For OSX (on which I'm developing), `brew install z3` seems to be enough to make things work, as well as a typical rust install.

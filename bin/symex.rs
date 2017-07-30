@@ -1,429 +1,146 @@
 use error::*;
 use falcon::engine::*;
+use falcon::executor;
 use falcon::il;
 use falcon::loader::Loader;
-use falcon::translator;
 use std::rc::Rc;
-use std::collections::VecDeque;
 use std::path::Path;
 
 
-/// Takes a program and an address, and returns function, block, and instruction
-/// index for the first IL instruction at that address.
-pub fn instruction_address(program: &il::Program, address: u64)
-    -> Option<(u64, u64, u64)> {
+use engine_driver::*;
 
-    for function in program.functions() {
-        for block in function.control_flow_graph().blocks() {
-            for instruction in block.instructions() {
-                if let Some(ins_address) = instruction.address() { 
-                    if ins_address == address {
-                        return Some(
-                            (function.index().unwrap(),
-                            block.index(),
-                            instruction.index()));
-                    }
-                }
-            }
-        }
-    }
-    None
+
+const STACK_ADDRESS: u64 = 0xb0000000;
+const STACK_SIZE: u64 = 0x10000;
+const INITIAL_STACK_POINTER: u64 = STACK_ADDRESS - 0x1000;
+
+const FS_BASE: u64 = 0xbf000000;
+const FS_SIZE: u64 = 0x8000;
+const GS_BASE: u64 = 0xbf008000;
+const GS_SIZE: u64 = 0x8000;
+
+const KERNEL_VSYSCALL_BYTES: &'static [u8] = &[0x0f, 0x34, 0xc3];
+const KERNEL_VSYSCALL_ADDRESS: u64 = 0xbfff0000;
+
+
+fn push(engine: &mut SymbolicEngine, value: u32) -> Result<()> {
+    let expr = match engine.get_scalar_only_concrete("esp")? {
+        Some(expr) => expr,
+        None => bail!("Could not get concrete value for esp")
+    };
+
+    let address = expr.value() - 4;
+
+    engine.set_scalar("esp", il::Expression::constant(
+        executor::constants_expression(
+            &il::Expression::sub(
+                il::Expression::constant(expr),
+                il::expr_const(4, 32)
+            )?
+        )?
+    ));
+
+    engine.memory_mut().store(address, il::expr_const(value as u64, 32))?;
+
+    Ok(())
 }
 
 
-// A unique location in a function
-#[derive(Clone, Debug)]
-pub enum FunctionLocation {
-    Instruction {
-        block_index: u64,
-        instruction_index: u64,
-    },
-    Edge {
-        head: u64,
-        tail: u64
+fn initialize_stack(engine: &mut SymbolicEngine) -> Result<()> {
+    for i in 0..STACK_SIZE {
+        engine.memory_mut().store(STACK_ADDRESS - STACK_SIZE + i, il::expr_const(0, 8))?;
     }
+
+    engine.set_scalar("esp", il::expr_const(INITIAL_STACK_POINTER, 32));
+
+    Ok(())
 }
 
 
-// A unique location in a program
-#[derive(Clone, Debug)]
-pub struct ProgramLocation {
-    function_index: u64,
-    function_location: FunctionLocation
-}
-
-impl ProgramLocation {
-    pub fn new(
-        function_index: u64,
-        function_location: FunctionLocation
-    ) -> ProgramLocation {
-        ProgramLocation {
-            function_index: function_index,
-            function_location: function_location
-        }
+fn initialize_segments(engine: &mut SymbolicEngine) -> Result<()> {
+    for i in 0..FS_SIZE {
+        engine.memory_mut().store(FS_BASE - FS_SIZE + i, il::expr_const(0, 8))?;
     }
 
-
-    /// Convert an address to a `ProgramLocation`
-    ///
-    /// TODO: Handle cases where the address is invalid
-    pub fn from_address(address: u64, program: &il::Program)
-        -> Option<ProgramLocation> {
-
-        for function in program.functions() {
-            for block in function.control_flow_graph().blocks() {
-                for instruction in block.instructions() {
-                    if let Some(ins_address) = instruction.address() {
-                        if ins_address == address {
-                            return Some(ProgramLocation::new(
-                                function.index().unwrap(),
-                                FunctionLocation::Instruction {
-                                    block_index: block.index(),
-                                    instruction_index: instruction.index()
-                                }
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-        None
+    for i in 0..GS_SIZE {
+        engine.memory_mut().store(GS_BASE - GS_SIZE + i, il::expr_const(0, 8))?;
     }
 
+    engine.set_scalar("fs_base", il::expr_const(FS_BASE, 32));
+    engine.set_scalar("gs_base", il::expr_const(GS_BASE, 32));
 
-    /// Returns the index of this location's function
-    pub fn function_index(&self) -> u64 {
-        self.function_index
-    }
-
-
-    /// Return the function for this location
-    pub fn function<'f>(&self, program: &'f il::Program) -> Option<&'f il::Function> {
-        program.function(self.function_index)
-    }
-
-
-    /// Return the FunctionLocation for this location
-    pub fn function_location(&self) -> &FunctionLocation {
-        &self.function_location
-    }
-
-
-    /// Advances the `DriverLocation` to the next valid `il::Instruction` or
-    /// `il::Edge`
-    ///
-    /// Advancing a location through the program may be tricky due to edge
-    /// cases. For example, we may have an unconditional edge leading to an
-    /// empty block, leading to another unconditional edge. In this case, we
-    /// want to advance past all of these things to the next valid instruction.
-    pub fn advance(&self, program: &il::Program) -> Vec<ProgramLocation> {
-        // This is the list of locations which no longer need to be advanced
-        let mut final_locations = Vec::new();
-
-        // This is the queue of locations pending advancement
-        let mut queue = VecDeque::new();
-        queue.push_back(self.clone());
-        while queue.len() > 0 {
-            let location = queue.pop_front().unwrap();
-            // If we are at an instruction
-            match location.function_location {
-                FunctionLocation::Instruction { block_index, instruction_index } => {
-                    // Iterate through the block to find this instruction
-                    let instructions = location.function(program).unwrap()
-                                               .block(block_index).unwrap()
-                                               .instructions();
-                    for i in 0..instructions.len() {
-                        // We found this instruction
-                        if instructions[i].index() == instruction_index {
-                            // If there is a successor in the block, advance to the
-                            // successor
-                            if i + 1 < instructions.len() {
-                                final_locations.push(ProgramLocation::new(
-                                    location.function_index,
-                                    FunctionLocation::Instruction {
-                                        block_index: block_index,
-                                        instruction_index: instructions[i + 1].index()
-                                    }
-                                ));
-                                break;
-                            }
-                            // There is no successor, let's take a look at outgoing
-                            // edges
-                            for edge in location.function(program)
-                                                .unwrap()
-                                                .control_flow_graph()
-                                                .graph()
-                                                .edges_out(block_index)
-                                                .unwrap() {
-                                // If this is a conditional edge, advance to the
-                                // edge
-                                if edge.condition().is_some() {
-                                    final_locations.push(ProgramLocation::new(
-                                        location.function_index,
-                                        FunctionLocation::Edge {
-                                            head: edge.head(),
-                                            tail: edge.tail()
-                                        }
-                                    ));
-                                }
-                                // If this is an unconditional edge, push the
-                                // unconditional edge onto the queue
-                                else {
-                                    queue.push_back(ProgramLocation::new(
-                                        location.function_index,
-                                        FunctionLocation::Edge {
-                                            head: edge.head(),
-                                            tail: edge.tail()
-                                        }
-                                    ));
-                                }
-                            } // for edge
-                        } // if instructions[i].index()
-                    } // for i in 0..instructions.len()
-                },
-                FunctionLocation::Edge { head: _, tail } => {
-                    // Get the successor block
-                    let block = location.function(program).unwrap()
-                                        .block(tail).unwrap();
-                    // If this block is empty, we move straight to outgoing
-                    // edges
-                    if block.instructions().is_empty() {
-                        for edge in location.function(program)
-                                            .unwrap()
-                                            .control_flow_graph()
-                                            .graph()
-                                            .edges_out(tail)
-                                            .unwrap() {
-                            // We advance conditional edges, and push
-                            // unconditional edges back on the queue
-                            // TODO programs with infinite loops, I.E. `while (1) {}`,
-                            // will cause us to hang here. We would prefer to hang somewhere else
-                            // so we can eventually stop.
-                            if edge.condition().is_some() {
-                                final_locations.push(ProgramLocation::new(
-                                    location.function_index,
-                                    FunctionLocation::Edge {
-                                        head: edge.head(),
-                                        tail: edge.tail()
-                                    }
-                                ));
-                            }
-                            else {
-                                queue.push_back(ProgramLocation::new(
-                                    location.function_index,
-                                    FunctionLocation::Edge {
-                                        head: edge.head(),
-                                        tail: edge.tail()
-                                    }
-                                ));
-                            }
-                        } // for edge in location
-                    } // if block.instructions().is_empty()
-                    // If this block isn't empty, we advance to the first instruction
-                    else {
-                        final_locations.push(ProgramLocation::new(
-                            location.function_index,
-                            FunctionLocation::Instruction {
-                                block_index: block.index(),
-                                instruction_index: block.instructions()[0].index()
-                            }
-                        ));
-                    }
-                }
-            } // match location
-        } // while queue.len() > 0
-
-        final_locations
-    }
+    Ok(())
 }
 
 
-#[derive(Clone)]
-pub struct EngineDriver<'e> {
-    program: Rc<il::Program>,
-    location: ProgramLocation,
-    engine: SymbolicEngine,
-    arch: &'e Box<translator::Arch>
+fn initialize_miscellaneous(engine: &mut SymbolicEngine) -> Result<()> {
+    engine.set_scalar("DF", il::expr_const(0, 1));
+
+    /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program
+    starts %edx contains a pointer to a function
+    which might be registered using atexit.
+    This provides a mean for the dynamic linker to call
+    DT_FINI functions for shared libraries that
+    have been loaded before the code runs.
+    A value of 0 tells we have no such handler.
+    */
+    engine.set_scalar("edx", il::expr_const(0, 32));
+
+    Ok(())
 }
 
 
-
-
-
-/// An EngineDriver drive's a symbolic engine through a program
-impl<'e> EngineDriver<'e> {
-    pub fn new(
-        program: Rc<il::Program>,
-        location: ProgramLocation,
-        engine: SymbolicEngine,
-        arch: &'e Box<translator::Arch>
-    ) -> EngineDriver {
-
-        EngineDriver {
-            program: program,
-            location: location,
-            engine: engine,
-            arch: arch
-        }
-    }
-
-    /// Steps this engine forward, consuming the engine and returning some
-    /// variable number of EngineDriver back depending on how many possible
-    /// states are possible.
-    pub fn step(mut self) -> Result<Vec<EngineDriver<'e>>> {
-        let mut new_engine_drivers = Vec::new();
-        match self.location.function_location {
-            FunctionLocation::Instruction { block_index, instruction_index } => {
-                let successors = {
-                    let instruction = self.program
-                                          .function(self.location.function_index())
-                                          .unwrap()
-                                          .block(block_index)
-                                          .unwrap()
-                                          .instruction(instruction_index)
-                                          .unwrap();
-
-                    println!("Executing instruction {}", instruction);
-                    self.engine.execute(instruction.operation())?
-                };
-
-                for successor in successors {
-                    match *successor.type_() {
-                        SuccessorType::FallThrough => {
-                            // Get the possible successor locations for the current
-                            // location
-                            let engine = successor.into_engine();
-                            let locations = self.location.advance(&self.program);
-                            if locations.len() == 1 {
-                                new_engine_drivers.push(EngineDriver::new(
-                                    self.program.clone(),
-                                    locations[0].clone(),
-                                    engine,
-                                    self.arch
-                                ));
-                            }
-                            else {
-                                for location in self.location.advance(&self.program) {
-                                    new_engine_drivers.push(EngineDriver::new(
-                                        self.program.clone(),
-                                        location,
-                                        engine.clone(),
-                                        self.arch
-                                    ));
-                                }
-                            }
-                        },
-                        SuccessorType::Branch(address) => {
-                            println!("Branching to 0x{:x}", address);
-                            match ProgramLocation::from_address(address, &self.program) {
-                                // We have already disassembled the branch target. Go straight to it.
-                                Some(location) => new_engine_drivers.push(EngineDriver::new(
-                                    self.program.clone(),
-                                    location,
-                                    successor.into_engine(),
-                                    self.arch
-                                )),
-                                // There's no instruction at this address. We will attempt
-                                // disassembling a function here.
-                                None => {
-                                    let engine = successor.into_engine();
-                                    let function = self.arch.translate_function(&engine, address);
-                                    match function {
-                                        Ok(function) => {
-                                            Rc::make_mut(&mut self.program).set_function(function);
-                                            let location = ProgramLocation::from_address(address, &self.program);
-                                            if let Some(location) = location {
-                                                new_engine_drivers.push(EngineDriver::new(
-                                                    self.program.clone(),
-                                                    location,
-                                                    engine,
-                                                    self.arch
-                                                ));
-                                            }
-                                            else {
-                                                bail!("No instruction at address 0x{:x}", address)
-                                            }
-                                        },
-                                        Err(_) => bail!("Failed to lift function at address 0x{:x}", address)
-                                    }
-                                }
-                            };
-                        }
-                    }
-                } 
-            },
-            FunctionLocation::Edge { head, tail } => {
-                let edge = self.location
-                               .function(&self.program)
-                               .unwrap()
-                               .edge(head, tail)
-                               .unwrap();
-                match *edge.condition() {
-                    None => {
-                        if edge.condition().is_none() {
-                            for location in self.location.advance(&self.program) {
-                                new_engine_drivers.push(EngineDriver::new(
-                                    self.program.clone(),
-                                    location,
-                                    self.engine.clone(),
-                                    self.arch
-                                ));
-                            }
-                        }
-                    },
-                    Some(ref condition) => {
-                        println!("Evaluating condition {}", condition);
-                        if self.engine.sat(Some(vec![condition.clone()]))? {
-                            println!("Expression sat");
-                            let mut engine = self.engine.clone();
-                            engine.add_assertion(condition.clone())?;
-                            let locations = self.location.advance(&self.program);
-                            if locations.len() == 1 {
-                                new_engine_drivers.push(EngineDriver::new(
-                                    self.program.clone(),
-                                    locations[0].clone(),
-                                    engine,
-                                    self.arch
-                                ));
-                            }
-                            else {
-                                for location in self.location.advance(&self.program) {
-                                    new_engine_drivers.push(EngineDriver::new(
-                                        self.program.clone(),
-                                        location,
-                                        engine.clone(),
-                                        self.arch
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } // match self.location.function_location
-        Ok(new_engine_drivers)
-    }
-
-    /// Return the program for this driver
-    pub fn program(&self) -> &il::Program {
-        &self.program
-    }
-
-    /// Return the location of this driver
-    pub fn location(&self) -> &ProgramLocation {
-        &self.location
-    }
-
-    /// Set the location for this driver.
-    pub fn set_location(&mut self, location: ProgramLocation) {
-        self.location = location;
-    }
-
-    /// Return the underlying symbolic engine for this driver
-    pub fn engine(&self) -> &SymbolicEngine {
-        &self.engine
-    }
+fn initialize_command_line_arguments(engine: &mut SymbolicEngine) -> Result<()> {
+    push(engine, 0)?;
+    push(engine, 0)?;
+    Ok(())
 }
+
+
+fn initialize_environment_variables(engine: &mut SymbolicEngine) -> Result<()> {
+    push(engine, 0)?;
+    Ok(())
+}
+
+
+fn initialize_kernel_vsyscall(engine: &mut SymbolicEngine) -> Result<()> {
+    // Set up the KERNEL_VSYSCALL function
+    for i in 0..KERNEL_VSYSCALL_BYTES.len() {
+        println!("writing 0x{:02x} at 0x{:08x}",
+            KERNEL_VSYSCALL_BYTES[i],
+            KERNEL_VSYSCALL_ADDRESS + i as u64);
+        engine.memory_mut().store(
+            KERNEL_VSYSCALL_ADDRESS + i as u64,
+            il::expr_const(KERNEL_VSYSCALL_BYTES[i] as u64, 8)
+        )?;
+    }
+    // Set up a fake AT_SYSINFO 0x100 bytes ahead of vsyscall
+    engine.memory_mut().store(
+        KERNEL_VSYSCALL_ADDRESS + 0x100,
+        il::expr_const(32, 32) // 32 = AT_SYSINFO
+    )?;
+    engine.memory_mut().store(
+        KERNEL_VSYSCALL_ADDRESS + 0x104,
+        il::expr_const(KERNEL_VSYSCALL_ADDRESS, 32)
+    )?;
+    // Push AT_SYSINFO onto stack
+    push(engine, (KERNEL_VSYSCALL_ADDRESS + 0x100) as u32)?;
+    push(engine, 0)?;
+    
+    // HACK (I think, need to know more about linux vsyscall process)
+    // set gs + 0x10 tp KERNEL_VSYSCALL_ADDRESS
+    let expr = match engine.get_scalar_only_concrete("gs_base")? {
+        Some(expr) => expr,
+        None => bail!("Could not get concrete value for gs_base")
+    };
+
+    let address = expr.value() + 0x10;
+
+    engine.memory_mut().store(address, il::expr_const(KERNEL_VSYSCALL_ADDRESS, 32))?;
+
+    Ok(())
+}
+
 
 
 pub fn engine_test () -> Result<()> {
@@ -446,15 +163,6 @@ pub fn engine_test () -> Result<()> {
         }
     }
 
-    // Set up space for the stack.
-    let stack_address : u64 = 0xb0000000;
-    let stack_size : u64 = 0x10000;
-    let initial_stack_pointer : u64 = 0xb0000000 - 0x1000;
-
-    for i in 0..stack_size {
-        memory.store(stack_address - stack_size + i, il::expr_const(0, 8))?;
-    }
-
     // Set up space for fs/gs from 0xbf000000 to 0xbf010000
     for i in 0..0x10000 {
         memory.store((0xbf000000 as u64 + i as u64), il::expr_const(0, 8))?;
@@ -463,21 +171,13 @@ pub fn engine_test () -> Result<()> {
     // Create the engine
     let mut engine = SymbolicEngine::new(memory);
 
-    // Set our initial variables
-    engine.set_scalar("esp", il::expr_const(initial_stack_pointer, 32));
-    engine.set_scalar("DF", il::expr_const(0, 1));
-    engine.set_scalar("fs_base", il::expr_const(0xbf000000, 32));
-    engine.set_scalar("gs_base", il::expr_const(0xbf008000, 32));
+    initialize_stack(&mut engine)?;
+    initialize_segments(&mut engine)?;
+    initialize_miscellaneous(&mut engine)?;
 
-    /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program
-    starts %edx contains a pointer to a function
-    which might be registered using atexit.
-    This provides a mean for the dynamic linker to call
-    DT_FINI functions for shared libraries that
-    have been loaded before the code runs.
-    A value of 0 tells we have no such handler.
-    */
-    engine.set_scalar("edx", il::expr_const(0, 32));
+    initialize_command_line_arguments(&mut engine)?;
+    initialize_environment_variables(&mut engine)?;
+    initialize_kernel_vsyscall(&mut engine)?;
 
     // Get the first instruction we care about
     let pl = ProgramLocation::from_address(elf.program_entry(), &program).unwrap();

@@ -23,7 +23,7 @@ pub mod executor;
 pub mod graph;
 pub mod il;
 pub mod loader;
-// pub mod solver;
+mod tests;
 pub mod translator;
 
 

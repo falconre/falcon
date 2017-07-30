@@ -57,15 +57,21 @@ impl Arch for X86 {
 
         loop {
             /* We must have at least 16 bytes left in the buffer. */
-            if bytes.len() - offset < 16 {
-                successors.push((address + offset as u64, None));
-                break;
-            }
+            // if bytes.len() - offset < 16 {
+            //     successors.push((address + offset as u64, None));
+            //     break;
+            // }
             let disassembly_range = (offset)..bytes.len();
             let disassembly_bytes = bytes.get(disassembly_range).unwrap();
             let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
                 Ok(instructions) => instructions,
-                Err(_) => return Err("Capstone Error".into())
+                Err(e) => match e.code() {
+                    capstone_sys::cs_err::CS_ERR_OK => {
+                        successors.push((address + offset as u64, None));
+                        break;
+                    }
+                    _ => bail!("Capstone Error: {}", e.code() as u32)
+                }
             };
 
             if instructions.count() == 0 {

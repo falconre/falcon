@@ -66,6 +66,16 @@ impl SymbolicEngine {
     }
 
 
+    pub fn memory(&self) -> &SymbolicMemory {
+        &self.memory
+    }
+
+
+    pub fn memory_mut(&mut self) -> &mut SymbolicMemory {
+        &mut self.memory
+    }
+
+
     /// Add an assertion to this state.
     ///
     /// This assertion must be equal to 0x1:1, or a 1-bit value of 1, for the
@@ -341,7 +351,7 @@ impl SymbolicEngine {
 
 
     /// Loads a single byte from memory. This byte must have a concrete value.
-    fn load_only_concrete(&self, address: u64) -> Result<Option<u8>> {
+    pub fn load_only_concrete(&self, address: u64) -> Result<Option<u8>> {
         let byte = self.memory.load(address, 8)?;
         let byte = match byte {
             Some(byte) => byte,
@@ -354,6 +364,22 @@ impl SymbolicEngine {
         }
         else {
             Ok(None)
+        }
+    }
+
+
+    /// Gets the value of a scalar, but only if the scalar has a concrete value
+    pub fn get_scalar_only_concrete(&self, name: &str) -> Result<Option<il::Constant>> {
+        let expr = match self.get_scalar(name) {
+            Some(expr) => expr,
+            None => bail!("scalar {} does not exist", name)
+        };
+
+        if !all_constants(expr) {
+            Ok(None)
+        }
+        else {
+            Ok(Some(executor::constants_expression(expr)?))
         }
     }
 
@@ -461,9 +487,11 @@ impl TranslationMemory for SymbolicEngine {
 
 
 
-/// Return true if an expression is all constants (and we can therefor evaluate
-/// the expression concretely and return its constant value).
-fn all_constants(expr: &il::Expression) -> bool {
+/// Return true if an expression is all constants.
+///
+/// If an expression is all constants, we can evaluate the expression
+/// concretely and return its constant value).
+pub fn all_constants(expr: &il::Expression) -> bool {
     match *expr {
         il::Expression::Scalar(_) => false,
         il::Expression::Constant(_) => true,
@@ -492,12 +520,12 @@ fn all_constants(expr: &il::Expression) -> bool {
 }
 
 
-fn scalar_to_smtlib2(s: &il::Scalar) -> String {
+pub fn scalar_to_smtlib2(s: &il::Scalar) -> String {
     s.name().to_string()
 }
 
 
-fn expr_to_smtlib2(expr: &il::Expression) -> String {
+pub fn expr_to_smtlib2(expr: &il::Expression) -> String {
     match *expr {
         il::Expression::Constant(ref c) => {
             if c.bits() == 1 {

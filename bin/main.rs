@@ -37,6 +37,7 @@ pub mod error {
 }
 
 mod symex;
+mod engine_driver;
 
 use error::*;
 
