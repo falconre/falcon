@@ -23,6 +23,7 @@ pub mod executor;
 pub mod graph;
 pub mod il;
 pub mod loader;
+pub mod platform;
 mod tests;
 pub mod translator;
 

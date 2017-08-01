@@ -1,5 +1,4 @@
 use engine::memory::SymbolicMemory;
-use engine::platform::Platform;
 use error::*;
 use executor;
 use il;
@@ -49,10 +48,10 @@ impl SymbolicSuccessor {
 
 
 #[derive(Clone)]
-pub struct SymbolicEngine {
+pub struct SymbolicEngine  {
     scalars: BTreeMap<String, il::Expression>,
     memory: SymbolicMemory,
-    assertions: Vec<il::Expression>
+    assertions: Vec<il::Expression>,
 }
 
 
@@ -469,7 +468,7 @@ impl SymbolicEngine {
                 successors
             },
             il::Operation::Phi { ref dst, ref src } => {
-                vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
+                panic!("Phi unimplemented");
             },
             il::Operation::Raise { ref expr } => {
                 panic!("raise unimplemented")
