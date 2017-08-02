@@ -1,6 +1,7 @@
 use error::*;
 use falcon::engine::*;
 use falcon::il;
+use falcon::platform::Platform;
 use falcon::translator;
 use std::collections::VecDeque;
 use std::rc::Rc;
@@ -236,11 +237,12 @@ impl ProgramLocation {
 
 
 #[derive(Clone)]
-pub struct EngineDriver<'e> {
+pub struct EngineDriver<'e, P> {
     program: Rc<il::Program>,
     location: ProgramLocation,
     engine: SymbolicEngine,
-    arch: &'e Box<translator::Arch>
+    arch: &'e Box<translator::Arch>,
+    platform: Rc<P>
 }
 
 
@@ -248,26 +250,28 @@ pub struct EngineDriver<'e> {
 
 
 /// An EngineDriver drive's a symbolic engine through a program
-impl<'e> EngineDriver<'e> {
+impl<'e, P> EngineDriver<'e, P> {
     pub fn new(
         program: Rc<il::Program>,
         location: ProgramLocation,
         engine: SymbolicEngine,
-        arch: &'e Box<translator::Arch>
-    ) -> EngineDriver {
+        arch: &'e Box<translator::Arch>,
+        platform: Rc<P>
+    ) -> EngineDriver<P> where P: Platform<P> {
 
         EngineDriver {
             program: program,
             location: location,
             engine: engine,
-            arch: arch
+            arch: arch,
+            platform: platform
         }
     }
 
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of EngineDriver back depending on how many possible
     /// states are possible.
-    pub fn step(mut self) -> Result<Vec<EngineDriver<'e>>> {
+    pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> {
         let mut new_engine_drivers = Vec::new();
         match self.location.function_location {
             FunctionLocation::Instruction { block_index, instruction_index } => {
@@ -285,7 +289,7 @@ impl<'e> EngineDriver<'e> {
                 };
 
                 for successor in successors {
-                    match *successor.type_() {
+                    match successor.type_().clone() {
                         SuccessorType::FallThrough => {
                             // Get the possible successor locations for the current
                             // location
@@ -296,7 +300,8 @@ impl<'e> EngineDriver<'e> {
                                     self.program.clone(),
                                     locations[0].clone(),
                                     engine,
-                                    self.arch
+                                    self.arch,
+                                    self.platform.clone(),
                                 ));
                             }
                             else {
@@ -305,7 +310,8 @@ impl<'e> EngineDriver<'e> {
                                         self.program.clone(),
                                         location,
                                         engine.clone(),
-                                        self.arch
+                                        self.arch,
+                                        self.platform.clone()
                                     ));
                                 }
                             }
@@ -318,7 +324,8 @@ impl<'e> EngineDriver<'e> {
                                     self.program.clone(),
                                     location,
                                     successor.into_engine(),
-                                    self.arch
+                                    self.arch,
+                                    self.platform.clone()
                                 )),
                                 // There's no instruction at this address. We will attempt
                                 // disassembling a function here.
@@ -334,7 +341,8 @@ impl<'e> EngineDriver<'e> {
                                                     self.program.clone(),
                                                     location,
                                                     engine,
-                                                    self.arch
+                                                    self.arch,
+                                                    self.platform.clone()
                                                 ));
                                             }
                                             else {
@@ -345,6 +353,23 @@ impl<'e> EngineDriver<'e> {
                                     }
                                 }
                             };
+                        },
+                        SuccessorType::Raise(expression) => {
+                            let mut platform = Rc::make_mut(&mut self.platform).to_owned();
+                            let locations = self.location.advance(&self.program);
+                            let engine = successor.clone().into_engine();
+                            let results = platform.raise(&expression, engine)?;
+                            for location in locations {
+                                for result in &results {
+                                    new_engine_drivers.push(EngineDriver::new(
+                                        self.program.clone(),
+                                        location.clone(),
+                                        result.1.clone(),
+                                        self.arch,
+                                        Rc::new(result.0.clone())
+                                    ));
+                                }
+                            }
                         }
                     }
                 } 
@@ -363,7 +388,8 @@ impl<'e> EngineDriver<'e> {
                                     self.program.clone(),
                                     location,
                                     self.engine.clone(),
-                                    self.arch
+                                    self.arch,
+                                    self.platform.clone()
                                 ));
                             }
                         }
@@ -380,7 +406,8 @@ impl<'e> EngineDriver<'e> {
                                     self.program.clone(),
                                     locations[0].clone(),
                                     engine,
-                                    self.arch
+                                    self.arch,
+                                    self.platform.clone()
                                 ));
                             }
                             else {
@@ -389,7 +416,8 @@ impl<'e> EngineDriver<'e> {
                                         self.program.clone(),
                                         location,
                                         engine.clone(),
-                                        self.arch
+                                        self.arch,
+                                        self.platform.clone()
                                     ));
                                 }
                             }

@@ -21,12 +21,16 @@ impl Scalar {
     pub fn bits(&self) -> usize {
         self.bits
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 
 impl Variable for Scalar {
     fn name(&self) -> &str {
-        &self.name
+        self.name()
     }
 
     /// An identifier uniquely identifies the variable in the form

@@ -1,6 +1,5 @@
 use error::*;
 use falcon::engine::*;
-use falcon::executor;
 use falcon::il;
 use falcon::loader::Loader;
 use falcon::platform::*;
@@ -19,7 +18,8 @@ pub fn engine_test () -> Result<()> {
     let elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
     // let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
 
-    let program = elf.to_program()?;
+    let mut program = il::Program::new();
+    program.set_function(elf.function(elf.program_entry())?);
 
     // Initialize memory.
     let mut memory = SymbolicMemory::new(32, ::falcon::engine::Endian::Little);
@@ -49,7 +49,13 @@ pub fn engine_test () -> Result<()> {
     let pl = ProgramLocation::from_address(elf.program_entry(), &program).unwrap();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let translator = elf.translator()?;
-    let driver = EngineDriver::new(Rc::new(program), pl, engine, &translator);
+    let driver = EngineDriver::new(
+        Rc::new(program),
+        pl,
+        engine,
+        &translator,
+        Rc::new(platform)
+    );
     let mut drivers = vec![driver];
 
     loop {

@@ -2,7 +2,6 @@ use engine::memory::SymbolicMemory;
 use error::*;
 use executor;
 use il;
-use il::variable::Variable;
 use regex;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
@@ -14,7 +13,8 @@ use translator::TranslationMemory;
 #[derive(Clone)]
 pub enum SuccessorType {
     FallThrough,
-    Branch(u64)
+    Branch(u64),
+    Raise(il::Expression)
 }
 
 
@@ -471,7 +471,10 @@ impl SymbolicEngine {
                 panic!("Phi unimplemented");
             },
             il::Operation::Raise { ref expr } => {
-                panic!("raise unimplemented")
+                vec![SymbolicSuccessor::new(
+                    self,
+                    SuccessorType::Raise(expr.clone())
+                )]
             }
         })
     }

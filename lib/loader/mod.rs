@@ -105,7 +105,14 @@ pub trait Loader: ::std::fmt::Debug + Clone {
         }
     }
 
-    /// Turn this into an il::Program
+    /// Lift just one function from the executable
+    fn function(&self, address: u64) -> Result<il::Function> {
+        let translator = self.translator()?;
+        let memory = self.memory()?;
+        Ok(translator.translate_function(&memory, address)?)
+    }
+
+    /// Lift executable into an il::Program
     fn to_program(&self) -> Result<il::Program> {
         // Get out architecture-specific translator
         let translator = self.translator()?;

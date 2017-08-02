@@ -194,9 +194,17 @@ impl LinuxX86 {
 }
 
 
-impl Platform for LinuxX86 where {
-    fn raise(&self, expression: &il::Expression, mut engine: SymbolicEngine)
-    -> Result<Vec<SymbolicEngine>> {
+impl Platform<LinuxX86> for LinuxX86 {
+    fn raise(mut self, expression: &il::Expression, mut engine: SymbolicEngine)
+    -> Result<Vec<(LinuxX86, SymbolicEngine)>> {
+
+        match *expression {
+            il::Expression::Scalar(ref scalar) => if scalar.name() != "sysenter" {
+                bail!("Not a sysenter raise for LinuxX86")
+            },
+            _ => bail!("Raise not a scalar for LinuxX86")
+        }
+
 
         let eax = match engine.get_scalar_only_concrete("eax")? {
             Some(eax) => eax,
@@ -205,8 +213,6 @@ impl Platform for LinuxX86 where {
 
         match eax.value() as u32 {
             SYS_READ => {
-                let mut platform = self.clone();
-
                 let (ebx, ecx, edx) = {
                     let ebx = match engine.get_scalar_only_concrete("ebx")? {
                         Some(ebx) => ebx,
@@ -240,7 +246,7 @@ impl Platform for LinuxX86 where {
                 }
 
                 // Get variables for the data we're about to read
-                let (result, read) = platform.linux.read(fd.value() as i32, length.value());
+                let (result, read) = self.linux.read(fd.value() as i32, length.value());
 
                 for i in 0..read.len() as u64 {
                     engine.memory_mut().store(address.value() + i, read[i as usize].to_owned().into())?;
@@ -248,7 +254,7 @@ impl Platform for LinuxX86 where {
 
                 engine.set_scalar("eax", il::expr_const(result as u64, 32));
 
-                Ok(vec![engine])
+                Ok(vec![(self, engine)])
             }
             _ => bail!("Unhandled system call {}", eax.value())
         }
