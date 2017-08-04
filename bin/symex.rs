@@ -32,11 +32,6 @@ pub fn engine_test () -> Result<()> {
         }
     }
 
-    // Set up space for fs/gs from 0xbf000000 to 0xbf010000
-    for i in 0..0x10000 {
-        memory.store((0xbf000000 as u64 + i as u64), il::expr_const(0, 8))?;
-    }
-
 
     let mut platform = linux_x86::LinuxX86::new();
     

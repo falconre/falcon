@@ -84,6 +84,11 @@ impl LinuxX86 {
     fn initialize_segments(&self, engine: &mut SymbolicEngine)
         -> Result<()> {
 
+        // Set up space for fs/gs from 0xbf000000 to 0xbf010000
+        for i in 0..0x10000 {
+            engine.memory_mut().store((0xbf000000 as u64 + i as u64), il::expr_const(0, 8))?;
+        }
+
         for i in 0..FS_SIZE {
             engine.memory_mut().store(FS_BASE - FS_SIZE + i, il::expr_const(0, 8))?;
         }
