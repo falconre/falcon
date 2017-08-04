@@ -1,6 +1,11 @@
 use error::*;
 use il;
 use std::collections::BTreeMap;
+use std::rc::Rc;
+
+
+const PAGE_SIZE: usize = 1024;
+
 
 #[derive(Clone, Debug)]
 pub enum Endian {
@@ -8,11 +13,56 @@ pub enum Endian {
     Little
 }
 
+
+#[derive(Clone)]
+struct SymbolicPage {
+    size: usize,
+    cells: Vec<il::Expression>
+}
+
+
+impl SymbolicPage {
+    fn new(size: usize) -> SymbolicPage {
+        let mut v = Vec::new();
+        for i in 0..size {
+            v.push(il::expr_const(0, 8));
+        }
+
+        SymbolicPage {
+            size: size,
+            cells: v
+        }
+    }
+
+    fn store(&mut self, offset: usize, value: il::Expression) -> Result<()> {
+        if value.bits() != 8 {
+            bail!("SymbolicPage tried to store value with bits={}", value.bits());
+        }
+
+        if offset >= self.size {
+            bail!("Out of bounds offset {} for SymbolicPage with size {}", offset, self.size);
+        }
+
+        self.cells.as_mut_slice()[offset] = value;
+
+        Ok(())
+    }
+
+    fn load(&self, offset: usize) -> Result<il::Expression> {
+        if offset >= self.size {
+            bail!("Out of bounds offset {} for SymbolicPage with size {}", offset, self.size);
+        }
+
+        Ok(self.cells[offset].clone())
+    }
+}
+
+
 #[derive(Clone)]
 pub struct SymbolicMemory {
     address_width: usize,
     endian: Endian,
-    cells: BTreeMap<u64, il::Expression>
+    pages: BTreeMap<u64, Rc<SymbolicPage>>
 }
 
 
@@ -21,7 +71,7 @@ impl SymbolicMemory {
         SymbolicMemory {
             address_width: address_width,
             endian: endian,
-            cells: BTreeMap::new()
+            pages: BTreeMap::new()
         }
     }
 
@@ -36,8 +86,30 @@ impl SymbolicMemory {
     }
 
 
-    pub fn cells(&self) -> &BTreeMap<u64, il::Expression> {
-        &self.cells
+    fn store_byte(&mut self, address: u64, value: il::Expression) -> Result<()> {
+        let page_address = address & !(PAGE_SIZE as u64 - 1);
+        let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
+
+        if let Some(mut page) = self.pages.get_mut(&page_address) {
+            Rc::make_mut(&mut page).store(offset, value)?;
+            return Ok(())
+        }
+
+        let mut page = SymbolicPage::new(PAGE_SIZE);
+        page.store(offset, value)?;
+        self.pages.insert(page_address, Rc::new(page));
+
+        Ok(())
+    }
+
+
+    fn load_byte(&self, address: u64) -> Result<Option<il::Expression>> {
+        let page_address = address & !(PAGE_SIZE as u64 - 1);
+        let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
+        match self.pages.get(&page_address) {
+            Some(page) => Ok(Some(page.load(offset)?)),
+            None => Ok(None)
+        }
     }
 
 
@@ -58,11 +130,11 @@ impl SymbolicMemory {
                 let value = il::Expression::shr(value.clone(), shift)?;
                 let value = il::Expression::trun(8, value)?;
                 // trace!("STORE [{:x}]={}", address + offset, value);
-                self.cells.insert(address + offset, value);
+                self.store_byte(address + offset, value);
             }
         }
         else if value.bits() == 8 {
-            self.cells.insert(address, value);
+            self.store_byte(address, value);
         }
         else {
             return Err(format!("Invalid bit width in symbolic memory store: {}",
@@ -82,7 +154,7 @@ impl SymbolicMemory {
             Err("Loading symbolic memory with 0 bit-width".into())
         }
         else if bits == 8 {
-            match self.cells.get(&address) {
+            match self.load_byte(address)? {
                 Some(expr) => Ok(Some(expr.clone())),
                 None => Ok(None)
             }
@@ -91,7 +163,7 @@ impl SymbolicMemory {
             let mut result = None;
             let bytes = (bits / 8) as u64;
             for offset in 0..bytes {
-                let expr = match self.cells.get(&(address + offset)) {
+                let expr = match self.load_byte((address + offset))? {
                     Some(expr) => expr,
                     None => return Ok(None)
                 };
