@@ -58,9 +58,38 @@ pub fn engine_test () -> Result<()> {
     );
     let mut drivers = vec![driver];
 
-    loop {
+    let target_address: u64 = 0x8048512;
+
+    let mut target_found = false;
+
+    while !target_found {
         let mut new_drivers = Vec::new();
         for driver in drivers {
+            {
+                let location = driver.location();
+                let program = driver.program();
+                let function_location = location.function_location();
+                if let FunctionLocation::Instruction{block_index, instruction_index} = *function_location {
+                    let function = program.function(location.function_index()).unwrap();
+                    let block = function.block(block_index).unwrap();
+                    let instruction = block.instruction(instruction_index).unwrap();
+                    let address = instruction.address().unwrap();
+                    if address == target_address {
+                        println!("Reached Target Address");
+                        for assertion in driver.engine().assertions() {
+                            println!("Assertion: {}", assertion);
+                        }
+                        for scalar in driver.platform().symbolic_variables() {
+                            println!("{} {}",
+                                scalar.name(),
+                                driver.engine().eval(&scalar.clone().into(), None)?.unwrap()
+                            );
+                        }
+                        target_found = true;
+                        break;
+                    }
+                }
+            }
             new_drivers.append(&mut driver.step()?);
         }
         drivers = new_drivers;

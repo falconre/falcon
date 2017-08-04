@@ -213,6 +213,7 @@ impl Platform<LinuxX86> for LinuxX86 {
 
         match eax.value() as u32 {
             SYS_READ => {
+                info!("SYS_READ");
                 let (ebx, ecx, edx) = {
                     let ebx = match engine.get_scalar_only_concrete("ebx")? {
                         Some(ebx) => ebx,
@@ -258,5 +259,10 @@ impl Platform<LinuxX86> for LinuxX86 {
             }
             _ => bail!("Unhandled system call {}", eax.value())
         }
+    }
+
+
+    fn symbolic_variables(&self) -> Vec<il::Scalar> {
+        self.linux.symbolic_variables().to_owned()
     }
 }

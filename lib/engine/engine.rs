@@ -75,6 +75,11 @@ impl SymbolicEngine {
     }
 
 
+    pub fn assertions(&self) -> &Vec<il::Expression> {
+        &self.assertions
+    }
+
+
     /// Add an assertion to this state.
     ///
     /// This assertion must be equal to 0x1:1, or a 1-bit value of 1, for the
@@ -589,6 +594,6 @@ pub fn expr_to_smtlib2(expr: &il::Expression) -> String {
                     bits - rhs.bits(),
                     expr_to_smtlib2(rhs)),
         il::Expression::Trun ( bits, ref rhs ) =>
-            format!("((_ extract {} 0) {})", bits, expr_to_smtlib2(rhs))
+            format!("((_ extract {} 0) {})", bits - 1, expr_to_smtlib2(rhs))
     }
 }

@@ -268,6 +268,7 @@ impl<'e, P> EngineDriver<'e, P> {
         }
     }
 
+
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of EngineDriver back depending on how many possible
     /// states are possible.
@@ -284,7 +285,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                           .instruction(instruction_index)
                                           .unwrap();
 
-                    println!("Executing instruction {}", instruction);
+                    // println!("Executing instruction {}", instruction);
                     self.engine.execute(instruction.operation())?
                 };
 
@@ -358,7 +359,13 @@ impl<'e, P> EngineDriver<'e, P> {
                             let mut platform = Rc::make_mut(&mut self.platform).to_owned();
                             let locations = self.location.advance(&self.program);
                             let engine = successor.clone().into_engine();
-                            let results = platform.raise(&expression, engine)?;
+                            let results = match platform.raise(&expression, engine) {
+                                Ok(results) => results,
+                                Err(e) => {
+                                    println!("Killing state because {}", e.description());
+                                    continue;
+                                }
+                            };
                             for location in locations {
                                 for result in &results {
                                     new_engine_drivers.push(EngineDriver::new(
@@ -427,6 +434,10 @@ impl<'e, P> EngineDriver<'e, P> {
             }
         } // match self.location.function_location
         Ok(new_engine_drivers)
+    }
+
+    pub fn platform(&self) -> Rc<P> {
+        self.platform.clone()
     }
 
     /// Return the program for this driver

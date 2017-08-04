@@ -5,7 +5,8 @@ use std::collections::BTreeMap;
 #[derive(Clone)]
 pub struct Linux {
     files: BTreeMap<i32, File>,
-    next_fd: i32
+    next_fd: i32,
+    symbolic_variables: Vec<il::Scalar>
 }
 
 
@@ -13,8 +14,14 @@ impl Linux {
     pub fn new() -> Linux {
         Linux {
             files: BTreeMap::new(),
-            next_fd: 0
+            next_fd: 0,
+            symbolic_variables: Vec::new()
         }
+    }
+
+
+    pub fn symbolic_variables(&self) -> &Vec<il::Scalar> {
+        &self.symbolic_variables
     }
 
 
@@ -35,6 +42,7 @@ impl Linux {
                 length = 4096;
             }
             let v = file.file_descriptor_mut().read(length);
+            self.symbolic_variables.append(&mut v.clone());
             return (v.len() as i32, v);
         }
         else {
