@@ -20,7 +20,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
     program.set_function(elf.function(elf.program_entry())?);
 
     // Initialize memory.
-    let mut memory = SymbolicMemory::new(32, engine::Endian::Little);
+    let mut memory = SymbolicMemory::new(engine::Endian::Little);
 
     // Load all memory as given by the loader.
     for (address, segment) in elf.memory()?.segments() {

@@ -1,3 +1,12 @@
+//! A symbolic memory model.
+//!
+//! Each cell of `SymbolicMemory` is a valid `il::Expr`. Concrete values may be stored as
+//! `il::Constant`, and symbolic values stored as valid expressions.
+//!
+//! `SymbolicMemory` is paged under-the-hood with reference-counted pages. When these pages
+//! are written to, we use the copy-on-write functionality of rust's `std::rc::Rc` type,
+//! giving us copy-on-write paging. This allows for very fast forks of `SymbolicMemory`.
+
 use error::*;
 use il;
 use std::collections::BTreeMap;
@@ -6,13 +15,12 @@ use std::rc::Rc;
 
 const PAGE_SIZE: usize = 1024;
 
-
+/// The underlying endianness of this memory model.
 #[derive(Clone, Debug)]
 pub enum Endian {
     Big,
     Little
 }
-
 
 #[derive(Clone)]
 struct SymbolicPage {
@@ -58,29 +66,24 @@ impl SymbolicPage {
 }
 
 
+/// A symbolic memory model for Falcon IL expressions.
 #[derive(Clone)]
 pub struct SymbolicMemory {
-    address_width: usize,
     endian: Endian,
     pages: BTreeMap<u64, Rc<SymbolicPage>>
 }
 
 
 impl SymbolicMemory {
-    pub fn new(address_width: usize, endian: Endian) -> SymbolicMemory {
+    /// Create a new `SymbolicMemory`.
+    pub fn new(endian: Endian) -> SymbolicMemory {
         SymbolicMemory {
-            address_width: address_width,
             endian: endian,
             pages: BTreeMap::new()
         }
     }
 
-
-    pub fn address_width(&self) -> usize {
-        self.address_width
-    }
-
-
+    /// Get the endianness of this `SymbolicMemory`.
     pub fn endian(&self) -> &Endian {
         &self.endian
     }
@@ -113,6 +116,10 @@ impl SymbolicMemory {
     }
 
 
+    /// Store an expression at the given address.
+    ///
+    /// The value must have a bit-width >= 8, and the bit-width must be evenly divisible
+    /// by 8.
     pub fn store(&mut self, address: u64, value: il::Expression) -> Result<()> {
         if value.bits() % 8 != 0 {
             return Err(format!("Storing value in symbolic with bit width not divisible by 8 {}",
@@ -144,8 +151,11 @@ impl SymbolicMemory {
     }
 
 
-    /// Errors if the address is invalid (bits == 0 or bits % 8 != 0)
-    /// Returns None if no value is at the given address.
+    /// Loads an expression from the given address.
+    ///
+    /// `bits` must be >= 8, and evenly divisible by 8.
+    /// If a value exists, it will be returned in `Some(expr)`. If no value exists for all
+    /// bits at the given address, `None` will be returned.
     pub fn load(&self, address: u64, bits: usize) -> Result<Option<il::Expression>> {
         if bits % 8 != 0 {
             Err(format!("Loading symbolic memory with non-8 bit-width {}", bits).into())

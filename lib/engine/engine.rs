@@ -1,3 +1,11 @@
+//! A Symbolic Execution engine for Falcon IL.
+//!
+//! `SymbolicEngine` represents one symbolic state in the program. It is not a complete
+//! symbolic execution engine, we still need other pieces such as `EngineDriver`. We execute
+//! operations over the `SymbolicEngine` to receive a variable number of `SymbolicSuccessor`s
+//! in return. Each `SymbolicSuccessor` has a type representing how control flow should
+//! behave.
+
 use engine::memory::SymbolicMemory;
 use error::*;
 use executor;
@@ -10,14 +18,21 @@ use std::process;
 use translator::TranslationMemory;
 
 
+/// The type of successor from execution of an `Operation` over a `SymbolicEngine`.
 #[derive(Clone)]
 pub enum SuccessorType {
+    /// Control flow should contine normally, with no special considerations.
     FallThrough,
+    /// Control flow should branch to the given address.
     Branch(u64),
+    /// A `Platform` must handle a `Raise` instruction, and then control flow
+    /// should continue normally.
     Raise(il::Expression)
 }
 
 
+/// A `SymbolicSuccessor` is the result of executing an `Operation` over a
+/// `SymbolicEngine`.
 #[derive(Clone)]
 pub struct SymbolicSuccessor {
     type_: SuccessorType,
@@ -26,7 +41,7 @@ pub struct SymbolicSuccessor {
 
 
 impl SymbolicSuccessor {
-    pub fn new(engine: SymbolicEngine, type_: SuccessorType)
+    fn new(engine: SymbolicEngine, type_: SuccessorType)
         -> SymbolicSuccessor {
 
         SymbolicSuccessor {
@@ -35,18 +50,20 @@ impl SymbolicSuccessor {
         }
     }
 
-
+    /// Get the type of this `SymbolicSuccessor`.
     pub fn type_(&self) -> &SuccessorType {
         &self.type_
     }
 
-
+    /// Consume this `SymbolicSuccessor` and turn it into a `SymbolicEngine`.
     pub fn into_engine(self) -> SymbolicEngine {
         self.engine
     }
 }
 
 
+/// An engine for maintaining a symbolic state, performing operations over that
+/// state, and querying that state.
 #[derive(Clone)]
 pub struct SymbolicEngine  {
     scalars: BTreeMap<String, il::Expression>,
@@ -56,6 +73,7 @@ pub struct SymbolicEngine  {
 
 
 impl SymbolicEngine {
+    /// Create a new `SymbolicEngine`
     pub fn new(memory: SymbolicMemory) -> SymbolicEngine {
         SymbolicEngine {
             scalars: BTreeMap::new(),
@@ -64,12 +82,12 @@ impl SymbolicEngine {
         }
     }
 
-
+    /// Get the `SymbolicMemory` backing this engine.
     pub fn memory(&self) -> &SymbolicMemory {
         &self.memory
     }
 
-
+    /// Get a mutable reference to the `SymbolicMemory` backing this reference.
     pub fn memory_mut(&mut self) -> &mut SymbolicMemory {
         &mut self.memory
     }
@@ -527,11 +545,7 @@ pub fn all_constants(expr: &il::Expression) -> bool {
 }
 
 
-pub fn scalar_to_smtlib2(s: &il::Scalar) -> String {
-    s.name().to_string()
-}
-
-
+/// Convert a falcon expression to its `smtlib2` equivalent.
 pub fn expr_to_smtlib2(expr: &il::Expression) -> String {
     match *expr {
         il::Expression::Constant(ref c) => {
@@ -543,7 +557,7 @@ pub fn expr_to_smtlib2(expr: &il::Expression) -> String {
             }
         },
         il::Expression::Scalar(ref s) => {
-            scalar_to_smtlib2(s)
+            s.name().to_string()
         }
         il::Expression::Add ( ref lhs, ref rhs ) =>
             format!("(bvadd {} {})", expr_to_smtlib2(lhs), expr_to_smtlib2(rhs)),

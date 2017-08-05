@@ -1,4 +1,4 @@
-//! Analyses and Optimizations over Vulture IL
+//! Analyses and Optimizations over Falcon IL
 
 pub mod analysis_location;
 // mod constraints;

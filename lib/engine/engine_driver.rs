@@ -1,3 +1,16 @@
+//! An `EngineDriver` drives multiple `SymbolicEngine`s, taking care of control flow from an
+//! `il::Program` and handling `Platform`-specific actions.
+//!
+//! An `EngineDriver` performs the following actions:
+//!   * Keeps track of our current location in an `il::Program`.
+//!   * Handles `SymbolicSuccessor` results from a `SymbolicEngine`.
+//!   * Translates/lifts code using a `translator::Arch` with `SymbolicMemory` as the
+//!     `TranslationMemory` backing when we encounter branch targets we have not yet translated.
+//!
+//! An `EngineDriver` is the core component of symbolic execution with Falcon, whereas a
+//! `SymbolicEngine` is the core component of an `EngineDriver`. `EngineDriver`, "Drives," a
+//! `SymbolicEngine`.
+
 use error::*;
 use engine::*;
 use il;
@@ -29,13 +42,15 @@ pub fn instruction_address(program: &il::Program, address: u64)
 }
 
 
-// A unique location in a function
+/// A unique location in a function
 #[derive(Clone, Debug)]
 pub enum FunctionLocation {
+    /// A function-unique identifier for an instruction.
     Instruction {
         block_index: u64,
         instruction_index: u64,
     },
+    /// A function-unique identifier for an edge.
     Edge {
         head: u64,
         tail: u64
@@ -43,7 +58,7 @@ pub enum FunctionLocation {
 }
 
 
-// A unique location in a program
+/// A unique location in a program
 #[derive(Clone, Debug)]
 pub struct ProgramLocation {
     function_index: u64,
@@ -51,6 +66,7 @@ pub struct ProgramLocation {
 }
 
 impl ProgramLocation {
+    /// Create a new `ProgramLocation`
     pub fn new(
         function_index: u64,
         function_location: FunctionLocation
@@ -64,7 +80,7 @@ impl ProgramLocation {
 
     /// Convert an address to a `ProgramLocation`
     ///
-    /// TODO: Handle cases where the address is invalid
+    /// If the address cannot be found, we return `None`.
     pub fn from_address(address: u64, program: &il::Program)
         -> Option<ProgramLocation> {
 
@@ -113,7 +129,7 @@ impl ProgramLocation {
     /// Advancing a location through the program may be tricky due to edge
     /// cases. For example, we may have an unconditional edge leading to an
     /// empty block, leading to another unconditional edge. In this case, we
-    /// want to advance past all of these things to the next valid instruction.
+    /// want to advance past all of these to the next valid `ProgramLocation`.
     pub fn advance(&self, program: &il::Program) -> Vec<ProgramLocation> {
         // This is the list of locations which no longer need to be advanced
         let mut final_locations = Vec::new();
@@ -236,6 +252,7 @@ impl ProgramLocation {
 }
 
 
+/// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
 pub struct EngineDriver<'e, P> {
     program: Rc<il::Program>,
@@ -247,10 +264,18 @@ pub struct EngineDriver<'e, P> {
 
 
 
-
-
-/// An EngineDriver drive's a symbolic engine through a program
 impl<'e, P> EngineDriver<'e, P> {
+    /// Create a new `EngineDriver`.
+    ///
+    /// # Arguments
+    /// * `program`: An `il::Program`. Must not be complete, but must have the location pointed to by
+    /// _location_ validly translated.
+    /// * `location`: A valid location in _program_, which is the next instruction to execute.
+    /// * `engine`: The `SymbolicEngine` holding the state of the program at this point in time.
+    /// * `arch`: A `translator::Arch` for this program's architecture. This will be used to
+    /// translate unexplored program blocks on the fly.
+    /// * `platform`: The platform we will use to handle `Raise` instructions. `Platform` models the
+    /// external environment and may be stateful.
     pub fn new(
         program: Rc<il::Program>,
         location: ProgramLocation,
@@ -270,7 +295,7 @@ impl<'e, P> EngineDriver<'e, P> {
 
 
     /// Steps this engine forward, consuming the engine and returning some
-    /// variable number of EngineDriver back depending on how many possible
+    /// variable number of `EngineDriver` back depending on how many possible
     /// states are possible.
     pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> {
         let mut new_engine_drivers = Vec::new();
@@ -436,26 +461,27 @@ impl<'e, P> EngineDriver<'e, P> {
         Ok(new_engine_drivers)
     }
 
+    /// Get the platform for this `EngineDriver`
     pub fn platform(&self) -> Rc<P> {
         self.platform.clone()
     }
 
-    /// Return the program for this driver
+    /// Return the program for this `EngineDriver`
     pub fn program(&self) -> &il::Program {
         &self.program
     }
 
-    /// Return the location of this driver
+    /// Return the location of this `EngineDriver`
     pub fn location(&self) -> &ProgramLocation {
         &self.location
     }
 
-    /// Set the location for this driver.
+    /// Set the location for this `EngineDriver`.
     pub fn set_location(&mut self, location: ProgramLocation) {
         self.location = location;
     }
 
-    /// Return the underlying symbolic engine for this driver
+    /// Return the underlying symbolic engine for this `EngineDriver`
     pub fn engine(&self) -> &SymbolicEngine {
         &self.engine
     }
