@@ -26,12 +26,8 @@ RUN cd / && \
     git clone https://github.com/Z3Prover/z3 && \
     cd z3/ && \
     python scripts/mk_make.py && \
-    cd build && make -j 4 && make install
+    cd build && make -j 16 && make install
 
 SHELL ["/bin/bash", "-c"]
 
 COPY . /falcon/
-
-RUN source ~/.profile && \
-    cd /falcon && \
-    cargo build --release -j 4
