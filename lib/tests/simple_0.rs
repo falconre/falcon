@@ -1,28 +1,26 @@
 use error::*;
-use falcon::engine::*;
-use falcon::il;
-use falcon::loader::Loader;
-use falcon::platform::*;
-use std::rc::Rc;
+use engine;
+use engine::*;
+use il;
+use loader;
+use loader::Loader;
+use platform::*;
 use std::path::Path;
+use std::rc::Rc;
 
 
-use engine_driver::*;
-
-
-
-pub fn engine_test () -> Result<()> {
+fn simple_0_test () -> Result<Vec<u8>> {
     // let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
     // let elf = ::falcon::loader::json::Json::from_file(filename)?;
     let filename = Path::new("test_binaries/simple-0/simple-0");
-    let elf = ::falcon::loader::elf::ElfLinker::new(filename)?;
+    let elf = loader::elf::ElfLinker::new(filename)?;
     // let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
 
     let mut program = il::Program::new();
     program.set_function(elf.function(elf.program_entry())?);
 
     // Initialize memory.
-    let mut memory = SymbolicMemory::new(32, ::falcon::engine::Endian::Little);
+    let mut memory = SymbolicMemory::new(32, engine::Endian::Little);
 
     // Load all memory as given by the loader.
     for (address, segment) in elf.memory()?.segments() {
@@ -55,9 +53,7 @@ pub fn engine_test () -> Result<()> {
 
     let target_address: u64 = 0x8048512;
 
-    let mut target_found = false;
-
-    while !target_found {
+    loop {
         let mut new_drivers = Vec::new();
         for driver in drivers {
             {
@@ -74,14 +70,13 @@ pub fn engine_test () -> Result<()> {
                         for assertion in driver.engine().assertions() {
                             println!("Assertion: {}", assertion);
                         }
+                        let mut stdin: Vec<u8> = Vec::new();
                         for scalar in driver.platform().symbolic_variables() {
-                            println!("{} {}",
-                                scalar.name(),
-                                driver.engine().eval(&scalar.clone().into(), None)?.unwrap()
-                            );
+                            let byte = driver.engine().eval(&scalar.clone().into(), None)?.unwrap();
+                            assert!(byte.bits() == 8);
+                            stdin.push(byte.value() as u8);
                         }
-                        target_found = true;
-                        break;
+                        return Ok(stdin);
                     }
                 }
             }
@@ -93,6 +88,21 @@ pub fn engine_test () -> Result<()> {
         }
     }
 
-    Ok(())
+    bail!("Did not find result")
+}
+
+
+#[test]
+pub fn engine_test () -> () {
+    let result: Vec<u8> = vec![0x61, 0x62, 0x63, 0x64 ,0x65, 0x66, 0x67, 0x68];
+    let found = simple_0_test();
+    assert!(found.is_ok());
+
+    let found = found.unwrap();
+
+    for i in 0..result.len() {
+        println!("{} {}", result[i], found[i]);
+        assert!(result[i] == found[i]);
+    }
 }
 

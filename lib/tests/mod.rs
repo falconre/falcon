@@ -1,5 +1,7 @@
-use il;
-use executor;
+#[cfg(test)] use il;
+#[cfg(test)] use executor;
+
+mod simple_0;
 
 #[test]
 fn il_constants () {

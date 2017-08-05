@@ -20,6 +20,16 @@ impl Program {
     }
 
 
+    pub fn function_by_address(&self, address: u64) -> Option<&Function> {
+        for function in &self.functions {
+            if function.1.address() == address {
+                return Some(function.1);
+            }
+        }
+        None
+    }
+
+
     pub fn functions(&self) -> Vec<&Function> {
         self.functions.values().collect::<Vec<&Function>>()
     }

@@ -15,7 +15,6 @@ extern crate log;
 // use clap::{Arg, App};
 use falcon::analysis::*;
 use falcon::il;
-use falcon::il::Variable;
 use falcon::loader::Loader;
 use log::{LogRecord, LogLevel, LogLevelFilter, LogMetadata};
 use std::path::Path;
@@ -36,8 +35,6 @@ pub mod error {
     }
 }
 
-mod symex;
-mod engine_driver;
 
 use error::*;
 
@@ -199,15 +196,17 @@ fn label_def_use(ref mut control_flow_graph: &mut il::ControlFlowGraph)
 
 
 fn run () -> Result<()> {
-    let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
-    let elf = falcon::loader::json::Json::from_file(filename)?;
+    //let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
+    //let elf = falcon::loader::json::Json::from_file(filename)?;
+
+    let filename = Path::new("test_binaries/simple-0/simple-0");
+    let mut elf = falcon::loader::elf::Elf::from_file(filename)?;
+
+    elf.add_user_function(0x804849b);
 
     let program = elf.to_program()?;
 
-    println!("{}", program);
-
-    if let Some(function) = program.function(0x80488CA) {
-        let control_flow_graph = ssa(function.control_flow_graph().clone())?;
+    if let Some(function) = program.function_by_address(0x804849b) {
         let analysis = Analysis::new(function.control_flow_graph())?;
         let mut control_flow_graph = analysis.dead_code_elimination()?;
         // let mut control_flow_graph = analysis.optimize()?;
@@ -228,18 +227,18 @@ fn run () -> Result<()> {
         control_flow_graph.unconditional_edge(block_index, entry)?;
         control_flow_graph.set_entry(block_index)?;
 
-        let mut control_flow_graph = ssa(control_flow_graph)?;
+        let control_flow_graph = ssa(control_flow_graph)?;
 
         // label_value_set(&mut control_flow_graph, elf.architecture()?.endian().clone().into())?;
         // label_def_use(&mut control_flow_graph)?;
         // label_constraints(&mut control_flow_graph)?;
 
+        println!("Writing graph\n");
         let mut file = File::create("/tmp/check.dot")?;
         file.write_all(&control_flow_graph.graph().dot_graph().into_bytes())?;
 
         let mut file = File::create("/tmp/check.bincode")?;
         file.write_all(&bincode::serialize(&control_flow_graph, bincode::Infinite)?)?;
-
     }
 
     Ok(())
@@ -254,5 +253,6 @@ fn main () {
         Box::new(StdoutLogger)
     }).unwrap();
 
-    symex::engine_test().unwrap();
+    // symex::engine_test().unwrap();
+    run().unwrap();
 }

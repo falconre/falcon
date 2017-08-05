@@ -130,11 +130,11 @@ impl SymbolicMemory {
                 let value = il::Expression::shr(value.clone(), shift)?;
                 let value = il::Expression::trun(8, value)?;
                 // trace!("STORE [{:x}]={}", address + offset, value);
-                self.store_byte(address + offset, value);
+                self.store_byte(address + offset, value)?;
             }
         }
         else if value.bits() == 8 {
-            self.store_byte(address, value);
+            self.store_byte(address, value)?;
         }
         else {
             return Err(format!("Invalid bit width in symbolic memory store: {}",

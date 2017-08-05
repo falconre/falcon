@@ -1,8 +1,8 @@
 use error::*;
-use falcon::engine::*;
-use falcon::il;
-use falcon::platform::Platform;
-use falcon::translator;
+use engine::*;
+use il;
+use platform::Platform;
+use translator;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
@@ -356,7 +356,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             };
                         },
                         SuccessorType::Raise(expression) => {
-                            let mut platform = Rc::make_mut(&mut self.platform).to_owned();
+                            let platform = Rc::make_mut(&mut self.platform).to_owned();
                             let locations = self.location.advance(&self.program);
                             let engine = successor.clone().into_engine();
                             let results = match platform.raise(&expression, engine) {
