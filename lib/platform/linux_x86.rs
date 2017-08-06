@@ -1,3 +1,5 @@
+//! An x86 (i386) specific model for Linux.
+
 use engine::engine::*;
 use executor;
 use error::*;
@@ -25,6 +27,7 @@ const KERNEL_VSYSCALL_BYTES: &'static [u8] = &[0x0f, 0x34, 0xc3];
 const KERNEL_VSYSCALL_ADDRESS: u64 = 0xbfff_0000;
 
 
+/// An x86 (i386) specific model for Linux.
 #[derive(Clone)]
 pub struct LinuxX86 {
     linux: linux::Linux
@@ -32,6 +35,7 @@ pub struct LinuxX86 {
 
 
 impl LinuxX86 {
+    /// Create a new `LinuxX86`.
     pub fn new() -> LinuxX86 {
         LinuxX86 {
             linux: linux::Linux::new()
@@ -62,8 +66,6 @@ impl LinuxX86 {
 
         Ok(())
     }
-
-
 
 
     fn initialize_stack(&self, engine: &mut SymbolicEngine)
@@ -182,6 +184,9 @@ impl LinuxX86 {
     }
 
 
+    /// Takes a `SymbolicEngine`, most likely freshly initialized from a `Loader`, and
+    /// initializes both this `LinuxX86` and the `SymbolicEngine` for execution as an
+    /// x86 Linux userland process.
     pub fn initialize(&mut self, engine: &mut SymbolicEngine) -> Result<()> {
 
         self.initialize_stack(engine)?;

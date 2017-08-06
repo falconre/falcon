@@ -1,7 +1,9 @@
+//! A model of the Linux Operating System.
+
 use il;
 use std::collections::BTreeMap;
 
-
+/// A model of the Linux Operating System.
 #[derive(Clone)]
 pub struct Linux {
     files: BTreeMap<i32, File>,
@@ -11,6 +13,7 @@ pub struct Linux {
 
 
 impl Linux {
+    /// Create a new `Linux` model.
     pub fn new() -> Linux {
         Linux {
             files: BTreeMap::new(),
@@ -19,12 +22,12 @@ impl Linux {
         }
     }
 
-
+    /// Get all symbolic variables that have been produced by this instance of `Linux`.
     pub fn symbolic_variables(&self) -> &Vec<il::Scalar> {
         &self.symbolic_variables
     }
 
-
+    /// Open a file.
     pub fn open(&mut self, filename: &str, permissions: u32) -> i32 {
         let fd = self.next_fd;
         self.files.insert(fd,
@@ -35,7 +38,7 @@ impl Linux {
         fd
     }
 
-
+    /// Read from an open file descriptor.
     pub fn read(&mut self, fd: i32, mut length: u64) -> (i32, Vec<il::Scalar>) {
         if let Some(file) = self.files.get_mut(&fd) {
             if length > 4096 {
@@ -53,7 +56,7 @@ impl Linux {
 
 
 #[derive(Clone)]
-pub struct FileDescriptor {
+struct FileDescriptor {
     fd: i32,
     offset: u64
 }
@@ -61,7 +64,7 @@ pub struct FileDescriptor {
 
 impl FileDescriptor {
     /// Create a new file descriptor
-    pub fn new(fd: i32) -> FileDescriptor {
+    fn new(fd: i32) -> FileDescriptor {
         FileDescriptor {
             fd: fd,
             offset: 0
@@ -70,14 +73,14 @@ impl FileDescriptor {
 
 
     /// Seek to a given offset in the file descriptor
-    pub fn seek(&mut self, offset: u64) {
+    fn seek(&mut self, offset: u64) {
         self.offset = offset
     }
 
 
     /// Simulate a read over the file descriptor, returning a vector of
     /// il::Scalar for each byte read.
-    pub fn read(&mut self, length: u64) -> Vec<il::Scalar> {
+    fn read(&mut self, length: u64) -> Vec<il::Scalar> {
         let mut v = Vec::new();
         for _ in 0..length {
             v.push(il::scalar(format!("fd_{}_{}", self.fd, self.offset), 8));
@@ -90,14 +93,14 @@ impl FileDescriptor {
 
 
 #[derive(Clone)]
-pub struct File {
+struct File {
     file_descriptor: FileDescriptor,
     filename: String
 }
 
 
 impl File {
-    pub fn new(file_descriptor: FileDescriptor, filename: String) -> File {
+    fn new(file_descriptor: FileDescriptor, filename: String) -> File {
         File{
             file_descriptor: file_descriptor,
             filename: filename
@@ -105,17 +108,17 @@ impl File {
     }
 
 
-    pub fn filename(&self) -> &str {
+    fn filename(&self) -> &str {
         &self.filename
     }
 
 
-    pub fn file_descriptor(&self) -> &FileDescriptor {
+    fn file_descriptor(&self) -> &FileDescriptor {
         &self.file_descriptor
     }
 
 
-    pub fn file_descriptor_mut(&mut self) -> &mut FileDescriptor {
+    fn file_descriptor_mut(&mut self) -> &mut FileDescriptor {
         &mut self.file_descriptor
     }
 }
