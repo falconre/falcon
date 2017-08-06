@@ -4,7 +4,7 @@ pub mod analysis_location;
 // mod constraints;
 mod dead_code_elimination;
 mod def_use;
-mod fixed_point;
+pub mod fixed_point;
 pub mod lattice;
 mod reaching_definitions;
 // mod simplification;

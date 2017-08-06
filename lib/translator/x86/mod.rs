@@ -230,7 +230,7 @@ impl Arch for X86 {
                     capstone::x86_insn::X86_INS_SHRD => semantics::shrd(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_STC  => semantics::stc(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_STD  => semantics::std(&mut instruction_graph, &instruction),
-                    capstone::x86_insn::X86_INS_STI  => semantics::std(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_STI  => semantics::sti(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_STOSB => semantics::stos(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_STOSW => semantics::stos(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_STOSD => semantics::stos(&mut instruction_graph, &instruction),

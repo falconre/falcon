@@ -66,10 +66,6 @@ impl<'v> ValueSetAnalysis<'v> {
     pub fn control_flow_graph(&self) -> &il::ControlFlowGraph {
         &self.control_flow_graph
     }
-
-    pub fn endian(&self) -> &Endian {
-        &self.endian
-    }
 }
 
 

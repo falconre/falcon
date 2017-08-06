@@ -103,11 +103,21 @@ impl SymbolicEngine {
     /// This assertion must be equal to 0x1:1, or a 1-bit value of 1, for the
     /// state to be satisfiable. This is the result of Falcon IL comparison
     /// expressions.
+    ///
+    /// It is an error to add an assertion that is unsatisfiable in the engine's
+    /// current state.
     pub fn add_assertion(&mut self, mut assertion: il::Expression)
         -> Result<()> {
 
         assertion = self.symbolize_expression(&assertion)?;
-        self.assertions.push(assertion);
+        if all_constants(&assertion) {
+            if executor::constants_expression(&assertion)?.value() != 1 {
+                bail!("Added constant expression != 1 to engine");
+            }
+        }
+        else {
+            self.assertions.push(assertion);
+        }
 
         Ok(())
     }

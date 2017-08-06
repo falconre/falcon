@@ -28,7 +28,7 @@ impl Linux {
     }
 
     /// Open a file.
-    pub fn open(&mut self, filename: &str, permissions: u32) -> i32 {
+    pub fn open(&mut self, filename: &str) -> i32 {
         let fd = self.next_fd;
         self.files.insert(fd,
             File::new(FileDescriptor::new(fd), filename.to_owned()));
@@ -72,12 +72,6 @@ impl FileDescriptor {
     }
 
 
-    /// Seek to a given offset in the file descriptor
-    fn seek(&mut self, offset: u64) {
-        self.offset = offset
-    }
-
-
     /// Simulate a read over the file descriptor, returning a vector of
     /// il::Scalar for each byte read.
     fn read(&mut self, length: u64) -> Vec<il::Scalar> {
@@ -105,16 +99,6 @@ impl File {
             file_descriptor: file_descriptor,
             filename: filename
         }
-    }
-
-
-    fn filename(&self) -> &str {
-        &self.filename
-    }
-
-
-    fn file_descriptor(&self) -> &FileDescriptor {
-        &self.file_descriptor
     }
 
 

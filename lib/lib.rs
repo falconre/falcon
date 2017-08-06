@@ -1,7 +1,5 @@
 //! Falcon: A Binary Analysis Framework in Rust.
 
-//#![allow(dead_code, unused_variables)]
-
 extern crate base64;
 #[macro_use]
 extern crate bitflags;

@@ -558,87 +558,6 @@ impl LatticeMemory {
         self
     }
 
-    /// Helper function to store a LatticeMemoryValue at the given address.
-    ///
-    /// Properly adjusts other adjacent values as necessary.
-    fn store_(&mut self, address: u64, mv: LatticeMemoryValue) {
-        // First we search for an overlappying LatticeMemoryValue before.
-        let overlapping = {
-            let mut overlapping: Vec<(u64, LatticeMemoryValue)> = Vec::new();
-
-            // Search up to 32 bytes back
-            let previous = self.memory.range((address - 32)..address);
-
-            if let Some(previous) = previous.last() {
-                let addr = previous.0;
-                let lmv = previous.1;
-                if addr + lmv.bytes() as u64 - 1 >= address {
-                    let trun = lmv.trun((address - addr) as usize * 8);
-                    overlapping.push((*addr, trun));
-                }
-            }
-
-            overlapping
-        };
-
-        // If we have an overlapping LatticeMemoryValue, we replace it with
-        // the truncated value
-        for overlap in overlapping {
-            if overlap.1.bits() == 0 {
-                panic!("storing overlapping value with bits=0");
-            }
-            self.memory.insert(overlap.0, overlap.1);
-        }
-
-        // No we look to see if this overlaps any other LatticeMemory forward
-        let (drop, forward_overlapping) = {
-            let mut forward_overlapping: Vec<(u64, u64, LatticeMemoryValue)> = Vec::new();
-            let mut drop: Vec<u64> = Vec::new();
-
-            let forward = self.memory
-                          .range(address..(address + mv.bytes() as u64))
-                          .collect::<Vec<(&u64, &LatticeMemoryValue)>>();
-
-            for f in &forward {
-                let addr = f.0;
-                let lmv = f.1;
-                // If we will completely overwrite this value, drop it
-                if addr + lmv.bytes() as u64 <= address + mv.bytes() as u64 {
-                    drop.push(*addr);
-                }
-                // Otherwise, extract the relevant portions and rebase it
-                else {
-                    let offset = ((address + mv.bytes() as u64) - addr) * 8;
-                    let bits = lmv.bits() as u64 - offset;
-                    let oldaddr = addr;
-                    let newaddr = address + mv.bytes() as u64;
-                    let extracted = lmv.extract(offset as usize, bits as usize);
-                    forward_overlapping.push((*oldaddr, newaddr, extracted));
-                }
-            }
-
-            (drop, forward_overlapping)
-        };
-
-        for d in drop {
-            self.memory.remove(&d);
-        }
-
-        for overlap in forward_overlapping {
-            self.memory.remove(&overlap.0);
-            if overlap.2.bits() == 0 {
-                panic!("forward_overlapping bits=0");
-            }
-            self.memory.insert(overlap.1, overlap.2);
-        }
-
-        // Insert our value
-        if mv.bits() == 0 {
-            panic!("insert mv with bits=0");
-        }
-        self.memory.insert(address, mv);
-    }
-
 
     /// Store a value in big-endian into the `LatticeMemory`.
     ///
@@ -667,12 +586,6 @@ impl LatticeMemory {
                         addr.value() as u64,
                         LatticeMemoryValue::new_with_value(bits, value.clone())
                     );
-                    /*
-                    self.store_(
-                        addr.value() as u64,
-                        LatticeMemoryValue::new_with_value(bits, value.clone())
-                    );
-                    */
                 }
                 *self = self.clone().join(&lmv, max);
             }

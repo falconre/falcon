@@ -197,9 +197,9 @@ impl LinuxX86 {
         self.initialize_kernel_vsyscall(engine)?;
         self.initialize_miscellaneous(engine)?;
 
-        self.linux.open("stdin", 0);
-        self.linux.open("stdout", 0);
-        self.linux.open("stderr", 0);
+        self.linux.open("stdin");
+        self.linux.open("stdout");
+        self.linux.open("stderr");
 
         Ok(())
     }
