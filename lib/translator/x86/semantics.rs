@@ -322,24 +322,28 @@ pub fn set_cf(block: &mut Block, result: Expression, lhs: Expression) -> Result<
 
 
 /// Returns a condition which is true if a conditional instruction should be
-/// executed. Used for jcc and cmovcc.
+/// executed. Used for setcc, jcc and cmovcc.
 pub fn cc_condition(instruction: &capstone::Instr) -> Result<Expression> {
     if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
         match instruction_id {
             capstone::x86_insn::X86_INS_CMOVA |
-            capstone::x86_insn::X86_INS_JA => {
+            capstone::x86_insn::X86_INS_JA |
+            capstone::x86_insn::X86_INS_SETA => {
                 let cf = Expr::cmpeq(expr_scalar("CF", 1), expr_const(0, 1))?;
                 let zf = Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?;
                 Expr::and(cf, zf)
             },
             capstone::x86_insn::X86_INS_CMOVAE |
-            capstone::x86_insn::X86_INS_JAE =>
+            capstone::x86_insn::X86_INS_JAE |
+            capstone::x86_insn::X86_INS_SETAE =>
                 Expr::cmpeq(expr_scalar("CF", 1), expr_const(0, 1)),
             capstone::x86_insn::X86_INS_CMOVB |
-            capstone::x86_insn::X86_INS_JB =>
+            capstone::x86_insn::X86_INS_JB |
+            capstone::x86_insn::X86_INS_SETB =>
                 Expr::cmpeq(expr_scalar("CF", 1), expr_const(1, 1)),
             capstone::x86_insn::X86_INS_CMOVBE |
-            capstone::x86_insn::X86_INS_JBE => {
+            capstone::x86_insn::X86_INS_JBE |
+            capstone::x86_insn::X86_INS_SETBE => {
                 let cf = Expr::cmpeq(expr_scalar("CF", 1), expr_const(1, 1))?;
                 let zf = Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1))?;
                 Expr::or(cf, zf)
@@ -353,46 +357,58 @@ pub fn cc_condition(instruction: &capstone::Instr) -> Result<Expression> {
                 Expr::cmpeq(cx, expr_const(0, 32))
             },
             capstone::x86_insn::X86_INS_CMOVE |
-            capstone::x86_insn::X86_INS_JE =>
+            capstone::x86_insn::X86_INS_JE |
+            capstone::x86_insn::X86_INS_SETE =>
                 Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1)),
             capstone::x86_insn::X86_INS_CMOVG |
-            capstone::x86_insn::X86_INS_JG => {
+            capstone::x86_insn::X86_INS_JG |
+            capstone::x86_insn::X86_INS_SETG => {
                 let sfof = Expr::cmpeq(expr_scalar("SF", 1), expr_scalar("OF", 1))?;
                 let zf = Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?;
                 Expr::and(sfof, zf)
             },
             capstone::x86_insn::X86_INS_CMOVGE |
-            capstone::x86_insn::X86_INS_JGE =>
+            capstone::x86_insn::X86_INS_JGE |
+            capstone::x86_insn::X86_INS_SETGE =>
                 Expr::cmpeq(expr_scalar("SF", 1), expr_scalar("OF", 1)),
             capstone::x86_insn::X86_INS_CMOVL |
-            capstone::x86_insn::X86_INS_JL =>
+            capstone::x86_insn::X86_INS_JL |
+            capstone::x86_insn::X86_INS_SETL =>
                 Expr::cmpneq(expr_scalar("SF", 1), expr_scalar("OF", 1)),
             capstone::x86_insn::X86_INS_CMOVLE |
-            capstone::x86_insn::X86_INS_JLE => {
+            capstone::x86_insn::X86_INS_JLE |
+            capstone::x86_insn::X86_INS_SETLE => {
                 let sfof = Expr::cmpneq(expr_scalar("SF", 1), expr_scalar("OF", 1))?;
                 let zf = Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1))?;
                 Expr::and(sfof, zf)
             },
             capstone::x86_insn::X86_INS_CMOVNE |
-            capstone::x86_insn::X86_INS_JNE =>
+            capstone::x86_insn::X86_INS_JNE |
+            capstone::x86_insn::X86_INS_SETNE =>
                 Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1)),
             capstone::x86_insn::X86_INS_CMOVNO |
-            capstone::x86_insn::X86_INS_JNO =>
+            capstone::x86_insn::X86_INS_JNO |
+            capstone::x86_insn::X86_INS_SETNO =>
                 Expr::cmpeq(expr_scalar("OF", 1), expr_const(0, 1)),
             capstone::x86_insn::X86_INS_CMOVNP |
-            capstone::x86_insn::X86_INS_JNP =>
+            capstone::x86_insn::X86_INS_JNP |
+            capstone::x86_insn::X86_INS_SETNP =>
                 Expr::cmpeq(expr_scalar("PF", 1), expr_const(0, 1)),
             capstone::x86_insn::X86_INS_CMOVNS |
-            capstone::x86_insn::X86_INS_JNS =>
+            capstone::x86_insn::X86_INS_JNS |
+            capstone::x86_insn::X86_INS_SETNS =>
                 Expr::cmpeq(expr_scalar("SF", 1), expr_const(0, 1)),
             capstone::x86_insn::X86_INS_CMOVO |
-            capstone::x86_insn::X86_INS_JO  =>
+            capstone::x86_insn::X86_INS_JO |
+            capstone::x86_insn::X86_INS_SETO  =>
                 Expr::cmpeq(expr_scalar("OF", 1), expr_const(1, 1)),
             capstone::x86_insn::X86_INS_CMOVP |
-            capstone::x86_insn::X86_INS_JP  =>
+            capstone::x86_insn::X86_INS_JP |
+            capstone::x86_insn::X86_INS_SETP  =>
                 Expr::cmpeq(expr_scalar("PF", 1), expr_const(1, 1)),
             capstone::x86_insn::X86_INS_CMOVS |
-            capstone::x86_insn::X86_INS_JS  =>
+            capstone::x86_insn::X86_INS_JS |
+            capstone::x86_insn::X86_INS_SETS  =>
                 Expr::cmpeq(expr_scalar("SF", 1), expr_const(1, 1)),
             _ => bail!("unhandled jcc")
         }
@@ -2708,54 +2724,7 @@ pub fn setcc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
-        let expr = if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
-            match instruction_id {
-                capstone::x86_insn::X86_INS_SETAE =>
-                    Expr::cmpeq(expr_scalar("CF", 1), expr_const(0, 1))?,
-                capstone::x86_insn::X86_INS_SETA => Expr::and(
-                        Expr::cmpeq(expr_scalar("CF", 1), expr_const(0, 1))?,
-                        Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?
-                    )?,
-                capstone::x86_insn::X86_INS_SETBE => Expr::or(
-                        Expr::cmpeq(expr_scalar("CF", 1), expr_const(1, 1))?,
-                        Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1))?
-                    )?,
-                capstone::x86_insn::X86_INS_SETB =>
-                    Expr::cmpeq(expr_scalar("CF", 1), expr_const(1, 1))?,
-                capstone::x86_insn::X86_INS_SETE =>
-                    Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1))?,
-                capstone::x86_insn::X86_INS_SETGE =>
-                    Expr::cmpeq(expr_scalar("SF", 1), expr_scalar("OF", 1))?,
-                capstone::x86_insn::X86_INS_SETG => Expr::or(
-                        Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?,
-                        Expr::cmpeq(expr_scalar("SF", 1), expr_scalar("OF", 1))?
-                    )?,
-                capstone::x86_insn::X86_INS_SETLE => Expr::and(
-                        Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1))?,
-                        Expr::cmpneq(expr_scalar("SF", 1), expr_scalar("OF", 1))?
-                    )?,
-                capstone::x86_insn::X86_INS_SETL =>
-                    Expr::cmpneq(expr_scalar("SF", 1), expr_scalar("OF", 1))?,
-                capstone::x86_insn::X86_INS_SETNE =>
-                    Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?,
-                capstone::x86_insn::X86_INS_SETNO =>
-                    Expr::cmpeq(expr_scalar("OF", 1), expr_const(0, 1))?,
-                capstone::x86_insn::X86_INS_SETNP =>
-                    Expr::cmpeq(expr_scalar("PF", 1), expr_const(0, 1))?,
-                capstone::x86_insn::X86_INS_SETNS =>
-                    Expr::cmpeq(expr_scalar("SF", 1), expr_const(0, 1))?,
-                capstone::x86_insn::X86_INS_SETO =>
-                    Expr::cmpeq(expr_scalar("OF", 1), expr_const(1, 1))?,
-                capstone::x86_insn::X86_INS_SETP =>
-                    Expr::cmpeq(expr_scalar("PF", 1), expr_const(1, 1))?,
-                capstone::x86_insn::X86_INS_SETS =>
-                    Expr::cmpeq(expr_scalar("SF", 1), expr_const(1, 1))?,
-                _ => bail!("unhandled setcc")
-            }
-        }
-        else {
-            bail!("unhandled jcc")
-        };
+        let expr = cc_condition(instruction)?;
 
         operand_store(&mut block, &detail.operands[0], Expr::zext(8, expr)?)?;
 
