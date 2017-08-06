@@ -1,11 +1,14 @@
+//! Capstone-based translator for 32-bit x86.
+
 use capstone_rust::{capstone, capstone_sys};
 use error::*;
 use il::*;
 use translator::{Arch, BlockTranslationResult, Endian};
 
 
-pub mod semantics;
+mod semantics;
 
+/// The X86 translator.
 pub struct X86;
 
 

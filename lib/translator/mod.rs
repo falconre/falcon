@@ -1,4 +1,4 @@
-//! Translator from host architectures to Falcon IL
+//! Translates native architectures to Falcon IL.
 
 use error::*;
 use il::*;
@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, VecDeque};
 
 pub mod x86;
 
-
+/// The endianness of the native architecture.
 pub enum Endian {
     Big,
     Little
@@ -16,7 +16,10 @@ pub enum Endian {
 
 const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
 
-
+/// This trait is used by the translator to continually find and lift bytes from an underlying
+/// memory model.
+///
+/// Anything that implements this trait can be used as a memory backing for lifting.
 pub trait TranslationMemory {
     fn get_u8(&self, address: u64) -> Option<u8>;
 
@@ -33,7 +36,18 @@ pub trait TranslationMemory {
 }
 
 
-/// The result of a block translation
+/// The result of a native block translation.
+///
+/// _"Block"_ in `BlockTranslationResult` refers to a block in the native architecture, not a
+/// `Block` from Falcon IL.
+///
+/// # Native blocks translated to `ControlFlowGraph`
+///
+/// While a block on the native architecture may be a linear sequence of instructions,
+/// when lifted this block may actually contain loops, conditionally executed instructions,
+/// and a host of other oddness. Translators therefor return a `ControlFlowGraph` for the
+/// translation of a block. The *entry* and *exit* for this `ControlFlowGraph` should be
+/// set.
 pub struct BlockTranslationResult {
     /// A control flow graph which holds the semantics of this block
     control_flow_graph: ControlFlowGraph,
@@ -47,6 +61,13 @@ pub struct BlockTranslationResult {
 
 
 impl BlockTranslationResult {
+    /// Create a new `BlockTranslationResult`.
+    ///
+    /// # Parameters
+    /// * `control_flow_graph` - A `ControlFlowGraph` representing the semantics of this block.
+    /// * `address` - The address where this block was lifted.
+    /// * `length` - The length of the block in bytes.
+    /// * `successors` - Tuples of addresses and optional conditions for successors to this block.
     pub fn new(
         control_flow_graph: ControlFlowGraph,
         address: u64,
@@ -61,18 +82,22 @@ impl BlockTranslationResult {
         }
     }
 
+    /// Get the `ControlFlowGraph` for this `BlockTranslationResult`
     pub fn control_flow_graph(&self) -> &ControlFlowGraph {
         &self.control_flow_graph
     }
 
+    /// Get the address wherefrom this block was translated.
     pub fn address(&self) -> u64 {
         self.address
     }
 
+    /// Get the length of this block in bytes.
     pub fn length(&self) -> usize {
         self.length
     }
 
+    /// Get the successors for this block.
     pub fn successors(&self) -> &Vec<(u64, Option<Expression>)> {
         &self.successors
     }
@@ -83,9 +108,8 @@ pub trait Arch {
     /// Translates a basic block
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;
 
-
+    /// Get the endianness of this `Arch`.
     fn endian(&self) -> Endian;
-
 
     /// Translates a function
     fn translate_function(
