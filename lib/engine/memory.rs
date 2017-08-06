@@ -32,7 +32,7 @@ struct SymbolicPage {
 impl SymbolicPage {
     fn new(size: usize) -> SymbolicPage {
         let mut v = Vec::new();
-        for i in 0..size {
+        for _ in 0..size {
             v.push(il::expr_const(0, 8));
         }
 
@@ -173,7 +173,7 @@ impl SymbolicMemory {
             let mut result = None;
             let bytes = (bits / 8) as u64;
             for offset in 0..bytes {
-                let expr = match self.load_byte((address + offset))? {
+                let expr = match self.load_byte(address + offset)? {
                     Some(expr) => expr,
                     None => return Ok(None)
                 };

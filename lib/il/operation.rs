@@ -1,3 +1,6 @@
+//! An `Operation` applies semantics to `Array` and `Scalar` with `Expression`, or emits
+//! `Raise`.
+
 use std::fmt;
 use il::*;
 
@@ -39,6 +42,7 @@ pub enum Operation {
 
 
 impl Operation {
+    /// Create a new `Operation::Assign`.
     pub fn assign(dst: Scalar, src: Expression) -> Operation {
         Operation::Assign {
             dst: dst,
@@ -46,26 +50,32 @@ impl Operation {
         }
     }
 
+    /// Create a new `Operation::Store`.
     pub fn store(dst: Array, index: Expression, src: Expression) -> Operation {
         Operation::Store { dst: dst, index: index, src: src }
     }
 
+    /// Create a new `Operation::Load`.
     pub fn load(dst: Scalar, index: Expression, src: Array) -> Operation {
         Operation::Load { dst: dst, index: index, src: src }
     }
 
+    /// Create a new `Operation::Brc`.
     pub fn brc(target: Expression, condition: Expression) -> Operation {
         Operation::Brc { target: target, condition: condition }
     }
 
+    /// Create a new `Operation::Phi`.
     pub fn phi(dst: MultiVar, src: Vec<MultiVar>) -> Operation {
         Operation::Phi { dst: dst, src: src }
     }
 
+    /// Create a new `Operation::Raise`.
     pub fn raise(expr: Expression) -> Operation {
         Operation::Raise { expr: expr }
     }
 
+    /// Get eacn `Variable` read by this `Operation`.
     pub fn variables_read(&self) -> Vec<&Variable> {
         fn collect_scalars(expr: &Expression) -> Vec<&Variable> {
             expr.collect_scalars()
@@ -102,6 +112,7 @@ impl Operation {
         read
     }
 
+    /// Get a mutable reference to each `Variable` read by this `Operation`.
     pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
         fn collect_scalars_mut(expr: &mut Expression) -> Vec<&mut Variable> {
             let mut v: Vec<&mut Variable> = Vec::new();
@@ -142,6 +153,8 @@ impl Operation {
         read
     }
 
+    /// Get a reference to the `Variable` written by this `Operation`, or `None`
+    /// if no `Variable` is written.
     pub fn variable_written(&self) -> Option<&Variable> {
         match *self {
             Operation::Assign { ref dst, .. } |
@@ -153,6 +166,8 @@ impl Operation {
         }
     }
 
+    /// Get a mutable reference to the `Variable` written by this `Operation`, or `None`,
+    /// if no `Variable` is written.
     pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
         match *self {
             Operation::Assign { ref mut dst, .. } |

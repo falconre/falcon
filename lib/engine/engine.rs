@@ -468,7 +468,7 @@ impl SymbolicEngine {
                 // Is it possible for this case not to be taken?
                 let null_case = il::Expression::cmpeq(condition.clone(), il::expr_const(0, 1))?;
                 let r = self.symbolize_and_concretize(&null_case, Some(vec![null_case.clone()]))?;
-                if let Some(r) = r {
+                if r.is_some() {
                     let mut engine = self.fork();
                     engine.add_assertion(null_case)?;
                     let successor = SymbolicSuccessor::new(engine, SuccessorType::FallThrough);
@@ -476,7 +476,7 @@ impl SymbolicEngine {
                 }
                 // This is the true case
                 let r = self.symbolize_and_concretize(&condition, Some(vec![condition.clone()]))?;
-                if let Some(r) = r {
+                if r.is_some() {
                     let t = self.symbolize_and_concretize(target, Some(vec![condition.clone()]))?;
                     if let Some(target) = t {
                         let mut engine = self.fork();

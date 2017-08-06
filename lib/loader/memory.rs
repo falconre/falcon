@@ -5,11 +5,11 @@ use std::cmp::{Ord, Ordering, PartialOrd};
 
 bitflags! {
     pub flags MemoryPermissions: u32 {
-        const NONE    = 0b00000000,
-        const READ    = 0b00000001,
-        const WRITE   = 0b00000010,
-        const EXECUTE = 0b00000100,
-        const ALL     = 0b00000111
+        const NONE    = 0b000,
+        const READ    = 0b001,
+        const WRITE   = 0b010,
+        const EXECUTE = 0b100,
+        const ALL     = 0b111
     }
 }
 

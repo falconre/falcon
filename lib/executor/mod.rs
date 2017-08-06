@@ -1,4 +1,4 @@
-//! Various ways of executing over Falcon IL
+//! Various methods of executing over Falcon IL
 
 use error::*;
 use il;

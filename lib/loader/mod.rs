@@ -127,7 +127,7 @@ pub trait Loader: ::std::fmt::Debug + Clone {
             trace!("adding function at {:X}", address);
             let mut function = translator.translate_function(&memory, address)?;
             function.set_name(Some(function_entry.name().to_string()));
-            program.set_function(function);
+            program.add_function(function);
         }
 
         Ok(program)

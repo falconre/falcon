@@ -24,9 +24,9 @@ pub fn def_use(
             Edge(ref el) => match *el.find(control_flow_graph)
                                      .unwrap()
                                      .condition() {
-                Some(ref condition) => condition.collect_variables()
+                Some(ref condition) => condition.collect_scalars()
                                                 .iter()
-                                                .map(|v| v.multi_var_clone())
+                                                .map(|v| il::MultiVar::Scalar((*v).clone()))
                                                 .collect::<BTreeSet<il::MultiVar>>(),
                 None => BTreeSet::new()
             },
@@ -80,9 +80,9 @@ pub fn use_def(
             Edge(ref el) => match *el.find(control_flow_graph)
                                      .unwrap()
                                      .condition() {
-                Some(ref condition) => condition.collect_variables()
+                Some(ref condition) => condition.collect_scalars()
                                             .iter()
-                                            .map(|v| (*v).multi_var_clone())
+                                            .map(|v| il::MultiVar::Scalar((*v).clone()))
                                             .collect::<BTreeSet<il::MultiVar>>(),
                 None => BTreeSet::new()
             },

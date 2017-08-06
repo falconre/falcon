@@ -1,3 +1,5 @@
+//! A `Scalar` is a variable which holds a single value.
+
 use std::fmt;
 use il::*;
 
@@ -10,6 +12,7 @@ pub struct Scalar {
 
 
 impl Scalar {
+    /// Create a new `Scalar` with the given name and bitness.
     pub fn new<S>(name: S, bits: usize) -> Scalar where S: Into<String> {
         Scalar {
             name: name.into(),
@@ -18,10 +21,12 @@ impl Scalar {
         }
     }
 
+    /// Gets the bitness of the `Scalar`.
     pub fn bits(&self) -> usize {
         self.bits
     }
 
+    /// Gets the name of the `Scalar`.
     pub fn name(&self) -> &str {
         &self.name
     }

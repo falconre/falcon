@@ -195,7 +195,7 @@ impl ProgramLocation {
                         } // if instructions[i].index()
                     } // for i in 0..instructions.len()
                 },
-                FunctionLocation::Edge { head: _, tail } => {
+                FunctionLocation::Edge { head, tail } => {
                     // Get the successor block
                     let block = location.function(program).unwrap()
                                         .block(tail).unwrap();
@@ -360,7 +360,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                     let function = self.arch.translate_function(&engine, address);
                                     match function {
                                         Ok(function) => {
-                                            Rc::make_mut(&mut self.program).set_function(function);
+                                            Rc::make_mut(&mut self.program).add_function(function);
                                             let location = ProgramLocation::from_address(address, &self.program);
                                             if let Some(location) = location {
                                                 new_engine_drivers.push(EngineDriver::new(

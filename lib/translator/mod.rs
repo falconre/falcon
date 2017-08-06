@@ -99,7 +99,7 @@ pub trait Arch {
         translation_queue.push_front(function_address);
 
         // translate all blocks in the function
-        while translation_queue.len() > 0 {
+        while !translation_queue.is_empty() {
             let block_address = translation_queue.pop_front().unwrap();
 
             if translation_results.contains_key(&block_address) {
@@ -130,9 +130,9 @@ pub trait Arch {
 
         // Insert the edges
         for result in translation_results {
-            let &(_, this_exit) = indices.get(&result.0).unwrap();
+            let (_, this_exit) = indices[&result.0];
             for successor in result.1.successors().iter() {
-                let &(that_entry, _) = indices.get(&successor.0).unwrap();
+                let (that_entry, _) = indices[&successor.0];
                 match successor.1 {
                     Some(ref condition) => control_flow_graph.conditional_edge(this_exit, that_entry, condition.clone())?,
                     None => control_flow_graph.unconditional_edge(this_exit, that_entry)?

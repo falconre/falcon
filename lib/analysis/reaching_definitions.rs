@@ -28,22 +28,10 @@ impl Reaches {
         }
     }
 
-    fn in_insert(&mut self, analysis_location: AnalysisLocation) {
-        self.in_.insert(analysis_location);
-    }
-
-    fn in_remove(&mut self, analysis_location: &AnalysisLocation) {
-        self.in_.remove(analysis_location);
-    }
-
     /// The set of `AnalysisLocation`s whose variables written are valid upon
     /// entry to this `Reach`.
     pub fn in_(&self) -> &BTreeSet<AnalysisLocation> {
         &self.in_
-    }
-
-    fn set_in(&mut self, in_: BTreeSet<AnalysisLocation>) {
-        self.in_ = in_;
     }
 
     fn set_in_to_out(&mut self) {
@@ -62,10 +50,6 @@ impl Reaches {
     /// exit from this `Reach`.
     pub fn out(&self) -> &BTreeSet<AnalysisLocation> {
         &self.out
-    }
-
-    fn set_out(&mut self, out: BTreeSet<AnalysisLocation>) {
-        self.out = out;
     }
 
     // Provides a string representation of this struct.

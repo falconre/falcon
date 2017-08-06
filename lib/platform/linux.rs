@@ -79,7 +79,7 @@ impl FileDescriptor {
     /// il::Scalar for each byte read.
     pub fn read(&mut self, length: u64) -> Vec<il::Scalar> {
         let mut v = Vec::new();
-        for i in 0..length {
+        for _ in 0..length {
             v.push(il::scalar(format!("fd_{}_{}", self.fd, self.offset), 8));
             self.offset += 1;
         }

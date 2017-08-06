@@ -8,23 +8,21 @@ use platform::Platform;
 
 
 const SYS_READ:  u32 = 3;
-const SYS_WRITE: u32 = 4;
-const SYS_OPEN:  u32 = 5;
-const SYS_CLOSE: u32 = 6;
+// const SYS_WRITE: u32 = 4;
+// const SYS_OPEN:  u32 = 5;
+// const SYS_CLOSE: u32 = 6;
 
+const STACK_ADDRESS: u64 = 0xb000_0000;
+const STACK_SIZE: u64 = 0x0001_0000;
+const INITIAL_STACK_POINTER: u64 = STACK_ADDRESS - 0x0000_1000;
 
-
-const STACK_ADDRESS: u64 = 0xb0000000;
-const STACK_SIZE: u64 = 0x10000;
-const INITIAL_STACK_POINTER: u64 = STACK_ADDRESS - 0x1000;
-
-const FS_BASE: u64 = 0xbf000000;
-const FS_SIZE: u64 = 0x8000;
-const GS_BASE: u64 = 0xbf008000;
-const GS_SIZE: u64 = 0x8000;
+const FS_BASE: u64 = 0xbf00_0000;
+const FS_SIZE: u64 = 0x0000_8000;
+const GS_BASE: u64 = 0xbf00_8000;
+const GS_SIZE: u64 = 0x0000_8000;
 
 const KERNEL_VSYSCALL_BYTES: &'static [u8] = &[0x0f, 0x34, 0xc3];
-const KERNEL_VSYSCALL_ADDRESS: u64 = 0xbfff0000;
+const KERNEL_VSYSCALL_ADDRESS: u64 = 0xbfff_0000;
 
 
 #[derive(Clone)]
@@ -84,13 +82,16 @@ impl LinuxX86 {
     fn initialize_segments(&self, engine: &mut SymbolicEngine)
         -> Result<()> {
 
-        // Set up space for fs/gs from 0xbf000000 to 0xbf010000
-        for i in 0..0x10000 {
-            engine.memory_mut().store((0xbf000000 as u64 + i as u64), il::expr_const(0, 8))?;
+        for i in 0..FS_SIZE {
+            engine.memory_mut().store((FS_BASE as u64 + i), il::expr_const(0, 8))?;
         }
 
         for i in 0..FS_SIZE {
             engine.memory_mut().store(FS_BASE - FS_SIZE + i, il::expr_const(0, 8))?;
+        }
+
+        for i in 0..GS_SIZE {
+            engine.memory_mut().store((GS_BASE as u64 + i), il::expr_const(0, 8))?;
         }
 
         for i in 0..GS_SIZE {
@@ -186,6 +187,7 @@ impl LinuxX86 {
         self.initialize_stack(engine)?;
         self.initialize_segments(engine)?;
         self.initialize_command_line_arguments(engine)?;
+        self.initialize_environment_variables(engine)?;
         self.initialize_segments(engine)?;
         self.initialize_kernel_vsyscall(engine)?;
         self.initialize_miscellaneous(engine)?;

@@ -1,3 +1,5 @@
+//! A `ControlFlowGraph` is a directed `Graph` of `Block` and `Edge`.
+
 use std::cell::Cell;
 use std::collections::{BTreeMap};
 use std::fmt;
@@ -5,6 +7,16 @@ use il::*;
 
 
 /// Edge between IL blocks
+///
+/// A Falcon IL `Edge` has an optional condition. When the condition is present, the `Edge` is,
+/// "Guarded," by the `Expression` in the condition. `Edge` conditions are `Expressions` that must
+/// evaluate to a 1-bit `Constant`. When the condition evaluates to 1, the `Edge` may be taken.
+/// Otherwise the `Edge` is not taken. When the condition is not present, the `Edge` is
+/// unconditional and will always be taken.
+///
+/// To create a new edge, call `ControlFlowGraph::unconditional_edge` or
+/// `ControlFlowGraph::conditional_edge`.
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Edge {
     head: u64,
@@ -15,7 +27,7 @@ pub struct Edge {
 
 
 impl Edge {
-    pub fn new(head: u64, tail: u64, condition: Option<Expression>) -> Edge {
+    pub(crate) fn new(head: u64, tail: u64, condition: Option<Expression>) -> Edge {
         Edge {
             head: head,
             tail: tail,
@@ -24,22 +36,28 @@ impl Edge {
         }
     }
 
-
+    /// Retrieve the condition for this `Edge`.
     pub fn condition(&self) -> &Option<Expression> {
         &self.condition
     }
 
+    /// Retrieve a mutable reference to the condition for this `Edge`
     pub fn condition_mut(&mut self) -> &mut Option<Expression> {
         &mut self.condition
     }
 
+    /// Retrieve the index of the head `Vertex` for this `Edge`.
     pub fn head(&self) -> u64 { self.head }
+
+    /// Retrieve the index of the tail `Vertex` for this `Edge`.
     pub fn tail(&self) -> u64 { self.tail }
 
+    /// Set the comment for this `Edge`.
     pub fn set_comment(&mut self, comment: Option<String>) {
         self.comment = comment;
     }
 
+    /// Get the comment for this `Edge`.
     pub fn comment(&self) -> &Option<String> {
         &self.comment
     }
@@ -72,7 +90,16 @@ impl graph::Edge for Edge {
 }
 
 
-/// A graph of IL blocks
+/// A directed graph of types `Block` and `Edge`.
+///
+/// # Entry and Exit
+/// A `ControlFlowGraph` has an optional, "Entry," and an optional, "Exit." When these are
+/// provided, certain convenience functions become available.
+///
+/// For example, when translating a native instruction to Falcon IL, it can be useful to consider
+/// an instruction as its own `ControlFlowGraph`. `rep scasb` is a great example of when this
+/// pattern is helpful. Instructions in a `Block` will have one entry, and one exit. Explicitly
+/// declaring these makes merging `ControlFlowGraph`s easier.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ControlFlowGraph {
     // The internal graph used to store our blocks.
@@ -108,7 +135,7 @@ impl ControlFlowGraph {
         &self.graph
     }
 
-
+    /// Sets the entry point for this `ControlFlowGraph` to the given `Block` index.
     pub fn set_entry(&mut self, entry: u64) -> Result<()> {
         if self.graph.has_vertex(entry) {
             self.entry = Some(entry);
@@ -117,7 +144,7 @@ impl ControlFlowGraph {
         Err("Index does not exist for set_entry".into())
     }
 
-
+    /// Sets the exit point for this `ControlFlowGraph` to the given `Block` index.
     pub fn set_exit(&mut self, exit: u64) -> Result<()> {
         if self.graph.has_vertex(exit) {
             self.exit = Some(exit);
@@ -126,54 +153,52 @@ impl ControlFlowGraph {
         Err("Index does not exist for set_exit".into())
     }
 
-
+    /// Get the entry `Block` index for this `ControlFlowGraph`.
     pub fn entry(&self) -> Option<u64> {
         self.entry
     }
 
-
+    /// Get the exit `Block` index for this `ControlFlowGraph`.
     pub fn exit(&self) -> Option<u64> {
         self.exit
     }
 
-
-    /// Return a block by index
+    /// Get a `Block` by index.
     pub fn block(&self, index: u64) -> Option<&Block> {
         self.graph.vertex(index)
     }
 
-
+    /// Get a mutable reference to a `Block` by index.
     pub fn block_mut(&mut self, index: u64) -> Option<&mut Block> {
         self.graph.vertex_mut(index)
     }
 
-
-    /// Get all the blocks in this graph.
+    /// Get every `Block` in this `ControlFlowGraph`.
     pub fn blocks(&self) -> Vec<&Block> {
         self.graph.vertices()
     }
 
-
+    /// Get a mutable reference to every `Block` in this `ControlFlowGraph`.
     pub fn blocks_mut(&mut self) -> Vec<&mut Block> {
         self.graph.vertices_mut()
     }
 
-
+    /// Get an `Edge` by its head and tail `Block` indices.
     pub fn edge(&self, head: u64, tail: u64) -> Option<&Edge> {
         self.graph.edge(head, tail)
     }
 
-
+    /// Get a mutable reference to an `Edge` by its head and tail `Block` indices.
     pub fn edge_mut(&mut self, head: u64, tail: u64) -> Option<&mut Edge> {
         self.graph.edge_mut(head, tail)
     }
 
-
+    /// Get every `Edge` in thie `ControlFlowGraph`.
     pub fn edges(&self) -> Vec<&Edge> {
         self.graph.edges()
     }
 
-
+    /// Get a mutable reference to every `Edge` in this `ControlFlowGraph`.
     pub fn edges_mut(&mut self) -> Vec<&mut Edge> {
         self.graph.edges_mut()
     }
@@ -234,7 +259,10 @@ impl ControlFlowGraph {
     }
 
 
-    /// Merges all blocks that should be merged
+    /// Merge `Block`s.
+    ///
+    /// When a `Block` as only one successor, and that successor has only one predecessor, we
+    /// merge both into one `Block`. 
     pub fn merge(&mut self) -> Result<()> {
         loop {
             let mut merge_index = None;
@@ -370,11 +398,15 @@ impl ControlFlowGraph {
         Ok(())
     }
 
-    /// Inserts a control flow graph into this control flow graph, and returns 
+    /// Inserts a control flow graph into this control flow graph, and returns
+    /// the entry and exit indices for inserted graph.
     ///
-    /// Requires the graph being inserted to have entry set. On success, the
-    /// new indices for the other block's entry and exit will be returned. This
-    /// will cause the control flow graph to be disconnected.
+    /// Requires the graph being inserted to have entry set.
+    ///
+    /// This function causes the `ControlFlowGraph` to become disconnected.
+    ///
+    /// This function is useful for inserting multiple `ControlFlowGraph`s into
+    /// one before adding all `Edge`s in a subsequent pass.
     ///
     /// # Warnings
     /// This invalidates the entry and exit of the control flow graph.

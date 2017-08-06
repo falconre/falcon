@@ -574,7 +574,7 @@ impl LatticeMemory {
                 let lmv = previous.1;
                 if addr + lmv.bytes() as u64 - 1 >= address {
                     let trun = lmv.trun((address - addr) as usize * 8);
-                    overlapping.push((addr.clone(), trun));
+                    overlapping.push((*addr, trun));
                 }
             }
 
@@ -599,12 +599,12 @@ impl LatticeMemory {
                           .range(address..(address + mv.bytes() as u64))
                           .collect::<Vec<(&u64, &LatticeMemoryValue)>>();
 
-            for f in forward.iter() {
+            for f in &forward {
                 let addr = f.0;
                 let lmv = f.1;
                 // If we will completely overwrite this value, drop it
                 if addr + lmv.bytes() as u64 <= address + mv.bytes() as u64 {
-                    drop.push(addr.clone());
+                    drop.push(*addr);
                 }
                 // Otherwise, extract the relevant portions and rebase it
                 else {
@@ -613,7 +613,7 @@ impl LatticeMemory {
                     let oldaddr = addr;
                     let newaddr = address + mv.bytes() as u64;
                     let extracted = lmv.extract(offset as usize, bits as usize);
-                    forward_overlapping.push((oldaddr.clone(), newaddr, extracted));
+                    forward_overlapping.push((*oldaddr, newaddr, extracted));
                 }
             }
 
@@ -718,7 +718,7 @@ impl LatticeMemory {
             }
 
             // Nope, return None
-            return None;
+            None
         }
         // We read a value, but it didn't contain enough bits for our load
         else if let Some(mut lmv_result) = lmv_result {
@@ -735,11 +735,11 @@ impl LatticeMemory {
                     }
                     // Is it just right?
                     else if lmv.bits() == bits - lmv_result.bits() {
-                        return Some(lmv_result.concat(&lmv).value.clone());
+                        return Some(lmv_result.concat(lmv).value.clone());
                     }
                     // If it's too small, concat it and keep looping
                     else {
-                        lmv_result = lmv_result.concat(&lmv);
+                        lmv_result = lmv_result.concat(lmv);
                     }
                 }
                 else {
@@ -765,10 +765,10 @@ impl LatticeMemory {
     ) -> Option<LatticeValue> {
         let mut lv_result: Option<LatticeValue> = None;
 
-        match address {
-            &Join |
-            &Meet => {}, // TODO is this the right thing to do here?
-            &Values(ref addresses) => {
+        match *address {
+            Join |
+            Meet => {}, // TODO is this the right thing to do here?
+            Values(ref addresses) => {
                 for addr in addresses {
                     let address_u64 = addr.value();
                     let lv = self.load_(address_u64, bits);

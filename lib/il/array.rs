@@ -1,6 +1,17 @@
+//! An `Array` is designed to represent memory locations.
+//!
+//! Arrays are used to represent memory. Typically, we will just use one array to represent
+//! all of addressable memory space. Using a variable to explicitly identify memory allows for
+//! things like, "Versioned," memory, or applying SSA to memory accesses.
+//!
+//! Falcon's IL does not support things like passing an `Array` in a `Scalar`, or
+//! an index into to an `Array` through a `Scalar`. This prevents certain interesting types
+//! of analyses, and may change in future iterations of the IL.
+
 use std::fmt;
 use il::*;
 
+/// An Array in Falcon IL
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Array {
     name: String,
@@ -10,6 +21,10 @@ pub struct Array {
 
 
 impl Array {
+    /// Create a new array.
+    ///
+    /// Size is the size of the `Array` in bytes. This does not trigger an allocation, but
+    /// sets the, "Size," of the `Array`.
     pub fn new<S>(name: S, size: u64) -> Array where S: Into<String> {
         Array {
             name: name.into(),
@@ -18,6 +33,7 @@ impl Array {
         }
     }
 
+    /// Get the size of the `Array`.
     pub fn size(&self) -> u64 {
         self.size
     }

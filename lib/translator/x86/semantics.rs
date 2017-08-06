@@ -714,12 +714,12 @@ pub fn bswap(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
 
         let expr = Expr::or(
             Expr::or(
-                Expr::and(Expr::shl(src.clone(), expr_const(24, 32))?, expr_const(0xff000000, 32))?,
-                Expr::and(Expr::shl(src.clone(), expr_const(8, 32))?, expr_const(0x00ff0000, 32))?
+                Expr::and(Expr::shl(src.clone(), expr_const(24, 32))?, expr_const(0xff00_0000, 32))?,
+                Expr::and(Expr::shl(src.clone(), expr_const(8, 32))?, expr_const(0x00ff_0000, 32))?
             )?,
             Expr::or(
-                Expr::and(Expr::shr(src.clone(), expr_const(8, 32))?, expr_const(0x0000ff00, 32))?,
-                Expr::and(Expr::shr(src, expr_const(24, 32))?, expr_const(0x000000ff, 32))?
+                Expr::and(Expr::shr(src.clone(), expr_const(8, 32))?, expr_const(0x0000_ff00, 32))?,
+                Expr::and(Expr::shr(src, expr_const(24, 32))?, expr_const(0x0000_00ff, 32))?
             )?
         )?;
 
@@ -1081,7 +1081,7 @@ pub fn btr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         block.assign(scalar("CF", 1), Expr::trun(1, temp.clone().into())?);
 
         let expr = Expr::shl(expr_const(1, base.bits()), offset.into())?;
-        let expr = Expr::xor(expr, expr_const(0xffffffffffffffff, base.bits()))?;
+        let expr = Expr::xor(expr, expr_const(0xffff_ffff_ffff_ffff, base.bits()))?;
         let expr = Expr::and(base.into(), expr)?;
 
         operand_store(&mut block, &detail.operands[0], expr)?;
@@ -1198,7 +1198,7 @@ pub fn cbw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn cdq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn cdq(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -1220,7 +1220,7 @@ pub fn cdq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn clc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn clc(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -1237,7 +1237,7 @@ pub fn clc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn cld(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn cld(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -1254,7 +1254,7 @@ pub fn cld(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn cli(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn cli(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -1271,7 +1271,7 @@ pub fn cli(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn cmc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn cmc(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -1514,7 +1514,7 @@ pub fn cmpxchg(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone
 
 
 
-pub fn cwd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn cwd(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -1953,7 +1953,7 @@ pub fn lea(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn leave(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn leave(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -2035,7 +2035,7 @@ pub fn lodsb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
 
 
 
-pub fn loop_(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn loop_(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -2279,7 +2279,7 @@ pub fn neg(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn nop(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         control_flow_graph.new_block()?.index()
     };
@@ -2973,7 +2973,7 @@ pub fn shrd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
 
 
-pub fn stc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn stc(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -2990,7 +2990,7 @@ pub fn stc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn std(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn std(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -3007,7 +3007,7 @@ pub fn std(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn sti(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sti(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         let mut block = control_flow_graph.new_block()?;
 
@@ -3125,9 +3125,7 @@ pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn sysenter(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
-    let detail = try!(details(instruction));
-
+pub fn sysenter(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     // create a block for this instruction
     let block_index = {
         let mut block = control_flow_graph.new_block()?;

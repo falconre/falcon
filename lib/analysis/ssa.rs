@@ -299,9 +299,9 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         let unassigned: Vec<il::MultiVar> = edge.condition()
                                                 .clone()
                                                 .unwrap()
-                                                .collect_variables()
+                                                .collect_scalars()
                                                 .iter()
-                                                .map(|v| v.multi_var_clone())
+                                                .map(|v| il::MultiVar::Scalar((*v).clone()))
                                                 .collect();
 
         let found = find_assignments(

@@ -1,8 +1,17 @@
+//! A `Block` is a linear sequences of `Instruction`.
+//!
+//! A `Block` must belong to a `ControlFlowGraph`. A `Block` contains many `Instruction`.
+//!
+//! When building a series of `Operation`/`Instruction`, we normally do so by calling the relevant
+//! method directly on the block where we wish to add the `Instruction`.
+//!
+//! To create a `Block`, call `ControlFlowGraph::new_block`.
+
 use std::fmt;
 use il::*;
 
 
-/// A basic block.
+/// A basic block in Falcon IL.
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Block {
     /// The index of the block.
@@ -17,7 +26,7 @@ pub struct Block {
 
 
 impl Block {
-    pub fn new(index: u64) -> Block {
+    pub(crate) fn new(index: u64) -> Block {
         Block {
             index: index,
             next_instruction_index: 0,
@@ -39,7 +48,9 @@ impl Block {
     }
 
 
-    /// Appends the contents of another block to this block.
+    /// Appends the contents of another `Block` to this `Block`.
+    ///
+    /// Instruction indices are updated accordingly.
     pub fn append(&mut self, other: &Block) {
         for instruction in other.instructions().iter() {
             let instruction = instruction.clone_new_index(self.new_instruction_index());
@@ -48,24 +59,26 @@ impl Block {
     }
 
 
-    /// Returns the index of this block
+    /// Returns the index of this `Block`
     pub fn index(&self) -> u64 {
         self.index
     }
 
 
-    /// Returns this block's instructions
+    /// Returns instructions for this `Block`
     pub fn instructions(&self) -> &Vec<Instruction> {
         &self.instructions
     }
 
 
+    /// Returns a mutable reference to the instructions for this `Block`.
     pub fn instructions_mut(&mut self) -> &mut Vec<Instruction> {
         &mut self.instructions
     }
 
 
-    /// Returns a copy of an instruction by index
+    /// Returns an `Instruction` by index, or `None` if the instruction does not
+    /// exist.
     pub fn instruction(&self, index: u64) -> Option<&Instruction> {
         for instruction in &self.instructions {
             if instruction.index() == index {
@@ -76,6 +89,8 @@ impl Block {
     }
 
 
+    /// Returns a mutable reference to an `Instruction` by index, or `None` if
+    /// the `Instruction` does not exist.
     pub fn instruction_mut<>(&mut self, index: u64) -> Option<&mut Instruction> {
         for i in 0..self.instructions.len() {
             if self.instructions[i].index() == index {
@@ -86,7 +101,7 @@ impl Block {
     }
 
 
-    /// Deletes an operation by its index
+    /// Deletes an `Instruction` by its index.
     pub fn remove_instruction(&mut self, index: u64) -> Result<()> {
         let mut vec_index = None;
         for i in 0..self.instructions.len() {
@@ -106,7 +121,7 @@ impl Block {
 
 
     /// Clone this block and set a new index.
-    pub fn clone_new_index(&self, index: u64) -> Block {
+    pub(crate) fn clone_new_index(&self, index: u64) -> Block {
         let mut clone = self.clone();
         clone.index = index;
         clone

@@ -314,7 +314,7 @@ impl Arch for X86 {
                 bail!("not an x86 instruction")
             }
 
-            offset = offset + instruction.size as usize;
+            offset += instruction.size as usize;
         }
 
         Ok(BlockTranslationResult::new(block_graph, address, length, successors))

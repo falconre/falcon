@@ -1,14 +1,15 @@
-use error::*;
-use engine;
-use engine::*;
-use il;
-use loader;
-use loader::Loader;
-use platform::*;
-use std::path::Path;
-use std::rc::Rc;
+#[cfg(test)]use error::*;
+#[cfg(test)]use engine;
+#[cfg(test)]use engine::*;
+#[cfg(test)]use il;
+#[cfg(test)]use loader;
+#[cfg(test)]use loader::Loader;
+#[cfg(test)]use platform::*;
+#[cfg(test)]use std::path::Path;
+#[cfg(test)]use std::rc::Rc;
 
 
+#[cfg(test)]
 fn simple_0_test () -> Result<Vec<u8>> {
     // let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
     // let elf = ::falcon::loader::json::Json::from_file(filename)?;
@@ -17,7 +18,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
     // let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
 
     let mut program = il::Program::new();
-    program.set_function(elf.function(elf.program_entry())?);
+    program.add_function(elf.function(elf.program_entry())?);
 
     // Initialize memory.
     let mut memory = SymbolicMemory::new(engine::Endian::Little);

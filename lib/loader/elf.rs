@@ -24,11 +24,9 @@ fn clone_into_array<A, T>(slice: &[T]) -> A
 
 
 /// The address where the first library will be loaded
-const DEFAULT_LIB_BASE: u64 = 0x80000000;
+const DEFAULT_LIB_BASE: u64 = 0x8000_0000;
 /// The step in address between where we will load libraries.
-const LIB_BASE_STEP: u64    = 0x04000000;
-/// TLS address
-const TLS: u64              = 0xaf000000;
+const LIB_BASE_STEP: u64    = 0x0400_0000;
 
 
 // Loads and links multiple ELFs together
@@ -263,7 +261,7 @@ impl Loader for ElfLinker {
                            .unwrap()
                            .to_str()
                            .unwrap();
-        return self.loaded[filename].program_entry();
+        self.loaded[filename].program_entry()
     }
 
     fn architecture(&self) -> Result<Architecture> {
@@ -273,7 +271,7 @@ impl Loader for ElfLinker {
                            .unwrap()
                            .to_str()
                            .unwrap();
-        return self.loaded[filename].architecture();
+        self.loaded[filename].architecture()
     }
 }
 
@@ -368,8 +366,6 @@ impl Elf {
     /// Return the strings from the DT_NEEDED entries.
     pub fn dt_needed(&self) -> Result<Vec<String>> {
         let mut v = Vec::new();
-
-        let memory = self.memory()?;
 
         let elf = self.elf();
         if let Some(dynamic) = elf.dynamic {
