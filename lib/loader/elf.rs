@@ -1,4 +1,4 @@
-//! Load ELF binaries into Falcon
+//! ELF Linker/Loader
 
 use error::*;
 use goblin;
@@ -29,7 +29,7 @@ const DEFAULT_LIB_BASE: u64 = 0x8000_0000;
 const LIB_BASE_STEP: u64    = 0x0400_0000;
 
 
-// Loads and links multiple ELFs together
+/// Loads and links multiple ELFs together
 #[derive(Clone, Debug)]
 pub struct ElfLinker {
     /// The filename (path included) of the file we're loading.
@@ -227,6 +227,10 @@ impl ElfLinker {
         Ok(())
     }
 
+    /// Inform the linker of a function at the given address.
+    ///
+    /// This function will be added to calls to `function_entries` and will be automatically
+    /// lifted when calling `to_program`.
     pub fn add_user_function(&mut self, address: u64) {
         self.user_functions.push(address);
     }
@@ -278,14 +282,14 @@ impl Loader for ElfLinker {
 
 
 #[derive(Clone, Debug)]
-pub struct ElfSymbol {
+struct ElfSymbol {
     name: String,
     address: u64
 }
 
 
 impl ElfSymbol {
-    pub fn new<S: Into<String>>(name: S, address: u64) -> ElfSymbol {
+    fn new<S: Into<String>>(name: S, address: u64) -> ElfSymbol {
         ElfSymbol {
             name: name.into(),
             address: address
@@ -293,18 +297,18 @@ impl ElfSymbol {
     }
 
 
-    pub fn name(&self) -> &str {
+    fn name(&self) -> &str {
         &self.name
     }
 
 
-    pub fn address(&self) -> u64 {
+    fn address(&self) -> u64 {
         self.address
     }
 }
 
 
-
+/// Loads a single ELf.
 #[derive(Clone, Debug)]
 pub struct Elf {
     base_address: u64,
@@ -314,6 +318,8 @@ pub struct Elf {
 
 
 impl Elf {
+    /// Create a new Elf from the given bytes. This Elf will be rebased to the given
+    /// base address.
     pub fn new(bytes: Vec<u8>, base_address: u64) -> Result<Elf> {
         let peek_bytes: [u8; 16] = clone_into_array(&bytes[0..16]);
         // Load this Elf
@@ -358,7 +364,7 @@ impl Elf {
         Elf::from_file_with_base_address(filename, 0)
     }
 
-    // Allow the user to manually specify a function entry
+    /// Allow the user to manually specify a function entry
     pub fn add_user_function(&mut self, address: u64) {
         self.user_function_entries.push(address);
     }
@@ -419,7 +425,7 @@ impl Elf {
     }
 
     /// Return all symbols exported from this Elf
-    pub fn exported_symbols(&self) -> Vec<ElfSymbol> {
+    fn exported_symbols(&self) -> Vec<ElfSymbol> {
         let mut v = Vec::new();
         let elf = self.elf();
         for sym in elf.dynsyms {

@@ -12,7 +12,7 @@ opt-level = 0
 [dependencies]
 base64 = "0.5"
 bincode = "0.8"
-bitflags = "0.8"
+bitflags = "0.9"
 capstone_rust = { git = "https://github.com/endeav0r/capstone-rust", rev="67d98f1" }
 clap = "2.24"
 error-chain = "0.10"

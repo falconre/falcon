@@ -1,19 +1,23 @@
+//! A representation of memory given by an executable/loader.
+
 use error::*;
 use translator::TranslationMemory;
 use std::collections::BTreeMap;
 use std::cmp::{Ord, Ordering, PartialOrd};
 
 bitflags! {
-    pub flags MemoryPermissions: u32 {
-        const NONE    = 0b000,
-        const READ    = 0b001,
-        const WRITE   = 0b010,
-        const EXECUTE = 0b100,
-        const ALL     = 0b111
+    /// RWX permissions for memory.
+    pub struct MemoryPermissions: u32 {
+        const NONE    = 0b000;
+        const READ    = 0b001;
+        const WRITE   = 0b010;
+        const EXECUTE = 0b100;
+        const ALL     = 0b111;
     }
 }
 
 
+/// A continuous memory area of any size given by a loader.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MemorySegment {
     address: u64,
@@ -22,7 +26,7 @@ pub struct MemorySegment {
 }
 
 impl MemorySegment {
-    pub fn new(address: u64, bytes: Vec<u8>, permissions: MemoryPermissions)
+    pub(crate) fn new(address: u64, bytes: Vec<u8>, permissions: MemoryPermissions)
     -> MemorySegment {
         MemorySegment {
             address: address,
@@ -31,28 +35,29 @@ impl MemorySegment {
         }
     }
 
+    /// Get the address of this `MemorySegment`.
     pub fn address(&self) -> u64 {
         self.address
     }
 
+    /// Get a `u8` slice of this `MemorySegment`'s contents.
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }
 
+    /// Get a mutable reference to the contents of this `MemorySegment`.
     pub fn bytes_mut(&mut self) -> &mut Vec<u8> {
         &mut self.bytes
     }
 
+    /// Get the permissions given to this `MemorySegment` by the loader.
     pub fn permissions(&self) -> MemoryPermissions {
         self.permissions
     }
 
+    /// Get the length of this `MemorySegment` in bytes.
     pub fn len(&self) -> usize {
         self.bytes.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
     }
 
     fn truncate(&mut self, new_size: usize) {
@@ -73,6 +78,7 @@ impl PartialOrd for MemorySegment {
 }
 
 
+/// A full representation of all memory as given by a loader.
 #[derive(Clone, Debug)]
 pub struct Memory {
     segments: BTreeMap<u64, MemorySegment>
@@ -88,8 +94,8 @@ impl Memory {
 
     /// Add a `MemorySegment` to this `Memory`
     ///
-    /// Does handle overlapping memory segments, placing this segment,
-    /// "On top of," any existing segments.
+    /// Handles overlapping memory segments, placing this segment, "On top of," any
+    /// existing segments.
     pub fn add_segment(&mut self, segment: MemorySegment) {
         // handle overlapping segments
         let mut add_segments = Vec::new();
@@ -146,6 +152,8 @@ impl Memory {
         None
     }
 
+    /// Get a single `u8` from the specified address, or `None` if nothing exists at the given
+    /// address.
     pub fn get_u8(&self, address: u64) -> Option<u8> {
         for segment in &self.segments {
             if *segment.0 <= address && segment.0 + segment.1.len() as u64 > address {
@@ -158,6 +166,7 @@ impl Memory {
         None
     }
 
+    /// Set the `u8` at the given address.
     pub fn set_u8(&mut self, address: u64, value: u8) -> Result<()> {
         for segment in &mut self.segments {
             if *segment.0 <= address && segment.0 + segment.1.len() as u64 > address {
@@ -168,6 +177,7 @@ impl Memory {
         bail!("Invalid index 0x{:x} into memory segments", address)
     }
 
+    /// Get a little-endian `u32` from the given address.
     pub fn get_u32_le(&self, address: u64) -> Option<u32> {
         let mut result: u32 = 0;
         for i in 0..4 {
@@ -179,6 +189,7 @@ impl Memory {
         Some(result)
     }
 
+    /// Set a little-endian `u32` at the given address.
     pub fn set_u32_le(&mut self, address: u64, mut value: u32) -> Result<()> {
         for i in address..(address + 4 as u64) {
             let value_u8: u8 = (value & 0xff) as u8;
@@ -203,6 +214,7 @@ impl Memory {
         None
     }
 
+    /// Get a mapping of address to `MemorySegment` for each `MemorySegment` in this `Memory`.
     pub fn segments(&self) -> &BTreeMap<u64, MemorySegment> {
         &self.segments
     }

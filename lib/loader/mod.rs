@@ -9,6 +9,7 @@ use translator;
 use il;
 use std::fmt;
 
+/// An enum of architectures supported by the loader.
 #[derive(Clone, Debug)]
 pub enum Architecture {
     X86
@@ -16,6 +17,7 @@ pub enum Architecture {
 
 
 impl Architecture {
+    /// Get the endiannes of an `Architecture`
     pub fn endian(&self) -> Endian {
         match *self {
             Architecture::X86 => Endian::Little
@@ -24,6 +26,7 @@ impl Architecture {
 }
 
 
+/// An enum representing endiannes for a loader.
 #[derive(Clone, Debug)]
 pub enum Endian {
     Big,
@@ -41,6 +44,7 @@ impl Into<translator::Endian> for Endian {
 }
 
 
+/// A declared entry point for a function.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionEntry {
     address: u64,
@@ -49,6 +53,9 @@ pub struct FunctionEntry {
 
 
 impl FunctionEntry {
+    /// Create a new `FunctionEntry`.
+    ///
+    /// If no name is provided: `sup_{:X}` will be used to name the function.
     pub fn new(address: u64, name: Option<String>) -> FunctionEntry {
         match name {
             Some(name) => FunctionEntry {
@@ -64,10 +71,12 @@ impl FunctionEntry {
         }
     }
 
+    /// Get the address for this `FunctionEntry`.
     pub fn address(&self) -> u64 {
         self.address
     }
 
+    /// Get the name for this `FunctionEntry`.
     pub fn name(&self) -> &str {
         &self.name
     }
