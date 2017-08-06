@@ -210,7 +210,7 @@ impl SymbolicEngine {
                     il::Expression::Scalar(scalar.clone())
                 }
             }
-            il::Expression::Constant(ref constant) => expression.clone(),
+            il::Expression::Constant(_) => expression.clone(),
             il::Expression::Add(ref lhs, ref rhs) =>
                 il::Expression::add(self.symbolize_expression(lhs)?,
                                     self.symbolize_expression(rhs)?)?,
@@ -432,7 +432,7 @@ impl SymbolicEngine {
                 self.set_scalar(dst.name(), src);
                 vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
             },
-            il::Operation::Store { ref dst, ref index, ref src } => {
+            il::Operation::Store { ref index, ref src, .. } => {
                 let src = self.symbolize_and_eval(src)?;
                 let index = self.symbolize_and_concretize(index, None)?;
                 if let Some(index) = index {
@@ -443,7 +443,7 @@ impl SymbolicEngine {
                     Vec::new()
                 }
             },
-            il::Operation::Load { ref dst, ref index, ref src } => {
+            il::Operation::Load { ref dst, ref index, .. } => {
                 let index_ = self.symbolize_and_concretize(index, None)?;
                 if let Some(index) = index_ {
                     let value = self.memory.load(index.value(), dst.bits())?;
@@ -490,7 +490,7 @@ impl SymbolicEngine {
                 }
                 successors
             },
-            il::Operation::Phi { ref dst, ref src } => {
+            il::Operation::Phi { .. } => {
                 panic!("Phi unimplemented");
             },
             il::Operation::Raise { ref expr } => {

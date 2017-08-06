@@ -195,7 +195,7 @@ impl ProgramLocation {
                         } // if instructions[i].index()
                     } // for i in 0..instructions.len()
                 },
-                FunctionLocation::Edge { head, tail } => {
+                FunctionLocation::Edge { head: _, tail } => {
                     // Get the successor block
                     let block = location.function(program).unwrap()
                                         .block(tail).unwrap();

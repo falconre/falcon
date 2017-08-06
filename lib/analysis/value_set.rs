@@ -132,7 +132,7 @@ impl<'v> FixedPointAnalysis<LatticeAssignments> for ValueSetAnalysis<'v> {
                         );
                         state_out
                     }
-                    il::Operation::Store { ref dst, ref index, ref src } => {
+                    il::Operation::Store { ref index, ref src, .. } => {
                         let index = state_out.eval(index);
                         let mut value = state_out.eval(src);
                         if self.endian == Endian::Little {
