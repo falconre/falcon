@@ -1,13 +1,7 @@
 [package]
 name = "falcon"
-version = "0.0.1"
+version = "0.1.0"
 authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
-
-
-[profile.dev]
-codegen-units = 4
-opt-level = 0
-
 
 [dependencies]
 base64 = "0.5"
@@ -27,8 +21,3 @@ serde = {version = "1.0.8", features = ["rc"]}
 [lib]
 name = "falcon"
 path = "lib/lib.rs"
-
-
-[[bin]]
-name = "falcon_bin"
-path = "bin/main.rs"
