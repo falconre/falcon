@@ -68,8 +68,8 @@ fn simple_0_test () -> Result<Vec<u8>> {
                     let address = instruction.address().unwrap();
                     if address == target_address {
                         println!("Reached Target Address");
-                        for assertion in driver.engine().assertions() {
-                            println!("Assertion: {}", assertion);
+                        for constraint in driver.engine().constraints() {
+                            println!("Constraint: {}", constraint);
                         }
                         let mut stdin: Vec<u8> = Vec::new();
                         for scalar in driver.platform().symbolic_scalars() {
