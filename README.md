@@ -4,18 +4,25 @@
 
 Falcon is a formal binary analysis framework in Rust. Falcon seeks to implement data-flow analysis, abstract interpretation, and constraint solving over compiled, binary executables.
 
-* Currently unstable. See _Should I use Falcon?_ for explanation on when Falcon will be suitable for public digestion.
 * Expression-based IL with strong influences from [Binary Ninja](https://binary.ninja) LLIL and RREIL.
 * Semantically-equivalent binary translation.
 * IL can be translated to smtlib2 (z3) and solved for. Under-pinnings for symbolic execution provided.
 * Fixed-point engine for data-flow analysis and abstract interpretation. Basis analyses provided.
 * Lifters for Binary formats (initially Elf). This includes run-time linking, assuming dependencies are provided.
 
+# Questions / Support
+
+Documentation is available [here](https://files.reversing.io/falcon-docs/0.1.0/falcon/). I am idling in irc.freenode.net#rust-falcon. You can also find me in the Binary Ninja slack under the name "endeavor".
+
 # Should I use Falcon? / When will Falcon be stabilized?
 
-When Falcon hits `0.1.0`, all tasks in the current `0.1.0` milestone will be complete, and Falcon will symbolically explore the `simple-0` example. At this time I will consider the IL stable, and any errors in translation/lifting as critical. `0.1.0` will be suitable for use in translating binaries, assuming you can wait for, or contribute, fixes to translation as needed.
+Falcon has hit `0.1.0`. This means:
 
-There will be some refactoring after `0.1.0`, with a heavy focus on analysis and symbolic execution. More-To-Follow on those items post `0.1.0`.
+* "Things are working," but, "Everything has not been flushed out."
+* Falcon is capable of producing results for toy binaries.
+* I am ready for people to open issues, and receive feedback.
+
+There will most likely be some API changes in the next few releases. If you aren't actively developing on Falcon, I recommend you use tagged released.
 
 # Building
 
