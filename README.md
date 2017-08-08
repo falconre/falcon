@@ -12,7 +12,9 @@ Falcon is a formal binary analysis framework in Rust. Falcon seeks to implement 
 
 # Questions / Support
 
-Documentation is available [here](https://files.reversing.io/falcon-docs/0.1.0/falcon/). I am idling in irc.freenode.net#rust-falcon. You can also find me in the Binary Ninja slack under the name "endeavor".
+* Documentation is available [here](https://files.reversing.io/falcon-docs/0.1.0/falcon/).
+* I am idling in irc.freenode.net#rust-falcon.
+* You can also find me in the Binary Ninja slack under the name "endeavor".
 
 # Should I use Falcon? / When will Falcon be stabilized?
 
@@ -22,14 +24,12 @@ Falcon has hit `0.1.0`. This means:
 * Falcon is capable of producing results for toy binaries.
 * I am ready for people to open issues, and receive feedback.
 
-There will most likely be some API changes in the next few releases. If you aren't actively developing on Falcon, I recommend you use tagged released.
+There will most likely be some API changes in the next few releases. If you aren't actively developing on Falcon, I recommend you use a tagged released.
 
 # Building
 
 As of 1.18, everything, including docs, builds with rust stable.
 
 You will need the correct dependencies for bindgen to build the capstone bindings, as well as `z3` on the commandline. The `Dockerfile` has everything required to get you set up.
-
-Build and run the docker to see the latest output of whatever I'm working on. Things will be cleaned up for `0.1.0`.
 
 For OSX (on which I'm developing), `brew install z3` seems to be enough to make things work, as well as a typical rust install.
