@@ -225,7 +225,7 @@ impl Platform<LinuxX86> for LinuxX86 {
 
         match eax.value() as u32 {
             SYS_READ => {
-                info!("SYS_READ");
+                trace!("SYS_READ");
                 let (ebx, ecx, edx) = {
                     let ebx = match engine.get_scalar_only_concrete("ebx")? {
                         Some(ebx) => ebx,
@@ -250,12 +250,12 @@ impl Platform<LinuxX86> for LinuxX86 {
                 // For now, we will concretize ecx/edx
                 let address = engine.symbolize_and_concretize(&ecx, None)?.unwrap();
                 if !all_constants(&ecx) {
-                    engine.add_assertion(il::Expression::cmpeq(ecx, address.clone().into())?)?;
+                    engine.add_constraint(il::Expression::cmpeq(ecx, address.clone().into())?)?;
                 }
 
                 let length = engine.symbolize_and_concretize(&edx, None)?.unwrap();
                 if !all_constants(&edx) {
-                    engine.add_assertion(il::Expression::cmpeq(edx, length.clone().into())?)?;
+                    engine.add_constraint(il::Expression::cmpeq(edx, length.clone().into())?)?;
                 }
 
                 // Get variables for the data we're about to read
@@ -268,7 +268,7 @@ impl Platform<LinuxX86> for LinuxX86 {
                 engine.set_scalar("eax", il::expr_const(result as u64, 32));
 
                 Ok(vec![(self, engine)])
-            }
+            },
             _ => bail!("Unhandled system call {}", eax.value())
         }
     }

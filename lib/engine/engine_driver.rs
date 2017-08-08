@@ -431,7 +431,7 @@ impl<'e, P> EngineDriver<'e, P> {
                         if self.engine.sat(Some(vec![condition.clone()]))? {
                             println!("Expression sat");
                             let mut engine = self.engine.clone();
-                            engine.add_assertion(condition.clone())?;
+                            engine.add_constraint(condition.clone())?;
                             let locations = self.location.advance(&self.program);
                             if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(

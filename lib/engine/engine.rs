@@ -68,7 +68,7 @@ impl SymbolicSuccessor {
 pub struct SymbolicEngine  {
     scalars: BTreeMap<String, il::Expression>,
     memory: SymbolicMemory,
-    assertions: Vec<il::Expression>,
+    constraints: Vec<il::Expression>,
 }
 
 
@@ -78,7 +78,7 @@ impl SymbolicEngine {
         SymbolicEngine {
             scalars: BTreeMap::new(),
             memory: memory,
-            assertions: Vec::new(),
+            constraints: Vec::new(),
         }
     }
 
@@ -93,30 +93,30 @@ impl SymbolicEngine {
     }
 
 
-    pub fn assertions(&self) -> &Vec<il::Expression> {
-        &self.assertions
+    pub fn constraints(&self) -> &Vec<il::Expression> {
+        &self.constraints
     }
 
 
-    /// Add an assertion to this state.
+    /// Add constraint to this state.
     ///
-    /// This assertion must be equal to 0x1:1, or a 1-bit value of 1, for the
+    /// This constraint must be equal to 0x1:1, or a 1-bit value of 1, for the
     /// state to be satisfiable. This is the result of Falcon IL comparison
     /// expressions.
     ///
-    /// It is an error to add an assertion that is unsatisfiable in the engine's
+    /// It is an error to add a constraint that is unsatisfiable in the engine's
     /// current state.
-    pub fn add_assertion(&mut self, mut assertion: il::Expression)
+    pub fn add_constraint(&mut self, mut constraint: il::Expression)
         -> Result<()> {
 
-        assertion = self.symbolize_expression(&assertion)?;
-        if all_constants(&assertion) {
-            if executor::constants_expression(&assertion)?.value() != 1 {
+        constraint = self.symbolize_expression(&constraint)?;
+        if all_constants(&constraint) {
+            if executor::constants_expression(&constraint)?.value() != 1 {
                 bail!("Added constant expression != 1 to engine");
             }
         }
         else {
-            self.assertions.push(assertion);
+            self.constraints.push(constraint);
         }
 
         Ok(())
@@ -161,36 +161,36 @@ impl SymbolicEngine {
     pub fn symbolize_and_concretize(
         &self,
         expression: &il::Expression,
-        mut assertions: Option<Vec<il::Expression>>
+        mut constraints: Option<Vec<il::Expression>>
     ) -> Result<Option<il::Constant>> {
 
         let expression = self.symbolize_expression(expression)?;
 
-        assertions = match assertions {
+        constraints = match constraints {
             None => None,
-            Some(assertions) => Some(assertions
+            Some(constraints) => Some(constraints
                 .iter()
-                .map(|assertion| self.symbolize_expression(&assertion).unwrap())
+                .map(|constraint| self.symbolize_expression(&constraint).unwrap())
                 .collect::<Vec<il::Expression>>())
         };
 
-        if let Some(ref assertions) = assertions {
-            for assertion in assertions {
-                if !all_constants(&assertion) {
-                    return self.eval(&expression, Some(assertions.to_vec()))
+        if let Some(ref constraints) = constraints {
+            for constraint in constraints {
+                if !all_constants(&constraint) {
+                    return self.eval(&expression, Some(constraints.to_vec()))
                 }
-                if executor::constants_expression(&assertion)?.value() != 1 {
+                if executor::constants_expression(&constraint)?.value() != 1 {
                     return Ok(None);
                 }
             }
         }
 
-        // At this point, assertions are all constants
+        // At this point, constraints are all constants
         if all_constants(&expression) {
             Ok(Some(executor::constants_expression(&expression)?))
         }
         else {
-            self.eval(&expression, assertions)
+            self.eval(&expression, constraints)
         }
     }
 
@@ -201,7 +201,7 @@ impl SymbolicEngine {
         SymbolicEngine {
             scalars: self.scalars.clone(),
             memory: self.memory.clone(),
-            assertions: self.assertions.clone()
+            constraints: self.constraints.clone()
         }
     }
 
@@ -279,12 +279,12 @@ impl SymbolicEngine {
     }
 
 
-    /// Evaluates an expression in the solver. If assertions are given, enforces
-    /// these extra assertions.
+    /// Evaluates an expression in the solver. If constraints are given, enforces
+    /// these extra constraints.
     pub fn eval(
         &self,
         expr: &il::Expression,
-        assertions: Option<Vec<il::Expression>>
+        constraints: Option<Vec<il::Expression>>
     ) -> Result<Option<il::Constant>> {
 
         let mut solver_lines : Vec<String> = Vec::new();
@@ -292,23 +292,23 @@ impl SymbolicEngine {
         solver_lines.push("(set-logic QF_AUFBV)".to_string());
         solver_lines.push("(set-info :smt-lib-version 2.0)".to_string());
 
-        let assertions = match assertions {
-            Some(assertions) => {
-                let mut a = Vec::new();
-                for assertion in assertions {
-                    a.push(self.symbolize_and_eval(&assertion)?);
+        let constraints = match constraints {
+            Some(constraints) => {
+                let mut c = Vec::new();
+                for constraint in constraints {
+                    c.push(self.symbolize_and_eval(&constraint)?);
                 }
-                a.append(&mut self.assertions.clone());
-                a
+                c.append(&mut self.constraints.clone());
+                c
             },
-            None => self.assertions.clone()
+            None => self.constraints.clone()
         };
 
-        // Collect all the scalars from our assertions
-        let mut assertion_scalars: BTreeSet<(String, usize)> = BTreeSet::new();
-        for assertion in &assertions {
-            for scalar in assertion.collect_scalars() {
-                assertion_scalars.insert(
+        // Collect all the scalars from our constraints
+        let mut constraint_scalars: BTreeSet<(String, usize)> = BTreeSet::new();
+        for constraint in &constraints {
+            for scalar in constraint.collect_scalars() {
+                constraint_scalars.insert(
                     (scalar.name().to_string(), scalar.bits())
                 );
             }
@@ -316,24 +316,24 @@ impl SymbolicEngine {
 
         // Add in scalars from our expression
         for scalar in expr.collect_scalars() {
-            assertion_scalars.insert(
+            constraint_scalars.insert(
                 (scalar.name().to_string(), scalar.bits())
             );
         }
 
         // Add in a special variable for this eval so we can get the result
-        assertion_scalars.insert(("EVAL_RESULT".to_string(), expr.bits()));
+        constraint_scalars.insert(("EVAL_RESULT".to_string(), expr.bits()));
 
         // Create all of our variable declarations
-        for assertion_scalar in &assertion_scalars {
+        for constraint_scalar in &constraint_scalars {
             solver_lines.push(format!("(declare-fun {} () (_ BitVec {}))",
-                assertion_scalar.0, assertion_scalar.1));
+                constraint_scalar.0, constraint_scalar.1));
         }
 
-        // Assert our assertions
-        for assertion in &assertions {
+        // Assert our constraints
+        for constraint in &constraints {
             solver_lines.push(format!("(assert (= #b1 {}))",
-                expr_to_smtlib2(&assertion)));
+                expr_to_smtlib2(&constraint)));
         }
 
         // Assert this expression
@@ -416,14 +416,14 @@ impl SymbolicEngine {
     }
 
 
-    /// Determine whether the assertions of this state are satisfiable
-    pub fn sat(&self, assertions: Option<Vec<il::Expression>>) -> Result<bool> {
+    /// Determine whether the constraints of this state are satisfiable
+    pub fn sat(&self, constraints: Option<Vec<il::Expression>>) -> Result<bool> {
         // An expression that will always evaluate to true
         let expression = il::Expression::cmpeq(
             il::expr_const(1, 1),
             il::expr_const(1, 1)
         ).unwrap();
-        if self.eval(&expression, assertions)?.is_some() {
+        if self.eval(&expression, constraints)?.is_some() {
             Ok(true)
         }
         else {
@@ -480,7 +480,7 @@ impl SymbolicEngine {
                 let r = self.symbolize_and_concretize(&null_case, Some(vec![null_case.clone()]))?;
                 if r.is_some() {
                     let mut engine = self.fork();
-                    engine.add_assertion(null_case)?;
+                    engine.add_constraint(null_case)?;
                     let successor = SymbolicSuccessor::new(engine, SuccessorType::FallThrough);
                     successors.push(successor);
                 }
@@ -490,7 +490,7 @@ impl SymbolicEngine {
                     let t = self.symbolize_and_concretize(target, Some(vec![condition.clone()]))?;
                     if let Some(target) = t {
                         let mut engine = self.fork();
-                        engine.add_assertion(condition.clone())?;
+                        engine.add_constraint(condition.clone())?;
                         let successor = SymbolicSuccessor::new(
                             engine,
                             SuccessorType::Branch(target.value())
