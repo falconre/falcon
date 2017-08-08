@@ -259,7 +259,7 @@ impl Platform<LinuxX86> for LinuxX86 {
                 }
 
                 // Get variables for the data we're about to read
-                let (result, read) = self.linux.read(fd.value() as i32, length.value());
+                let (result, read) = self.linux.read(fd.value() as i32, length.value() as usize);
 
                 for i in 0..read.len() as u64 {
                     engine.memory_mut().store(address.value() + i, read[i as usize].to_owned().into())?;
@@ -274,7 +274,7 @@ impl Platform<LinuxX86> for LinuxX86 {
     }
 
 
-    fn symbolic_variables(&self) -> Vec<il::Scalar> {
-        self.linux.symbolic_variables().to_owned()
+    fn symbolic_scalars(&self) -> Vec<il::Scalar> {
+        self.linux.symbolic_scalars().to_owned()
     }
 }

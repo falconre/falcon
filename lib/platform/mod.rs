@@ -15,5 +15,5 @@ pub trait Platform<P: Platform<P>> : Clone {
     -> Result<Vec<(P, SymbolicEngine)>>;
 
     /// Get each `Scalar` produced by this `Platform`.
-    fn symbolic_variables(&self) -> Vec<il::Scalar>;
+    fn symbolic_scalars(&self) -> Vec<il::Scalar>;
 }

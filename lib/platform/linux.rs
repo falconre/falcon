@@ -1,14 +1,16 @@
 //! A model of the Linux Operating System.
 
 use il;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 /// A model of the Linux Operating System.
 #[derive(Clone)]
 pub struct Linux {
-    files: BTreeMap<i32, File>,
+    files: BTreeMap<String, RefCell<File>>,
+    file_descriptors: BTreeMap<i32, FileDescriptor>,
     next_fd: i32,
-    symbolic_variables: Vec<il::Scalar>
+    symbolic_scalars: Vec<il::Scalar>
 }
 
 
@@ -17,39 +19,55 @@ impl Linux {
     pub fn new() -> Linux {
         Linux {
             files: BTreeMap::new(),
+            file_descriptors: BTreeMap::new(),
             next_fd: 0,
-            symbolic_variables: Vec::new()
+            symbolic_scalars: Vec::new()
         }
     }
 
     /// Get all symbolic variables that have been produced by this instance of `Linux`.
-    pub fn symbolic_variables(&self) -> &Vec<il::Scalar> {
-        &self.symbolic_variables
+    pub fn symbolic_scalars(&self) -> &Vec<il::Scalar> {
+        &self.symbolic_scalars
     }
 
     /// Open a file.
     pub fn open(&mut self, filename: &str) -> i32 {
-        let fd = self.next_fd;
-        self.files.insert(fd,
-            File::new(FileDescriptor::new(fd), filename.to_owned()));
+        if self.files.get(filename).is_none() {
+            let file = RefCell::new(File::new(filename.to_owned()));
+            self.files.insert(filename.to_owned(), file);
+        }
 
+        let file = self.files.get(filename).unwrap();
+        let file_descriptor = FileDescriptor::new(self.next_fd, file.clone());
+        self.file_descriptors.insert(self.next_fd, file_descriptor);
         self.next_fd += 1;
-
-        fd
+        self.next_fd - 1
     }
 
     /// Read from an open file descriptor.
-    pub fn read(&mut self, fd: i32, mut length: u64) -> (i32, Vec<il::Scalar>) {
-        if let Some(file) = self.files.get_mut(&fd) {
+    pub fn read(&mut self, fd: i32, mut length: usize) -> (i32, Vec<il::Expression>) {
+        if let Some(file_descriptor) = self.file_descriptors.get_mut(&fd) {
             if length > 4096 {
                 length = 4096;
             }
-            let v = file.file_descriptor_mut().read(length);
-            self.symbolic_variables.append(&mut v.clone());
-            return (v.len() as i32, v);
+            let mut file_read_result = file_descriptor.read(length);
+            self.symbolic_scalars.append(&mut file_read_result.new_symbolic_scalars);
+            (file_read_result.bytes.len() as i32, file_read_result.bytes)
         }
         else {
-            return (-9, Vec::new())
+            (-9, Vec::new())
+        }
+    }
+
+    /// Write to an open file descriptor
+    pub fn write(&mut self, fd: i32, contents: Vec<il::Expression>) -> i32 {
+        if let Some(file_descriptor) = self.file_descriptors.get_mut(&fd) {
+            let length = contents.len();
+            file_descriptor.write(contents);
+            length as i32
+        }
+        else {
+            -9
         }
     }
 }
@@ -58,51 +76,105 @@ impl Linux {
 #[derive(Clone)]
 struct FileDescriptor {
     fd: i32,
-    offset: u64
+    offset: u64,
+    // TODO: This should be more generic
+    io: RefCell<File>
 }
 
 
 impl FileDescriptor {
     /// Create a new file descriptor
-    fn new(fd: i32) -> FileDescriptor {
+    fn new(fd: i32, io: RefCell<File>) -> FileDescriptor {
         FileDescriptor {
             fd: fd,
-            offset: 0
+            offset: 0,
+            io: io
         }
     }
 
 
     /// Simulate a read over the file descriptor, returning a vector of
     /// il::Scalar for each byte read.
-    fn read(&mut self, length: u64) -> Vec<il::Scalar> {
-        let mut v = Vec::new();
-        for _ in 0..length {
-            v.push(il::scalar(format!("fd_{}_{}", self.fd, self.offset), 8));
-            self.offset += 1;
-        }
-        v
+    fn read(&mut self, length: usize) -> FileReadResult {
+        let offset = self.offset;
+        let result = self.io.get_mut().read(offset, length, self.fd);
+        self.offset += length as u64;
+        result
     }
 
+
+    /// Simulate a write over the file descriptor
+    fn write(&mut self, contents: Vec<il::Expression>) {
+        self.io.get_mut().write(self.offset, contents);
+    }
 }
 
 
+
+struct FileReadResult {
+    bytes: Vec<il::Expression>,
+    new_symbolic_scalars: Vec<il::Scalar>
+}
+
+
+trait IOHandle {
+    /// Read from an I/O device, such as a `File` or a Socket
+    fn read(&mut self, offset: u64, length: usize, fd: i32) -> FileReadResult;
+
+    /// Write to an I/O device, such as a `File` or a Socket
+    fn write(&mut self, offset: u64, contents: Vec<il::Expression>);
+}
+
+
+/// Model of a File in Linux
 #[derive(Clone)]
 struct File {
-    file_descriptor: FileDescriptor,
-    filename: String
+    filename: String,
+    contents: BTreeMap<u64, il::Expression>
 }
 
 
 impl File {
-    fn new(file_descriptor: FileDescriptor, filename: String) -> File {
+    fn new(filename: String) -> File {
         File{
-            file_descriptor: file_descriptor,
-            filename: filename
+            filename: filename,
+            contents: BTreeMap::new()
+        }
+    }
+}
+
+
+impl IOHandle for File {
+    fn read(&mut self, offset: u64, length: usize, fd: i32) -> FileReadResult {
+        let mut bytes = Vec::new();
+        let mut new_symbolic_scalars = Vec::new();
+
+        for i in offset..(offset + length as u64) {
+            if let Some(expr) = self.contents.get(&i) {
+                bytes.push(expr.clone());
+            }
+            else {
+                let scalar = il::scalar(
+                    format!("fd_{}_{}", fd, i),
+                    8
+                );
+                bytes.push(scalar.clone().into());
+                new_symbolic_scalars.push(scalar);
+            }
+        }
+
+        FileReadResult {
+            bytes: bytes,
+            new_symbolic_scalars: new_symbolic_scalars
         }
     }
 
 
-    fn file_descriptor_mut(&mut self) -> &mut FileDescriptor {
-        &mut self.file_descriptor
+    fn write(&mut self, offset: u64, contents: Vec<il::Expression>) {
+        let mut off = offset;
+        for expr in contents {
+            self.contents.insert(off, expr);
+            off += 1;
+        }
     }
 }
