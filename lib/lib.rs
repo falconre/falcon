@@ -9,6 +9,8 @@ extern crate core;
 extern crate error_chain;
 extern crate goblin;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
 extern crate regex;
 extern crate serde;
