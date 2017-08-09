@@ -13,6 +13,7 @@ Falcon is a formal binary analysis framework in Rust. Falcon seeks to implement 
 # Questions / Support
 
 * Documentation is available [here](https://files.reversing.io/falcon-docs/0.1.0/falcon/).
+* I write about Falcon on my [blog](http://reversing.io/). [Just posts about Falcon](http://reversing.io/tags/falcon/).
 * I am idling in irc.freenode.net#rust-falcon.
 * You can also find me in the Binary Ninja slack under the name "endeavor".
 
