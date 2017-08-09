@@ -355,7 +355,7 @@ impl<'e, P> EngineDriver<'e, P> where P: Send + Sync {
                                 ));
                             }
                             else {
-                                for location in self.location.advance(&self.program) {
+                                for location in locations {
                                     new_engine_drivers.push(EngineDriver::new(
                                         self.program.clone(),
                                         location,
@@ -438,14 +438,26 @@ impl<'e, P> EngineDriver<'e, P> where P: Send + Sync {
                 match *edge.condition() {
                     None => {
                         if edge.condition().is_none() {
-                            for location in self.location.advance(&self.program) {
+                            let locations = self.location.advance(&self.program);
+                            if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
-                                    location,
-                                    self.engine.clone(),
+                                    locations[0].clone(),
+                                    self.engine,
                                     self.arch,
                                     self.platform.clone()
                                 ));
+                            }
+                            else {
+                                for location in self.location.advance(&self.program) {
+                                    new_engine_drivers.push(EngineDriver::new(
+                                        self.program.clone(),
+                                        location,
+                                        self.engine.clone(),
+                                        self.arch,
+                                        self.platform.clone()
+                                    ));
+                                }
                             }
                         }
                     },
