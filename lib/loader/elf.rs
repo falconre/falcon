@@ -146,7 +146,6 @@ impl ElfLinker {
                 goblin::elf::reloc::R_386_32 => {
                     let ref sym = dynsyms[reloc.r_sym];
                     let sym_name = dynstrtab.get(sym.st_name);
-                    trace!("R_386_32 {}:0x{:x}:{}", filename, reloc.r_offset, sym_name);
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
                         None => bail!("Could not resolve symbol {}", sym_name)
@@ -170,7 +169,6 @@ impl ElfLinker {
                 goblin::elf::reloc::R_386_GLOB_DAT => {
                     let ref sym = dynsyms[reloc.r_sym];
                     let sym_name = dynstrtab.get(sym.st_name);
-                    trace!("R_386_GLOB_DAT {}:0x{:x}:{}", filename, reloc.r_offset, sym_name);
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
                         None => {
@@ -194,14 +192,8 @@ impl ElfLinker {
                         reloc.r_offset as u64 + elf.base_address(),
                         value
                     )?;
-                    trace!("R_386_JMP_SLOT {}:0x{:x}:{} = 0x{:x}",
-                        filename,
-                        reloc.r_offset,
-                        sym_name,
-                        value);
                 },
                 goblin::elf::reloc::R_386_RELATIVE => {
-                    trace!("R_386_RELATIVE {}:{:x}", filename, reloc.r_offset);
                     let value = self.memory.get_u32_le(reloc.r_offset as u64 + elf.base_address());
                     let value = match value {
                         Some(value) => elf.base_address() as u32 + value,
