@@ -1,13 +1,13 @@
 //! A model of the Linux Operating System.
 
 use il;
-use std::cell::RefCell;
+use std::sync::Arc;
 use std::collections::BTreeMap;
 
 /// A model of the Linux Operating System.
 #[derive(Clone)]
 pub struct Linux {
-    files: BTreeMap<String, RefCell<File>>,
+    files: BTreeMap<String, Arc<File>>,
     file_descriptors: BTreeMap<i32, FileDescriptor>,
     next_fd: i32,
     symbolic_scalars: Vec<il::Scalar>
@@ -33,7 +33,7 @@ impl Linux {
     /// Open a file.
     pub fn open(&mut self, filename: &str) -> i32 {
         if self.files.get(filename).is_none() {
-            let file = RefCell::new(File::new(filename.to_owned()));
+            let file = Arc::new(File::new(filename.to_owned()));
             self.files.insert(filename.to_owned(), file);
         }
 
@@ -78,13 +78,13 @@ struct FileDescriptor {
     fd: i32,
     offset: u64,
     // TODO: This should be more generic
-    io: RefCell<File>
+    io: Arc<File>
 }
 
 
 impl FileDescriptor {
     /// Create a new file descriptor
-    fn new(fd: i32, io: RefCell<File>) -> FileDescriptor {
+    fn new(fd: i32, io: Arc<File>) -> FileDescriptor {
         FileDescriptor {
             fd: fd,
             offset: 0,
@@ -97,7 +97,7 @@ impl FileDescriptor {
     /// il::Scalar for each byte read.
     fn read(&mut self, length: usize) -> FileReadResult {
         let offset = self.offset;
-        let result = self.io.get_mut().read(offset, length, self.fd);
+        let result = Arc::make_mut(&mut self.io).read(offset, length, self.fd);
         self.offset += length as u64;
         result
     }
@@ -105,7 +105,7 @@ impl FileDescriptor {
 
     /// Simulate a write over the file descriptor
     fn write(&mut self, contents: Vec<il::Expression>) {
-        self.io.get_mut().write(self.offset, contents);
+        Arc::make_mut(&mut self.io).write(self.offset, contents);
     }
 }
 

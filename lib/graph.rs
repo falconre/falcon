@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use error::*;
 
 
-pub trait Vertex: Clone + Eq + PartialEq {
+pub trait Vertex: Clone + Eq + PartialEq + Sync {
     // The index of this vertex.
     fn index(&self) -> u64;
     // A string to display in dot graphviz format.
@@ -14,7 +14,7 @@ pub trait Vertex: Clone + Eq + PartialEq {
 }
 
 
-pub trait Edge: Clone + Debug + Eq + PartialEq {
+pub trait Edge: Clone + Debug + Eq + PartialEq + Sync {
     /// The index of the head vertex.
     fn head(&self) -> u64;
     /// The index of the tail vertex.
@@ -83,7 +83,7 @@ pub struct Graph<V, E> {
 }
 
 
-impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
+impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
     pub fn new() -> Graph<V, E> {
         Graph {
             head: None,

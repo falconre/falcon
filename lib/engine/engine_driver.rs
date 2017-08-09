@@ -17,7 +17,7 @@ use il;
 use platform::Platform;
 use translator;
 use std::collections::VecDeque;
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// Takes a program and an address, and returns function, block, and instruction
 /// index for the first IL instruction at that address.
@@ -111,9 +111,33 @@ impl ProgramLocation {
     }
 
 
-    /// Return the function for this location
+    /// Return the `Function` for this location
     pub fn function<'f>(&self, program: &'f il::Program) -> Option<&'f il::Function> {
         program.function(self.function_index)
+    }
+
+
+    /// Return the `Block` for this location
+    pub fn block<'f>(&self, program: &'f il::Program) -> Option<&'f il::Block> {
+        if let FunctionLocation::Instruction { ref block_index, .. } = self.function_location {
+            if let Some(function) = self.function(program) {
+                return function.block(*block_index);
+            }
+        }
+        None
+    }
+
+
+    /// Return the `Instruction` for this location
+    pub fn instruction<'f>(&self, program: &'f il::Program) -> Option<&'f il::Instruction> {
+        if let FunctionLocation::Instruction { ref instruction_index, .. } =
+            self.function_location {
+
+            if let Some(block) = self.block(program) {
+                return block.instruction(*instruction_index);
+            }
+        }
+        None
     }
 
 
@@ -254,17 +278,17 @@ impl ProgramLocation {
 
 /// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
-pub struct EngineDriver<'e, P> {
-    program: Rc<il::Program>,
+pub struct EngineDriver<'e, P: Send + Sync> {
+    program: Arc<il::Program>,
     location: ProgramLocation,
     engine: SymbolicEngine,
     arch: &'e Box<translator::Arch>,
-    platform: Rc<P>
+    platform: Arc<P>
 }
 
 
 
-impl<'e, P> EngineDriver<'e, P> {
+impl<'e, P> EngineDriver<'e, P> where P: Send + Sync {
     /// Create a new `EngineDriver`.
     ///
     /// # Arguments
@@ -277,12 +301,12 @@ impl<'e, P> EngineDriver<'e, P> {
     /// * `platform`: The platform we will use to handle `Raise` instructions. `Platform` models the
     /// external environment and may be stateful.
     pub fn new(
-        program: Rc<il::Program>,
+        program: Arc<il::Program>,
         location: ProgramLocation,
         engine: SymbolicEngine,
         arch: &'e Box<translator::Arch>,
-        platform: Rc<P>
-    ) -> EngineDriver<P> where P: Platform<P> {
+        platform: Arc<P>
+    ) -> EngineDriver<P> where P: Platform<P> + Send + Sync {
 
         EngineDriver {
             program: program,
@@ -297,7 +321,7 @@ impl<'e, P> EngineDriver<'e, P> {
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of `EngineDriver` back depending on how many possible
     /// states are possible.
-    pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> {
+    pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> + Send + Sync {
         let mut new_engine_drivers = Vec::new();
         match self.location.function_location {
             FunctionLocation::Instruction { block_index, instruction_index } => {
@@ -343,7 +367,6 @@ impl<'e, P> EngineDriver<'e, P> {
                             }
                         },
                         SuccessorType::Branch(address) => {
-                            println!("Branching to 0x{:x}", address);
                             match ProgramLocation::from_address(address, &self.program) {
                                 // We have already disassembled the branch target. Go straight to it.
                                 Some(location) => new_engine_drivers.push(EngineDriver::new(
@@ -360,7 +383,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                     let function = self.arch.translate_function(&engine, address);
                                     match function {
                                         Ok(function) => {
-                                            Rc::make_mut(&mut self.program).add_function(function);
+                                            Arc::make_mut(&mut self.program).add_function(function);
                                             let location = ProgramLocation::from_address(address, &self.program);
                                             if let Some(location) = location {
                                                 new_engine_drivers.push(EngineDriver::new(
@@ -381,7 +404,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             };
                         },
                         SuccessorType::Raise(expression) => {
-                            let platform = Rc::make_mut(&mut self.platform).to_owned();
+                            let platform = Arc::make_mut(&mut self.platform).to_owned();
                             let locations = self.location.advance(&self.program);
                             let engine = successor.clone().into_engine();
                             let results = match platform.raise(&expression, engine) {
@@ -398,7 +421,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                         location.clone(),
                                         result.1.clone(),
                                         self.arch,
-                                        Rc::new(result.0.clone())
+                                        Arc::new(result.0.clone())
                                     ));
                                 }
                             }
@@ -427,11 +450,9 @@ impl<'e, P> EngineDriver<'e, P> {
                         }
                     },
                     Some(ref condition) => {
-                        println!("Evaluating condition {}", condition);
                         if self.engine.sat(Some(vec![condition.clone()]))? {
-                            println!("Expression sat");
                             let mut engine = self.engine.clone();
-                            engine.add_assertion(condition.clone())?;
+                            engine.add_constraint(condition.clone())?;
                             let locations = self.location.advance(&self.program);
                             if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
@@ -461,8 +482,19 @@ impl<'e, P> EngineDriver<'e, P> {
         Ok(new_engine_drivers)
     }
 
+    /// If the current location of this EngineDriver is an instruction with an
+    /// address, return that address
+    pub fn address(&self) -> Option<u64> {
+        if let Some(instruction) = self.location.instruction(&self.program) {
+            instruction.address()
+        }
+        else {
+            None
+        }
+    }
+
     /// Get the platform for this `EngineDriver`
-    pub fn platform(&self) -> Rc<P> {
+    pub fn platform(&self) -> Arc<P> {
         self.platform.clone()
     }
 

@@ -346,7 +346,6 @@ impl Elf {
     /// Load an Elf from a file and use the given base address.
     pub fn from_file_with_base_address(filename: &Path, base_address: u64)
         -> Result<Elf> {
-
         let mut file = match File::open(filename) {
             Ok(file) => file,
             Err(e) => return Err(format!(
@@ -392,7 +391,8 @@ impl Elf {
             // in one section
             let mut strtab = None;
             for section_header in &elf.section_headers {
-                if    section_header.sh_addr <= strtab_address
+                if    section_header.sh_addr > 0 
+                   && section_header.sh_addr <= strtab_address
                    && section_header.sh_addr + section_header.sh_size > strtab_address {
                     let start = section_header.sh_offset + (strtab_address - section_header.sh_addr);
                     let size = section_header.sh_size - (start - section_header.sh_offset);
@@ -410,7 +410,6 @@ impl Elf {
             for dyn in dynamic.dyns {
                 if dyn.d_tag == goblin::elf::dyn::DT_NEEDED {
                     let so_name = strtab.get(dyn.d_val as usize);
-                    info!("Adding {} from DT_NEEDED", so_name);
                     v.push(so_name.to_string());
                 }
             }

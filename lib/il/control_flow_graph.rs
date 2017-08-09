@@ -1,6 +1,5 @@
 //! A `ControlFlowGraph` is a directed `Graph` of `Block` and `Edge`.
 
-use std::cell::Cell;
 use std::collections::{BTreeMap};
 use std::fmt;
 use il::*;
@@ -107,7 +106,7 @@ pub struct ControlFlowGraph {
     // The next index to use when creating a basic block.
     next_index: u64,
     // The index for the next temp variable to create.
-    next_temp_index: Cell<u64>,
+    next_temp_index: u64,
     // An optional entry index for the graph.
     entry: Option<u64>,
     // An optional exit index for the graph.
@@ -122,7 +121,7 @@ impl ControlFlowGraph {
         ControlFlowGraph {
             graph: graph::Graph::new(),
             next_index: 0,
-            next_temp_index: Cell::new(0),
+            next_temp_index: 0,
             entry: None,
             exit: None,
             ssa_form: false,
@@ -228,9 +227,9 @@ impl ControlFlowGraph {
 
 
     /// Generates a temporary scalar unique to this control flow graph.
-    pub fn temp(&self, bits: usize) -> Scalar {
-        let next_index = self.next_temp_index.get();
-        self.next_temp_index.set(next_index + 1);
+    pub fn temp(&mut self, bits: usize) -> Scalar {
+        let next_index = self.next_temp_index;
+        self.next_temp_index = next_index + 1;
         Scalar::new(format!("temp_{}", next_index), bits)
     }
 

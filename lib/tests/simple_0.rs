@@ -6,7 +6,7 @@
 #[cfg(test)]use loader::Loader;
 #[cfg(test)]use platform::*;
 #[cfg(test)]use std::path::Path;
-#[cfg(test)]use std::rc::Rc;
+#[cfg(test)]use std::sync::Arc;
 
 
 #[cfg(test)]
@@ -44,11 +44,11 @@ fn simple_0_test () -> Result<Vec<u8>> {
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let translator = elf.translator()?;
     let driver = EngineDriver::new(
-        Rc::new(program),
+        Arc::new(program),
         pl,
         engine,
         &translator,
-        Rc::new(platform)
+        Arc::new(platform)
     );
     let mut drivers = vec![driver];
 
@@ -68,8 +68,8 @@ fn simple_0_test () -> Result<Vec<u8>> {
                     let address = instruction.address().unwrap();
                     if address == target_address {
                         println!("Reached Target Address");
-                        for assertion in driver.engine().assertions() {
-                            println!("Assertion: {}", assertion);
+                        for constraint in driver.engine().constraints() {
+                            println!("Constraint: {}", constraint);
                         }
                         let mut stdin: Vec<u8> = Vec::new();
                         for scalar in driver.platform().symbolic_scalars() {

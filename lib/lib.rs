@@ -45,8 +45,18 @@ pub mod error {
         }
 
         errors {
-            Sort
-            Arithmetic
+            Sort {
+                description("Sort error, invalid bitness between expressions")
+                display("Sort error, invalid bitness between expressions")
+            }
+            Arithmetic(m: String) {
+                description("Error in evaluation of arithmetic expression")
+                display("Arithmetic expression evaluation error: {}", m)
+            }
+            AccessUnmappedMemory(address: u64) {
+                description("Attempt to access unmapped memory")
+                display("Attempt to access unmapped memory at address 0x{:x}", address)
+            }
         }
     }
 }
