@@ -6,7 +6,7 @@
 #[cfg(test)]use loader::Loader;
 #[cfg(test)]use platform::*;
 #[cfg(test)]use std::path::Path;
-#[cfg(test)]use std::rc::Rc;
+#[cfg(test)]use std::sync::Arc;
 
 
 #[cfg(test)]
@@ -44,11 +44,11 @@ fn simple_0_test () -> Result<Vec<u8>> {
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let translator = elf.translator()?;
     let driver = EngineDriver::new(
-        Rc::new(program),
+        Arc::new(program),
         pl,
         engine,
         &translator,
-        Rc::new(platform)
+        Arc::new(platform)
     );
     let mut drivers = vec![driver];
 

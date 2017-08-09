@@ -150,7 +150,7 @@ pub fn constants_expression(expr: &il::Expression) -> Result<il::Constant> {
         il::Expression::Divu(ref lhs, ref rhs) => {
             let rhs = ece(rhs)?;
             if rhs.value() == 0 {
-                return Err(ErrorKind::Arithmetic.into());
+                return Err(ErrorKind::Arithmetic("Division by zero".to_string()).into());
             }
             let r = ece(lhs)?.value() / rhs.value();
             Ok(il::Constant::new(r, lhs.bits()))
@@ -159,7 +159,7 @@ pub fn constants_expression(expr: &il::Expression) -> Result<il::Constant> {
         il::Expression::Modu(ref lhs, ref rhs) => {
             let rhs = ece(rhs)?;
             if rhs.value() == 0 {
-                return Err(ErrorKind::Arithmetic.into());
+                return Err(ErrorKind::Arithmetic("Division by zero".to_string()).into());
             }
             let r = ece(lhs)?.value() % rhs.value();
             Ok(il::Constant::new(r, lhs.bits()))
@@ -168,7 +168,7 @@ pub fn constants_expression(expr: &il::Expression) -> Result<il::Constant> {
         il::Expression::Divs(ref lhs, ref rhs) => {
             let rhs = ece(rhs)?;
             if rhs.value() == 0 {
-                return Err(ErrorKind::Arithmetic.into());
+                return Err(ErrorKind::Arithmetic("Division by zero".to_string()).into());
             }
             let r = (ece(lhs)?.value() as i64) / (rhs.value() as i64);
             Ok(il::Constant::new(r as u64, lhs.bits()))
@@ -177,7 +177,7 @@ pub fn constants_expression(expr: &il::Expression) -> Result<il::Constant> {
         il::Expression::Mods(ref lhs, ref rhs) => {
             let rhs = ece(rhs)?;
             if rhs.value() == 0 {
-                return Err(ErrorKind::Arithmetic.into());
+                return Err(ErrorKind::Arithmetic("Division by zero".to_string()).into());
             }
             let r = (ece(lhs)?.value() as i64) % (rhs.value() as i64);
             Ok(il::Constant::new(r as u64, lhs.bits()))

@@ -10,7 +10,7 @@ use platform::Platform;
 
 
 const SYS_READ:  u32 = 3;
-// const SYS_WRITE: u32 = 4;
+const SYS_WRITE: u32 = 4;
 // const SYS_OPEN:  u32 = 5;
 // const SYS_CLOSE: u32 = 6;
 
@@ -225,7 +225,53 @@ impl Platform<LinuxX86> for LinuxX86 {
 
         match eax.value() as u32 {
             SYS_READ => {
-                trace!("SYS_READ");
+                let (ebx, ecx, edx) = {
+                    let ebx = match engine.get_scalar_only_concrete("ebx")? {
+                        Some(ebx) => ebx,
+                        None => bail!("Could not get concrete ebx")
+                    };
+
+                    let ecx = match engine.get_scalar("ecx") {
+                        Some(ecx) => ecx,
+                        None => bail!("Could not get ecx")
+                    };
+
+                    let edx = match engine.get_scalar("edx") {
+                        Some(edx) => edx,
+                        None => bail!("Could not get edx")
+                    };
+
+                    (ebx.to_owned(), ecx.to_owned(), edx.to_owned())
+                };
+
+                trace!("SYS_READ {} {} {}", ebx, ecx, edx);
+
+                let fd = engine.symbolize_and_concretize(&ebx.into(), None)?.unwrap();
+
+                // For now, we will concretize ecx/edx
+                let address = engine.symbolize_and_concretize(&ecx, None)?.unwrap();
+                if !all_constants(&ecx) {
+                    engine.add_constraint(il::Expression::cmpeq(ecx, address.clone().into())?)?;
+                }
+
+                let length = engine.symbolize_and_concretize(&edx, None)?.unwrap();
+                if !all_constants(&edx) {
+                    engine.add_constraint(il::Expression::cmpeq(edx, length.clone().into())?)?;
+                }
+
+                // Get variables for the data we're about to read
+                let (result, read) = self.linux.read(fd.value() as i32, length.value() as usize);
+
+                for i in 0..read.len() as u64 {
+                    engine.memory_mut().store(address.value() + i, read[i as usize].to_owned().into())?;
+                }
+
+                engine.set_scalar("eax", il::expr_const(result as u64, 32));
+
+                Ok(vec![(self, engine)])
+            },
+            SYS_WRITE => {
+                trace!("SYS_WRITE");
                 let (ebx, ecx, edx) = {
                     let ebx = match engine.get_scalar_only_concrete("ebx")? {
                         Some(ebx) => ebx,
@@ -258,12 +304,19 @@ impl Platform<LinuxX86> for LinuxX86 {
                     engine.add_constraint(il::Expression::cmpeq(edx, length.clone().into())?)?;
                 }
 
-                // Get variables for the data we're about to read
-                let (result, read) = self.linux.read(fd.value() as i32, length.value() as usize);
-
-                for i in 0..read.len() as u64 {
-                    engine.memory_mut().store(address.value() + i, read[i as usize].to_owned().into())?;
+                // Get our values out of memory
+                let mut v = Vec::new();
+                for i in 0..length.value() {
+                    match engine.memory().load(address.value() + i, 8)? {
+                        Some(expr) => v.push(expr.clone()),
+                        None => return Err(
+                            ErrorKind::AccessUnmappedMemory(address.value() + i).into()
+                        )
+                    };
                 }
+
+                // Write to the file
+                let result = self.linux.write(fd.value() as i32, v);
 
                 engine.set_scalar("eax", il::expr_const(result as u64, 32));
 

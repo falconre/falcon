@@ -4,13 +4,13 @@
 //! `il::Constant`, and symbolic values stored as valid expressions.
 //!
 //! `SymbolicMemory` is paged under-the-hood with reference-counted pages. When these pages
-//! are written to, we use the copy-on-write functionality of rust's `std::rc::Rc` type,
+//! are written to, we use the copy-on-write functionality of rust's `std::sync::Arc` type,
 //! giving us copy-on-write paging. This allows for very fast forks of `SymbolicMemory`.
 
 use error::*;
 use il;
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 
 const PAGE_SIZE: usize = 1024;
@@ -70,7 +70,7 @@ impl SymbolicPage {
 #[derive(Clone)]
 pub struct SymbolicMemory {
     endian: Endian,
-    pages: BTreeMap<u64, Rc<SymbolicPage>>
+    pages: BTreeMap<u64, Arc<SymbolicPage>>
 }
 
 
@@ -94,13 +94,13 @@ impl SymbolicMemory {
         let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
 
         if let Some(mut page) = self.pages.get_mut(&page_address) {
-            Rc::make_mut(&mut page).store(offset, value)?;
+            Arc::make_mut(&mut page).store(offset, value)?;
             return Ok(())
         }
 
         let mut page = SymbolicPage::new(PAGE_SIZE);
         page.store(offset, value)?;
-        self.pages.insert(page_address, Rc::new(page));
+        self.pages.insert(page_address, Arc::new(page));
 
         Ok(())
     }

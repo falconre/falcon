@@ -65,7 +65,7 @@ impl SymbolicSuccessor {
 /// An engine for maintaining a symbolic state, performing operations over that
 /// state, and querying that state.
 #[derive(Clone)]
-pub struct SymbolicEngine  {
+pub struct SymbolicEngine {
     scalars: BTreeMap<String, il::Expression>,
     memory: SymbolicMemory,
     constraints: Vec<il::Expression>,
@@ -111,8 +111,13 @@ impl SymbolicEngine {
 
         constraint = self.symbolize_expression(&constraint)?;
         if all_constants(&constraint) {
+            // If we have a constant constraint which is always 0, add a constant
+            // constraint which is always 0.
             if executor::constants_expression(&constraint)?.value() != 1 {
-                bail!("Added constant expression != 1 to engine");
+                self.constraints.push(il::Expression::cmpeq(
+                    il::expr_const(0, 1),
+                    il::expr_const(1, 1)
+                )?);
             }
         }
         else {
@@ -454,6 +459,9 @@ impl SymbolicEngine {
                 }
             },
             il::Operation::Load { ref dst, ref index, .. } => {
+                if !all_constants(&self.symbolize_expression(index)?) {
+                    println!("load index {} not all constants", index);
+                }
                 let index_ = self.symbolize_and_concretize(index, None)?;
                 if let Some(index) = index_ {
                     let value = self.memory.load(index.value(), dst.bits())?;

@@ -104,7 +104,7 @@ impl BlockTranslationResult {
 }
 
 
-pub trait Arch {
+pub trait Arch: Sync {
     /// Translates a basic block
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;
 
