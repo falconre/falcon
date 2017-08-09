@@ -9,6 +9,7 @@ bitflags = "0.9"
 capstone_rust = { git = "https://github.com/endeav0r/capstone-rust", rev="67d98f1" }
 error-chain = "0.10"
 goblin = "0.0.9"
+lazy_static = "0.2"
 log = "0.3"
 regex = "0.2"
 serde_derive = "1.0.8"

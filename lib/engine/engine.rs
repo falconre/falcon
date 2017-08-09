@@ -371,14 +371,17 @@ impl SymbolicEngine {
             return Ok(None);
         }
 
-        let re = regex::Regex::new("EVAL_RESULT #x([0-9a-f]+)")?;
-        if let Some(caps) = re.captures(&solver_output) {
+        lazy_static!{
+            static ref RE16: regex::Regex = regex::Regex::new("EVAL_RESULT #x([0-9a-f]+)").unwrap();
+            static ref RE2: regex::Regex = regex::Regex::new("EVAL_RESULT #b([0-1]+)").unwrap();
+        }
+
+        if let Some(caps) = RE16.captures(&solver_output) {
             let value = u64::from_str_radix(&caps[1], 16)?;
             return Ok(Some(il::const_(value, expr.bits())));
         }
 
-        let re = regex::Regex::new("EVAL_RESULT #b([0-1]+)")?;
-        if let Some(caps) = re.captures(&solver_output) {
+        if let Some(caps) = RE2.captures(&solver_output) {
             let value = u64::from_str_radix(&caps[1], 2)?;
             return Ok(Some(il::const_(value, expr.bits())));
         }
