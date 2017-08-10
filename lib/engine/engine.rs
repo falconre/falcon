@@ -649,9 +649,30 @@ pub fn fold_constants(expr: &il::Expression) -> Result<il::Expression> {
                 _ => bail!("Unreachable in fold_constants")
             } // match expr
         },
-        il::Expression::Zext(bits, ref rhs) => il::Expression::zext(bits, fold_constants(rhs)?)?,
-        il::Expression::Sext(bits, ref rhs) => il::Expression::sext(bits, fold_constants(rhs)?)?,
-        il::Expression::Trun(bits, ref rhs) => il::Expression::trun(bits, fold_constants(rhs)?)?,
+        il::Expression::Zext(bits, ref rhs) |
+        il::Expression::Sext(bits, ref rhs) |
+        il::Expression::Trun(bits, ref rhs) => {
+            let rhs = fold_constants(rhs)?;
+            if let il::Expression::Constant(_) = rhs {
+                match *expr {
+                    il::Expression::Zext(_, _) =>
+                        executor::constants_expression(&il::Expression::zext(bits, rhs)?)?.into(),
+                    il::Expression::Sext(_, _) =>
+                        executor::constants_expression(&il::Expression::sext(bits, rhs)?)?.into(),
+                    il::Expression::Trun(_, _) =>
+                        executor::constants_expression(&il::Expression::trun(bits, rhs)?)?.into(),
+                    _ => bail!("Unreachable in fold_constants")
+                }
+            }
+            else {
+                match *expr {
+                    il::Expression::Zext(bits, ref rhs) => il::Expression::zext(bits, fold_constants(rhs)?)?,
+                    il::Expression::Sext(bits, ref rhs) => il::Expression::sext(bits, fold_constants(rhs)?)?,
+                    il::Expression::Trun(bits, ref rhs) => il::Expression::trun(bits, fold_constants(rhs)?)?,
+                    _ => bail!("Unreachable in fold_constants")
+                }
+            }
+        }
     })// match expr
 }
 

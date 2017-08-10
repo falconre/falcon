@@ -166,7 +166,7 @@ impl SymbolicMemory {
         }
         else if bits == 8 {
             match self.load_byte(address)? {
-                Some(expr) => Ok(Some(expr.clone())),
+                Some(ref expr) => Ok(Some(engine::fold_constants(expr)?)),
                 None => Ok(None)
             }
         }
