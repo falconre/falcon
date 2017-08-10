@@ -566,6 +566,96 @@ pub fn all_constants(expr: &il::Expression) -> bool {
 }
 
 
+/// Fold all constant expressions, leaving the bare minimum expression needed
+/// to evaluate over scalars.
+pub fn fold_constants(expr: &il::Expression) -> Result<il::Expression> {
+    Ok(match *expr {
+        il::Expression::Constant(ref c) => c.clone().into(),
+        il::Expression::Scalar(ref s) => s.clone().into(),
+        il::Expression::Add(ref lhs, ref rhs) |
+        il::Expression::Sub(ref lhs, ref rhs) |
+        il::Expression::Mul(ref lhs, ref rhs) |
+        il::Expression::Divu(ref lhs, ref rhs) |
+        il::Expression::Modu(ref lhs, ref rhs) |
+        il::Expression::Divs(ref lhs, ref rhs) |
+        il::Expression::Mods(ref lhs, ref rhs) |
+        il::Expression::And(ref lhs, ref rhs) |
+        il::Expression::Or(ref lhs, ref rhs) |
+        il::Expression::Xor(ref lhs, ref rhs) |
+        il::Expression::Shl(ref lhs, ref rhs) |
+        il::Expression::Shr(ref lhs, ref rhs) | 
+        il::Expression::Cmpeq(ref lhs, ref rhs) |
+        il::Expression::Cmpneq(ref lhs, ref rhs) |
+        il::Expression::Cmplts(ref lhs, ref rhs) |
+        il::Expression::Cmpltu(ref lhs, ref rhs) => {
+            let lhs = fold_constants(lhs)?;
+            let rhs = fold_constants(rhs)?;
+            if let il::Expression::Constant(_) = lhs {
+                if let il::Expression::Constant(_) = rhs {
+                    return Ok(match *expr {
+                        il::Expression::Add(_, _) => 
+                            executor::constants_expression(&il::Expression::add(lhs, rhs)?)?.into(),
+                        il::Expression::Sub(_, _) => 
+                            executor::constants_expression(&il::Expression::sub(lhs, rhs)?)?.into(),
+                        il::Expression::Mul(_, _) => 
+                            executor::constants_expression(&il::Expression::mul(lhs, rhs)?)?.into(),
+                        il::Expression::Divu(_, _) => 
+                            executor::constants_expression(&il::Expression::divu(lhs, rhs)?)?.into(),
+                        il::Expression::Modu(_, _) => 
+                            executor::constants_expression(&il::Expression::modu(lhs, rhs)?)?.into(),
+                        il::Expression::Divs(_, _) => 
+                            executor::constants_expression(&il::Expression::divs(lhs, rhs)?)?.into(),
+                        il::Expression::Mods(_, _) => 
+                            executor::constants_expression(&il::Expression::mods(lhs, rhs)?)?.into(),
+                        il::Expression::And(_, _) => 
+                            executor::constants_expression(&il::Expression::and(lhs, rhs)?)?.into(),
+                        il::Expression::Or(_, _) => 
+                            executor::constants_expression(&il::Expression::or(lhs, rhs)?)?.into(),
+                        il::Expression::Xor(_, _) => 
+                            executor::constants_expression(&il::Expression::xor(lhs, rhs)?)?.into(),
+                        il::Expression::Shl(_, _) => 
+                            executor::constants_expression(&il::Expression::shl(lhs, rhs)?)?.into(),
+                        il::Expression::Shr(_, _) => 
+                            executor::constants_expression(&il::Expression::shr(lhs, rhs)?)?.into(),
+                        il::Expression::Cmpeq(_, _) => 
+                            executor::constants_expression(&il::Expression::cmpeq(lhs, rhs)?)?.into(),
+                        il::Expression::Cmpneq(_, _) => 
+                            executor::constants_expression(&il::Expression::cmpneq(lhs, rhs)?)?.into(),
+                        il::Expression::Cmplts(_, _) => 
+                            executor::constants_expression(&il::Expression::cmplts(lhs, rhs)?)?.into(),
+                        il::Expression::Cmpltu(_, _) => 
+                            executor::constants_expression(&il::Expression::cmpltu(lhs, rhs)?)?.into(),
+                        _ => bail!("Unreachable in fold_constants")
+                    }) // return match expr
+                } // if let il::Expression::Constant(rhs) = rhs
+            } // if let il::Expression::Constant(lhs) = lhs
+            match *expr {
+                il::Expression::Add(_, _) => il::Expression::add(lhs, rhs)?,
+                il::Expression::Sub(_, _) => il::Expression::sub(lhs, rhs)?,
+                il::Expression::Mul(_, _) => il::Expression::mul(lhs, rhs)?,
+                il::Expression::Divu(_, _) => il::Expression::divu(lhs, rhs)?,
+                il::Expression::Modu(_, _) => il::Expression::modu(lhs, rhs)?,
+                il::Expression::Divs(_, _) => il::Expression::divs(lhs, rhs)?,
+                il::Expression::Mods(_, _) => il::Expression::mods(lhs, rhs)?,
+                il::Expression::And(_, _) => il::Expression::and(lhs, rhs)?,
+                il::Expression::Or(_, _) => il::Expression::or(lhs, rhs)?,
+                il::Expression::Xor(_, _) => il::Expression::xor(lhs, rhs)?,
+                il::Expression::Shl(_, _) => il::Expression::shl(lhs, rhs)?,
+                il::Expression::Shr(_, _) => il::Expression::shr(lhs, rhs)?,
+                il::Expression::Cmpeq(_, _) => il::Expression::cmpeq(lhs, rhs)?,
+                il::Expression::Cmpneq(_, _) => il::Expression::cmpneq(lhs, rhs)?,
+                il::Expression::Cmplts(_, _) => il::Expression::cmplts(lhs, rhs)?,
+                il::Expression::Cmpltu(_, _) => il::Expression::cmpltu(lhs, rhs)?,
+                _ => bail!("Unreachable in fold_constants")
+            } // match expr
+        },
+        il::Expression::Zext(bits, ref rhs) => il::Expression::zext(bits, fold_constants(rhs)?)?,
+        il::Expression::Sext(bits, ref rhs) => il::Expression::sext(bits, fold_constants(rhs)?)?,
+        il::Expression::Trun(bits, ref rhs) => il::Expression::trun(bits, fold_constants(rhs)?)?,
+    })// match expr
+}
+
+
 /// Convert a falcon expression to its `smtlib2` equivalent.
 pub fn expr_to_smtlib2(expr: &il::Expression) -> String {
     match *expr {

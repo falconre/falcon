@@ -7,6 +7,7 @@
 //! are written to, we use the copy-on-write functionality of rust's `std::sync::Arc` type,
 //! giving us copy-on-write paging. This allows for very fast forks of `SymbolicMemory`.
 
+use engine;
 use error::*;
 use il;
 use std::collections::BTreeMap;
@@ -189,6 +190,10 @@ impl SymbolicMemory {
                     Some(result) => Some(il::Expression::or(result, expr)?),
                     None => Some(expr)
                 };
+            }
+
+            if let Some(expr) = result {
+                result = Some(engine::fold_constants(&expr)?);
             }
 
             Ok(result)
