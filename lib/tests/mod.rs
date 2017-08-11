@@ -11,7 +11,7 @@ fn il_constants () {
 }
 
 #[test]
-fn fold_constants () {
+fn simplify_expression () {
     let expr = il::Expression::add(
         il::Expression::add(
             il::expr_const(100, 32),
@@ -20,7 +20,7 @@ fn fold_constants () {
         il::expr_scalar("test", 32)
     ).unwrap();
 
-    let expr = engine::fold_constants(&expr).unwrap();
+    let expr = engine::simplify_expression(&expr).unwrap();
 
     if let il::Expression::Add(lhs, _) = expr {
         if let il::Expression::Constant(c) = *lhs {

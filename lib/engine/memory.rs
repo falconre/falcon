@@ -166,7 +166,7 @@ impl SymbolicMemory {
         }
         else if bits == 8 {
             match self.load_byte(address)? {
-                Some(ref expr) => Ok(Some(engine::fold_constants(expr)?)),
+                Some(ref expr) => Ok(Some(engine::simplify_expression(expr)?)),
                 None => Ok(None)
             }
         }
@@ -193,7 +193,7 @@ impl SymbolicMemory {
             }
 
             if let Some(expr) = result {
-                result = Some(engine::fold_constants(&expr)?);
+                result = Some(engine::simplify_expression(&expr)?);
             }
 
             Ok(result)
