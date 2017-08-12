@@ -12,7 +12,6 @@ use executor;
 use il;
 use regex;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
 use std::io::Write;
 use std::process;
 use translator::TranslationMemory;
@@ -348,7 +347,7 @@ impl SymbolicEngine {
         solver_lines.push("(check-sat)".to_string());
         solver_lines.push("(get-value (EVAL_RESULT))".to_string());
 
-        let child = process::Command::new("z3")
+        let mut child = process::Command::new("z3")
             .arg("-in")
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
@@ -356,12 +355,14 @@ impl SymbolicEngine {
             .expect("Failed to invoke solver");
 
         let solver_input = solver_lines.join("\n");
+        match child.stdin {
+            Some(ref mut stdin) => stdin.write_all(solver_input.as_bytes())?,
+            None => bail!("Could not get stdin for solver process")
+        };
 
-        let _ = child.stdin.unwrap().write_all(solver_input.as_bytes());
+        let output = child.wait_with_output()?;
 
-        let mut solver_output = String::new();
-
-        let _ = child.stdout.unwrap().read_to_string(&mut solver_output).unwrap();
+        let solver_output = String::from_utf8(output.stdout)?;
 
         // println!("{}", solver_input);
 
@@ -462,9 +463,6 @@ impl SymbolicEngine {
                 }
             },
             il::Operation::Load { ref dst, ref index, .. } => {
-                if !all_constants(&self.symbolize_expression(index)?) {
-                    println!("load index {} not all constants", index);
-                }
                 let index_ = self.symbolize_and_concretize(index, None)?;
                 if let Some(index) = index_ {
                     let value = self.memory.load(index.value(), dst.bits())?;
