@@ -97,8 +97,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
 pub fn engine_test () -> () {
     let result: Vec<u8> = vec![0x61, 0x62, 0x63, 0x64 ,0x65, 0x66, 0x67, 0x68];
     let found = simple_0_test();
-    assert!(found.is_ok());
-
+    
     let found = found.unwrap();
 
     for i in 0..result.len() {

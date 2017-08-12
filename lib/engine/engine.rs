@@ -463,9 +463,6 @@ impl SymbolicEngine {
                 }
             },
             il::Operation::Load { ref dst, ref index, .. } => {
-                if !all_constants(&self.symbolize_expression(index)?) {
-                    println!("load index {} not all constants", index);
-                }
                 let index_ = self.symbolize_and_concretize(index, None)?;
                 if let Some(index) = index_ {
                     let value = self.memory.load(index.value(), dst.bits())?;
