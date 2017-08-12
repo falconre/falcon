@@ -12,7 +12,6 @@ use executor;
 use il;
 use regex;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
 use std::io::Write;
 use std::process;
 use translator::TranslationMemory;
@@ -348,7 +347,7 @@ impl SymbolicEngine {
         solver_lines.push("(check-sat)".to_string());
         solver_lines.push("(get-value (EVAL_RESULT))".to_string());
 
-        let child = process::Command::new("z3")
+        let mut child = process::Command::new("z3")
             .arg("-in")
             .stdin(process::Stdio::piped())
             .stdout(process::Stdio::piped())
@@ -356,12 +355,14 @@ impl SymbolicEngine {
             .expect("Failed to invoke solver");
 
         let solver_input = solver_lines.join("\n");
+        match child.stdin {
+            Some(ref mut stdin) => stdin.write_all(solver_input.as_bytes())?,
+            None => bail!("Could not get stdin for solver process")
+        };
 
-        let _ = child.stdin.unwrap().write_all(solver_input.as_bytes());
+        let output = child.wait_with_output()?;
 
-        let mut solver_output = String::new();
-
-        let _ = child.stdout.unwrap().read_to_string(&mut solver_output).unwrap();
+        let solver_output = String::from_utf8(output.stdout)?;
 
         // println!("{}", solver_input);
 
@@ -371,14 +372,17 @@ impl SymbolicEngine {
             return Ok(None);
         }
 
-        let re = regex::Regex::new("EVAL_RESULT #x([0-9a-f]+)")?;
-        if let Some(caps) = re.captures(&solver_output) {
+        lazy_static!{
+            static ref RE16: regex::Regex = regex::Regex::new("EVAL_RESULT #x([0-9a-f]+)").unwrap();
+            static ref RE2: regex::Regex = regex::Regex::new("EVAL_RESULT #b([0-1]+)").unwrap();
+        }
+
+        if let Some(caps) = RE16.captures(&solver_output) {
             let value = u64::from_str_radix(&caps[1], 16)?;
             return Ok(Some(il::const_(value, expr.bits())));
         }
 
-        let re = regex::Regex::new("EVAL_RESULT #b([0-1]+)")?;
-        if let Some(caps) = re.captures(&solver_output) {
+        if let Some(caps) = RE2.captures(&solver_output) {
             let value = u64::from_str_radix(&caps[1], 2)?;
             return Ok(Some(il::const_(value, expr.bits())));
         }
@@ -459,9 +463,6 @@ impl SymbolicEngine {
                 }
             },
             il::Operation::Load { ref dst, ref index, .. } => {
-                if !all_constants(&self.symbolize_expression(index)?) {
-                    println!("load index {} not all constants", index);
-                }
                 let index_ = self.symbolize_and_concretize(index, None)?;
                 if let Some(index) = index_ {
                     let value = self.memory.load(index.value(), dst.bits())?;
@@ -560,6 +561,187 @@ pub fn all_constants(expr: &il::Expression) -> bool {
         il::Expression::Trun(_, ref src) =>
             all_constants(src)
     }
+}
+
+
+pub fn simplify_or(expr: &il::Expression) -> Result<il::Expression> {
+
+    fn associate_left(lhs: il::Expression, rhs: il::Expression) -> Result<il::Expression> {
+        match (lhs, rhs) {
+            (il::Expression::Or(lhs_, rhs_), il::Expression::Constant(rhs_c)) => {
+                if let il::Expression::Constant(_) = *lhs_ {
+                    il::Expression::or(
+                        executor::constants_expression(&il::Expression::or(*lhs_, rhs_c.into())?)?.into(),
+                        *rhs_
+                    )
+                }
+                else if let il::Expression::Constant(_) = *rhs_ {
+                    il::Expression::or(
+                        executor::constants_expression(&il::Expression::or(*rhs_, rhs_c.into())?)?.into(),
+                        *lhs_
+                    )
+                }
+                else {
+                    il::Expression::or(il::Expression::or(*lhs_, *rhs_)?, rhs_c.into())
+                }
+            },
+            (lhs, rhs) => il::Expression::or(lhs, rhs)
+        }
+    }
+
+    fn associate_right(lhs: il::Expression, rhs: il::Expression) -> Result<il::Expression> {
+        match (lhs, rhs) {
+            (il::Expression::Constant(lhs_c), il::Expression::Or(lhs_, rhs_)) => {
+                if let il::Expression::Constant(_) = *lhs_ {
+                    il::Expression::or(
+                        executor::constants_expression(&il::Expression::or(*lhs_, lhs_c.into())?)?.into(),
+                        *rhs_
+                    )
+                }
+                else if let il::Expression::Constant(_) = *rhs_ {
+                    il::Expression::or(
+                        executor::constants_expression(&il::Expression::or(*rhs_, lhs_c.into())?)?.into(),
+                        *lhs_
+                    )
+                }
+                else {
+                    il::Expression::or(il::Expression::or(*lhs_, *rhs_)?, lhs_c.into())
+                }
+            },
+            (lhs, rhs) => il::Expression::or(lhs, rhs)
+        }
+    }
+
+
+    if let il::Expression::Or(ref lhs, ref rhs) = *expr {
+        let lhs = simplify_expression(lhs)?;
+        let rhs = simplify_expression(rhs)?;
+
+        if let il::Expression::Constant(_) = lhs {
+            if let il::Expression::Constant(_) = rhs {
+                return Ok(executor::constants_expression(&il::Expression::or(lhs, rhs)?)?.into());
+            }
+        }
+
+        if let il::Expression::Or(lhs, rhs) = associate_left(lhs, rhs)? {
+            return associate_right(*lhs, *rhs)
+        }
+        else {
+            bail!("simplify_or associate_left didn't return il::Expression::Or")
+        }
+    }
+    else {
+        bail!("Non-or expression passed to simplify_or")
+    }
+}
+
+
+/// Fold all constant expressions, leaving the bare minimum expression needed
+/// to evaluate over scalars.
+pub fn simplify_expression(expr: &il::Expression) -> Result<il::Expression> {
+    Ok(match *expr {
+        il::Expression::Constant(ref c) => c.clone().into(),
+        il::Expression::Scalar(ref s) => s.clone().into(),
+        // Handle Or separately for now, greatly simplifying memory loads/store expressions
+        il::Expression::Or(_, _) => simplify_or(expr)?,
+        il::Expression::Add(ref lhs, ref rhs) |
+        il::Expression::Sub(ref lhs, ref rhs) |
+        il::Expression::Mul(ref lhs, ref rhs) |
+        il::Expression::Divu(ref lhs, ref rhs) |
+        il::Expression::Modu(ref lhs, ref rhs) |
+        il::Expression::Divs(ref lhs, ref rhs) |
+        il::Expression::Mods(ref lhs, ref rhs) | 
+        il::Expression::And(ref lhs, ref rhs) |
+        il::Expression::Xor(ref lhs, ref rhs) |
+        il::Expression::Shl(ref lhs, ref rhs) |
+        il::Expression::Shr(ref lhs, ref rhs) |
+        il::Expression::Cmpeq(ref lhs, ref rhs) |
+        il::Expression::Cmpneq(ref lhs, ref rhs) |
+        il::Expression::Cmplts(ref lhs, ref rhs) |
+        il::Expression::Cmpltu(ref lhs, ref rhs) => {
+            let lhs = simplify_expression(lhs)?;
+            let rhs = simplify_expression(rhs)?;
+            if let il::Expression::Constant(_) = lhs {
+                if let il::Expression::Constant(_) = rhs {
+                    return Ok(match *expr {
+                        il::Expression::Add(_, _) => 
+                            executor::constants_expression(&il::Expression::add(lhs, rhs)?)?.into(),                        
+                        il::Expression::Sub(_, _) => 
+                            executor::constants_expression(&il::Expression::sub(lhs, rhs)?)?.into(),
+                        il::Expression::Mul(_, _) => 
+                            executor::constants_expression(&il::Expression::mul(lhs, rhs)?)?.into(),
+                        il::Expression::Divu(_, _) => 
+                            executor::constants_expression(&il::Expression::divu(lhs, rhs)?)?.into(),
+                        il::Expression::Modu(_, _) => 
+                            executor::constants_expression(&il::Expression::modu(lhs, rhs)?)?.into(),
+                        il::Expression::Divs(_, _) => 
+                            executor::constants_expression(&il::Expression::divs(lhs, rhs)?)?.into(),
+                        il::Expression::Mods(_, _) => 
+                            executor::constants_expression(&il::Expression::mods(lhs, rhs)?)?.into(),
+                        il::Expression::And(_, _) => 
+                            executor::constants_expression(&il::Expression::and(lhs, rhs)?)?.into(),
+                        il::Expression::Xor(_, _) => 
+                            executor::constants_expression(&il::Expression::xor(lhs, rhs)?)?.into(),
+                        il::Expression::Shl(_, _) => 
+                            executor::constants_expression(&il::Expression::shl(lhs, rhs)?)?.into(),
+                        il::Expression::Shr(_, _) => 
+                            executor::constants_expression(&il::Expression::shr(lhs, rhs)?)?.into(),
+                        il::Expression::Cmpeq(_, _) => 
+                            executor::constants_expression(&il::Expression::cmpeq(lhs, rhs)?)?.into(),
+                        il::Expression::Cmpneq(_, _) => 
+                            executor::constants_expression(&il::Expression::cmpneq(lhs, rhs)?)?.into(),
+                        il::Expression::Cmplts(_, _) => 
+                            executor::constants_expression(&il::Expression::cmplts(lhs, rhs)?)?.into(),
+                        il::Expression::Cmpltu(_, _) => 
+                            executor::constants_expression(&il::Expression::cmpltu(lhs, rhs)?)?.into(),
+                        _ => bail!("Unreachable in simplify_expression")
+                    }) // return match expr
+                } // if let il::Expression::Constant(rhs) = rhs
+            } // if let il::Expression::Constant(lhs) = lhs
+            match *expr {
+                il::Expression::Add(_, _) => il::Expression::add(lhs, rhs)?,
+                il::Expression::Sub(_, _) => il::Expression::sub(lhs, rhs)?,
+                il::Expression::Mul(_, _) => il::Expression::mul(lhs, rhs)?,
+                il::Expression::Divu(_, _) => il::Expression::divu(lhs, rhs)?,
+                il::Expression::Modu(_, _) => il::Expression::modu(lhs, rhs)?,
+                il::Expression::Divs(_, _) => il::Expression::divs(lhs, rhs)?,
+                il::Expression::Mods(_, _) => il::Expression::mods(lhs, rhs)?,
+                il::Expression::And(_, _) => il::Expression::and(lhs, rhs)?,
+                il::Expression::Xor(_, _) => il::Expression::xor(lhs, rhs)?,
+                il::Expression::Shl(_, _) => il::Expression::shl(lhs, rhs)?,
+                il::Expression::Shr(_, _) => il::Expression::shr(lhs, rhs)?,
+                il::Expression::Cmpeq(_, _) => il::Expression::cmpeq(lhs, rhs)?,
+                il::Expression::Cmpneq(_, _) => il::Expression::cmpneq(lhs, rhs)?,
+                il::Expression::Cmplts(_, _) => il::Expression::cmplts(lhs, rhs)?,
+                il::Expression::Cmpltu(_, _) => il::Expression::cmpltu(lhs, rhs)?,
+                _ => bail!("Unreachable in simplify_expression")
+            } // match expr
+        },
+        il::Expression::Zext(bits, ref rhs) |
+        il::Expression::Sext(bits, ref rhs) |
+        il::Expression::Trun(bits, ref rhs) => {
+            let rhs = simplify_expression(rhs)?;
+            if let il::Expression::Constant(_) = rhs {
+                match *expr {
+                    il::Expression::Zext(_, _) =>
+                        executor::constants_expression(&il::Expression::zext(bits, rhs)?)?.into(),
+                    il::Expression::Sext(_, _) =>
+                        executor::constants_expression(&il::Expression::sext(bits, rhs)?)?.into(),
+                    il::Expression::Trun(_, _) =>
+                        executor::constants_expression(&il::Expression::trun(bits, rhs)?)?.into(),
+                    _ => bail!("Unreachable in simplify_expression")
+                }
+            }
+            else {
+                match *expr {
+                    il::Expression::Zext(bits, ref rhs) => il::Expression::zext(bits, simplify_expression(rhs)?)?,
+                    il::Expression::Sext(bits, ref rhs) => il::Expression::sext(bits, simplify_expression(rhs)?)?,
+                    il::Expression::Trun(bits, ref rhs) => il::Expression::trun(bits, simplify_expression(rhs)?)?,
+                    _ => bail!("Unreachable in simplify_expression")
+                }
+            }
+        }
+    })// match expr
 }
 
 
