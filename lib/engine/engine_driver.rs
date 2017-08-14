@@ -278,7 +278,7 @@ impl ProgramLocation {
 
 /// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
-pub struct EngineDriver<'e, P: Send + Sync> {
+pub struct EngineDriver<'e, P> {
     program: Arc<il::Program>,
     location: ProgramLocation,
     engine: SymbolicEngine,
@@ -288,7 +288,7 @@ pub struct EngineDriver<'e, P: Send + Sync> {
 
 
 
-impl<'e, P> EngineDriver<'e, P> where P: Send + Sync {
+impl<'e, P> EngineDriver<'e, P> {
     /// Create a new `EngineDriver`.
     ///
     /// # Arguments
@@ -306,7 +306,7 @@ impl<'e, P> EngineDriver<'e, P> where P: Send + Sync {
         engine: SymbolicEngine,
         arch: &'e Box<translator::Arch>,
         platform: Arc<P>
-    ) -> EngineDriver<P> where P: Platform<P> + Send + Sync {
+    ) -> EngineDriver<P> where P: Platform<P> {
 
         EngineDriver {
             program: program,
@@ -321,7 +321,7 @@ impl<'e, P> EngineDriver<'e, P> where P: Send + Sync {
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of `EngineDriver` back depending on how many possible
     /// states are possible.
-    pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> + Send + Sync {
+    pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> {
         let mut new_engine_drivers = Vec::new();
         match self.location.function_location {
             FunctionLocation::Instruction { block_index, instruction_index } => {
@@ -335,6 +335,18 @@ impl<'e, P> EngineDriver<'e, P> where P: Send + Sync {
                                           .unwrap();
 
                     // println!("Executing instruction {}", instruction);
+                    match *instruction.operation() {
+                        il::Operation::Load { ref index, .. } => {
+                            let expr = self.engine.symbolize_expression(index)?;
+                            if !engine::all_constants(&expr) {
+                                println!("Loading from non-constant address");
+                                if let Some(address) = self.address() {
+                                    println!("address: 0x{:x}", address);
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
                     self.engine.execute(instruction.operation())?
                 };
 
