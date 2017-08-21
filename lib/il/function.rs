@@ -44,15 +44,16 @@ impl Function {
     }
 
     /// Return a `Block` from this `Function`'s `ControlFlowGraph` by index.
-    ///
-    /// This is a convenience function.
     pub fn block(&self, index: u64) -> Option<&Block> {
         self.control_flow_graph.block(index)
     }
 
+    /// Return a vec of all `Block` in this `Function`
+    pub fn blocks(&self) -> Vec<&Block> {
+        self.control_flow_graph.blocks()
+    }
+
     /// Return an `Edge` from this `Function`'s `ControlFlowGraph` by index.
-    ///
-    /// This is a convenience function.
     pub fn edge(&self, head: u64, tail: u64) -> Option<&Edge> {
         self.control_flow_graph.edge(head, tail)
     }

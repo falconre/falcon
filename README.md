@@ -28,9 +28,13 @@ Falcon has hit `0.1.0`. This means:
 
 There will most likely be some API changes in the next few releases. If you aren't actively developing on Falcon, I recommend you use a tagged released.
 
-# Building
+# Building and Using
 
-As of 1.18, everything, including docs, builds with rust stable.
+Falcon builds and runs on Rust stable.
+
+See the [palindrome-example](https://github.com/endeav0r/falcon-palindrome) repository as an example program which uses Falcon.
+
+I push to master for development. If you want to build off a Falcon which does not have underlying API changes, use a tagged release.
 
 You will need the correct dependencies for bindgen to build the capstone bindings, as well as `z3` on the commandline. The `Dockerfile` has everything required to get you set up.
 

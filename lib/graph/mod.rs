@@ -536,12 +536,13 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
     }
 
 
-    /// Returns all edges in the graph.
+    /// Get a reference to every `Edge` in the `Graph`.
     pub fn edges(&self) -> Vec<&E> {
         self.edges.values().collect()
     }
 
 
+    /// Get a mutable reference to every `Edge` in the `Graph`.
     pub fn edges_mut(&mut self) -> Vec<&mut E> {
         let mut vec = Vec::new();
         for edge in &mut self.edges {

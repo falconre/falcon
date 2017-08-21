@@ -59,6 +59,10 @@ pub mod error {
                 description("Attempt to access unmapped memory")
                 display("Attempt to access unmapped memory at address 0x{:x}", address)
             }
+            ProgramLocationMigration(reason: String) {
+                description("Error migrating ProgramLocation between Program")
+                display("Failed to migrate ProgramLocation between Program: {}", reason)
+            }
         }
     }
 }
