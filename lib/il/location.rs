@@ -1,15 +1,17 @@
 //! A universal means of representing location in a Falcon program
 //!
 //! We have two basic types of locations in Falcon:
-//! * `RefProgramLocation`, and its companion `RefFunctionLocation`. These are program locations, 
+//!
+//! `RefProgramLocation`, and its companion `RefFunctionLocation`. These are program locations, 
 //! "Applied," to a program.
-//! * `ProgramLocation`, and its companion, `FunctionLocation`. These are program locations
+//!
+//! `ProgramLocation`, and its companion, `FunctionLocation`. These are program locations
 //! independent of a program.
 //!
-//! We will normally deal with `RefProgramLocation`. However, as 
-//! `RefProgramLocation` has a lifetime dependent on a specific `Program`, it
-//! can sometimes to be difficult to use. Therefor, we have `ProgramLocation`,
-//! which is an Owned type in its own right with no references.
+//! We will normally deal with `RefProgramLocation`. However, as  `RefProgramLocation` has a
+//! lifetime dependent on a specific `Program`, it can sometimes to be difficult to use.
+//! Therefor, we have `ProgramLocation`, which is an Owned type in its own right with no
+//! references.
 
 
 use il::*;
@@ -73,6 +75,15 @@ impl<'p> RefProgramLocation<'p> {
             RefFunctionLocation::Instruction(_, instruction) => Some(instruction),
             _ => None
         }
+    }
+
+    /// If this `RefProgramLocation` is referencing an `Instruction` which has
+    /// an address set, return that address.
+    pub fn address(&self) -> Option<u64> {
+        if let Some(instruction) = self.function_location.instruction() {
+            return instruction.address();
+        }
+        None
     }
 
     /// Apply this `RefProgramLocation` to another `Program`.

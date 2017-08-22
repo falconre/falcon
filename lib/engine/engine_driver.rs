@@ -16,271 +16,15 @@ use engine::*;
 use il;
 use platform::Platform;
 use translator;
-use std::collections::VecDeque;
 use std::sync::Arc;
 
-/// Takes a program and an address, and returns function, block, and instruction
-/// index for the first IL instruction at that address.
-pub fn instruction_address(program: &il::Program, address: u64)
-    -> Option<(u64, u64, u64)> {
-
-    for function in program.functions() {
-        for block in function.control_flow_graph().blocks() {
-            for instruction in block.instructions() {
-                if let Some(ins_address) = instruction.address() { 
-                    if ins_address == address {
-                        return Some(
-                            (function.index().unwrap(),
-                            block.index(),
-                            instruction.index()));
-                    }
-                }
-            }
-        }
-    }
-    None
-}
-
-
-/// A unique location in a function
-#[derive(Clone, Debug)]
-pub enum FunctionLocation {
-    /// A function-unique identifier for an instruction.
-    Instruction {
-        block_index: u64,
-        instruction_index: u64,
-    },
-    /// A function-unique identifier for an edge.
-    Edge {
-        head: u64,
-        tail: u64
-    }
-}
-
-
-/// A unique location in a program
-#[derive(Clone, Debug)]
-pub struct ProgramLocation {
-    function_index: u64,
-    function_location: FunctionLocation
-}
-
-impl ProgramLocation {
-    /// Create a new `ProgramLocation`
-    pub fn new(
-        function_index: u64,
-        function_location: FunctionLocation
-    ) -> ProgramLocation {
-        ProgramLocation {
-            function_index: function_index,
-            function_location: function_location
-        }
-    }
-
-
-    /// Convert an address to a `ProgramLocation`
-    ///
-    /// If the address cannot be found, we return `None`.
-    pub fn from_address(address: u64, program: &il::Program)
-        -> Option<ProgramLocation> {
-
-        for function in program.functions() {
-            for block in function.control_flow_graph().blocks() {
-                for instruction in block.instructions() {
-                    if let Some(ins_address) = instruction.address() {
-                        if ins_address == address {
-                            return Some(ProgramLocation::new(
-                                function.index().unwrap(),
-                                FunctionLocation::Instruction {
-                                    block_index: block.index(),
-                                    instruction_index: instruction.index()
-                                }
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-
-
-    /// Returns the index of this location's function
-    pub fn function_index(&self) -> u64 {
-        self.function_index
-    }
-
-
-    /// Return the `Function` for this location
-    pub fn function<'f>(&self, program: &'f il::Program) -> Option<&'f il::Function> {
-        program.function(self.function_index)
-    }
-
-
-    /// Return the `Block` for this location
-    pub fn block<'f>(&self, program: &'f il::Program) -> Option<&'f il::Block> {
-        if let FunctionLocation::Instruction { ref block_index, .. } = self.function_location {
-            if let Some(function) = self.function(program) {
-                return function.block(*block_index);
-            }
-        }
-        None
-    }
-
-
-    /// Return the `Instruction` for this location
-    pub fn instruction<'f>(&self, program: &'f il::Program) -> Option<&'f il::Instruction> {
-        if let FunctionLocation::Instruction { ref instruction_index, .. } =
-            self.function_location {
-
-            if let Some(block) = self.block(program) {
-                return block.instruction(*instruction_index);
-            }
-        }
-        None
-    }
-
-
-    /// Return the FunctionLocation for this location
-    pub fn function_location(&self) -> &FunctionLocation {
-        &self.function_location
-    }
-
-
-    /// Advances the `DriverLocation` to the next valid `il::Instruction` or
-    /// `il::Edge`
-    ///
-    /// Advancing a location through the program may be tricky due to edge
-    /// cases. For example, we may have an unconditional edge leading to an
-    /// empty block, leading to another unconditional edge. In this case, we
-    /// want to advance past all of these to the next valid `ProgramLocation`.
-    pub fn advance(&self, program: &il::Program) -> Vec<ProgramLocation> {
-        // This is the list of locations which no longer need to be advanced
-        let mut final_locations = Vec::new();
-
-        // This is the queue of locations pending advancement
-        let mut queue = VecDeque::new();
-        queue.push_back(self.clone());
-        while queue.len() > 0 {
-            let location = queue.pop_front().unwrap();
-            // If we are at an instruction
-            match location.function_location {
-                FunctionLocation::Instruction { block_index, instruction_index } => {
-                    // Iterate through the block to find this instruction
-                    let instructions = location.function(program).unwrap()
-                                               .block(block_index).unwrap()
-                                               .instructions();
-                    for i in 0..instructions.len() {
-                        // We found this instruction
-                        if instructions[i].index() == instruction_index {
-                            // If there is a successor in the block, advance to the
-                            // successor
-                            if i + 1 < instructions.len() {
-                                final_locations.push(ProgramLocation::new(
-                                    location.function_index,
-                                    FunctionLocation::Instruction {
-                                        block_index: block_index,
-                                        instruction_index: instructions[i + 1].index()
-                                    }
-                                ));
-                                break;
-                            }
-                            // There is no successor, let's take a look at outgoing
-                            // edges
-                            for edge in location.function(program)
-                                                .unwrap()
-                                                .control_flow_graph()
-                                                .graph()
-                                                .edges_out(block_index)
-                                                .unwrap() {
-                                // If this is a conditional edge, advance to the
-                                // edge
-                                if edge.condition().is_some() {
-                                    final_locations.push(ProgramLocation::new(
-                                        location.function_index,
-                                        FunctionLocation::Edge {
-                                            head: edge.head(),
-                                            tail: edge.tail()
-                                        }
-                                    ));
-                                }
-                                // If this is an unconditional edge, push the
-                                // unconditional edge onto the queue
-                                else {
-                                    queue.push_back(ProgramLocation::new(
-                                        location.function_index,
-                                        FunctionLocation::Edge {
-                                            head: edge.head(),
-                                            tail: edge.tail()
-                                        }
-                                    ));
-                                }
-                            } // for edge
-                        } // if instructions[i].index()
-                    } // for i in 0..instructions.len()
-                },
-                FunctionLocation::Edge { head: _, tail } => {
-                    // Get the successor block
-                    let block = location.function(program).unwrap()
-                                        .block(tail).unwrap();
-                    // If this block is empty, we move straight to outgoing
-                    // edges
-                    if block.instructions().is_empty() {
-                        for edge in location.function(program)
-                                            .unwrap()
-                                            .control_flow_graph()
-                                            .graph()
-                                            .edges_out(tail)
-                                            .unwrap() {
-                            // We advance conditional edges, and push
-                            // unconditional edges back on the queue
-                            // TODO programs with infinite loops, I.E. `while (1) {}`,
-                            // will cause us to hang here. We would prefer to hang somewhere else
-                            // so we can eventually stop.
-                            if edge.condition().is_some() {
-                                final_locations.push(ProgramLocation::new(
-                                    location.function_index,
-                                    FunctionLocation::Edge {
-                                        head: edge.head(),
-                                        tail: edge.tail()
-                                    }
-                                ));
-                            }
-                            else {
-                                queue.push_back(ProgramLocation::new(
-                                    location.function_index,
-                                    FunctionLocation::Edge {
-                                        head: edge.head(),
-                                        tail: edge.tail()
-                                    }
-                                ));
-                            }
-                        } // for edge in location
-                    } // if block.instructions().is_empty()
-                    // If this block isn't empty, we advance to the first instruction
-                    else {
-                        final_locations.push(ProgramLocation::new(
-                            location.function_index,
-                            FunctionLocation::Instruction {
-                                block_index: block.index(),
-                                instruction_index: block.instructions()[0].index()
-                            }
-                        ));
-                    }
-                }
-            } // match location
-        } // while queue.len() > 0
-
-        final_locations
-    }
-}
 
 
 /// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
 pub struct EngineDriver<'e, P> {
     program: Arc<il::Program>,
-    location: ProgramLocation,
+    location: il::ProgramLocation,
     engine: SymbolicEngine,
     arch: &'e Box<translator::Arch>,
     platform: Arc<P>
@@ -302,7 +46,7 @@ impl<'e, P> EngineDriver<'e, P> {
     /// external environment and may be stateful.
     pub fn new(
         program: Arc<il::Program>,
-        location: ProgramLocation,
+        location: il::ProgramLocation,
         engine: SymbolicEngine,
         arch: &'e Box<translator::Arch>,
         platform: Arc<P>
@@ -323,17 +67,10 @@ impl<'e, P> EngineDriver<'e, P> {
     /// states are possible.
     pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> {
         let mut new_engine_drivers = Vec::new();
-        match self.location.function_location {
-            FunctionLocation::Instruction { block_index, instruction_index } => {
+        let location = self.location.apply(&self.program).unwrap();
+        match *location.function_location() {
+            il::RefFunctionLocation::Instruction(_, instruction) => {
                 let successors = {
-                    let instruction = self.program
-                                          .function(self.location.function_index())
-                                          .unwrap()
-                                          .block(block_index)
-                                          .unwrap()
-                                          .instruction(instruction_index)
-                                          .unwrap();
-
                     // println!("Executing instruction {}", instruction);
                     match *instruction.operation() {
                         il::Operation::Load { ref index, .. } => {
@@ -356,11 +93,11 @@ impl<'e, P> EngineDriver<'e, P> {
                             // Get the possible successor locations for the current
                             // location
                             let engine = successor.into_engine();
-                            let locations = self.location.advance(&self.program);
+                            let locations = location.advance_forward()?;
                             if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
-                                    locations[0].clone(),
+                                    locations[0].clone().into(),
                                     engine,
                                     self.arch,
                                     self.platform.clone(),
@@ -370,7 +107,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                 for location in locations {
                                     new_engine_drivers.push(EngineDriver::new(
                                         self.program.clone(),
-                                        location,
+                                        location.into(),
                                         engine.clone(),
                                         self.arch,
                                         self.platform.clone()
@@ -379,11 +116,11 @@ impl<'e, P> EngineDriver<'e, P> {
                             }
                         },
                         SuccessorType::Branch(address) => {
-                            match ProgramLocation::from_address(address, &self.program) {
+                            match il::RefProgramLocation::from_address(&self.program, address) {
                                 // We have already disassembled the branch target. Go straight to it.
                                 Some(location) => new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
-                                    location,
+                                    location.into(),
                                     successor.into_engine(),
                                     self.arch,
                                     self.platform.clone()
@@ -395,12 +132,16 @@ impl<'e, P> EngineDriver<'e, P> {
                                     let function = self.arch.translate_function(&engine, address);
                                     match function {
                                         Ok(function) => {
-                                            Arc::make_mut(&mut self.program).add_function(function);
-                                            let location = ProgramLocation::from_address(address, &self.program);
+                                            let mut program = self.program.clone();
+                                            Arc::make_mut(&mut program).add_function(function);
+                                            let location = il::RefProgramLocation::from_address(
+                                                &program,
+                                                address
+                                            );
                                             if let Some(location) = location {
                                                 new_engine_drivers.push(EngineDriver::new(
-                                                    self.program.clone(),
-                                                    location,
+                                                    program.clone(),
+                                                    location.into(),
                                                     engine,
                                                     self.arch,
                                                     self.platform.clone()
@@ -417,7 +158,7 @@ impl<'e, P> EngineDriver<'e, P> {
                         },
                         SuccessorType::Raise(expression) => {
                             let platform = Arc::make_mut(&mut self.platform).to_owned();
-                            let locations = self.location.advance(&self.program);
+                            let locations = location.advance_forward()?;
                             let engine = successor.clone().into_engine();
                             let results = match platform.raise(&expression, engine) {
                                 Ok(results) => results,
@@ -430,7 +171,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                 for result in &results {
                                     new_engine_drivers.push(EngineDriver::new(
                                         self.program.clone(),
-                                        location.clone(),
+                                        location.clone().into(),
                                         result.1.clone(),
                                         self.arch,
                                         Arc::new(result.0.clone())
@@ -441,30 +182,25 @@ impl<'e, P> EngineDriver<'e, P> {
                     }
                 } 
             },
-            FunctionLocation::Edge { head, tail } => {
-                let edge = self.location
-                               .function(&self.program)
-                               .unwrap()
-                               .edge(head, tail)
-                               .unwrap();
+            il::RefFunctionLocation::Edge(edge) => {
                 match *edge.condition() {
                     None => {
                         if edge.condition().is_none() {
-                            let locations = self.location.advance(&self.program);
+                            let locations = location.advance_forward()?;
                             if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
-                                    locations[0].clone(),
+                                    locations[0].clone().into(),
                                     self.engine,
                                     self.arch,
                                     self.platform.clone()
                                 ));
                             }
                             else {
-                                for location in self.location.advance(&self.program) {
+                                for location in location.advance_forward()? {
                                     new_engine_drivers.push(EngineDriver::new(
                                         self.program.clone(),
-                                        location,
+                                        location.into(),
                                         self.engine.clone(),
                                         self.arch,
                                         self.platform.clone()
@@ -477,21 +213,21 @@ impl<'e, P> EngineDriver<'e, P> {
                         if self.engine.sat(Some(vec![condition.clone()]))? {
                             let mut engine = self.engine.clone();
                             engine.add_constraint(condition.clone())?;
-                            let locations = self.location.advance(&self.program);
+                            let locations = location.advance_forward()?;
                             if locations.len() == 1 {
                                 new_engine_drivers.push(EngineDriver::new(
                                     self.program.clone(),
-                                    locations[0].clone(),
+                                    locations[0].clone().into(),
                                     engine,
                                     self.arch,
                                     self.platform.clone()
                                 ));
                             }
                             else {
-                                for location in self.location.advance(&self.program) {
+                                for location in location.advance_forward()? {
                                     new_engine_drivers.push(EngineDriver::new(
                                         self.program.clone(),
-                                        location,
+                                        location.into(),
                                         engine.clone(),
                                         self.arch,
                                         self.platform.clone()
@@ -501,6 +237,18 @@ impl<'e, P> EngineDriver<'e, P> {
                         }
                     }
                 }
+            },
+            il::RefFunctionLocation::EmptyBlock(_) => {    
+                let locations = location.advance_forward()?;
+                for location in locations {
+                    new_engine_drivers.push(EngineDriver::new(
+                        self.program.clone(),
+                        location.into(),
+                        self.engine.clone(),
+                        self.arch,
+                        self.platform.clone()
+                    ));
+                }
             }
         } // match self.location.function_location
         Ok(new_engine_drivers)
@@ -509,12 +257,12 @@ impl<'e, P> EngineDriver<'e, P> {
     /// If the current location of this EngineDriver is an instruction with an
     /// address, return that address
     pub fn address(&self) -> Option<u64> {
-        if let Some(instruction) = self.location.instruction(&self.program) {
-            instruction.address()
+        if let Some(location) = self.location.apply(&self.program) {
+            if let Some(instruction) = location.instruction() {
+                return instruction.address();
+            }
         }
-        else {
-            None
-        }
+        None
     }
 
     /// Get the platform for this `EngineDriver`
@@ -528,12 +276,12 @@ impl<'e, P> EngineDriver<'e, P> {
     }
 
     /// Return the location of this `EngineDriver`
-    pub fn location(&self) -> &ProgramLocation {
+    pub fn location(&self) -> &il::ProgramLocation {
         &self.location
     }
 
     /// Set the location for this `EngineDriver`.
-    pub fn set_location(&mut self, location: ProgramLocation) {
+    pub fn set_location(&mut self, location: il::ProgramLocation) {
         self.location = location;
     }
 

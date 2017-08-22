@@ -40,7 +40,10 @@ fn simple_0_test () -> Result<Vec<u8>> {
 
 
     // Get the first instruction we care about
-    let pl = ProgramLocation::from_address(elf.program_entry(), &program).unwrap();
+    let pl: il::ProgramLocation = il::RefProgramLocation::from_address(
+        &program,
+        elf.program_entry()
+    ).unwrap().into();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let translator = elf.translator()?;
     let driver = EngineDriver::new(
@@ -58,14 +61,9 @@ fn simple_0_test () -> Result<Vec<u8>> {
         let mut new_drivers = Vec::new();
         for driver in drivers {
             {
-                let location = driver.location();
                 let program = driver.program();
-                let function_location = location.function_location();
-                if let FunctionLocation::Instruction{block_index, instruction_index} = *function_location {
-                    let function = program.function(location.function_index()).unwrap();
-                    let block = function.block(block_index).unwrap();
-                    let instruction = block.instruction(instruction_index).unwrap();
-                    let address = instruction.address().unwrap();
+                let location = driver.location().apply(&program).unwrap();
+                if let Some(address) = location.address() {
                     if address == target_address {
                         println!("Reached Target Address");
                         for constraint in driver.engine().constraints() {
