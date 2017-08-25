@@ -145,7 +145,7 @@ impl ElfLinker {
             match reloc.r_type {
                 goblin::elf::reloc::R_386_32 => {
                     let ref sym = dynsyms[reloc.r_sym];
-                    let sym_name = dynstrtab.get(sym.st_name);
+                    let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
                         None => bail!("Could not resolve symbol {}", sym_name)
@@ -160,7 +160,7 @@ impl ElfLinker {
                 },
                 goblin::elf::reloc::R_386_PLT32 => {
                     let ref sym = dynsyms[reloc.r_sym];
-                    let sym_name = dynstrtab.get(sym.st_name);
+                    let sym_name = &dynstrtab[sym.st_name];
                     bail!("R_386_PLT32 {}:0x{:x}:{}", filename, reloc.r_offset, sym_name);
                 },
                 goblin::elf::reloc::R_386_COPY => {
@@ -168,7 +168,7 @@ impl ElfLinker {
                 },
                 goblin::elf::reloc::R_386_GLOB_DAT => {
                     let ref sym = dynsyms[reloc.r_sym];
-                    let sym_name = dynstrtab.get(sym.st_name);
+                    let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
                         None => {
@@ -183,7 +183,7 @@ impl ElfLinker {
                 },
                 goblin::elf::reloc::R_386_JMP_SLOT => {
                     let ref sym = dynsyms[reloc.r_sym];
-                    let sym_name = dynstrtab.get(sym.st_name);
+                    let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
                         None => bail!("Could not resolve symbol {}", sym_name)
@@ -381,7 +381,6 @@ impl Elf {
             let strtab_address = strtab_address.unwrap();
             // We're going to make a pretty safe assumption that strtab is all
             // in one section
-            let mut strtab = None;
             for section_header in &elf.section_headers {
                 if    section_header.sh_addr > 0 
                    && section_header.sh_addr <= strtab_address
@@ -391,20 +390,18 @@ impl Elf {
                     let start = start as usize;
                     let size = size as usize;
                     let strtab_bytes = self.bytes.get(start..(start + size)).unwrap();
-                    strtab = Some(goblin::strtab::Strtab::new(strtab_bytes.to_vec(), 0));
+                    let strtab = goblin::strtab::Strtab::new(&strtab_bytes, 0);
+                    for dyn in dynamic.dyns {
+                        if dyn.d_tag == goblin::elf::dyn::DT_NEEDED {
+                            let so_name = &strtab[dyn.d_val as usize];
+                            v.push(so_name.to_string());
+                        }
+                    }
+                    return Ok(v);
                 }
             }
-            if strtab.is_none() {
-                panic!("Failed to get Dynamic strtab");
-            }
-            let strtab = strtab.unwrap();
-
-            for dyn in dynamic.dyns {
-                if dyn.d_tag == goblin::elf::dyn::DT_NEEDED {
-                    let so_name = strtab.get(dyn.d_val as usize);
-                    v.push(so_name.to_string());
-                }
-            }
+            // if we got here, we didn't return a vector (I think ;))
+            panic!("Failed to get Dynamic strtab");
         }
 
         Ok(v)
@@ -425,7 +422,7 @@ impl Elf {
             }
             if    sym.st_bind() == goblin::elf::sym::STB_GLOBAL
                || sym.st_bind() == goblin::elf::sym::STB_WEAK {
-                v.push(ElfSymbol::new(elf.dynstrtab.get(sym.st_name), sym.st_value));
+                v.push(ElfSymbol::new(&elf.dynstrtab[sym.st_name], sym.st_value));
             }
         }
 
@@ -487,10 +484,10 @@ impl Loader for Elf {
         // dynamic symbols
         for sym in &elf.dynsyms {
             if sym.is_function() && sym.st_value != 0 {
-                let name = elf.dynstrtab.get(sym.st_name).to_string();
+                let name = &elf.dynstrtab[sym.st_name];
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
-                    Some(name)
+                    Some(name.to_string())
                 ));
                 functions_added.insert(sym.st_value);
             }
@@ -499,10 +496,10 @@ impl Loader for Elf {
         // normal symbols
         for sym in &elf.syms {
             if sym.is_function() && sym.st_value != 0 {
-                let name = elf.strtab.get(sym.st_name).to_string();
+                let name = &elf.strtab[sym.st_name];
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
-                    Some(name))
+                    Some(name.to_string()))
                 );
                 functions_added.insert(sym.st_value);
             }
