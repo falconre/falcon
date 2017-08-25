@@ -157,47 +157,6 @@ impl SymbolicEngine {
         }
     }
 
-    /// Replaces scalars in the expression with those in the engine's current
-    /// scalar to expression mapping, and then evaluates for a concrete value.
-    /// 
-    /// Returns None is there is no satisfiable solution, or a concrete value as
-    /// a constant if a concrete solution exists.
-    pub fn symbolize_and_concretize(
-        &self,
-        expression: &il::Expression,
-        mut constraints: Option<Vec<il::Expression>>
-    ) -> Result<Option<il::Constant>> {
-
-        let expression = self.symbolize_expression(expression)?;
-
-        constraints = match constraints {
-            None => None,
-            Some(constraints) => Some(constraints
-                .iter()
-                .map(|constraint| self.symbolize_expression(&constraint).unwrap())
-                .collect::<Vec<il::Expression>>())
-        };
-
-        if let Some(ref constraints) = constraints {
-            for constraint in constraints {
-                if !all_constants(&constraint) {
-                    return self.eval(&expression, Some(constraints.to_vec()))
-                }
-                if executor::constants_expression(&constraint)?.value() != 1 {
-                    return Ok(None);
-                }
-            }
-        }
-
-        // At this point, constraints are all constants
-        if all_constants(&expression) {
-            Ok(Some(executor::constants_expression(&expression)?))
-        }
-        else {
-            self.eval(&expression, constraints)
-        }
-    }
-
 
     /// Forks the state of the symbolic engine. In future iterations, this will
     /// allow for Copy-On-Write optimizations.
@@ -300,13 +259,27 @@ impl SymbolicEngine {
             Some(constraints) => {
                 let mut c = Vec::new();
                 for constraint in constraints {
-                    c.push(self.symbolize_and_eval(&constraint)?);
+                    let constraint = self.symbolize_expression(&constraint)?;
+                    if all_constants(&constraint) {
+                        if executor::constants_expression(&constraint)?.value() == 0 {
+                            return Ok(None)
+                        }
+                    }
+                    else {
+                        c.push(constraint);
+                    }
                 }
                 c.append(&mut self.constraints.clone());
                 c
             },
             None => self.constraints.clone()
         };
+
+        let expr = self.symbolize_expression(expr)?;
+
+        if all_constants(&expr) {
+            return Ok(Some(executor::constants_expression(&expr)?));
+        }
 
         // Collect all the scalars from our constraints
         let mut constraint_scalars: BTreeSet<(String, usize)> = BTreeSet::new();
@@ -342,7 +315,7 @@ impl SymbolicEngine {
 
         // Assert this expression
         solver_lines.push(format!("(assert (= EVAL_RESULT {}))",
-            expr_to_smtlib2(expr)));
+            expr_to_smtlib2(&expr)));
         
         solver_lines.push("(check-sat)".to_string());
         solver_lines.push("(get-value (EVAL_RESULT))".to_string());
@@ -453,7 +426,7 @@ impl SymbolicEngine {
             },
             il::Operation::Store { ref index, ref src, .. } => {
                 let src = self.symbolize_and_eval(src)?;
-                let index = self.symbolize_and_concretize(index, None)?;
+                let index = self.eval(index, None)?;
                 if let Some(index) = index {
                     self.memory.store(index.value(), src)?;
                     vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
@@ -463,7 +436,7 @@ impl SymbolicEngine {
                 }
             },
             il::Operation::Load { ref dst, ref index, .. } => {
-                let index_ = self.symbolize_and_concretize(index, None)?;
+                let index_ = self.eval(index, None)?;
                 if let Some(index) = index_ {
                     let value = self.memory.load(index.value(), dst.bits())?;
                     match value {
@@ -486,7 +459,7 @@ impl SymbolicEngine {
                 let mut successors = Vec::new();
                 // Is it possible for this case not to be taken?
                 let null_case = il::Expression::cmpeq(condition.clone(), il::expr_const(0, 1))?;
-                let r = self.symbolize_and_concretize(&null_case, Some(vec![null_case.clone()]))?;
+                let r = self.eval(&null_case, Some(vec![null_case.clone()]))?;
                 if r.is_some() {
                     let mut engine = self.fork();
                     engine.add_constraint(null_case)?;
@@ -494,9 +467,9 @@ impl SymbolicEngine {
                     successors.push(successor);
                 }
                 // This is the true case
-                let r = self.symbolize_and_concretize(&condition, Some(vec![condition.clone()]))?;
+                let r = self.eval(&condition, Some(vec![condition.clone()]))?;
                 if r.is_some() {
-                    let t = self.symbolize_and_concretize(target, Some(vec![condition.clone()]))?;
+                    let t = self.eval(target, Some(vec![condition.clone()]))?;
                     if let Some(target) = t {
                         let mut engine = self.fork();
                         engine.add_constraint(condition.clone())?;

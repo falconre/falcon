@@ -246,15 +246,15 @@ impl Platform<LinuxX86> for LinuxX86 {
 
                 trace!("SYS_READ {} {} {}", ebx, ecx, edx);
 
-                let fd = engine.symbolize_and_concretize(&ebx.into(), None)?.unwrap();
+                let fd = engine.eval(&ebx.into(), None)?.unwrap();
 
                 // For now, we will concretize ecx/edx
-                let address = engine.symbolize_and_concretize(&ecx, None)?.unwrap();
+                let address = engine.eval(&ecx, None)?.unwrap();
                 if !all_constants(&ecx) {
                     engine.add_constraint(il::Expression::cmpeq(ecx, address.clone().into())?)?;
                 }
 
-                let length = engine.symbolize_and_concretize(&edx, None)?.unwrap();
+                let length = engine.eval(&edx, None)?.unwrap();
                 if !all_constants(&edx) {
                     engine.add_constraint(il::Expression::cmpeq(edx, length.clone().into())?)?;
                 }
@@ -291,15 +291,15 @@ impl Platform<LinuxX86> for LinuxX86 {
                     (ebx.to_owned(), ecx.to_owned(), edx.to_owned())
                 };
 
-                let fd = engine.symbolize_and_concretize(&ebx.into(), None)?.unwrap();
+                let fd = engine.eval(&ebx.into(), None)?.unwrap();
 
                 // For now, we will concretize ecx/edx
-                let address = engine.symbolize_and_concretize(&ecx, None)?.unwrap();
+                let address = engine.eval(&ecx, None)?.unwrap();
                 if !all_constants(&ecx) {
                     engine.add_constraint(il::Expression::cmpeq(ecx, address.clone().into())?)?;
                 }
 
-                let length = engine.symbolize_and_concretize(&edx, None)?.unwrap();
+                let length = engine.eval(&edx, None)?.unwrap();
                 if !all_constants(&edx) {
                     engine.add_constraint(il::Expression::cmpeq(edx, length.clone().into())?)?;
                 }
