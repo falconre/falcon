@@ -4,19 +4,19 @@
 //! `il::Constant`, and symbolic values stored as valid expressions.
 //!
 //! `SymbolicMemory` is paged under-the-hood with reference-counted pages. When these pages
-//! are written to, we use the copy-on-write functionality of rust's `std::sync::Arc` type,
+//! are written to, we use the copy-on-write functionality of rust's `std::rc::Rc` type,
 //! giving us copy-on-write paging. This allows for very fast forks of `SymbolicMemory`.
 
 use error::*;
 use il;
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::rc::Rc;
 
 
-const PAGE_SIZE: usize = 1024;
+const PAGE_SIZE: usize = 4092;
 
 /// The underlying endianness of this memory model.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Endian {
     Big,
     Little
@@ -30,7 +30,7 @@ pub enum Endian {
 /// an address of the beginning of an expression which extends to this address.
 ///
 /// If we get this right, it should be pretty awesome. _If_we_get_this_right_.
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 enum MemoryCell {
     Expression(il::Expression),
     Backref(u64)
@@ -46,7 +46,7 @@ impl MemoryCell {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct SymbolicPage {
     size: usize,
     cells: Vec<MemoryCell>
@@ -87,10 +87,10 @@ impl SymbolicPage {
 
 
 /// A symbolic memory model for Falcon IL expressions.
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SymbolicMemory {
     endian: Endian,
-    pages: BTreeMap<u64, Arc<SymbolicPage>>
+    pages: BTreeMap<u64, Rc<SymbolicPage>>
 }
 
 
@@ -114,13 +114,13 @@ impl SymbolicMemory {
         let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
 
         if let Some(mut page) = self.pages.get_mut(&page_address) {
-            Arc::make_mut(&mut page).store(offset, cell)?;
+            Rc::make_mut(&mut page).store(offset, cell)?;
             return Ok(())
         }
 
         let mut page = SymbolicPage::new(PAGE_SIZE);
         page.store(offset, cell)?;
-        self.pages.insert(page_address, Arc::new(page));
+        self.pages.insert(page_address, Rc::new(page));
 
         Ok(())
     }

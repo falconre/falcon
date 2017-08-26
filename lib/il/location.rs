@@ -47,7 +47,7 @@ impl<'p> RefProgramLocation<'p> {
                 for instruction in block.instructions() {
                     if let Some(iaddress) = instruction.address() {
                         if iaddress == address {
-                            return Some(RefProgramLocation::new(function,
+                            return Some(RefProgramLocation::new(&function,
                                 RefFunctionLocation::Instruction(block, instruction)));
                         }
                     }

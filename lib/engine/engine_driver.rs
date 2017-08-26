@@ -16,18 +16,18 @@ use engine::*;
 use il;
 use platform::Platform;
 use translator;
-use std::sync::Arc;
+use std::rc::Rc;
 
 
 
 /// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
 pub struct EngineDriver<'e, P> {
-    program: Arc<il::Program>,
+    program: Rc<il::Program>,
     location: il::ProgramLocation,
     engine: SymbolicEngine,
     arch: &'e Box<translator::Arch>,
-    platform: Arc<P>
+    platform: Rc<P>
 }
 
 
@@ -45,11 +45,11 @@ impl<'e, P> EngineDriver<'e, P> {
     /// * `platform`: The platform we will use to handle `Raise` instructions. `Platform` models the
     /// external environment and may be stateful.
     pub fn new(
-        program: Arc<il::Program>,
+        program: Rc<il::Program>,
         location: il::ProgramLocation,
         engine: SymbolicEngine,
         arch: &'e Box<translator::Arch>,
-        platform: Arc<P>
+        platform: Rc<P>
     ) -> EngineDriver<P> where P: Platform<P> {
 
         EngineDriver {
@@ -75,7 +75,7 @@ impl<'e, P> EngineDriver<'e, P> {
                     match *instruction.operation() {
                         il::Operation::Load { ref index, .. } => {
                             let expr = self.engine.symbolize_expression(index)?;
-                            if !engine::all_constants(&expr) {
+                            if !all_constants(&expr) {
                                 println!("Loading from non-constant address");
                                 if let Some(address) = self.address() {
                                     println!("address: 0x{:x}", address);
@@ -133,7 +133,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                     match function {
                                         Ok(function) => {
                                             let mut program = self.program.clone();
-                                            Arc::make_mut(&mut program).add_function(function);
+                                            Rc::make_mut(&mut program).add_function(function);
                                             let location = il::RefProgramLocation::from_address(
                                                 &program,
                                                 address
@@ -157,7 +157,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             };
                         },
                         SuccessorType::Raise(expression) => {
-                            let platform = Arc::make_mut(&mut self.platform).to_owned();
+                            let platform = Rc::make_mut(&mut self.platform).to_owned();
                             let locations = location.advance_forward()?;
                             let engine = successor.clone().into_engine();
                             let results = match platform.raise(&expression, engine) {
@@ -174,7 +174,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                         location.clone().into(),
                                         result.1.clone(),
                                         self.arch,
-                                        Arc::new(result.0.clone())
+                                        Rc::new(result.0.clone())
                                     ));
                                 }
                             }
@@ -266,7 +266,7 @@ impl<'e, P> EngineDriver<'e, P> {
     }
 
     /// Get the platform for this `EngineDriver`
-    pub fn platform(&self) -> Arc<P> {
+    pub fn platform(&self) -> Rc<P> {
         self.platform.clone()
     }
 
@@ -288,5 +288,10 @@ impl<'e, P> EngineDriver<'e, P> {
     /// Return the underlying symbolic engine for this `EngineDriver`
     pub fn engine(&self) -> &SymbolicEngine {
         &self.engine
+    }
+
+    /// Return a mutable reference to the engine
+    pub fn engine_mut(&mut self) -> &mut SymbolicEngine {
+        &mut self.engine
     }
 }

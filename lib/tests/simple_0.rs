@@ -6,7 +6,7 @@
 #[cfg(test)]use loader::Loader;
 #[cfg(test)]use platform::*;
 #[cfg(test)]use std::path::Path;
-#[cfg(test)]use std::sync::Arc;
+#[cfg(test)]use std::rc::Rc;
 
 
 #[cfg(test)]
@@ -47,11 +47,11 @@ fn simple_0_test () -> Result<Vec<u8>> {
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let translator = elf.translator()?;
     let driver = EngineDriver::new(
-        Arc::new(program),
+        Rc::new(program),
         pl,
         engine,
         &translator,
-        Arc::new(platform)
+        Rc::new(platform)
     );
     let mut drivers = vec![driver];
 
@@ -70,8 +70,9 @@ fn simple_0_test () -> Result<Vec<u8>> {
                             println!("Constraint: {}", constraint);
                         }
                         let mut stdin: Vec<u8> = Vec::new();
+                        let mut driver = driver.clone();
                         for scalar in driver.platform().symbolic_scalars() {
-                            let byte = driver.engine().eval(&scalar.clone().into(), None)?.unwrap();
+                            let byte = driver.engine_mut().eval(&scalar.clone().into(), None)?.unwrap();
                             assert!(byte.bits() == 8);
                             stdin.push(byte.value() as u8);
                         }

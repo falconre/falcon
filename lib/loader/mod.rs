@@ -91,7 +91,7 @@ impl fmt::Display for FunctionEntry {
 
 
 /// Generic trait for all loaders
-pub trait Loader: ::std::fmt::Debug + Clone {
+pub trait Loader: Clone {
     /// Get a model of the memory contained in the binary
     fn memory(&self) -> Result<memory::Memory>;
 

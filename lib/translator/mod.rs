@@ -2,7 +2,6 @@
 
 use error::*;
 use il::*;
-use std::boxed::Box;
 use std::collections::{BTreeMap, VecDeque};
 
 pub mod x86;
@@ -104,7 +103,7 @@ impl BlockTranslationResult {
 }
 
 
-pub trait Arch: Sync {
+pub trait Arch {
     /// Translates a basic block
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;
 
@@ -172,9 +171,4 @@ pub trait Arch: Sync {
 
         Ok(Function::new(function_address, control_flow_graph))
     }
-}
-
-
-pub fn x86() -> Box<Arch> {
-    Box::new(x86::X86::new())
 }
