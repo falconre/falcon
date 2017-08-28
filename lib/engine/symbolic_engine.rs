@@ -8,7 +8,7 @@ use translator::TranslationMemory;
 
 /// An engine for maintaining a symbolic state, performing operations over that
 /// state, and querying that state.
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct SymbolicEngine {
     scalars: BTreeMap<String, il::Expression>,
     memory: SymbolicMemory,
@@ -102,18 +102,6 @@ impl SymbolicEngine {
         }
         else {
             Ok(expression)
-        }
-    }
-
-
-    /// Forks the state of the symbolic engine. In future iterations, this will
-    /// allow for Copy-On-Write optimizations.
-    pub fn fork(&self) -> SymbolicEngine {
-        SymbolicEngine {
-            scalars: self.scalars.clone(),
-            memory: self.memory.clone(),
-            constraints: self.constraints.clone(),
-            solver: self.solver.clone()
         }
     }
 
@@ -327,7 +315,7 @@ impl SymbolicEngine {
                 let null_case = il::Expression::cmpeq(condition.clone(), il::expr_const(0, 1))?;
                 let r = self.eval(&null_case, Some(vec![null_case.clone()]))?;
                 if r.is_some() {
-                    let mut engine = self.fork();
+                    let mut engine = self.clone();
                     engine.add_constraint(null_case)?;
                     let successor = SymbolicSuccessor::new(engine, SuccessorType::FallThrough);
                     successors.push(successor);
@@ -337,7 +325,7 @@ impl SymbolicEngine {
                 if r.is_some() {
                     let t = self.eval(target, Some(vec![condition.clone()]))?;
                     if let Some(target) = t {
-                        let mut engine = self.fork();
+                        let mut engine = self.clone();
                         engine.add_constraint(condition.clone())?;
                         let successor = SymbolicSuccessor::new(
                             engine,
@@ -365,13 +353,6 @@ impl SymbolicEngine {
 impl TranslationMemory for SymbolicEngine {
     fn get_u8(&self, address: u64) -> Option<u8> {
         self.load_only_concrete(address).unwrap()
-    }
-}
-
-
-impl Clone for SymbolicEngine {
-    fn clone(&self) -> SymbolicEngine {
-        self.fork()
     }
 }
 
