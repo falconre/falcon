@@ -13,7 +13,7 @@ use il::*;
 use std::fmt;
 
 /// Edge between IL blocks
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Edge {
     head: u64,
     tail: u64,

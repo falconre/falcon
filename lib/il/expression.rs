@@ -26,7 +26,7 @@ use std::fmt;
 use il::*;
 
 /// An IL Expression.
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Expression {
     Scalar(Scalar),
     Constant(Constant),

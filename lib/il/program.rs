@@ -6,7 +6,7 @@ use std::fmt;
 use std::rc::Rc;
 
 /// A representation of a program by `il::Function`
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct Program {
     // Mapping of function indices (not addresses) to `Function`.
     functions: BTreeMap<u64, Rc<Function>>,
@@ -46,6 +46,12 @@ impl Program {
     }
 
 
+    /// Get the underlying BTreeMap holding all `Function` for this `Program`.
+    pub fn functions_map(&self) -> &BTreeMap<u64, Rc<Function>> {
+        &self.functions
+    }
+
+
     /// Get a `Function` by its index.
     ///
     /// A `Function` index is assigned by `Program` and is not the address where the `Function`
@@ -53,6 +59,15 @@ impl Program {
     pub fn function(&self, index: u64) -> Option<&Function> {
         match self.functions.get(&index) {
             Some(f) => Some(f),
+            None => None
+        }
+    }
+
+
+    /// Returns a `Rc<Function>` by it's index.
+    pub fn function_rc(&self, index: u64) -> Option<Rc<Function>> {
+        match self.functions.get(&index) {
+            Some(f) => Some(f.clone()),
             None => None
         }
     }

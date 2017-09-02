@@ -10,7 +10,7 @@ use std::fmt;
 
 /// An `Instruction` represents location, and non-semantical information about
 /// an `Operation`.
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Instruction {
     operation: Operation,
     index: u64,

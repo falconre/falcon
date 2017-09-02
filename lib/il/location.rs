@@ -17,7 +17,7 @@
 use il::*;
 
 /// A location applied to a `Program`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RefProgramLocation<'p> {
     function: &'p Function,
     function_location: RefFunctionLocation<'p>
@@ -261,8 +261,10 @@ impl<'f> RefFunctionLocation<'f> {
 }
 
 
+
+
 /// A location independent of any specific instance of `Program`.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ProgramLocation {
     function_index: u64,
     function_location: FunctionLocation
@@ -297,7 +299,7 @@ impl<'p> From<RefProgramLocation<'p>> for ProgramLocation {
 
 
 /// A location indepdent of any specific instance of `Function`.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum FunctionLocation {
     Instruction(u64, u64),
     Edge(u64, u64),

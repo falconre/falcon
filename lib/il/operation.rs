@@ -5,7 +5,7 @@ use std::fmt;
 use il::*;
 
 /// An IL Operation updates some state.
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Operation {
     /// Assign the value given in expression to the variable indicated.
     Assign {

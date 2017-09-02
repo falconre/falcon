@@ -12,7 +12,7 @@ use il::*;
 
 
 /// A basic block in Falcon IL.
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Block {
     /// The index of the block.
     index: u64,
