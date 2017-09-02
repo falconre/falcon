@@ -2354,9 +2354,7 @@ pub fn ret(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
             block.assign(scalar("esp", 32), Expr::add(expr_scalar("esp", 32), imm)?);
         }
 
-        block.assign(scalar("eip", 32), value);
-
-        block.brc(expr_scalar("eip", 32), expr_const(1, 1));
+        block.brc(value, expr_const(1, 1));
 
         block.index()
     };
