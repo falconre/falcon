@@ -256,7 +256,7 @@ impl SymbolicEngine {
     pub fn sat(&mut self, constraints: Option<Vec<il::Expression>>) -> Result<bool> {
         // An expression that will always evaluate to true
         let expression = il::Expression::cmpeq(
-            il::expr_const(1, 1),
+            il::expr_scalar("dummy_sat_variable", 1),
             il::expr_const(1, 1)
         ).unwrap();
         if self.eval(&expression, constraints)?.is_some() {
