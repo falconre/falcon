@@ -129,9 +129,6 @@ impl LinuxX86 {
 
         // Set up the KERNEL_VSYSCALL function
         for i in 0..KERNEL_VSYSCALL_BYTES.len() {
-            println!("writing 0x{:02x} at 0x{:08x}",
-                KERNEL_VSYSCALL_BYTES[i],
-                KERNEL_VSYSCALL_ADDRESS + i as u64);
             engine.memory_mut().store(
                 KERNEL_VSYSCALL_ADDRESS + i as u64,
                 il::expr_const(KERNEL_VSYSCALL_BYTES[i] as u64, 8)

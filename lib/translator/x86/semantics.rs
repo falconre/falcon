@@ -150,7 +150,7 @@ pub fn operand_value(operand: &cs_x86_op) -> Result<Expression> {
         x86_op_type::X86_OP_INVALID => Err("Invalid operand".into()),
         x86_op_type::X86_OP_REG => {
             // Get the register value
-            get_register(*operand.reg())?.get()
+            get_register(operand.reg())?.get()
         }
         x86_op_type::X86_OP_MEM => {
             let mem = operand.mem();
@@ -251,7 +251,7 @@ pub fn operand_store(mut block: &mut Block, operand: &cs_x86_op, value: Expressi
         x86_op_type::X86_OP_INVALID => Err("operand_store called on invalid operand".into()),
         x86_op_type::X86_OP_IMM => Err("operand_store called on immediate operand".into()),
         x86_op_type::X86_OP_REG => {
-            let dst_register = get_register(*operand.reg())?;
+            let dst_register = get_register(operand.reg())?;
             dst_register.set(&mut block, value)
         },
         x86_op_type::X86_OP_MEM => {
@@ -563,6 +563,8 @@ pub fn adc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
     Ok(())
 }
+
+
 
 pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = try!(details(instruction));
@@ -2303,7 +2305,7 @@ pub fn pop(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let value = match detail.operands[0].type_ {
             x86_op_type::X86_OP_MEM => pop_value(&mut block, detail.operands[0].size as usize * 8)?,
             x86_op_type::X86_OP_REG => 
-                pop_value(&mut block, get_register(*detail.operands[0].reg())?.bits())?,
+                pop_value(&mut block, get_register(detail.operands[0].reg())?.bits())?,
             _ => bail!("invalid op type for `pop` instruction")
         };
 

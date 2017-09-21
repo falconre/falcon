@@ -285,6 +285,24 @@ impl ProgramLocation {
         };
         Some(RefProgramLocation::new(function, function_location))
     }
+
+    /// Get the `FunctionLocation` for this `ProgramLocation`
+    pub fn function_location(&self) -> &FunctionLocation {
+        &self.function_location
+    }
+
+    /// If this `ProgramLocation` has a valid `Block` target, return the index
+    /// of that `Block`.
+    pub fn block_index(&self) -> Option<u64> {
+        self.function_location.block_index()
+    }
+
+
+    /// If this `ProgramLocation` has a valid `Instruction` target, return the
+    /// index of that `Instruction`
+    pub fn instruction_index(&self) -> Option<u64> {
+        self.function_location.instruction_index()
+    }
 }
 
 
@@ -337,6 +355,27 @@ impl FunctionLocation {
                     None => None
                 }
             }
+        }
+    }
+
+
+    /// If this `FunctionLocation` has a valid `Block` target, return the index
+    /// of that `Instruction`.
+    pub fn block_index(&self) -> Option<u64> {
+        match *self {
+            FunctionLocation::Instruction(block_index, _) => Some(block_index),
+            FunctionLocation::EmptyBlock(block_index) => Some(block_index),
+            _ => None
+        }
+    }
+
+
+    /// If this `FunctionLocation` has a valid `Instruction` target, return the
+    /// index of that `Instruction`.
+    pub fn instruction_index(&self) -> Option<u64> {
+        match *self {
+            FunctionLocation::Instruction(_, instruction_index) => Some(instruction_index),
+            _ => None
         }
     }
 }
