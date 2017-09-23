@@ -42,7 +42,7 @@ impl Arch for X86 {
     }
 
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
-        let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_X86, capstone::cs_mode::CS_MODE_32) {
+        let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_X86, capstone::CS_MODE_32) {
             Ok(cs) => cs,
             Err(_) => return Err("Capstone Error".into())
         };
