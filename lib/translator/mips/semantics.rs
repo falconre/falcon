@@ -137,7 +137,10 @@ pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     control_flow_graph.conditional_edge(
         head_index,
         operation_index,
-        Expr::cmpltu(lhs.clone(), Expr::add(lhs.clone(), rhs.clone())?)?
+        Expr::cmpeq(
+            Expr::cmpltu(Expr::add(lhs.clone(), rhs.clone())?, lhs.clone())?,
+            expr_const(0, 32)
+        )?
     )?;
 
     control_flow_graph.unconditional_edge(raise_index, terminating_index)?;
@@ -192,7 +195,10 @@ pub fn addi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     control_flow_graph.conditional_edge(
         head_index,
         operation_index,
-        Expr::cmpltu(lhs.clone(), Expr::add(lhs.clone(), rhs.clone())?)?
+        Expr::cmpeq(
+            Expr::cmpltu(Expr::add(lhs.clone(), rhs.clone())?, lhs.clone())?,
+            expr_const(0, 32)
+        )?
     )?;
 
     control_flow_graph.unconditional_edge(raise_index, terminating_index)?;
@@ -746,7 +752,6 @@ pub fn lui(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-
 pub fn lw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = details(instruction)?;
 
@@ -759,6 +764,1141 @@ pub fn lw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
         let mut block = control_flow_graph.new_block()?;
 
         block.load(dst, Expr::add(base, offset)?, array("mem", MEM_SIZE));
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn madd(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let tmp0 = block.temp(64);
+        let tmp1 = block.temp(64);
+        block.assign(tmp0.clone(), Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?);
+        block.assign(tmp1.clone(), Expr::shl(
+            Expr::zext(64, expr_scalar("$hi", 32))?,
+            expr_const(32, 64))?
+        );
+        block.assign(tmp1.clone(), Expr::or(
+            tmp1.clone().into(),
+            Expr::zext(64, expr_scalar("$lo", 32))?)
+        ?);
+        block.assign(tmp0.clone().into(), Expr::add(tmp0.clone().into(), tmp1.clone().into())?);
+        block.assign(scalar("$hi", 32), Expr::trun(
+            32,
+            Expr::shr(tmp0.clone().into(), expr_const(32, 64))?)
+        ?);
+        block.assign(scalar("$lo", 32), Expr::trun(32, tmp0.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn maddu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let tmp0 = block.temp(64);
+        let tmp1 = block.temp(64);
+        block.assign(tmp0.clone(), Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?);
+        block.assign(tmp1.clone(), Expr::shl(
+            Expr::zext(64, expr_scalar("$hi", 32))?,
+            expr_const(32, 64))?
+        );
+        block.assign(tmp1.clone(), Expr::or(
+            tmp1.clone().into(),
+            Expr::zext(64, expr_scalar("$lo", 32))?)
+        ?);
+        block.assign(tmp0.clone().into(), Expr::add(tmp0.clone().into(), tmp1.clone().into())?);
+        block.assign(scalar("$hi", 32), Expr::trun(
+            32,
+            Expr::shr(tmp0.clone().into(), expr_const(32, 64))?)
+        ?);
+        block.assign(scalar("$lo", 32), Expr::trun(32, tmp0.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn mfhi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, expr_scalar("$hi", 32));
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn mflo(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, expr_scalar("$lo", 32));
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn movn(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.scalar();
+    let rt = get_register(detail.operands[2].reg())?.scalar();
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let op_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, rs.into());
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        op_index,
+        Expr::cmpneq(rt.clone().into(), expr_const(0, 32))?
+    )?;
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        terminating_index,
+        Expr::cmpeq(rt.clone().into(), expr_const(0, 32))?
+    )?;
+
+    control_flow_graph.unconditional_edge(op_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn movz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.scalar();
+    let rt = get_register(detail.operands[2].reg())?.scalar();
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let op_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, rs.into());
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        op_index,
+        Expr::cmpeq(rt.clone().into(), expr_const(0, 32))?
+    )?;
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        terminating_index,
+        Expr::cmpneq(rt.clone().into(), expr_const(0, 32))?
+    )?;
+
+    control_flow_graph.unconditional_edge(op_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn msub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let tmp0 = block.temp(64);
+        let tmp1 = block.temp(64);
+        block.assign(tmp0.clone(), Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?);
+        block.assign(tmp1.clone(), Expr::shl(
+            Expr::zext(64, expr_scalar("$hi", 32))?,
+            expr_const(32, 64))?
+        );
+        block.assign(tmp1.clone(), Expr::or(
+            tmp1.clone().into(),
+            Expr::zext(64, expr_scalar("$lo", 32))?)
+        ?);
+        block.assign(tmp0.clone().into(), Expr::sub(tmp0.clone().into(), tmp1.clone().into())?);
+        block.assign(scalar("$hi", 32), Expr::trun(
+            32,
+            Expr::shr(tmp0.clone().into(), expr_const(32, 64))?)
+        ?);
+        block.assign(scalar("$lo", 32), Expr::trun(32, tmp0.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn msubu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let tmp0 = block.temp(64);
+        let tmp1 = block.temp(64);
+        block.assign(tmp0.clone(), Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?);
+        block.assign(tmp1.clone(), Expr::shl(
+            Expr::zext(64, expr_scalar("$hi", 32))?,
+            expr_const(32, 64))?
+        );
+        block.assign(tmp1.clone(), Expr::or(
+            tmp1.clone().into(),
+            Expr::zext(64, expr_scalar("$lo", 32))?)
+        ?);
+        block.assign(tmp0.clone().into(), Expr::sub(tmp0.clone().into(), tmp1.clone().into())?);
+        block.assign(scalar("$hi", 32), Expr::trun(
+            32,
+            Expr::shr(tmp0.clone().into(), expr_const(32, 64))?)
+        ?);
+        block.assign(scalar("$lo", 32), Expr::trun(32, tmp0.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn mthi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("$hi", 32), rs.into());
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn mtlo(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("$lo", 32), rs.into());
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn mul(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::trun(32, Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn mult(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let tmp = block.temp(64);
+        block.assign(tmp.clone(), Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?);
+        block.assign(scalar("$hi", 32), Expr::trun(32, Expr::shr(tmp.clone().into(), expr_const(32, 64))?)?);
+        block.assign(scalar("$lo", 32), Expr::trun(32, tmp.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn multu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let tmp = block.temp(64);
+        block.assign(tmp.clone(), Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?);
+        block.assign(scalar("$hi", 32), Expr::trun(32, Expr::shr(tmp.clone().into(), expr_const(32, 64))?)?);
+        block.assign(scalar("$lo", 32), Expr::trun(32, tmp.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+    let block_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn nor(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::xor(Expr::or(rs.into(), rt.into())?, expr_const(0xffffffff, 32))?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn or(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::or(rs.into(), rt.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn ori(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let imm = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rt, Expr::or(rs.into(), imm)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.expression();
+    let base = get_register(detail.operands[1].reg())?.expression();
+    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.store(array("mem", MEM_SIZE), Expr::add(base, offset)?, Expr::trun(8, rt)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.expression();
+    let base = get_register(detail.operands[1].reg())?.expression();
+    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.store(array("mem", MEM_SIZE), Expr::add(base, offset)?, Expr::trun(16, rt)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sll(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+    let sa = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::shl(rt, sa)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sllv(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+    let rs = get_register(detail.operands[2].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::shl(rt, rs)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn slt(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let true_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd.clone(), expr_const(1, 32));
+
+        block.index()
+    };
+
+    let false_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, expr_const(0, 32));
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        true_index,
+        Expr::cmplts(rs.clone(), rt.clone())?
+    )?;
+    control_flow_graph.conditional_edge(
+        head_index,
+        false_index,
+        Expr::cmpeq(Expr::cmplts(rs.clone(), rt.clone())?, expr_const(0, 2))?
+    )?;
+    control_flow_graph.unconditional_edge(true_index, terminating_index)?;
+    control_flow_graph.unconditional_edge(false_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn slti(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let imm = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let true_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rt.clone(), expr_const(1, 32));
+
+        block.index()
+    };
+
+    let false_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rt, expr_const(0, 32));
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        true_index,
+        Expr::cmplts(rs.clone(), imm.clone())?
+    )?;
+    control_flow_graph.conditional_edge(
+        head_index,
+        false_index,
+        Expr::cmpeq(Expr::cmplts(rs, imm)?, expr_const(0, 2))?
+    )?;
+    control_flow_graph.unconditional_edge(true_index, terminating_index)?;
+    control_flow_graph.unconditional_edge(false_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sltiu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let imm = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let true_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rt.clone(), expr_const(1, 32));
+
+        block.index()
+    };
+
+    let false_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rt, expr_const(0, 32));
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        true_index,
+        Expr::cmpltu(rs.clone(), imm.clone())?
+    )?;
+    control_flow_graph.conditional_edge(
+        head_index,
+        false_index,
+        Expr::cmpeq(Expr::cmpltu(rs, imm)?, expr_const(0, 2))?
+    )?;
+    control_flow_graph.unconditional_edge(true_index, terminating_index)?;
+    control_flow_graph.unconditional_edge(false_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sltu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let true_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd.clone(), expr_const(1, 32));
+
+        block.index()
+    };
+
+    let false_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, expr_const(0, 32));
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        true_index,
+        Expr::cmpltu(rs.clone(), rt.clone())?
+    )?;
+    control_flow_graph.conditional_edge(
+        head_index,
+        false_index,
+        Expr::cmpeq(Expr::cmpltu(rs.clone(), rt.clone())?, expr_const(0, 2))?
+    )?;
+    control_flow_graph.unconditional_edge(true_index, terminating_index)?;
+    control_flow_graph.unconditional_edge(false_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sra(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+    let sa = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        // set up the mask to put the arithmetic in shift arithmetic right
+        let temp = block.temp(32);
+        let expr = Expr::shl(
+            Expr::sub(
+                expr_const(0, 32),
+                Expr::shr(
+                    rt.clone(),
+                    expr_const(31, 32)
+                )?
+            )?,
+            Expr::sub(
+                expr_const(32, 32),
+                sa.clone()
+            )?
+        )?;
+        block.assign(temp.clone(), expr);
+        block.assign(rd, Expr::or(Expr::shr(rt, sa)?, temp.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn srav(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+    let rs = get_register(detail.operands[2].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        // set up the mask to put the arithmetic in shift arithmetic right
+        let temp = block.temp(32);
+        let expr = Expr::shl(
+            Expr::sub(
+                expr_const(0, 32),
+                Expr::shr(
+                    rt.clone(),
+                    expr_const(31, 32)
+                )?
+            )?,
+            Expr::sub(
+                expr_const(32, 32),
+                rs.clone()
+            )?
+        )?;
+        block.assign(temp.clone(), expr);
+        block.assign(rd, Expr::or(Expr::shr(rt, rs)?, temp.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn srl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+    let sa = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::shr(rt, sa)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn srlv(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::shr(rt, rs)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let raise_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.raise(expr_scalar("IntegerOverflow", 1));
+
+        block.index()
+    };
+
+    let operation_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd.clone(), Expr::sub(rs.clone(), rt.clone())?);
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        raise_index,
+        Expr::cmpltu(rs.clone(), Expr::sub(rt.clone(), rs.clone())?)?
+    )?;
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        operation_index,
+        Expr::cmpeq(
+            Expr::cmpltu(rs.clone(), Expr::sub(rt.clone(), rs.clone())?)?,
+            expr_const(0, 32)
+        )?
+    )?;
+
+    control_flow_graph.unconditional_edge(raise_index, terminating_index)?;
+    control_flow_graph.unconditional_edge(operation_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn subu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::sub(rs, rt)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.expression();
+    let base = get_register(detail.operands[1].reg())?.expression();
+    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let addr_expr = Expr::add(base, offset)?;
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let exception_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.raise(expr_scalar("AddressError", 1));
+
+        block.index()
+    };
+
+    let op_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.store(array("mem", MEM_SIZE), addr_expr.clone(), Expr::trun(16, rt)?);
+
+        block.index()
+    };
+
+    let terminating_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        exception_index,
+        Expr::cmpneq(Expr::trun(2, addr_expr.clone())?, expr_const(0, 2))?
+    )?;
+    control_flow_graph.conditional_edge(
+        head_index,
+        op_index,
+        Expr::cmpeq(Expr::trun(2, addr_expr.clone())?, expr_const(0, 2))?
+    )?;
+    control_flow_graph.unconditional_edge(exception_index, terminating_index)?;
+    control_flow_graph.unconditional_edge(op_index, terminating_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn syscall(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.raise(expr_scalar("syscall", 1));
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn xor(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::xor(rs.into(), rt.into())?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn xori(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let imm = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::xor(rs.into(), imm)?);
 
         block.index()
     };
