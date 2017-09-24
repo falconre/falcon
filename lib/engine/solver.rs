@@ -8,13 +8,41 @@ use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::process;
 
-pub struct Solver {
-    child: process::Child
-}
+// pub struct Solver {
+//     child: process::Child
+// }
+
+pub struct Solver;
 
 
 impl Solver {
     pub fn new() -> Result<Solver> {
+        // let mut child = process::Command::new("z3")
+        //     .arg("-in")
+        //     .stdin(process::Stdio::piped())
+        //     .stdout(process::Stdio::piped())
+        //     .stderr(process::Stdio::piped())
+        //     .spawn()
+        //     .expect("Failed to invoke solver");
+
+        // if let Some(ref mut stdin) = child.stdin {
+        //     stdin.write("(set-option :produce-models true)\n".as_bytes())?;
+        //     stdin.write("(set-logic QF_AUFBV)\n".as_bytes())?;
+        //     stdin.write("(set-info :smt-lib-version 2.0)\n".as_bytes())?;
+        // }
+        // else {
+        //     bail!("Failed to get stdout for child");
+        // }
+        
+        // Ok(Solver {
+        //     child: child
+        // })
+        
+        Ok(Solver)
+    }
+
+
+    pub fn get_child(&mut self) -> Result<process::Child> {
         let mut child = process::Command::new("z3")
             .arg("-in")
             .stdin(process::Stdio::piped())
@@ -31,10 +59,16 @@ impl Solver {
         else {
             bail!("Failed to get stdout for child");
         }
-        
-        Ok(Solver {
-            child: child
-        })
+
+        Ok(child)
+    }
+
+
+    pub fn cleanup_child(&mut self, mut child: &mut process::Child) -> Result<()> {
+        child.kill().expect("Failed to kill solver during drop");
+        child.wait().expect("Error waiting on solver after drop kill");
+
+        Ok(())
     }
 
 
@@ -85,24 +119,35 @@ impl Solver {
 
         let solver_input = solver_lines.join("\n");
 
-        match self.child.stdin {
+        let mut child = self.get_child()?;
+
+        // match self.child.stdin {
+        match child.stdin {
             Some(ref mut stdin) => {
                 stdin.write_all(solver_input.as_bytes())?;
                 stdin.flush()?;
             },
-            None => bail!("Failed to get stdin from solver process")
+            None => {
+                self.cleanup_child(&mut child)?;
+                bail!("Failed to get stdin from solver process")
+            }
         }
 
         for _ in 0..5 {
             let mut buf = [0; 2048];
 
             // read from stdout
-            let bytes_read = match self.child.stdout {
+            // let bytes_read = match self.child.stdout {
+            let bytes_read = match child.stdout {
                 Some(ref mut stdout) => stdout.read(&mut buf)?,
-                None => bail!("Failed to get stdout from solver proces")
+                None => {
+                    self.cleanup_child(&mut child)?;
+                    bail!("Failed to get stdout from solver proces")
+                }
             };
 
             let buf = if bytes_read == 0 {
+                self.cleanup_child(&mut child)?;
                 bail!("Read 0 bytes from solver")
             } else {
                 buf.split_at(bytes_read).0.to_vec()
@@ -112,6 +157,7 @@ impl Solver {
 
             // check if we got unsat
             if solver_output.contains("unsat") {
+                self.cleanup_child(&mut child)?;
                 return Ok(None);
             }
 
@@ -123,18 +169,20 @@ impl Solver {
             // check for base16-encoded value
             if let Some(caps) = RE16.captures(&solver_output) {
                 let value = u64::from_str_radix(&caps[1], 16)?;
+                self.cleanup_child(&mut child)?;
                 return Ok(Some(il::const_(value, expr.bits())));
             }
 
             // check for base2-encoded value
             if let Some(caps) = RE2.captures(&solver_output) {
                 let value = u64::from_str_radix(&caps[1], 2)?;
+                self.cleanup_child(&mut child)?;
                 return Ok(Some(il::const_(value, expr.bits())));
             }
 
-            // thread::sleep(time::Duration::from_millis(1000));
         }
 
+        self.cleanup_child(&mut child)?;
         bail!("Read from solver 5 times, did not find a result");
     }
 }
@@ -156,7 +204,7 @@ impl Default for Solver {
 
 impl Drop for Solver {
     fn drop(&mut self) {
-        self.child.kill().expect("Failed to kill solver during drop");
-        self.child.wait().expect("Error waiting on solver after drop kill");
+        // self.child.kill().expect("Failed to kill solver during drop");
+        // self.child.wait().expect("Error waiting on solver after drop kill");
     }
 }
