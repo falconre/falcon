@@ -5,6 +5,7 @@ use il::*;
 use std::collections::{BTreeMap, VecDeque};
 
 pub mod x86;
+pub mod mips;
 
 /// The endianness of the native architecture.
 pub enum Endian {
