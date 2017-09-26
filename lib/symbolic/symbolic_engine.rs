@@ -60,7 +60,7 @@ impl SymbolicEngine {
         if all_constants(&constraint) {
             // If we have a constant constraint which is always 0, add a constant
             // constraint which is always 0.
-            if executor::constants_expression(&constraint)?.value() != 1 {
+            if executor::eval(&constraint)?.value() != 1 {
                 self.constraints.push(il::Expression::cmpeq(
                     il::expr_const(0, 1),
                     il::expr_const(1, 1)
@@ -97,7 +97,7 @@ impl SymbolicEngine {
 
         let expression = self.symbolize_expression(expression)?;
         if all_constants(&expression) {
-            let constant = executor::constants_expression(&expression)?;
+            let constant = executor::eval(&expression)?;
             Ok(il::Expression::Constant(constant))
         }
         else {
@@ -194,7 +194,7 @@ impl SymbolicEngine {
                 for constraint in constraints {
                     let constraint = self.symbolize_expression(&constraint)?;
                     if all_constants(&constraint) {
-                        if executor::constants_expression(&constraint)?.value() == 0 {
+                        if executor::eval(&constraint)?.value() == 0 {
                             return Ok(None)
                         }
                     }
@@ -211,7 +211,7 @@ impl SymbolicEngine {
         let expr = self.symbolize_expression(expr)?;
 
         if all_constants(&expr) {
-            return Ok(Some(executor::constants_expression(&expr)?));
+            return Ok(Some(executor::eval(&expr)?));
         }
 
         Rc::make_mut(&mut self.solver).solve(&expr, constraints)
@@ -227,7 +227,7 @@ impl SymbolicEngine {
         };
 
         if all_constants(&byte) {
-            let value = executor::constants_expression(&byte)?;
+            let value = executor::eval(&byte)?;
             Ok(Some(value.value() as u8))
         }
         else {
@@ -247,7 +247,7 @@ impl SymbolicEngine {
             Ok(None)
         }
         else {
-            Ok(Some(executor::constants_expression(expr)?))
+            Ok(Some(executor::eval(expr)?))
         }
     }
 

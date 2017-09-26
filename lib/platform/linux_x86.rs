@@ -54,7 +54,7 @@ impl LinuxX86 {
         let address = expr.value() - 4;
 
         engine.set_scalar("esp", il::Expression::constant(
-            executor::constants_expression(
+            executor::eval(
                 &il::Expression::sub(
                     il::Expression::constant(expr),
                     il::expr_const(4, 32)

@@ -18,13 +18,13 @@ fn simplify_or(expr: &il::Expression) -> Result<il::Expression> {
             (il::Expression::Or(lhs_, rhs_), il::Expression::Constant(rhs_c)) => {
                 if let il::Expression::Constant(_) = *lhs_ {
                     il::Expression::or(
-                        executor::constants_expression(&il::Expression::or(*lhs_, rhs_c.into())?)?.into(),
+                        executor::eval(&il::Expression::or(*lhs_, rhs_c.into())?)?.into(),
                         *rhs_
                     )
                 }
                 else if let il::Expression::Constant(_) = *rhs_ {
                     il::Expression::or(
-                        executor::constants_expression(&il::Expression::or(*rhs_, rhs_c.into())?)?.into(),
+                        executor::eval(&il::Expression::or(*rhs_, rhs_c.into())?)?.into(),
                         *lhs_
                     )
                 }
@@ -41,13 +41,13 @@ fn simplify_or(expr: &il::Expression) -> Result<il::Expression> {
             (il::Expression::Constant(lhs_c), il::Expression::Or(lhs_, rhs_)) => {
                 if let il::Expression::Constant(_) = *lhs_ {
                     il::Expression::or(
-                        executor::constants_expression(&il::Expression::or(*lhs_, lhs_c.into())?)?.into(),
+                        executor::eval(&il::Expression::or(*lhs_, lhs_c.into())?)?.into(),
                         *rhs_
                     )
                 }
                 else if let il::Expression::Constant(_) = *rhs_ {
                     il::Expression::or(
-                        executor::constants_expression(&il::Expression::or(*rhs_, lhs_c.into())?)?.into(),
+                        executor::eval(&il::Expression::or(*rhs_, lhs_c.into())?)?.into(),
                         *lhs_
                     )
                 }
@@ -66,7 +66,7 @@ fn simplify_or(expr: &il::Expression) -> Result<il::Expression> {
 
         if let il::Expression::Constant(_) = lhs {
             if let il::Expression::Constant(_) = rhs {
-                return Ok(executor::constants_expression(&il::Expression::or(lhs, rhs)?)?.into());
+                return Ok(executor::eval(&il::Expression::or(lhs, rhs)?)?.into());
             }
         }
 
@@ -112,35 +112,35 @@ pub fn simplify_expression(expr: &il::Expression) -> Result<il::Expression> {
                 if let il::Expression::Constant(_) = rhs {
                     return Ok(match *expr {
                         il::Expression::Add(_, _) => 
-                            executor::constants_expression(&il::Expression::add(lhs, rhs)?)?.into(),                        
+                            executor::eval(&il::Expression::add(lhs, rhs)?)?.into(),                        
                         il::Expression::Sub(_, _) => 
-                            executor::constants_expression(&il::Expression::sub(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::sub(lhs, rhs)?)?.into(),
                         il::Expression::Mul(_, _) => 
-                            executor::constants_expression(&il::Expression::mul(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::mul(lhs, rhs)?)?.into(),
                         il::Expression::Divu(_, _) => 
-                            executor::constants_expression(&il::Expression::divu(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::divu(lhs, rhs)?)?.into(),
                         il::Expression::Modu(_, _) => 
-                            executor::constants_expression(&il::Expression::modu(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::modu(lhs, rhs)?)?.into(),
                         il::Expression::Divs(_, _) => 
-                            executor::constants_expression(&il::Expression::divs(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::divs(lhs, rhs)?)?.into(),
                         il::Expression::Mods(_, _) => 
-                            executor::constants_expression(&il::Expression::mods(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::mods(lhs, rhs)?)?.into(),
                         il::Expression::And(_, _) => 
-                            executor::constants_expression(&il::Expression::and(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::and(lhs, rhs)?)?.into(),
                         il::Expression::Xor(_, _) => 
-                            executor::constants_expression(&il::Expression::xor(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::xor(lhs, rhs)?)?.into(),
                         il::Expression::Shl(_, _) => 
-                            executor::constants_expression(&il::Expression::shl(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::shl(lhs, rhs)?)?.into(),
                         il::Expression::Shr(_, _) => 
-                            executor::constants_expression(&il::Expression::shr(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::shr(lhs, rhs)?)?.into(),
                         il::Expression::Cmpeq(_, _) => 
-                            executor::constants_expression(&il::Expression::cmpeq(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::cmpeq(lhs, rhs)?)?.into(),
                         il::Expression::Cmpneq(_, _) => 
-                            executor::constants_expression(&il::Expression::cmpneq(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::cmpneq(lhs, rhs)?)?.into(),
                         il::Expression::Cmplts(_, _) => 
-                            executor::constants_expression(&il::Expression::cmplts(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::cmplts(lhs, rhs)?)?.into(),
                         il::Expression::Cmpltu(_, _) => 
-                            executor::constants_expression(&il::Expression::cmpltu(lhs, rhs)?)?.into(),
+                            executor::eval(&il::Expression::cmpltu(lhs, rhs)?)?.into(),
                         _ => bail!("Unreachable in simplify_expression")
                     }) // return match expr
                 } // if let il::Expression::Constant(rhs) = rhs
@@ -171,11 +171,11 @@ pub fn simplify_expression(expr: &il::Expression) -> Result<il::Expression> {
             if let il::Expression::Constant(_) = rhs {
                 match *expr {
                     il::Expression::Zext(_, _) =>
-                        executor::constants_expression(&il::Expression::zext(bits, rhs)?)?.into(),
+                        executor::eval(&il::Expression::zext(bits, rhs)?)?.into(),
                     il::Expression::Sext(_, _) =>
-                        executor::constants_expression(&il::Expression::sext(bits, rhs)?)?.into(),
+                        executor::eval(&il::Expression::sext(bits, rhs)?)?.into(),
                     il::Expression::Trun(_, _) =>
-                        executor::constants_expression(&il::Expression::trun(bits, rhs)?)?.into(),
+                        executor::eval(&il::Expression::trun(bits, rhs)?)?.into(),
                     _ => bail!("Unreachable in simplify_expression")
                 }
             }

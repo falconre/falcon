@@ -81,7 +81,7 @@ impl LatticeValue {
                 // the best solution
                 for value in values.iter() {
                     let expr = executor::swap_bytes(&value.clone().into())?;
-                    let const_ = executor::constants_expression(&expr)?; 
+                    let const_ = executor::eval(&expr)?; 
                     swapped.insert(const_);
                 }
                 Ok(LatticeValue::Values(swapped))
@@ -151,7 +151,7 @@ where F: Fn(il::Constant, il::Constant) -> Expression {
                     for l in lhs_.iter() {
                         for r in rhs_.iter() {
                             let expr = op(l.clone(), r.clone());
-                            if let Ok(c) = executor::constants_expression(&expr) {
+                            if let Ok(c) = executor::eval(&expr) {
                                 sum.insert(c);
                             }
                         }
@@ -175,7 +175,7 @@ where F: Fn(il::Constant) -> Expression {
             let mut sum = BTreeSet::new();
             for r in rhs_ {
                 let expr = op(r.clone());
-                if let Ok(c) = executor::constants_expression(&expr) {
+                if let Ok(c) = executor::eval(&expr) {
                     sum.insert(c);
                 }
             }
