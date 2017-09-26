@@ -8,6 +8,7 @@ use error::*;
 use translator;
 use il;
 use std::fmt;
+use types::Endian;
 
 /// An enum of architectures supported by the loader.
 #[derive(Clone, Debug)]
@@ -21,24 +22,6 @@ impl Architecture {
     pub fn endian(&self) -> Endian {
         match *self {
             Architecture::X86 => Endian::Little
-        }
-    }
-}
-
-
-/// An enum representing endiannes for a loader.
-#[derive(Clone, Debug)]
-pub enum Endian {
-    Big,
-    Little
-}
-
-
-impl Into<translator::Endian> for Endian {
-    fn into(self) -> translator::Endian {
-        match self {
-            Endian::Little => translator::Endian::Little,
-            Endian::Big => translator::Endian::Big
         }
     }
 }

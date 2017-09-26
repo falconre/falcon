@@ -4,43 +4,7 @@ use analysis::lattice::*;
 use error::*;
 use il;
 use std::collections::BTreeMap;
-
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Endian {
-    Big,
-    Little
-}
-
-
-impl Into<::translator::Endian> for Endian {
-    fn into(self) -> ::translator::Endian {
-        match self {
-            Endian::Big => ::translator::Endian::Big,
-            Endian::Little => ::translator::Endian::Little
-        }
-    }
-}
-
-
-impl From<::translator::Endian> for Endian {
-    fn from(e: ::translator::Endian) -> Endian {
-        match e {
-            ::translator::Endian::Big => Endian::Big,
-            ::translator::Endian::Little => Endian::Little
-        }
-    }
-}
-
-
-impl From<::loader::Endian> for Endian {
-    fn from(e: ::loader::Endian) -> Endian {
-        match e {
-            ::loader::Endian::Big => Endian::Big,
-            ::loader::Endian::Little => Endian::Little
-        }
-    }
-}
+use types::Endian;
 
 
 struct ValueSetAnalysis<'v> {

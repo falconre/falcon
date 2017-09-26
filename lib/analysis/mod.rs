@@ -17,8 +17,8 @@ pub use self::analysis_location::*;
 pub use self::lattice::*;
 pub use self::ssa::*;
 pub use self::reaching_definitions::Reaches;
-pub use self::value_set::Endian;
 use std::collections::{BTreeMap, BTreeSet};
+use types;
 
 /// `Analysis` holds several types of analysis results.
 ///
@@ -108,7 +108,7 @@ impl<'a> Analysis<'a> {
     ///
     /// `max` is the maximum number of values a `LatticeValue::Values` will
     /// hold before being transformed into a `LatticeValue::Join`
-    pub fn value_set(&self, max: usize, endian: value_set::Endian)
+    pub fn value_set(&self, max: usize, endian: types::Endian)
     -> Result<BTreeMap<AnalysisLocation, LatticeAssignments>> {
         value_set::compute(self.control_flow_graph, max, endian)
     }

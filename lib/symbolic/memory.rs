@@ -9,18 +9,12 @@
 
 use error::*;
 use il;
+use types::Endian;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
 
 const PAGE_SIZE: usize = 4092;
-
-/// The underlying endianness of this memory model.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum Endian {
-    Big,
-    Little
-}
 
 
 /// We would prefer to avoid splitting values when reading/writing memory values

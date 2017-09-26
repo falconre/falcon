@@ -28,6 +28,7 @@ pub mod platform;
 pub mod symbolic;
 mod tests;
 pub mod translator;
+pub mod types;
 
 
 pub mod error {

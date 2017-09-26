@@ -7,6 +7,7 @@
 #[cfg(test)]use platform::*;
 #[cfg(test)]use std::path::Path;
 #[cfg(test)]use std::rc::Rc;
+#[cfg(test)]use types;
 
 
 #[cfg(test)]
@@ -21,7 +22,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
     program.add_function(elf.function(elf.program_entry())?);
 
     // Initialize memory.
-    let mut memory = SymbolicMemory::new(symbolic::Endian::Little);
+    let mut memory = SymbolicMemory::new(types::Endian::Little);
 
     // Load all memory as given by the loader.
     for (address, segment) in elf.memory()?.segments() {
