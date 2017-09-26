@@ -2,6 +2,7 @@
 
 use capstone_rust::{capstone, capstone_sys};
 use error::*;
+#[cfg(test)] use executor;
 use il::*;
 use translator::{Arch, BlockTranslationResult, Endian};
 
@@ -104,6 +105,9 @@ impl Arch for Mips {
                     capstone::mips_insn::MIPS_INS_CLZ    => semantics::clz(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_DIV    => semantics::div(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_DIVU   => semantics::divu(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_J      => semantics::j(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_JAL    => semantics::jal(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_JALR   => semantics::jalr(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_LB     => semantics::lb(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_LBU    => semantics::lbu(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_LH     => semantics::lh(&mut instruction_graph, &instruction),
@@ -231,7 +235,16 @@ impl Arch for Mips {
                     capstone::mips_insn::MIPS_INS_BGEZAL |
                     capstone::mips_insn::MIPS_INS_BLTZAL => {
                         branch_delay = TranslateBranchDelay::BranchFallThrough;
-                    }
+                    },
+                    capstone::mips_insn::MIPS_INS_J => {
+                        let operand = semantics::details(&instruction)?.operands[0];
+                        successors.push((operand.imm() as u64, None));
+                        branch_delay = TranslateBranchDelay::Branch;
+                    },
+                    capstone::mips_insn::MIPS_INS_JAL |
+                    capstone::mips_insn::MIPS_INS_JALR => {
+                        branch_delay = TranslateBranchDelay::BranchFallThrough;
+                    },
                     _ => {}
                 }
 
@@ -271,4 +284,17 @@ impl Arch for Mips {
 
         Ok(BlockTranslationResult::new(block_graph, address, length, successors))
     }
+}
+
+
+#[test]
+fn mips_add() {
+    // add $a0, $a1, $a2
+    let bytes = vec![0x00, 0xa6, 0x20, 0x20];
+    let a1 = expr_const(0x7fffffff, 32);
+    let a2 = expr_const(1, 32);
+    let block_translation_result = Mips::new().translate_block(&bytes, 4).unwrap();
+
+    let control_flow_graph = block_translation_result.control_flow_graph();
+    let block = control_flow_graph.block(0).unwrap();
 }

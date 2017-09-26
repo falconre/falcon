@@ -139,7 +139,7 @@ pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         operation_index,
         Expr::cmpeq(
             Expr::cmpltu(Expr::add(lhs.clone(), rhs.clone())?, lhs.clone())?,
-            expr_const(0, 32)
+            expr_const(0, 1)
         )?
     )?;
 
@@ -614,6 +614,59 @@ pub fn divu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
         block.assign(scalar("$lo", 32), Expr::divu(lhs.clone(), rhs.clone())?);
         block.assign(scalar("$hi", 32), Expr::modu(lhs.clone(), rhs.clone())?);
 
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn j(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+    let block_index = control_flow_graph.new_block()?.index();
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn jal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
+        block.brc(expr_const(detail.operands[0].imm() as u64, 32), expr_const(1, 1));
+        
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn jalr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    let target = get_register(detail.operands[0].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
+        block.brc(target, expr_const(1, 1));
+        
         block.index()
     };
 
