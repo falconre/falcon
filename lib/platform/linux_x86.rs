@@ -1,6 +1,6 @@
 //! An x86 (i386) specific model for Linux.
 
-use engine::*;
+use symbolic::*;
 use executor;
 use error::*;
 use il;

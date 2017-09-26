@@ -1,6 +1,6 @@
 //! Platform models an external system like Linux or CGC.
 
-use engine::*;
+use symbolic::*;
 use error::*;
 use il;
 

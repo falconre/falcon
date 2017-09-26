@@ -1,6 +1,6 @@
 //! A layer of abstraction over a SMT solver
 
-use engine::util::*;
+use symbolic::util::*;
 use error::*;
 use il;
 use regex;

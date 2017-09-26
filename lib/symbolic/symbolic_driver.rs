@@ -12,7 +12,7 @@
 //! `SymbolicEngine`.
 
 use error::*;
-use engine::*;
+use symbolic::*;
 use il;
 use platform::Platform;
 use translator;
@@ -22,7 +22,7 @@ use std::rc::Rc;
 
 /// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
-pub struct EngineDriver<'e, P> {
+pub struct SymbolicDriver<'e, P> {
     program: Rc<il::Program>,
     location: il::ProgramLocation,
     engine: SymbolicEngine,
@@ -32,7 +32,7 @@ pub struct EngineDriver<'e, P> {
 
 
 
-impl<'e, P> EngineDriver<'e, P> {
+impl<'e, P> SymbolicDriver<'e, P> {
     /// Create a new `EngineDriver`.
     ///
     /// # Arguments
@@ -50,9 +50,9 @@ impl<'e, P> EngineDriver<'e, P> {
         engine: SymbolicEngine,
         arch: &'e Box<translator::Arch>,
         platform: Rc<P>
-    ) -> EngineDriver<P> where P: Platform<P> {
+    ) -> SymbolicDriver<P> where P: Platform<P> {
 
-        EngineDriver {
+        SymbolicDriver {
             program: program,
             location: location,
             engine: engine,
@@ -65,7 +65,7 @@ impl<'e, P> EngineDriver<'e, P> {
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of `EngineDriver` back depending on how many possible
     /// states are possible.
-    pub fn step(mut self) -> Result<Vec<EngineDriver<'e, P>>> where P: Platform<P> {
+    pub fn step(mut self) -> Result<Vec<SymbolicDriver<'e, P>>> where P: Platform<P> {
         let mut new_engine_drivers = Vec::new();
         let location = self.location.apply(&self.program).unwrap();
         match *location.function_location() {
@@ -95,7 +95,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             let engine = successor.into_engine();
                             let locations = location.advance_forward()?;
                             if locations.len() == 1 {
-                                new_engine_drivers.push(EngineDriver::new(
+                                new_engine_drivers.push(SymbolicDriver::new(
                                     self.program.clone(),
                                     locations[0].clone().into(),
                                     engine,
@@ -105,7 +105,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             }
                             else {
                                 for location in locations {
-                                    new_engine_drivers.push(EngineDriver::new(
+                                    new_engine_drivers.push(SymbolicDriver::new(
                                         self.program.clone(),
                                         location.into(),
                                         engine.clone(),
@@ -118,7 +118,7 @@ impl<'e, P> EngineDriver<'e, P> {
                         SuccessorType::Branch(address) => {
                             match il::RefProgramLocation::from_address(&self.program, address) {
                                 // We have already disassembled the branch target. Go straight to it.
-                                Some(location) => new_engine_drivers.push(EngineDriver::new(
+                                Some(location) => new_engine_drivers.push(SymbolicDriver::new(
                                     self.program.clone(),
                                     location.into(),
                                     successor.into_engine(),
@@ -139,7 +139,7 @@ impl<'e, P> EngineDriver<'e, P> {
                                                 address
                                             );
                                             if let Some(location) = location {
-                                                new_engine_drivers.push(EngineDriver::new(
+                                                new_engine_drivers.push(SymbolicDriver::new(
                                                     program.clone(),
                                                     location.into(),
                                                     engine,
@@ -169,7 +169,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             };
                             for location in locations {
                                 for result in &results {
-                                    new_engine_drivers.push(EngineDriver::new(
+                                    new_engine_drivers.push(SymbolicDriver::new(
                                         self.program.clone(),
                                         location.clone().into(),
                                         result.1.clone(),
@@ -188,7 +188,7 @@ impl<'e, P> EngineDriver<'e, P> {
                         if edge.condition().is_none() {
                             let locations = location.advance_forward()?;
                             if locations.len() == 1 {
-                                new_engine_drivers.push(EngineDriver::new(
+                                new_engine_drivers.push(SymbolicDriver::new(
                                     self.program.clone(),
                                     locations[0].clone().into(),
                                     self.engine,
@@ -198,7 +198,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             }
                             else {
                                 for location in location.advance_forward()? {
-                                    new_engine_drivers.push(EngineDriver::new(
+                                    new_engine_drivers.push(SymbolicDriver::new(
                                         self.program.clone(),
                                         location.into(),
                                         self.engine.clone(),
@@ -215,7 +215,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             engine.add_constraint(condition.clone())?;
                             let locations = location.advance_forward()?;
                             if locations.len() == 1 {
-                                new_engine_drivers.push(EngineDriver::new(
+                                new_engine_drivers.push(SymbolicDriver::new(
                                     self.program.clone(),
                                     locations[0].clone().into(),
                                     engine,
@@ -225,7 +225,7 @@ impl<'e, P> EngineDriver<'e, P> {
                             }
                             else {
                                 for location in location.advance_forward()? {
-                                    new_engine_drivers.push(EngineDriver::new(
+                                    new_engine_drivers.push(SymbolicDriver::new(
                                         self.program.clone(),
                                         location.into(),
                                         engine.clone(),
@@ -241,7 +241,7 @@ impl<'e, P> EngineDriver<'e, P> {
             il::RefFunctionLocation::EmptyBlock(_) => {    
                 let locations = location.advance_forward()?;
                 for location in locations {
-                    new_engine_drivers.push(EngineDriver::new(
+                    new_engine_drivers.push(SymbolicDriver::new(
                         self.program.clone(),
                         location.into(),
                         self.engine.clone(),

@@ -20,12 +20,12 @@ extern crate serde_json;
 
 
 pub mod analysis;
-pub mod engine;
 pub mod executor;
 pub mod graph;
 pub mod il;
 pub mod loader;
 pub mod platform;
+pub mod symbolic;
 mod tests;
 pub mod translator;
 

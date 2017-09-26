@@ -1,6 +1,6 @@
 #[cfg(test)]use error::*;
-#[cfg(test)]use engine;
-#[cfg(test)]use engine::*;
+#[cfg(test)]use symbolic;
+#[cfg(test)]use symbolic::*;
 #[cfg(test)]use il;
 #[cfg(test)]use loader;
 #[cfg(test)]use loader::Loader;
@@ -21,7 +21,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
     program.add_function(elf.function(elf.program_entry())?);
 
     // Initialize memory.
-    let mut memory = SymbolicMemory::new(engine::Endian::Little);
+    let mut memory = SymbolicMemory::new(symbolic::Endian::Little);
 
     // Load all memory as given by the loader.
     for (address, segment) in elf.memory()?.segments() {
@@ -46,7 +46,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
     ).unwrap().into();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let translator = elf.translator()?;
-    let driver = EngineDriver::new(
+    let driver = SymbolicDriver::new(
         Rc::new(program),
         pl,
         engine,
@@ -93,6 +93,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
 
 
 #[test]
+#[ignore]
 pub fn engine_test () -> () {
     let result: Vec<u8> = vec![0x61, 0x62, 0x63, 0x64 ,0x65, 0x66, 0x67, 0x68];
     let found = simple_0_test();

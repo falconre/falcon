@@ -1,5 +1,5 @@
 #[cfg(test)] use il;
-#[cfg(test)] use engine;
+#[cfg(test)] use symbolic;
 #[cfg(test)] use executor;
 
 mod simple_0;
@@ -20,7 +20,7 @@ fn simplify_expression () {
         il::expr_scalar("test", 32)
     ).unwrap();
 
-    let expr = engine::simplify_expression(&expr).unwrap();
+    let expr = symbolic::simplify_expression(&expr).unwrap();
 
     if let il::Expression::Add(lhs, _) = expr {
         if let il::Expression::Constant(c) = *lhs {

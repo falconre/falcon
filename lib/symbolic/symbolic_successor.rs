@@ -1,4 +1,4 @@
-use engine::*;
+use symbolic::*;
 use il;
 
 /// The type of successor from execution of an `Operation` over a `SymbolicEngine`.

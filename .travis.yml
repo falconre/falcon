@@ -7,4 +7,4 @@ before_install:
   - docker build -t falcon .
 
 script:
-  - docker run --rm -ti falcon /bin/bash -c "source ~/.profile; cd /falcon; cargo test"
+  - docker run --rm -ti falcon /bin/bash -c "source ~/.profile; cd /falcon; cargo test -- --ignored"
