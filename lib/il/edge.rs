@@ -74,6 +74,9 @@ impl fmt::Display for Edge {
                 condition
             )?
         }
+        else {
+            write!(f, "(0x{:X})->0x{:X}", self.head, self.tail)?
+        }
         Ok(())
     }
 }

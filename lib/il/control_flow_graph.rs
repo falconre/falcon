@@ -385,9 +385,15 @@ impl ControlFlowGraph {
 impl fmt::Display for ControlFlowGraph {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for block in self.blocks() {
-            let r = writeln!(f, "{}", block);
-            if r.is_err() {
-                return r;
+            match writeln!(f, "{}", block) {
+                Err(e) => return Err(e),
+                Ok(_) => {}
+            }
+        }
+        for edge in self.edges() {
+            match writeln!(f, "e{}", edge) {
+                Err(e) => return Err(e),
+                Ok(_) => {}
             }
         }
         Ok(())

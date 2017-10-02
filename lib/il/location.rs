@@ -15,6 +15,7 @@
 
 
 use il::*;
+use std::fmt;
 
 /// A location applied to a `Program`.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -223,6 +224,13 @@ impl<'p> RefProgramLocation<'p> {
 }
 
 
+impl<'f> fmt::Display for RefProgramLocation<'f> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{:x}:{}", self.function.index().unwrap(), self.function_location)
+    }
+}
+
+
 /// A location applied to a `Function`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RefFunctionLocation<'f> {
@@ -261,6 +269,18 @@ impl<'f> RefFunctionLocation<'f> {
 }
 
 
+impl<'f> fmt::Display for RefFunctionLocation<'f> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            RefFunctionLocation::Instruction(ref block, ref instruction) => 
+                write!(f, "0x{:x}:{}", block.index(), instruction),
+            RefFunctionLocation::Edge(ref edge) => edge.fmt(f),
+            RefFunctionLocation::EmptyBlock(ref empty_block) => empty_block.fmt(f)
+        }
+    }
+}
+
+
 
 
 /// A location independent of any specific instance of `Program`.
@@ -272,6 +292,15 @@ pub struct ProgramLocation {
 
 
 impl ProgramLocation {
+    /// Create a new `ProgramLocation` from a function index and `FunctionLocation`
+    pub fn new(function_index: u64, function_location: FunctionLocation) -> ProgramLocation {
+        ProgramLocation {
+            function_index: function_index,
+            function_location: function_location
+        }
+    }
+
+
     /// "Apply" this `ProgramLocation` to a `Program`, returning a
     /// `RefProgramLocation`.
     pub fn apply<'p>(&self, program: &'p Program) -> Option<RefProgramLocation<'p>> {
