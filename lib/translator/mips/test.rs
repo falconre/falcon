@@ -146,7 +146,7 @@ fn add() {
 
 #[test]
 fn addi() {
-    // add $a0, $a1, 0x1234
+    // addi $a0, $a1, 0x1234
     let instruction_bytes = &[0x20, 0xa4, 0x12, 0x34];
 
 
@@ -170,4 +170,98 @@ fn addi() {
     else {
         assert!(false);
     }
+}
+
+
+#[test]
+fn addiu() {
+    // addiu $a0, $a1, 0x1234
+    let instruction_bytes = &[0x24, 0xa4, 0x12, 0x34];
+
+
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a1", expr_const(1, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0x1235);
+
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a1", expr_const(0x7fffffff, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0x80001233);
+}
+
+
+#[test]
+fn addu() {
+    // addu $a0, $a1, $a2
+    let instruction_bytes = &[0x00, 0xa6, 0x20, 0x21];
+
+
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a1", expr_const(1, 32)),
+             ("$a2", expr_const(1, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 2);
+
+
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a1", expr_const(0x7fffffff, 32)),
+             ("$a2", expr_const(1, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0x80000000);
+
+
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a1", expr_const(0xffffffff, 32)),
+             ("$a2", expr_const(1, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0);
+}
+
+
+#[test]
+fn and() {
+    // and $a0, $a1, $a2
+    let instruction_bytes = &[0x00, 0xa6, 0x20, 0x24];
+
+
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a1", expr_const(0x8000ffff, 32)),
+             ("$a2", expr_const(0x1234, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0x1234);
+}
+
+
+#[test]
+fn andi() {
+    // andi $a0, $a1, 0x1234
+    let instruction_bytes = &[0x30, 0xa4, 0x12, 0x34];
+
+
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a1", expr_const(0x8000ffff, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0x1234);
 }
