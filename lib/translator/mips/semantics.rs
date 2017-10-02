@@ -198,19 +198,31 @@ pub fn addi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
         control_flow_graph.new_block()?.index()
     };
 
+    let condition = Expr::cmpneq(
+        Expr::trun(1,
+            Expr::shr(
+                Expr::add(lhs.clone(), rhs.clone())?,
+                expr_const(31, 32)
+            )?
+        )?,
+        Expr::trun(1,
+            Expr::shr(
+                lhs.clone(),
+                expr_const(31, 32)
+            )?
+        )?
+    )?;
+
     control_flow_graph.conditional_edge(
         head_index,
         raise_index,
-        Expr::cmpltu(Expr::add(lhs.clone(), rhs.clone())?, lhs.clone())?
+        condition.clone()
     )?;
 
     control_flow_graph.conditional_edge(
         head_index,
         operation_index,
-        Expr::cmpeq(
-            Expr::cmpltu(Expr::add(lhs.clone(), rhs.clone())?, lhs.clone())?,
-            expr_const(0, 32)
-        )?
+        Expr::cmpeq(condition, expr_const(0, 1))?
     )?;
 
     control_flow_graph.unconditional_edge(raise_index, terminating_index)?;
