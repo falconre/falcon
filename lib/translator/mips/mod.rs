@@ -2,11 +2,11 @@
 
 use capstone_rust::{capstone, capstone_sys};
 use error::*;
-#[cfg(test)] use executor;
 use il::*;
 use translator::{Arch, BlockTranslationResult, Endian};
 
 
+#[cfg(test)] mod test;
 mod semantics;
 
 /// The X86 translator.
@@ -284,17 +284,4 @@ impl Arch for Mips {
 
         Ok(BlockTranslationResult::new(block_graph, address, length, successors))
     }
-}
-
-
-#[test]
-fn mips_add() {
-    // add $a0, $a1, $a2
-    let bytes = vec![0x00, 0xa6, 0x20, 0x20];
-    let a1 = expr_const(0x7fffffff, 32);
-    let a2 = expr_const(1, 32);
-    let block_translation_result = Mips::new().translate_block(&bytes, 4).unwrap();
-
-    let control_flow_graph = block_translation_result.control_flow_graph();
-    let block = control_flow_graph.block(0).unwrap();
 }
