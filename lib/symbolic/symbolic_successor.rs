@@ -45,3 +45,8 @@ impl SymbolicSuccessor {
 }
 
 
+impl Into<SymbolicEngine> for SymbolicSuccessor {
+    fn into(self) -> SymbolicEngine {
+        self.engine
+    }
+}

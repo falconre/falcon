@@ -1,5 +1,4 @@
 #[cfg(test)]use error::*;
-#[cfg(test)]use symbolic;
 #[cfg(test)]use symbolic::*;
 #[cfg(test)]use il;
 #[cfg(test)]use loader;

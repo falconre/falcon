@@ -180,7 +180,7 @@ impl SymbolicEngine {
 
 
     /// Evaluates an expression in the solver. If constraints are given, enforces
-    /// these extra constraints.
+    /// those extra constraints.
     pub fn eval(
         &mut self,
         expr: &il::Expression,
@@ -295,7 +295,7 @@ impl SymbolicEngine {
                     let value = self.memory.load(index.value(), dst.bits())?;
                     match value {
                         Some(v) => {
-                            self.scalars.insert(dst.name().to_string(), v.clone());
+                            self.set_scalar(dst.name(), v);
                             vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
                         },
                         None => {
