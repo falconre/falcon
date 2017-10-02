@@ -3,7 +3,11 @@
 use error::*;
 use il;
 
+pub mod engine;
 pub mod eval;
+pub mod driver;
+pub mod memory;
+pub mod successor;
 
 pub use self::eval::eval;
 

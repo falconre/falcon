@@ -64,9 +64,9 @@ pub mod error {
                 description("Error migrating ProgramLocation between Program")
                 display("Failed to migrate ProgramLocation between Program: {}", reason)
             }
-            ExecutorScalar {
+            ExecutorScalar(name: String) {
                 description("Executor can only execute over constant values")
-                display("A scalar was found while executor was evaluating expression")
+                display("A scalar \"{}\" was found while executor was evaluating expression", name)
             }
         }
     }

@@ -4,8 +4,8 @@ use il;
 pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
 
     match *expr {
-        il::Expression::Scalar(_) => {
-            return Err(ErrorKind::ExecutorScalar.into());
+        il::Expression::Scalar(ref scalar) => {
+            return Err(ErrorKind::ExecutorScalar(scalar.name().to_string()).into());
         },
 
         il::Expression::Constant(ref constant) => Ok(constant.clone()),
