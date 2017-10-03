@@ -381,10 +381,7 @@ fn bal() {
         &arch
     );
 
-    println!("{}", driver.program().function(0).unwrap().control_flow_graph());
-
     loop {
-        println!("{:?}", driver.location());
         driver = driver.step().unwrap();
         if let Some(address) = driver.location()
                                      .apply(driver.program())
@@ -404,6 +401,105 @@ fn bal() {
                                .unwrap()).unwrap()
                                          .value(),
                     0xc
+                );
+                break;
+            }
+        }
+    }
+}
+
+
+#[test]
+fn beq() {
+
+    /*
+    addiu $a0, $zero, 0x10
+    addiu $a1, $zero, 0x10
+    beq $a0, $a1, 0x14
+    nop
+    addi a0, $a0, 0x1234
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x24, 0x04, 0x00, 0x10,
+        0x24, 0x05, 0x00, 0x10,
+        0x10, 0x85, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x20, 0x84, 0x12, 0x34,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let mut driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    loop {
+        driver = driver.step().unwrap();
+        if let Some(address) = driver.location()
+                                     .apply(driver.program())
+                                     .unwrap()
+                                     .address() {
+            if address == 0x14 {
+                assert_eq!(
+                    eval(driver.engine()
+                               .get_scalar("$a0")
+                               .unwrap()).unwrap()
+                                         .value(),
+                    0x10
+                );
+                break;
+            }
+        }
+    }
+
+    /*
+    addiu $a0, $zero, 0x10
+    addiu $a1, $zero, 0x20
+    beq $a0, $a1, 0x14
+    nop
+    addi a0, $a0, 0x1234
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x24, 0x04, 0x00, 0x10,
+        0x24, 0x05, 0x00, 0x20,
+        0x10, 0x85, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x20, 0x84, 0x12, 0x34,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let mut driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    loop {
+        driver = driver.step().unwrap();
+        if let Some(address) = driver.location()
+                                     .apply(driver.program())
+                                     .unwrap()
+                                     .address() {
+            if address == 0x14 {
+                assert_eq!(
+                    eval(driver.engine()
+                               .get_scalar("$a0")
+                               .unwrap()).unwrap()
+                                         .value(),
+                    0x1244
                 );
                 break;
             }

@@ -345,6 +345,13 @@ impl<'p> From<RefProgramLocation<'p>> for ProgramLocation {
 }
 
 
+impl fmt::Display for ProgramLocation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{:x}:{}", self.function_index, self.function_location)
+    }
+}
+
+
 /// A location indepdent of any specific instance of `Function`.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum FunctionLocation {
@@ -419,6 +426,20 @@ impl<'f> From<RefFunctionLocation<'f>> for FunctionLocation {
                 FunctionLocation::Edge(edge.head(), edge.tail()),
             RefFunctionLocation::EmptyBlock(block) =>
                 FunctionLocation::EmptyBlock(block.index())
+        }
+    }
+}
+
+
+impl fmt::Display for FunctionLocation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            FunctionLocation::Instruction(block_index, instruction_index) =>
+                write!(f, "0x{:X}:{:02X}", block_index, instruction_index),
+            FunctionLocation::Edge(head_index, tail_index) =>
+                write!(f, "(0x{:X}->0x{:X})", head_index, tail_index),
+            FunctionLocation::EmptyBlock(block_index) =>
+                write!(f, "0x{:X}", block_index)
         }
     }
 }

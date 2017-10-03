@@ -23,11 +23,13 @@ impl MIPSRegister {
     //     self.bits
     // }
 
+    pub fn name(&self) -> &str {
+        self.name
+    }
 
     pub fn scalar(&self) -> Scalar {
         scalar(self.name, self.bits)
     }
-
 
     pub fn expression(&self) -> Expr {
         expr_scalar(self.name, self.bits)
@@ -171,8 +173,15 @@ pub fn addi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let lhs = get_register(detail.operands[1].reg())?.expression();
+    let lhs = get_register(detail.operands[1].reg())?;
     let rhs = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let lhs = if lhs.name() == "$zero" {
+        expr_const(0, 32)
+    }
+    else {
+        lhs.expression()
+    };
 
     let head_index = {
         control_flow_graph.new_block()?.index()
@@ -241,8 +250,15 @@ pub fn addiu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let lhs = get_register(detail.operands[1].reg())?.expression();
+    let lhs = get_register(detail.operands[1].reg())?;
     let rhs = expr_const(detail.operands[2].imm() as u64, 32);
+
+    let lhs = if lhs.name() == "$zero" {
+        expr_const(0, 32)
+    }
+    else {
+        lhs.expression()
+    };
 
     let block_index = {
         let mut block = control_flow_graph.new_block()?;

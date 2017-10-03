@@ -168,7 +168,7 @@ impl Arch for Mips {
                         let rhs = semantics::get_register(detail.operands[1].reg())?.expression();
                         let target = detail.operands[2].imm() as u64;
                         successors.push((target, Some(Expression::cmpeq(lhs.clone(), rhs.clone())?)));
-                        successors.push((address + 8, Some(Expression::cmpneq(lhs.clone(), rhs.clone())?)));
+                        successors.push((instruction.address + 8, Some(Expression::cmpneq(lhs.clone(), rhs.clone())?)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
                     capstone::mips_insn::MIPS_INS_BGEZ => {
@@ -179,7 +179,7 @@ impl Arch for Mips {
                         let false_condition = Expression::cmplts(zero, lhs)?;
                         let true_condition = Expression::cmpeq(false_condition.clone(), expr_const(0, 1))?;
                         successors.push((target, Some(true_condition)));
-                        successors.push((address + 8, Some(false_condition)));
+                        successors.push((instruction.address + 8, Some(false_condition)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
                     capstone::mips_insn::MIPS_INS_BGTZ => {
@@ -193,7 +193,7 @@ impl Arch for Mips {
                         )?;
                         let true_condition = Expression::cmpeq(false_condition.clone(), expr_const(0, 1))?;
                         successors.push((target, Some(true_condition)));
-                        successors.push((address + 8, Some(false_condition)));
+                        successors.push((instruction.address + 8, Some(false_condition)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
                     capstone::mips_insn::MIPS_INS_BLEZ => {
@@ -207,7 +207,7 @@ impl Arch for Mips {
                         )?;
                         let false_condition = Expression::cmpeq(true_condition.clone(), expr_const(0, 1))?;
                         successors.push((target, Some(true_condition)));
-                        successors.push((address + 8, Some(false_condition)));
+                        successors.push((instruction.address + 8, Some(false_condition)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
                     capstone::mips_insn::MIPS_INS_BLTZ => {
@@ -218,7 +218,7 @@ impl Arch for Mips {
                         let true_condition = Expression::cmplts(lhs, zero)?;
                         let false_condition = Expression::cmpeq(true_condition.clone(), expr_const(0, 1))?;
                         successors.push((target, Some(true_condition)));
-                        successors.push((address + 8, Some(false_condition)));
+                        successors.push((instruction.address + 8, Some(false_condition)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
                     capstone::mips_insn::MIPS_INS_BNE => {
@@ -229,7 +229,7 @@ impl Arch for Mips {
                         let true_condition = Expression::cmpneq(lhs.clone(), rhs.clone())?;
                         let false_condition = Expression::cmpeq(lhs, rhs)?;
                         successors.push((target, Some(true_condition)));
-                        successors.push((address + 8, Some(false_condition)));
+                        successors.push((instruction.address + 8, Some(false_condition)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
                     capstone::mips_insn::MIPS_INS_J => {
