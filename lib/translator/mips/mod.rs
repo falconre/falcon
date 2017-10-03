@@ -106,6 +106,7 @@ impl Arch for Mips {
                     capstone::mips_insn::MIPS_INS_DIV    => semantics::div(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_DIVU   => semantics::divu(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_J      => semantics::j(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_JR     => semantics::jr(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_JAL    => semantics::jal(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_JALR   => semantics::jalr(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_LB     => semantics::lb(&mut instruction_graph, &instruction),
@@ -231,19 +232,20 @@ impl Arch for Mips {
                         successors.push((address + 8, Some(false_condition)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
-                    capstone::mips_insn::MIPS_INS_BAL |
-                    capstone::mips_insn::MIPS_INS_BGEZAL |
-                    capstone::mips_insn::MIPS_INS_BLTZAL => {
-                        branch_delay = TranslateBranchDelay::BranchFallThrough;
-                    },
                     capstone::mips_insn::MIPS_INS_J => {
                         let operand = semantics::details(&instruction)?.operands[0];
                         successors.push((operand.imm() as u64, None));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
+                    capstone::mips_insn::MIPS_INS_BAL |
+                    capstone::mips_insn::MIPS_INS_BGEZAL |
+                    capstone::mips_insn::MIPS_INS_BLTZAL |
                     capstone::mips_insn::MIPS_INS_JAL |
                     capstone::mips_insn::MIPS_INS_JALR => {
                         branch_delay = TranslateBranchDelay::BranchFallThrough;
+                    },
+                    capstone::mips_insn::MIPS_INS_JR => {
+                        branch_delay = TranslateBranchDelay::Branch;
                     },
                     _ => {}
                 }

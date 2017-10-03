@@ -118,8 +118,8 @@ impl Engine {
     pub fn execute(mut self, operation: &il::Operation) -> Result<Successor> {
         Ok(match *operation {
             il::Operation::Assign { ref dst, ref src } => {
-                let src = self.symbolize_expression(src)?;
-                self.set_scalar(dst.name(), src);
+                let src = self.symbolize_and_eval(src)?;
+                self.set_scalar(dst.name(), src.into());
                 Successor::new(self, SuccessorType::FallThrough)
             },
             il::Operation::Store { ref index, ref src, .. } => {

@@ -660,6 +660,27 @@ pub fn j(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Resu
 
 
 
+pub fn jr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    let target = get_register(detail.operands[0].reg())?.expression();
+
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        block.brc(target, expr_const(1, 1));
+        
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn jal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = details(instruction)?;
 

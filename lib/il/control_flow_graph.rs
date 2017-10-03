@@ -391,7 +391,7 @@ impl fmt::Display for ControlFlowGraph {
             }
         }
         for edge in self.edges() {
-            match writeln!(f, "e{}", edge) {
+            match writeln!(f, "edge {}", edge) {
                 Err(e) => return Err(e),
                 Ok(_) => {}
             }

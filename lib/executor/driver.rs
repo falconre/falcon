@@ -63,6 +63,7 @@ impl<'d> Driver<'d> {
                                     }
                                 }
                             }
+                            bail!("No valid successor location found on fall through");
                         }
                     },
                     SuccessorType::Branch(address) => {
@@ -133,9 +134,9 @@ impl<'d> Driver<'d> {
                         }
                     }
                 }
+                bail!("No valid location out of empty block");
             }
         }
-        unimplemented!("")
     }
 
     pub fn program(&self) -> &il::Program {
