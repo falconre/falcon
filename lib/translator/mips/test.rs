@@ -60,7 +60,6 @@ fn init_driver_function<'d>(
 }
 
 
-#[cfg(test)]
 fn get_scalar(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Expression)>,
@@ -92,7 +91,7 @@ fn get_scalar(
                  .unwrap();
 }
 
-#[cfg(test)]
+
 fn get_raise(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Expression)>,
@@ -128,6 +127,23 @@ fn get_raise(
 }
 
 
+fn step_to<'d>(mut driver: driver::Driver<'d>, target_address: u64)
+-> driver::Driver<'d> {
+
+    loop {
+        driver = driver.step().unwrap();
+        if let Some(address) = driver.location()
+                                     .apply(driver.program())
+                                     .unwrap()
+                                     .address() {
+            if address == target_address {
+                return driver;
+            }
+        }
+    }
+}
+
+
 #[test]
 fn add() {
     // add $a0, $a1, $a2
@@ -154,7 +170,7 @@ fn add() {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
     else {
-        assert!(false);
+        panic!("Did not hit overflow");
     }
 
 
@@ -168,7 +184,7 @@ fn add() {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
     else {
-        assert!(false);
+        panic!("Did not hit overflow");
     }
 }
 
@@ -197,7 +213,7 @@ fn addi() {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
     else {
-        assert!(false);
+        panic!("Did not hit overflow");
     }
 }
 
@@ -318,34 +334,22 @@ fn b() {
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
     ];
-
+    
     let arch = Mips::new();
 
-    let mut driver = init_driver_function(
+    let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
         memory::Memory::new(Endian::Big),
         &arch
     );
 
-    loop {
-        driver = driver.step().unwrap();
-        if let Some(address) = driver.location()
-                                     .apply(driver.program())
-                                     .unwrap()
-                                     .address() {
-            if address == 0x14 {
-                assert_eq!(
-                    eval(driver.engine()
-                               .get_scalar("$a0")
-                               .unwrap()).unwrap()
-                                         .value(),
-                    2
-                );
-                break;
-            }
-        }
-    }
+    let driver = step_to(driver, 0x14);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
+        0x2
+    );
 }
 
 
@@ -374,38 +378,24 @@ fn bal() {
 
     let arch = Mips::new();
 
-    let mut driver = init_driver_function(
+    let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
         memory::Memory::new(Endian::Big),
         &arch
     );
 
-    loop {
-        driver = driver.step().unwrap();
-        if let Some(address) = driver.location()
-                                     .apply(driver.program())
-                                     .unwrap()
-                                     .address() {
-            if address == 0x14 {
-                assert_eq!(
-                    eval(driver.engine()
-                               .get_scalar("$a0")
-                               .unwrap()).unwrap()
-                                         .value(),
-                    0x1234
-                );
-                assert_eq!(
-                    eval(driver.engine()
-                               .get_scalar("$ra")
-                               .unwrap()).unwrap()
-                                         .value(),
-                    0xc
-                );
-                break;
-            }
-        }
-    }
+    let driver = step_to(driver, 0x14);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
+        0x1234
+    );
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
+        0xc
+    );
 }
 
 
@@ -433,31 +423,19 @@ fn beq() {
 
     let arch = Mips::new();
 
-    let mut driver = init_driver_function(
+    let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
         memory::Memory::new(Endian::Big),
         &arch
     );
 
-    loop {
-        driver = driver.step().unwrap();
-        if let Some(address) = driver.location()
-                                     .apply(driver.program())
-                                     .unwrap()
-                                     .address() {
-            if address == 0x14 {
-                assert_eq!(
-                    eval(driver.engine()
-                               .get_scalar("$a0")
-                               .unwrap()).unwrap()
-                                         .value(),
-                    0x10
-                );
-                break;
-            }
-        }
-    }
+    let driver = step_to(driver, 0x14);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
+        0x10
+    );
 
     /*
     addiu $a0, $zero, 0x10
@@ -480,29 +458,17 @@ fn beq() {
 
     let arch = Mips::new();
 
-    let mut driver = init_driver_function(
+    let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
         memory::Memory::new(Endian::Big),
         &arch
     );
 
-    loop {
-        driver = driver.step().unwrap();
-        if let Some(address) = driver.location()
-                                     .apply(driver.program())
-                                     .unwrap()
-                                     .address() {
-            if address == 0x14 {
-                assert_eq!(
-                    eval(driver.engine()
-                               .get_scalar("$a0")
-                               .unwrap()).unwrap()
-                                         .value(),
-                    0x1244
-                );
-                break;
-            }
-        }
-    }
+    let driver = step_to(driver, 0x14);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
+        0x1244
+    );
 }
