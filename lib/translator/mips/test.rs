@@ -347,3 +347,66 @@ fn b() {
         }
     }
 }
+
+
+#[test]
+fn bal() {
+
+    /*
+    ori $a0, $a0, 0
+    bal target
+    addi $a0, $a0, 0x1234
+    nop
+    nop
+    target :
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x34, 0x84, 0x00, 0x00,
+        0x04, 0x11, 0x00, 0x03,
+        0x20, 0x84, 0x12, 0x34,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let mut driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    println!("{}", driver.program().function(0).unwrap().control_flow_graph());
+
+    loop {
+        println!("{:?}", driver.location());
+        driver = driver.step().unwrap();
+        if let Some(address) = driver.location()
+                                     .apply(driver.program())
+                                     .unwrap()
+                                     .address() {
+            if address == 0x14 {
+                assert_eq!(
+                    eval(driver.engine()
+                               .get_scalar("$a0")
+                               .unwrap()).unwrap()
+                                         .value(),
+                    0x1234
+                );
+                assert_eq!(
+                    eval(driver.engine()
+                               .get_scalar("$ra")
+                               .unwrap()).unwrap()
+                                         .value(),
+                    0xc
+                );
+                break;
+            }
+        }
+    }
+}
