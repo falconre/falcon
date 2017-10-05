@@ -1,6 +1,18 @@
 use error::*;
 use il;
 
+fn sign_extend(constant: &il::Constant) -> i64 {
+    let value: u64 = constant.value();
+    let mut mask: u64 = 0xffffffffffffffff;
+    mask <<= constant.bits();
+    if constant.value() & (1 << (constant.bits() - 1)) != 0 {
+        (value | mask) as i64
+    }
+    else {
+        value as i64
+    }
+}
+
 pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
 
     match *expr {
@@ -105,7 +117,10 @@ pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
         },
 
         il::Expression::Cmplts(ref lhs, ref rhs) => {
-            if (eval(lhs)?.value() as i64) < (eval(rhs)?.value() as i64) {
+                println!("cmplts {} {} <s {} {}",
+                    lhs, sign_extend(&eval(lhs)?),
+                    rhs, sign_extend(&eval(rhs)?));
+            if sign_extend(&eval(lhs)?) < sign_extend(&eval(rhs)?) {
                 Ok(il::Constant::new(1, 1))
             }
             else {

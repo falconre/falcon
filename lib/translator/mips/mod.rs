@@ -176,7 +176,7 @@ impl Arch for Mips {
                         let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                         let zero = expr_const(0, 32);
                         let target = detail.operands[1].imm() as u64;
-                        let false_condition = Expression::cmplts(zero, lhs)?;
+                        let false_condition = Expression::cmplts(lhs, zero)?;
                         let true_condition = Expression::cmpeq(false_condition.clone(), expr_const(0, 1))?;
                         successors.push((target, Some(true_condition)));
                         successors.push((instruction.address + 8, Some(false_condition)));
