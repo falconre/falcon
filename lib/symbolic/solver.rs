@@ -64,7 +64,7 @@ impl Solver {
     }
 
 
-    pub fn cleanup_child(&mut self, mut child: &mut process::Child) -> Result<()> {
+    pub fn cleanup_child(&mut self, child: &mut process::Child) -> Result<()> {
         child.kill().expect("Failed to kill solver during drop");
         child.wait().expect("Error waiting on solver after drop kill");
 

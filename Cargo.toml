@@ -7,7 +7,7 @@ authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
 base64 = "0.5"
 bitflags = "0.9"
 capstone_rust = { git = "https://github.com/endeav0r/capstone-rust", rev="30b2398725" }
-error-chain = "0.10"
+error-chain = "0.11"
 goblin = "0.0.11"
 lazy_static = "0.2"
 log = "0.3"

@@ -51,7 +51,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
                     variable.set_ssa(Some(block_set[&name]));
                 }
             }
-            if let Some(mut variable) = operation.variable_written_mut() {
+            if let Some(variable) = operation.variable_written_mut() {
                 if variable.ssa().is_none() {
                     let name = variable.name().to_owned();
                     variable.set_ssa(Some(assigner.set(name)));
@@ -150,7 +150,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
                         found.insert(bf.0.clone(), BTreeSet::new());
                     }
                     for s in bf.1 {
-                        let mut found_set = found.get_mut(&bf.0).unwrap();
+                        let found_set = found.get_mut(&bf.0).unwrap();
                         found_set.insert(s);
                     }
                 }
@@ -280,7 +280,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
 
     // Every block should now have an ssa assignment in it for all
     // variable writes. We go back and make sure all reads are good to go.
-    for mut block in control_flow_graph.blocks_mut() {
+    for block in control_flow_graph.blocks_mut() {
         ssa_block(block, &mut assigner);
     }
     
@@ -319,7 +319,7 @@ pub fn ssa(mut control_flow_graph: il::ControlFlowGraph) -> Result<il::ControlFl
         let mut phis_to_add: Vec<(u64, il::MultiVar, Vec<il::MultiVar>)> = Vec::new();
 
         {
-            let mut edge = control_flow_graph.edge_mut(edge.head(), edge.tail()).unwrap();
+            let edge = control_flow_graph.edge_mut(edge.head(), edge.tail()).unwrap();
 
             if let Some(ref mut condition) = *edge.condition_mut() {
                 for scalar in condition.collect_scalars_mut() {
@@ -374,7 +374,7 @@ pub fn clear_ssa(mut control_flow_graph: il::ControlFlowGraph)
             for variable in instruction.variables_read_mut() {
                 variable.set_ssa(None);
             }
-            if let Some(mut variable) = instruction.variable_written_mut() {
+            if let Some(variable) = instruction.variable_written_mut() {
                 variable.set_ssa(None);
             }
         }

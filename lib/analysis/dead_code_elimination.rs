@@ -91,8 +91,8 @@ pub fn dead_code_elimination(analysis: &Analysis) -> Result<il::ControlFlowGraph
             AnalysisLocation::EmptyBlock(_) |
             AnalysisLocation::Edge(_) => continue,
             AnalysisLocation::Instruction(ref il) => {
-                let mut block = cfg.block_mut(il.block_index())
-                                   .ok_or("Could not find block")?;
+                let block = cfg.block_mut(il.block_index())
+                               .ok_or("Could not find block")?;
                 block.remove_instruction(il.instruction_index())?;
             }
         }

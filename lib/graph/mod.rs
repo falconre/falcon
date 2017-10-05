@@ -168,7 +168,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
         // find the index of this edge in edges_out
         let mut index = None;
-        let mut edges_out = self.edges_out.get_mut(&head).unwrap();
+        let edges_out = self.edges_out.get_mut(&head).unwrap();
         for (i, edge) in edges_out.iter().enumerate() {
             if edge.head() == head && edge.tail() == tail {
                 index = Some(i);
@@ -181,7 +181,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
         // find the index of this edge in edges_in
         let mut index = None;
-        let mut edges_in = self.edges_in.get_mut(&tail).unwrap();
+        let edges_in = self.edges_in.get_mut(&tail).unwrap();
         for (i, edge) in edges_in.iter().enumerate() {
             if edge.head() == head && edge.tail() == tail {
                 index = Some(i);
@@ -219,8 +219,8 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
         }
 
         self.edges.insert((edge.head(), edge.tail()), edge.clone());
-        self.edges_out.get_mut(&edge.head()).map(|mut v| v.push(edge.clone()));
-        self.edges_in.get_mut(&edge.tail()).map(|mut v| v.push(edge.clone()));
+        self.edges_out.get_mut(&edge.head()).map(|v| v.push(edge.clone()));
+        self.edges_in.get_mut(&edge.tail()).map(|v| v.push(edge.clone()));
 
         Ok(())
     }
@@ -445,7 +445,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
                 }
             }
 
-            let mut this_predecessors = predecessors.get_mut(&vertex_index).unwrap();
+            let this_predecessors = predecessors.get_mut(&vertex_index).unwrap();
             for predecessor in &to_add {
                 this_predecessors.insert(*predecessor);
             }

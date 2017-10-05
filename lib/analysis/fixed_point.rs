@@ -159,7 +159,7 @@ impl FPA {
                     }
                 }
 
-                let mut this_predecessors = back_edges.get_mut(al).unwrap();
+                let this_predecessors = back_edges.get_mut(al).unwrap();
                 for predecessor in to_add {
                     this_predecessors.insert(predecessor);
                 }

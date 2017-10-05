@@ -133,8 +133,8 @@ impl ControlFlowGraph {
     ///
     /// Useful for translators to set address information.
     pub fn set_address(&mut self, address: Option<u64>) {
-        for mut block in self.blocks_mut() {
-            for mut instruction in block.instructions_mut() {
+        for block in self.blocks_mut() {
+            for instruction in block.instructions_mut() {
                 instruction.set_address(address);
             }
         }

@@ -188,8 +188,8 @@ impl Arch for Mips {
                         let zero = expr_const(0, 32);
                         let target = detail.operands[1].imm() as u64;
                         let false_condition = Expression::or(
-                            Expression::cmplts(zero.clone(), lhs.clone())?,
-                            Expression::cmpneq(zero, lhs)?
+                            Expression::cmplts(lhs.clone(), zero.clone())?,
+                            Expression::cmpeq(zero, lhs)?
                         )?;
                         let true_condition = Expression::cmpeq(false_condition.clone(), expr_const(0, 1))?;
                         successors.push((target, Some(true_condition)));

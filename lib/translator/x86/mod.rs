@@ -22,7 +22,7 @@ impl X86 {
 
 fn raise_fp(control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
     let block_index = {
-        let mut block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block()?;
 
         block.raise(expr_scalar("fp_not_supported", 1));
 

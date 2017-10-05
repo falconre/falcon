@@ -117,9 +117,6 @@ pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
         },
 
         il::Expression::Cmplts(ref lhs, ref rhs) => {
-                println!("cmplts {} {} <s {} {}",
-                    lhs, sign_extend(&eval(lhs)?),
-                    rhs, sign_extend(&eval(rhs)?));
             if sign_extend(&eval(lhs)?) < sign_extend(&eval(rhs)?) {
                 Ok(il::Constant::new(1, 1))
             }
