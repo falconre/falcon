@@ -1011,3 +1011,111 @@ fn bltz() {
         0x0
     );
 }
+
+
+#[test]
+fn bltzal() {
+    /*
+    ori $a0, 0x0000
+    bltzal $a0, 0x10
+    nop
+    addiu a1, $zero, 1
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x34, 0x84, 0x00, 0x00,
+        0x04, 0x90, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x24, 0x05, 0x00, 0x01,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    let driver = step_to(driver, 0x10);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
+        0x1
+    );
+
+    /*
+    ori $a0, 0x0000
+    bltzal $a0, 0x10
+    nop
+    addiu a1, $zero, 1
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x34, 0x84, 0x00, 0x00,
+        0x04, 0x90, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x24, 0x05, 0x00, 0x01,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    let driver = step_to(driver, 0x10);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
+        0x1
+    );
+
+    /*
+    ori $a0, 0x0000
+    bltzal $a0, 0x10
+    nop
+    addiu a1, $zero, 1
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x34, 0x84, 0x00, 0x00,
+        0x04, 0x90, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x24, 0x05, 0x00, 0x01,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    let driver = step_to(driver, 0x10);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
+        0x0
+    );
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
+        0xc
+    );
+}
