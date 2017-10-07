@@ -43,14 +43,14 @@ impl Memory {
                         8,
                         il::Expression::shr(
                             value.clone(),
-                            il::expr_const(i * 8, value.bits())
+                            il::expr_const(value.bits() as u64 - (i + 1) * 8, value.bits())
                         )?
                     )?,
                     Endian::Little => il::Expression::trun(
                         8,
                         il::Expression::shr(
                             value.clone(),
-                            il::expr_const(value.bits() as u64 - (i + 1) * 8, value.bits())
+                            il::expr_const(i * 8, value.bits())
                         )?
                     )?
                 };

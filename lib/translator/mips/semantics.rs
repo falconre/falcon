@@ -744,8 +744,10 @@ pub fn lb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
+
+    println!("{} {} {}", dst, base, offset);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -770,8 +772,8 @@ pub fn lbu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -796,8 +798,8 @@ pub fn lh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -822,8 +824,8 @@ pub fn lhu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -848,12 +850,12 @@ pub fn lui(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
     // get operands
     let rt = get_register(detail.operands[0].reg())?.scalar();
-    let imm = expr_const(detail.operands[2].imm() as u64, 32);
+    let imm = expr_const((detail.operands[1].imm() as u64) << 16, 32);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(rt, Expr::shl(imm, expr_const(16, 32))?);
+        block.assign(rt, imm);
 
         block.index()
     };
@@ -871,8 +873,8 @@ pub fn lw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
