@@ -77,12 +77,24 @@ pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
             Ok(il::Constant::new(r, lhs.bits()))
         },
         il::Expression::Shl(ref lhs, ref rhs) => {
-            let r = eval(lhs)?.value() << eval(rhs)?.value();
-            Ok(il::Constant::new(r, lhs.bits()))
+            let rhs = eval(rhs)?;
+            if rhs.value() > lhs.bits() as u64 {
+                Ok(il::Constant::new(0, lhs.bits()))
+            }
+            else {
+                let r = eval(lhs)?.value().wrapping_shl(rhs.value() as u32);
+                Ok(il::Constant::new(r, lhs.bits()))
+            }
         },
         il::Expression::Shr(ref lhs, ref rhs) => {
-            let r = eval(lhs)?.value() >> eval(rhs)?.value();
-            Ok(il::Constant::new(r, lhs.bits()))
+            let rhs = eval(rhs)?;
+            if rhs.value() > lhs.bits() as u64 {
+                Ok(il::Constant::new(0, lhs.bits()))
+            }
+            else {
+                let r = eval(lhs)?.value().wrapping_shr(rhs.value() as u32);
+                Ok(il::Constant::new(r, lhs.bits()))
+            }
         },
         il::Expression::Cmpeq(ref lhs, ref rhs) => {
             if eval(lhs)?.value() == eval(rhs)?.value() {

@@ -1394,8 +1394,8 @@ pub fn sb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     // get operands
     let rt = get_register(detail.operands[0].reg())?.expression();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -1418,8 +1418,8 @@ pub fn sh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     // get operands
     let rt = get_register(detail.operands[0].reg())?.expression();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -1525,7 +1525,7 @@ pub fn slt(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     control_flow_graph.conditional_edge(
         head_index,
         false_index,
-        Expr::cmpeq(Expr::cmplts(rs.clone(), rt.clone())?, expr_const(0, 2))?
+        Expr::cmpeq(Expr::cmplts(rs.clone(), rt.clone())?, expr_const(0, 1))?
     )?;
     control_flow_graph.unconditional_edge(true_index, terminating_index)?;
     control_flow_graph.unconditional_edge(false_index, terminating_index)?;
@@ -1578,7 +1578,7 @@ pub fn slti(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     control_flow_graph.conditional_edge(
         head_index,
         false_index,
-        Expr::cmpeq(Expr::cmplts(rs, imm)?, expr_const(0, 2))?
+        Expr::cmpeq(Expr::cmplts(rs, imm)?, expr_const(0, 1))?
     )?;
     control_flow_graph.unconditional_edge(true_index, terminating_index)?;
     control_flow_graph.unconditional_edge(false_index, terminating_index)?;
@@ -1631,7 +1631,7 @@ pub fn sltiu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
     control_flow_graph.conditional_edge(
         head_index,
         false_index,
-        Expr::cmpeq(Expr::cmpltu(rs, imm)?, expr_const(0, 2))?
+        Expr::cmpeq(Expr::cmpltu(rs, imm)?, expr_const(0, 1))?
     )?;
     control_flow_graph.unconditional_edge(true_index, terminating_index)?;
     control_flow_graph.unconditional_edge(false_index, terminating_index)?;
@@ -1684,7 +1684,7 @@ pub fn sltu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     control_flow_graph.conditional_edge(
         head_index,
         false_index,
-        Expr::cmpeq(Expr::cmpltu(rs.clone(), rt.clone())?, expr_const(0, 2))?
+        Expr::cmpeq(Expr::cmpltu(rs.clone(), rt.clone())?, expr_const(0, 1))?
     )?;
     control_flow_graph.unconditional_edge(true_index, terminating_index)?;
     control_flow_graph.unconditional_edge(false_index, terminating_index)?;
@@ -1807,7 +1807,7 @@ pub fn srlv(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     // get operands
     let rd = get_register(detail.operands[0].reg())?.scalar();
     let rt = get_register(detail.operands[1].reg())?.expression();
-    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rs = get_register(detail.operands[2].reg())?.expression();
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -1868,7 +1868,7 @@ pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         operation_index,
         Expr::cmpeq(
             Expr::cmpltu(rs.clone(), Expr::sub(rt.clone(), rs.clone())?)?,
-            expr_const(0, 32)
+            expr_const(0, 1)
         )?
     )?;
 
@@ -1912,8 +1912,8 @@ pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     // get operands
     let rt = get_register(detail.operands[0].reg())?.expression();
-    let base = get_register(detail.operands[1].reg())?.expression();
-    let offset = expr_const(detail.operands[2].imm() as u64, 32);
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
     let addr_expr = Expr::add(base, offset)?;
 
@@ -1932,7 +1932,7 @@ pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     let op_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.store(array("mem", MEM_SIZE), addr_expr.clone(), Expr::trun(16, rt)?);
+        block.store(array("mem", MEM_SIZE), addr_expr.clone(), rt);
 
         block.index()
     };
