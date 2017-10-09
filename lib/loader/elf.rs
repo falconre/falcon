@@ -129,8 +129,18 @@ impl ElfLinker {
             }
         }
 
+        match self.loaded[&filename].elf().header.e_machine {
+            goblin::elf::header::EM_386 => self.relocations_x86(&filename)?,
+            _ => bail!("relocations unsupported for target architecture")
+        }
+
+        Ok(())
+    }
+
+    fn relocations_x86(&mut self, filename: &str) -> Result<()> {
+
         // Process relocations
-        let ref elf = self.loaded[&filename];
+        let ref elf = self.loaded[filename];
         let dynsyms = elf.elf().dynsyms;
         let dynstrtab = elf.elf().dynstrtab;
         for reloc in elf.elf()
@@ -161,7 +171,7 @@ impl ElfLinker {
                 goblin::elf::reloc::R_386_PLT32 => {
                     let ref sym = dynsyms[reloc.r_sym];
                     let sym_name = &dynstrtab[sym.st_name];
-                    bail!("R_386_PLT32 {}:0x{:x}:{}", filename, reloc.r_offset, sym_name);
+                    bail!("R_386_PLT32 {:?}:0x{:x}:{}", self.filename, reloc.r_offset, sym_name);
                 },
                 goblin::elf::reloc::R_386_COPY => {
                     bail!("R_386_COPY");
@@ -197,8 +207,8 @@ impl ElfLinker {
                     let value = self.memory.get_u32_le(reloc.r_offset as u64 + elf.base_address());
                     let value = match value {
                         Some(value) => elf.base_address() as u32 + value,
-                        None => bail!("Invalid address for R_386_RELATIVE {}:{:x}",
-                                      filename,
+                        None => bail!("Invalid address for R_386_RELATIVE {:?}:{:x}",
+                                      self.filename,
                                       reloc.r_offset)
                     };
                     self.memory.set_u32_le(reloc.r_offset as u64 + elf.base_address(), value)?;
@@ -210,12 +220,11 @@ impl ElfLinker {
                     warn!("Ignoring R_386_TLS_TPOFF Relocation");
                 },
                 goblin::elf::reloc::R_386_IRELATIVE => {
-                    warn!("R_386_IRELATIVE {}:0x{:x} going unprocessed", filename, reloc.r_offset);
+                    warn!("R_386_IRELATIVE {:?}:0x{:x} going unprocessed", self.filename, reloc.r_offset);
                 }
                 _ => bail!("unhandled relocation type {}", reloc.r_type)
             }
         }
-
         Ok(())
     }
 
