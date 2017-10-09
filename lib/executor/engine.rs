@@ -3,7 +3,7 @@ use executor::memory::*;
 use executor::successor::*;
 use std::collections::BTreeMap;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Engine {
     scalars: BTreeMap<String, il::Expression>,
     memory: Memory,

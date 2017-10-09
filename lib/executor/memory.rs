@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use translator::TranslationMemory;
 use types::Endian;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Memory {
     cells: BTreeMap<u64, u8>,
     endian: Endian
