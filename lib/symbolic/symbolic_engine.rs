@@ -2,8 +2,8 @@ use il;
 use symbolic::*;
 use error::*;
 use executor;
+use RC;
 use std::collections::BTreeMap;
-use std::rc::Rc;
 use translator::TranslationMemory;
 
 /// An engine for maintaining a symbolic state, performing operations over that
@@ -14,7 +14,7 @@ pub struct SymbolicEngine {
     memory: SymbolicMemory,
     constraints: Vec<il::Expression>,
     #[serde(skip)]
-    solver: Rc<Solver>
+    solver: RC<Solver>
 }
 
 
@@ -25,7 +25,7 @@ impl SymbolicEngine {
             scalars: BTreeMap::new(),
             memory: memory,
             constraints: Vec::new(),
-            solver: Rc::new(Solver::new().unwrap())
+            solver: RC::new(Solver::new().unwrap())
         }
     }
 
@@ -214,7 +214,7 @@ impl SymbolicEngine {
             return Ok(Some(executor::eval(&expr)?));
         }
 
-        Rc::make_mut(&mut self.solver).solve(&expr, constraints)
+        RC::make_mut(&mut self.solver).solve(&expr, constraints)
     }
 
 

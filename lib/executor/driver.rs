@@ -2,11 +2,11 @@ use error::*;
 use executor::engine::Engine;
 use executor::successor::*;
 use il;
-use std::rc::Rc;
+use RC;
 use translator;
 
 pub struct Driver<'d> {
-    program: Rc<il::Program>,
+    program: RC<il::Program>,
     location: il::ProgramLocation,
     engine: Engine,
     arch: &'d translator::Arch,
@@ -15,7 +15,7 @@ pub struct Driver<'d> {
 
 impl<'d> Driver<'d> {
     pub fn new(
-        program: Rc<il::Program>,
+        program: RC<il::Program>,
         location: il::ProgramLocation,
         engine: Engine,
         arch: &'d translator::Arch,
@@ -80,7 +80,7 @@ impl<'d> Driver<'d> {
                                                    .translate_function(engine.memory(), address)
                                                    .expect(&format!("Failed to lift function at 0x{:x}", address));
                                 let mut program = self.program.clone();
-                                Rc::make_mut(&mut program).add_function(function);
+                                RC::make_mut(&mut program).add_function(function);
                                 let location = il::RefProgramLocation::from_address(
                                     &program,
                                     address

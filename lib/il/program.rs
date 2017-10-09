@@ -1,15 +1,15 @@
 //! A `Program` holds multiple `Function`.
 
 use il::*;
+use RC;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::rc::Rc;
 
 /// A representation of a program by `il::Function`
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct Program {
     // Mapping of function indices (not addresses) to `Function`.
-    functions: BTreeMap<u64, Rc<Function>>,
+    functions: BTreeMap<u64, RC<Function>>,
     // The next index to assign to a function when added to the program.
     next_index: u64
 }
@@ -47,7 +47,7 @@ impl Program {
 
 
     /// Get the underlying BTreeMap holding all `Function` for this `Program`.
-    pub fn functions_map(&self) -> &BTreeMap<u64, Rc<Function>> {
+    pub fn functions_map(&self) -> &BTreeMap<u64, RC<Function>> {
         &self.functions
     }
 
@@ -65,7 +65,7 @@ impl Program {
 
 
     /// Returns a `Rc<Function>` by it's index.
-    pub fn function_rc(&self, index: u64) -> Option<Rc<Function>> {
+    pub fn function_rc(&self, index: u64) -> Option<RC<Function>> {
         match self.functions.get(&index) {
             Some(f) => Some(f.clone()),
             None => None
@@ -78,7 +78,7 @@ impl Program {
     /// This will also assign an index to the `Function`.
     pub fn add_function(&mut self, mut function: Function) {
         function.set_index(Some(self.next_index));
-        self.functions.insert(self.next_index, Rc::new(function));
+        self.functions.insert(self.next_index, RC::new(function));
         self.next_index += 1;
     }
 }

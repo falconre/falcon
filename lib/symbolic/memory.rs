@@ -9,9 +9,9 @@
 
 use error::*;
 use il;
+use RC;
 use types::Endian;
 use std::collections::BTreeMap;
-use std::rc::Rc;
 
 
 const PAGE_SIZE: usize = 4092;
@@ -84,7 +84,7 @@ impl SymbolicPage {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SymbolicMemory {
     endian: Endian,
-    pages: BTreeMap<u64, Rc<SymbolicPage>>
+    pages: BTreeMap<u64, RC<SymbolicPage>>
 }
 
 
@@ -108,13 +108,13 @@ impl SymbolicMemory {
         let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
 
         if let Some(mut page) = self.pages.get_mut(&page_address) {
-            Rc::make_mut(&mut page).store(offset, cell)?;
+            RC::make_mut(&mut page).store(offset, cell)?;
             return Ok(())
         }
 
         let mut page = SymbolicPage::new(PAGE_SIZE);
         page.store(offset, cell)?;
-        self.pages.insert(page_address, Rc::new(page));
+        self.pages.insert(page_address, RC::new(page));
 
         Ok(())
     }

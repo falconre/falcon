@@ -4,7 +4,7 @@ use il::*;
 use std::fmt;
 
 
-pub trait Variable : fmt::Debug + fmt::Display + Sync {
+pub trait Variable : fmt::Debug + fmt::Display + Sync + Send {
     /// Gets the optional SSA value for this `Variable`.
     fn ssa(&self) -> Option<u32>;
 

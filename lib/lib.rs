@@ -31,6 +31,18 @@ pub mod translator;
 pub mod types;
 
 
+
+#[cfg(not(feature = "thread_safe"))]
+use std::rc::Rc;
+#[cfg(not(feature = "thread_safe"))]
+type RC<T> = Rc<T>;
+
+#[cfg(feature = "thread_safe")]
+use std::sync::Arc;
+#[cfg(feature = "thread_safe")]
+type RC<T> = Arc<T>;
+
+
 pub mod error {
     error_chain! {
         types {

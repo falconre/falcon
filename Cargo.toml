@@ -17,6 +17,10 @@ serde_json = "1.0"
 
 serde = {version = "1.0.8", features = ["rc"]}
 
+[features]
+default = []
+thread_safe = []
+
 [lib]
 name = "falcon"
 path = "lib/lib.rs"

@@ -14,8 +14,8 @@
 use error::*;
 use symbolic::*;
 use il;
+use RC;
 use platform::Platform;
-use std::rc::Rc;
 use translator;
 
 
@@ -23,11 +23,11 @@ use translator;
 /// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
 pub struct SymbolicDriver<'e, P> {
-    program: Rc<il::Program>,
+    program: RC<il::Program>,
     location: il::ProgramLocation,
     engine: SymbolicEngine,
     arch: &'e Box<translator::Arch>,
-    platform: Rc<P>
+    platform: RC<P>
 }
 
 
@@ -45,11 +45,11 @@ impl<'e, P> SymbolicDriver<'e, P> {
     /// * `platform`: The platform we will use to handle `Raise` instructions. `Platform` models the
     /// external environment and may be stateful.
     pub fn new(
-        program: Rc<il::Program>,
+        program: RC<il::Program>,
         location: il::ProgramLocation,
         engine: SymbolicEngine,
         arch: &'e Box<translator::Arch>,
-        platform: Rc<P>
+        platform: RC<P>
     ) -> SymbolicDriver<P> where P: Platform<P> {
 
         SymbolicDriver {
@@ -133,7 +133,7 @@ impl<'e, P> SymbolicDriver<'e, P> {
                                     match function {
                                         Ok(function) => {
                                             let mut program = self.program.clone();
-                                            Rc::make_mut(&mut program).add_function(function);
+                                            RC::make_mut(&mut program).add_function(function);
                                             let location = il::RefProgramLocation::from_address(
                                                 &program,
                                                 address
@@ -157,7 +157,7 @@ impl<'e, P> SymbolicDriver<'e, P> {
                             };
                         },
                         SuccessorType::Raise(expression) => {
-                            let platform = Rc::make_mut(&mut self.platform).to_owned();
+                            let platform = RC::make_mut(&mut self.platform).to_owned();
                             let locations = location.advance_forward()?;
                             let engine = successor.clone().into_engine();
                             let results = match platform.raise(&expression, engine) {
@@ -174,7 +174,7 @@ impl<'e, P> SymbolicDriver<'e, P> {
                                         location.clone().into(),
                                         result.1.clone(),
                                         self.arch,
-                                        Rc::new(result.0.clone())
+                                        RC::new(result.0.clone())
                                     ));
                                 }
                             }
@@ -266,7 +266,7 @@ impl<'e, P> SymbolicDriver<'e, P> {
     }
 
     /// Get the platform for this `EngineDriver`
-    pub fn platform(&self) -> Rc<P> {
+    pub fn platform(&self) -> RC<P> {
         self.platform.clone()
     }
 
