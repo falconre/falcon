@@ -119,6 +119,7 @@ impl Arch for Mips {
                     capstone::mips_insn::MIPS_INS_MADDU  => semantics::maddu(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_MFHI   => semantics::mfhi(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_MFLO   => semantics::mflo(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_MOVE   => semantics::move_(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_MOVN   => semantics::movn(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_MOVZ   => semantics::movz(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_MSUB   => semantics::msub(&mut instruction_graph, &instruction),

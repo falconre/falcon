@@ -1732,6 +1732,27 @@ fn mflo() {
 
 
 #[test]
+fn move_() {
+    let result = get_scalar(
+        &[0x00, 0xa0, 0x20, 0x25],
+        vec![("$a1", expr_const(1234, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 1234);
+
+
+    let result = get_scalar(
+        &[0x00, 0x00, 0x20, 0x25],
+        vec![],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0);
+}
+
+
+#[test]
 fn movn() {
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x0b],

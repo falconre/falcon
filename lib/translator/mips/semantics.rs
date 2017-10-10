@@ -1014,6 +1014,36 @@ pub fn mflo(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
 
 
+pub fn move_(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let dst = get_register(detail.operands[0].reg())?.scalar();
+    let src = get_register(detail.operands[1].reg())?.scalar();
+
+    let src = if src.name() == "$zero" {
+        expr_const(0, 32)
+    }
+    else {
+        src.into()
+    };
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(dst, src);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn movn(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = details(instruction)?;
 
