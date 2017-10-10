@@ -59,6 +59,8 @@ impl Arch for Mips {
 
         let mut branch_delay = TranslateBranchDelay::None;
 
+        println!("begin block");
+
         loop {
             let disassembly_range = (offset)..bytes.len();
             let disassembly_bytes = bytes.get(disassembly_range).unwrap();
@@ -79,6 +81,8 @@ impl Arch for Mips {
 
             let instruction = instructions.get(0).unwrap();
 
+            println!("{:x} {} {}", instruction.address, instruction.mnemonic, instruction.op_str);
+
             if let capstone::InstrIdArch::MIPS(instruction_id) = instruction.id {
                 
                 let mut instruction_graph = ControlFlowGraph::new();
@@ -93,6 +97,7 @@ impl Arch for Mips {
                     capstone::mips_insn::MIPS_INS_B      => semantics::b(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BAL    => semantics::bal(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BEQ    => semantics::b(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_BEQZ   => semantics::b(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BGEZ   => semantics::b(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BGEZAL => semantics::bgezal(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BGTZ   => semantics::b(&mut instruction_graph, &instruction),
@@ -100,6 +105,7 @@ impl Arch for Mips {
                     capstone::mips_insn::MIPS_INS_BLTZ   => semantics::b(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BLTZAL => semantics::bltzal(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BNE    => semantics::b(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_BNEZ   => semantics::b(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_BREAK  => semantics::break_(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_CLO    => semantics::clo(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_CLZ    => semantics::clz(&mut instruction_graph, &instruction),
@@ -172,6 +178,15 @@ impl Arch for Mips {
                         successors.push((instruction.address + 8, Some(Expression::cmpneq(lhs.clone(), rhs.clone())?)));
                         branch_delay = TranslateBranchDelay::Branch;
                     },
+                    capstone::mips_insn::MIPS_INS_BEQZ => {
+                        let detail = semantics::details(&instruction)?;
+                        let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
+                        let rhs = expr_const(0, 32);
+                        let target = detail.operands[1].imm() as u64;
+                        successors.push((target, Some(Expression::cmpeq(lhs.clone(), rhs.clone())?)));
+                        successors.push((instruction.address + 8, Some(Expression::cmpneq(lhs.clone(), rhs.clone())?)));
+                        branch_delay = TranslateBranchDelay::Branch;
+                    },
                     capstone::mips_insn::MIPS_INS_BGEZ => {
                         let detail = semantics::details(&instruction)?;
                         let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
@@ -227,6 +242,17 @@ impl Arch for Mips {
                         let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                         let rhs = semantics::get_register(detail.operands[1].reg())?.expression();
                         let target = detail.operands[2].imm() as u64;
+                        let true_condition = Expression::cmpneq(lhs.clone(), rhs.clone())?;
+                        let false_condition = Expression::cmpeq(lhs, rhs)?;
+                        successors.push((target, Some(true_condition)));
+                        successors.push((instruction.address + 8, Some(false_condition)));
+                        branch_delay = TranslateBranchDelay::Branch;
+                    },
+                    capstone::mips_insn::MIPS_INS_BNEZ => {
+                        let detail = semantics::details(&instruction)?;
+                        let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
+                        let rhs = expr_const(0, 32);
+                        let target = detail.operands[1].imm() as u64;
                         let true_condition = Expression::cmpneq(lhs.clone(), rhs.clone())?;
                         let false_condition = Expression::cmpeq(lhs, rhs)?;
                         successors.push((target, Some(true_condition)));

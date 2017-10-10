@@ -477,6 +477,76 @@ fn beq() {
 
 
 #[test]
+fn beqz() {
+    /*
+    addiu $a1, $zero, 0x10
+    beqz $a0, 0x10
+    nop
+    addi a0, $a0, 0x1234
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x24, 0x05, 0x00, 0x10,
+        0x10, 0x80, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x20, 0x84, 0x12, 0x34,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    let driver = step_to(driver, 0x10);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
+        0x0
+    );
+
+    /*
+    addiu $a1, $zero, 0x10
+    beqz $a0, 0x10
+    nop
+    addi a0, $a0, 0x1234
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x24, 0x05, 0x00, 0x10,
+        0x10, 0x80, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x20, 0x84, 0x12, 0x34,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(1, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    let driver = step_to(driver, 0x10);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
+        0x1235
+    );
+}
+
+
+#[test]
 fn bgez() {
 
     /*
@@ -1209,6 +1279,76 @@ fn bne() {
     assert_eq!(
         eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
         0x1
+    );
+}
+
+
+#[test]
+fn bnez() {
+    /*
+    ori $a0, 0x0000
+    bnez $a0, 0x10
+    nop
+    addiu a1, $zero, 1
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x34, 0x84, 0x00, 0x00,
+        0x14, 0x80, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x24, 0x05, 0x00, 0x01,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    let driver = step_to(driver, 0x10);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
+        0x1
+    );
+
+    /*
+    ori $a0, 0x0000
+    bnez $a0, 0x10
+    nop
+    addiu a1, $zero, 1
+    jr $ra
+    nop
+    */
+    let instruction_bytes = &[
+        0x34, 0x84, 0x00, 0x00,
+        0x14, 0x80, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x24, 0x05, 0x00, 0x01,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00
+    ];
+
+    let arch = Mips::new();
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
+        memory::Memory::new(Endian::Big),
+        &arch
+    );
+
+    let driver = step_to(driver, 0x10);
+
+    assert_eq!(
+        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
+        0x0
     );
 }
 
