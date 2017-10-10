@@ -747,8 +747,6 @@ pub fn lb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     let base = get_register(detail.operands[1].mem().base.into())?.expression();
     let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
 
-    println!("{} {} {}", dst, base, offset);
-
     let block_index = {
         let block = control_flow_graph.new_block()?;
 

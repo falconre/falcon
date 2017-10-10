@@ -59,8 +59,6 @@ impl Arch for Mips {
 
         let mut branch_delay = TranslateBranchDelay::None;
 
-        println!("begin block");
-
         loop {
             let disassembly_range = (offset)..bytes.len();
             let disassembly_bytes = bytes.get(disassembly_range).unwrap();
@@ -80,8 +78,6 @@ impl Arch for Mips {
             }
 
             let instruction = instructions.get(0).unwrap();
-
-            println!("{:x} {} {}", instruction.address, instruction.mnemonic, instruction.op_str);
 
             if let capstone::InstrIdArch::MIPS(instruction_id) = instruction.id {
                 
