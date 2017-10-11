@@ -37,6 +37,11 @@ impl Array {
     pub fn size(&self) -> u64 {
         self.size
     }
+
+    /// Get the name of the `Array`.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 
