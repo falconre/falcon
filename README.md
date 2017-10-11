@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/endeav0r/falcon.svg?branch=master)](https://travis-ci.org/endeav0r/falcon)
-[![Coverage Status](https://coveralls.io/repos/github/endeav0r/falcon/badge.svg)](https://coveralls.io/github/endeav0r/falcon)
+[![Build Status](https://travis-ci.org/falconre/falcon.svg?branch=master)](https://travis-ci.org/falconre/falcon)
+[![Coverage Status](https://coveralls.io/repos/github/falconre/falcon/badge.svg)](https://coveralls.io/github/falconre/falcon)
 
 # Welcome to Falcon
 
