@@ -9,7 +9,7 @@ use translator::{Arch, BlockTranslationResult, Endian};
 mod semantics;
 
 /// The X86 translator.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct X86;
 
 

@@ -1,4 +1,4 @@
-//! Capstone-based translator for 32-bit x86.
+//! Capstone-based translator for MIPS.
 
 use capstone_rust::{capstone, capstone_sys};
 use error::*;
@@ -10,7 +10,7 @@ use translator::{Arch, BlockTranslationResult, Endian};
 mod semantics;
 
 /// The X86 translator.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Mips;
 
 
