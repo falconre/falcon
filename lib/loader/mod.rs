@@ -13,7 +13,8 @@ use types::Endian;
 /// An enum of architectures supported by the loader.
 #[derive(Clone, Debug)]
 pub enum Architecture {
-    X86
+    X86,
+    Mips
 }
 
 
@@ -21,7 +22,8 @@ impl Architecture {
     /// Get the endiannes of an `Architecture`
     pub fn endian(&self) -> Endian {
         match *self {
-            Architecture::X86 => Endian::Little
+            Architecture::X86 => Endian::Little,
+            Architecture::Mips => Endian::Big
         }
     }
 }
@@ -91,7 +93,8 @@ pub trait Loader: Clone {
     fn translator(&self) -> Result<Box<translator::Arch>> {
         match self.architecture() {
             Ok(arch) => match arch {
-                Architecture::X86 => Ok(Box::new(translator::x86::X86::new()))
+                Architecture::X86 => Ok(Box::new(translator::x86::X86::new())),
+                Architecture::Mips => Ok(Box::new(translator::mips::Mips::new()))
             },
             Err(_) => bail!("Unsupported Architecture")
         }

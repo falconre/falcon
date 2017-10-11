@@ -548,6 +548,9 @@ impl Loader for Elf {
         if elf.header.e_machine == goblin::elf::header::EM_386 {
             Ok(Architecture::X86)
         }
+        else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
+            Ok(Architecture::Mips)
+        }
         else {
             Err("Unsupported Arcthiecture".into())
         }
