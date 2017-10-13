@@ -8,20 +8,20 @@ use translator::TranslationMemory;
 
 /// An engine for maintaining a symbolic state, performing operations over that
 /// state, and querying that state.
-#[derive(Clone, Deserialize, Serialize)]
-pub struct SymbolicEngine {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Engine {
     scalars: BTreeMap<String, il::Expression>,
-    memory: SymbolicMemory,
+    memory: Memory,
     constraints: Vec<il::Expression>,
     #[serde(skip)]
     solver: RC<Solver>
 }
 
 
-impl SymbolicEngine {
+impl Engine {
     /// Create a new `SymbolicEngine`
-    pub fn new(memory: SymbolicMemory) -> SymbolicEngine {
-        SymbolicEngine {
+    pub fn new(memory: Memory) -> Engine {
+        Engine {
             scalars: BTreeMap::new(),
             memory: memory,
             constraints: Vec::new(),
@@ -30,12 +30,12 @@ impl SymbolicEngine {
     }
 
     /// Get the `SymbolicMemory` backing this engine.
-    pub fn memory(&self) -> &SymbolicMemory {
+    pub fn memory(&self) -> &Memory {
         &self.memory
     }
 
     /// Get a mutable reference to the `SymbolicMemory` backing this reference.
-    pub fn memory_mut(&mut self) -> &mut SymbolicMemory {
+    pub fn memory_mut(&mut self) -> &mut Memory {
         &mut self.memory
     }
 
@@ -270,20 +270,20 @@ impl SymbolicEngine {
 
     /// Execute an IL operation over the engine, updating state.
     pub fn execute(mut self, operation: &il::Operation)
-        -> Result<Vec<SymbolicSuccessor>> {
+        -> Result<Vec<Successor>> {
 
         Ok(match *operation {
             il::Operation::Assign { ref dst, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
                 self.set_scalar(dst.name(), src);
-                vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
+                vec![Successor::new(self, SuccessorType::FallThrough)]
             },
             il::Operation::Store { ref index, ref src, .. } => {
                 let src = self.symbolize_and_eval(src)?;
                 let index = self.eval(index, None)?;
                 if let Some(index) = index {
                     self.memory.store(index.value(), src)?;
-                    vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
+                    vec![Successor::new(self, SuccessorType::FallThrough)]
                 }
                 else {
                     Vec::new()
@@ -296,7 +296,7 @@ impl SymbolicEngine {
                     match value {
                         Some(v) => {
                             self.set_scalar(dst.name(), v);
-                            vec![SymbolicSuccessor::new(self, SuccessorType::FallThrough)]
+                            vec![Successor::new(self, SuccessorType::FallThrough)]
                         },
                         None => {
                             trace!("Got invalid concretized load address 0x{:x}", index.value());
@@ -317,7 +317,7 @@ impl SymbolicEngine {
                 if r.is_some() {
                     let mut engine = self.clone();
                     engine.add_constraint(null_case)?;
-                    let successor = SymbolicSuccessor::new(engine, SuccessorType::FallThrough);
+                    let successor = Successor::new(engine, SuccessorType::FallThrough);
                     successors.push(successor);
                 }
                 // This is the true case
@@ -327,7 +327,7 @@ impl SymbolicEngine {
                     if let Some(target) = t {
                         let mut engine = self.clone();
                         engine.add_constraint(condition.clone())?;
-                        let successor = SymbolicSuccessor::new(
+                        let successor = Successor::new(
                             engine,
                             SuccessorType::Branch(target.value())
                         );
@@ -340,7 +340,7 @@ impl SymbolicEngine {
                 panic!("Phi unimplemented");
             },
             il::Operation::Raise { ref expr } => {
-                vec![SymbolicSuccessor::new(
+                vec![Successor::new(
                     self,
                     SuccessorType::Raise(expr.clone())
                 )]
@@ -350,7 +350,7 @@ impl SymbolicEngine {
 }
 
 
-impl TranslationMemory for SymbolicEngine {
+impl TranslationMemory for Engine {
     fn get_u8(&self, address: u64) -> Option<u8> {
         self.load_only_concrete(address).unwrap()
     }

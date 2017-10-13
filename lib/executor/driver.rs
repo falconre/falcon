@@ -3,33 +3,34 @@ use executor::engine::Engine;
 use executor::successor::*;
 use il;
 use RC;
-use translator;
+use types::Architecture;
 
-pub struct Driver<'d> {
+#[derive(Debug, Clone)]
+pub struct Driver {
     program: RC<il::Program>,
     location: il::ProgramLocation,
     engine: Engine,
-    arch: &'d translator::Arch,
+    architecture: Architecture,
 }
 
 
-impl<'d> Driver<'d> {
+impl Driver {
     pub fn new(
         program: RC<il::Program>,
         location: il::ProgramLocation,
         engine: Engine,
-        arch: &'d translator::Arch,
-    ) -> Driver<'d> {
+        architecture: Architecture,
+    ) -> Driver {
         Driver {
             program: program,
             location: location,
             engine: engine,
-            arch: arch
+            architecture: architecture
         }
     }
 
 
-    pub fn step(self) -> Result<Driver<'d>> {
+    pub fn step(self) -> Result<Driver> {
         let location = self.location.apply(&self.program).unwrap();
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, instruction) => {
@@ -43,7 +44,7 @@ impl<'d> Driver<'d> {
                                 self.program.clone(),
                                 locations[0].clone().into(),
                                 successor.into(),
-                                self.arch
+                                self.architecture
                             ));
                         }
                         else {
@@ -58,7 +59,7 @@ impl<'d> Driver<'d> {
                                             self.program.clone(),
                                             location.clone().into(),
                                             successor.into(),
-                                            self.arch
+                                            self.architecture
                                         ));
                                     }
                                 }
@@ -72,11 +73,12 @@ impl<'d> Driver<'d> {
                                 self.program.clone(),
                                 location.into(),
                                 successor.into(),
-                                self.arch
+                                self.architecture
                             )),
                             None => {
                                 let engine: Engine = successor.into();
-                                let function = self.arch
+                                let function = self.architecture
+                                                   .translator()
                                                    .translate_function(engine.memory(), address)
                                                    .expect(&format!("Failed to lift function at 0x{:x}", address));
                                 let mut program = self.program.clone();
@@ -89,7 +91,7 @@ impl<'d> Driver<'d> {
                                     program.clone(),
                                     location.unwrap().into(),
                                     engine,
-                                    self.arch
+                                    self.architecture
                                 ));
                             }
                         }
@@ -105,7 +107,7 @@ impl<'d> Driver<'d> {
                     self.program.clone(),
                     locations[0].clone().into(),
                     self.engine,
-                    self.arch
+                    self.architecture
                 ));
             },
             il::RefFunctionLocation::EmptyBlock(_) => {
@@ -115,7 +117,7 @@ impl<'d> Driver<'d> {
                         self.program.clone(),
                         locations[0].clone().into(),
                         self.engine,
-                        self.arch
+                        self.architecture
                     ));
                 }
                 else {
@@ -128,7 +130,7 @@ impl<'d> Driver<'d> {
                                     self.program.clone(),
                                     location.clone().into(),
                                     self.engine,
-                                    self.arch
+                                    self.architecture
                                 ));
                             }
                         }

@@ -2,15 +2,14 @@ use executor::*;
 use il::*;
 use std::rc::Rc;
 use translator::mips::*;
-use types::Endian;
+use types::{Architecture, Endian};
 
 
-fn init_driver_block<'d>(
+fn init_driver_block(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Expression)>,
-    memory: memory::Memory,
-    arch: &'d ::translator::Arch
-) -> driver::Driver<'d> {
+    memory: memory::Memory
+) -> driver::Driver {
     let mut bytes = vec![0x00, 0x00, 0x00, 0x00];
     bytes.append(&mut instruction_bytes.to_vec());
     bytes.append(&mut vec![0x00, 0x00, 0x00, 0x00]);
@@ -29,22 +28,21 @@ fn init_driver_block<'d>(
         engine.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(Rc::new(program), location, engine, arch)
+    driver::Driver::new(Rc::new(program), location, engine, Architecture::Mips)
 }
 
 
-fn init_driver_function<'d>(
+fn init_driver_function(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Expression)>,
-    mut memory: memory::Memory,
-    arch: &'d ::translator::Arch
-) -> driver::Driver<'d> {
+    mut memory: memory::Memory
+) -> driver::Driver {
     for i in 0..instruction_bytes.len() {
         memory.store(i as u64, expr_const(instruction_bytes[i] as u64, 8))
               .unwrap();
     }
 
-    let function = arch.translate_function(&memory, 0).unwrap();
+    let function = Mips::new().translate_function(&memory, 0).unwrap();
     let mut program = Program::new();
 
     program.add_function(function);
@@ -56,7 +54,7 @@ fn init_driver_function<'d>(
         engine.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(Rc::new(program), location, engine, arch)
+    driver::Driver::new(Rc::new(program), location, engine, Architecture::Mips)
 }
 
 
@@ -67,9 +65,7 @@ fn get_scalar(
     result_scalar: &str
 ) -> Constant {
 
-    let arch = Mips::new();
-
-    let mut driver = init_driver_block(instruction_bytes, scalars, memory, &arch);
+    let mut driver = init_driver_block(instruction_bytes, scalars, memory);
     let num_blocks = driver.program()
                            .function(0)
                            .unwrap()
@@ -100,9 +96,7 @@ fn get_raise(
     memory: memory::Memory
 ) -> Option<Expression> {
 
-    let arch = Mips::new();
-
-    let mut driver = init_driver_block(instruction_bytes, scalars, memory, &arch);
+    let mut driver = init_driver_block(instruction_bytes, scalars, memory);
     let num_blocks = driver.program()
                            .function(0)
                            .unwrap()
@@ -129,8 +123,7 @@ fn get_raise(
 }
 
 
-fn step_to<'d>(mut driver: driver::Driver<'d>, target_address: u64)
--> driver::Driver<'d> {
+fn step_to(mut driver: driver::Driver, target_address: u64) -> driver::Driver {
 
     loop {
         driver = driver.step().unwrap();
@@ -337,13 +330,10 @@ fn b() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x14);
@@ -378,13 +368,10 @@ fn bal() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x14);
@@ -423,13 +410,10 @@ fn beq() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x14);
@@ -458,13 +442,10 @@ fn beq() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x14);
@@ -495,13 +476,10 @@ fn beqz() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -528,13 +506,10 @@ fn beqz() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -566,13 +541,10 @@ fn bgez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -599,13 +571,10 @@ fn bgez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0x1, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -632,13 +601,10 @@ fn bgez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xfffffffe, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -669,13 +635,10 @@ fn bgezal() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -706,14 +669,11 @@ fn bgezal() {
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
     ];
-
-    let arch = Mips::new();
 
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -745,13 +705,10 @@ fn bgezal() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -782,13 +739,10 @@ fn bgtz() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -815,13 +769,10 @@ fn bgtz() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -848,13 +799,10 @@ fn bgtz() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -885,13 +833,10 @@ fn blez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -918,13 +863,10 @@ fn blez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -951,13 +893,10 @@ fn blez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -988,13 +927,10 @@ fn bltz() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1020,14 +956,11 @@ fn bltz() {
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
     ];
-
-    let arch = Mips::new();
 
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1054,13 +987,10 @@ fn bltz() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1091,13 +1021,10 @@ fn bltzal() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1123,14 +1050,11 @@ fn bltzal() {
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
     ];
-
-    let arch = Mips::new();
 
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1157,13 +1081,10 @@ fn bltzal() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1199,13 +1120,10 @@ fn bne() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1232,13 +1150,10 @@ fn bne() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1265,13 +1180,10 @@ fn bne() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1302,13 +1214,10 @@ fn bnez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1335,13 +1244,10 @@ fn bnez() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1501,13 +1407,10 @@ fn j() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1538,13 +1441,10 @@ fn jr() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xf, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     println!("{}", driver.program().function(0).unwrap().control_flow_graph());
@@ -1577,13 +1477,10 @@ fn jal() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -1619,13 +1516,10 @@ fn jalr() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xf, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x10);
@@ -2210,14 +2104,11 @@ fn sb() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0x41, 32)),
              ("$a1", expr_const(0xdeadbe00, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x4);
@@ -2244,14 +2135,11 @@ fn sh() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xbeef, 32)),
              ("$a1", expr_const(0xdeadbe00, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x4);
@@ -2643,14 +2531,11 @@ fn sw() {
         0x00, 0x00, 0x00, 0x00
     ];
 
-    let arch = Mips::new();
-
     let driver = init_driver_function(
         instruction_bytes,
         vec![("$a0", expr_const(0xdeadbeef, 32)),
              ("$a1", expr_const(0xdeadbe00, 32))],
-        memory::Memory::new(Endian::Big),
-        &arch
+        memory::Memory::new(Endian::Big)
     );
 
     let driver = step_to(driver, 0x8);

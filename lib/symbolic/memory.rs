@@ -41,20 +41,20 @@ impl MemoryCell {
 
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct SymbolicPage {
+struct Page {
     size: usize,
     cells: Vec<MemoryCell>
 }
 
 
-impl SymbolicPage {
-    fn new(size: usize) -> SymbolicPage {
+impl Page {
+    fn new(size: usize) -> Page {
         let mut v = Vec::new();
         for _ in 0..size {
             v.push(MemoryCell::Expression(il::expr_const(0, 8)));
         }
 
-        SymbolicPage {
+        Page {
             size: size,
             cells: v
         }
@@ -82,16 +82,16 @@ impl SymbolicPage {
 
 /// A symbolic memory model for Falcon IL expressions.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct SymbolicMemory {
+pub struct Memory {
     endian: Endian,
-    pages: BTreeMap<u64, RC<SymbolicPage>>
+    pages: BTreeMap<u64, RC<Page>>
 }
 
 
-impl SymbolicMemory {
+impl Memory {
     /// Create a new `SymbolicMemory`.
-    pub fn new(endian: Endian) -> SymbolicMemory {
-        SymbolicMemory {
+    pub fn new(endian: Endian) -> Memory {
+        Memory {
             endian: endian,
             pages: BTreeMap::new()
         }
@@ -112,7 +112,7 @@ impl SymbolicMemory {
             return Ok(())
         }
 
-        let mut page = SymbolicPage::new(PAGE_SIZE);
+        let mut page = Page::new(PAGE_SIZE);
         page.store(offset, cell)?;
         self.pages.insert(page_address, RC::new(page));
 

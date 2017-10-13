@@ -14,8 +14,8 @@ pub use self::linux_x86::LinuxX86;
 pub trait Platform<P: Platform<P>> : Clone {
     /// Handle an `Operation::Raise` from a `SymbolicEngine`. Returns a vec of tuples of produced
     /// `(Platform, SymbolicEngine)`.
-    fn raise(self, expression: &il::Expression, engine: SymbolicEngine)
-    -> Result<Vec<(P, SymbolicEngine)>>;
+    fn raise(self, expression: &il::Expression, engine: Engine)
+    -> Result<Vec<(P, Engine)>>;
 
     /// Get each `Scalar` produced by this `Platform`.
     fn symbolic_scalars(&self) -> Vec<il::Scalar>;

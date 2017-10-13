@@ -21,7 +21,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
     program.add_function(elf.function(elf.program_entry())?);
 
     // Initialize memory.
-    let mut memory = SymbolicMemory::new(types::Endian::Little);
+    let mut memory = Memory::new(types::Endian::Little);
 
     // Load all memory as given by the loader.
     for (address, segment) in elf.memory()?.segments() {
@@ -35,7 +35,7 @@ fn simple_0_test () -> Result<Vec<u8>> {
     let mut platform = linux_x86::LinuxX86::new();
     
     // Create the engine
-    let mut engine = SymbolicEngine::new(memory);
+    let mut engine = Engine::new(memory);
     platform.initialize(&mut engine)?;
 
 
@@ -45,12 +45,11 @@ fn simple_0_test () -> Result<Vec<u8>> {
         elf.program_entry()
     ).unwrap().into();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
-    let translator = elf.translator()?;
-    let driver = SymbolicDriver::new(
+    let driver = Driver::new(
         Rc::new(program),
         pl,
         engine,
-        &translator,
+        elf.architecture()?,
         Rc::new(platform)
     );
     let mut drivers = vec![driver];

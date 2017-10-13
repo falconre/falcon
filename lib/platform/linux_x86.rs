@@ -43,7 +43,7 @@ impl LinuxX86 {
     }
 
 
-    fn push(&self, engine: &mut SymbolicEngine, value: u32)
+    fn push(&self, engine: &mut Engine, value: u32)
         -> Result<()> {
 
         let expr = match engine.get_scalar_only_concrete("esp")? {
@@ -68,7 +68,7 @@ impl LinuxX86 {
     }
 
 
-    fn initialize_stack(&self, engine: &mut SymbolicEngine)
+    fn initialize_stack(&self, engine: &mut Engine)
         -> Result<()> {
 
         for i in 0..STACK_SIZE {
@@ -81,7 +81,7 @@ impl LinuxX86 {
     }
 
 
-    fn initialize_segments(&self, engine: &mut SymbolicEngine)
+    fn initialize_segments(&self, engine: &mut Engine)
         -> Result<()> {
 
         for i in 0..FS_SIZE {
@@ -107,7 +107,7 @@ impl LinuxX86 {
     }
 
 
-    fn initialize_command_line_arguments(&self, engine: &mut SymbolicEngine)
+    fn initialize_command_line_arguments(&self, engine: &mut Engine)
         -> Result<()> {
 
         self.push(engine, 0)?;
@@ -116,7 +116,7 @@ impl LinuxX86 {
     }
 
 
-    fn initialize_environment_variables(&self, engine: &mut SymbolicEngine)
+    fn initialize_environment_variables(&self, engine: &mut Engine)
         -> Result<()> {
 
         self.push(engine, 0)?;
@@ -124,7 +124,7 @@ impl LinuxX86 {
     }
 
 
-    fn initialize_kernel_vsyscall(&self, engine: &mut SymbolicEngine)
+    fn initialize_kernel_vsyscall(&self, engine: &mut Engine)
         -> Result<()> {
 
         // Set up the KERNEL_VSYSCALL function
@@ -162,7 +162,7 @@ impl LinuxX86 {
     }
 
 
-    fn initialize_miscellaneous(&self, engine: &mut SymbolicEngine)
+    fn initialize_miscellaneous(&self, engine: &mut Engine)
         -> Result<()> {
 
         engine.set_scalar("DF", il::expr_const(0, 1));
@@ -184,7 +184,7 @@ impl LinuxX86 {
     /// Takes a `SymbolicEngine`, most likely freshly initialized from a `Loader`, and
     /// initializes both this `LinuxX86` and the `SymbolicEngine` for execution as an
     /// x86 Linux userland process.
-    pub fn initialize(&mut self, engine: &mut SymbolicEngine) -> Result<()> {
+    pub fn initialize(&mut self, engine: &mut Engine) -> Result<()> {
 
         self.initialize_stack(engine)?;
         self.initialize_segments(engine)?;
@@ -204,8 +204,8 @@ impl LinuxX86 {
 
 
 impl Platform<LinuxX86> for LinuxX86 {
-    fn raise(mut self, expression: &il::Expression, mut engine: SymbolicEngine)
-    -> Result<Vec<(LinuxX86, SymbolicEngine)>> {
+    fn raise(mut self, expression: &il::Expression, mut engine: Engine)
+    -> Result<Vec<(LinuxX86, Engine)>> {
 
         match *expression {
             il::Expression::Scalar(ref scalar) => if scalar.name() != "sysenter" {

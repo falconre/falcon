@@ -208,3 +208,9 @@ impl Drop for Solver {
         // self.child.wait().expect("Error waiting on solver after drop kill");
     }
 }
+
+impl ::std::fmt::Debug for Solver {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "solver")
+    }
+}

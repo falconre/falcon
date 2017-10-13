@@ -3,7 +3,8 @@
 use capstone_rust::{capstone, capstone_sys};
 use error::*;
 use il::*;
-use translator::{Arch, BlockTranslationResult, Endian};
+use translator::{Translator, BlockTranslationResult};
+use types::Endian;
 
 
 mod semantics;
@@ -36,7 +37,7 @@ fn raise_fp(control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 }
 
 
-impl Arch for X86 {
+impl Translator for X86 {
     fn endian(&self) -> Endian {
         Endian::Little
     }

@@ -5,28 +5,9 @@ pub mod json;
 pub mod memory;
 
 use error::*;
-use translator;
 use il;
 use std::fmt;
-use types::Endian;
-
-/// An enum of architectures supported by the loader.
-#[derive(Clone, Debug)]
-pub enum Architecture {
-    X86,
-    Mips
-}
-
-
-impl Architecture {
-    /// Get the endiannes of an `Architecture`
-    pub fn endian(&self) -> Endian {
-        match *self {
-            Architecture::X86 => Endian::Little,
-            Architecture::Mips => Endian::Big
-        }
-    }
-}
+use types::Architecture;
 
 
 /// A declared entry point for a function.
@@ -89,20 +70,9 @@ pub trait Loader: Clone {
     /// Get the architecture of the binary
     fn architecture(&self) -> Result<Architecture>;
 
-    /// Get the translator for this binary's architecture
-    fn translator(&self) -> Result<Box<translator::Arch>> {
-        match self.architecture() {
-            Ok(arch) => match arch {
-                Architecture::X86 => Ok(Box::new(translator::x86::X86::new())),
-                Architecture::Mips => Ok(Box::new(translator::mips::Mips::new()))
-            },
-            Err(_) => bail!("Unsupported Architecture")
-        }
-    }
-
     /// Lift just one function from the executable
     fn function(&self, address: u64) -> Result<il::Function> {
-        let translator = self.translator()?;
+        let translator = self.architecture()?.translator();
         let memory = self.memory()?;
         Ok(translator.translate_function(&memory, address)?)
     }
@@ -110,7 +80,7 @@ pub trait Loader: Clone {
     /// Lift executable into an il::Program
     fn to_program(&self) -> Result<il::Program> {
         // Get out architecture-specific translator
-        let translator = self.translator()?;
+        let translator = self.architecture()?.translator();
 
         // Create a mapping of the file memory
         let memory = self.memory()?;

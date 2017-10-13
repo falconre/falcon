@@ -3,7 +3,8 @@
 use capstone_rust::{capstone, capstone_sys};
 use error::*;
 use il::*;
-use translator::{Arch, BlockTranslationResult, Endian};
+use translator::{Translator, BlockTranslationResult};
+use types::Endian;
 
 
 #[cfg(test)] mod test;
@@ -31,7 +32,7 @@ enum TranslateBranchDelay {
 
 
 
-impl Arch for Mips {
+impl Translator for Mips {
     fn endian(&self) -> Endian {
         Endian::Big
     }

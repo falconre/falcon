@@ -16,23 +16,23 @@ use symbolic::*;
 use il;
 use RC;
 use platform::Platform;
-use translator;
+use types::Architecture;
 
 
 
 /// An `EngineDriver` drive's a `SymbolicEngine` through an `il::Program` and `Platform`.
 #[derive(Clone)]
-pub struct SymbolicDriver<'e, P> {
+pub struct Driver<P> {
     program: RC<il::Program>,
     location: il::ProgramLocation,
-    engine: SymbolicEngine,
-    arch: &'e Box<translator::Arch>,
+    engine: Engine,
+    architecture: Architecture,
     platform: RC<P>
 }
 
 
 
-impl<'e, P> SymbolicDriver<'e, P> {
+impl<P> Driver<P> {
     /// Create a new `EngineDriver`.
     ///
     /// # Arguments
@@ -47,16 +47,16 @@ impl<'e, P> SymbolicDriver<'e, P> {
     pub fn new(
         program: RC<il::Program>,
         location: il::ProgramLocation,
-        engine: SymbolicEngine,
-        arch: &'e Box<translator::Arch>,
+        engine: Engine,
+        architecture: Architecture,
         platform: RC<P>
-    ) -> SymbolicDriver<P> where P: Platform<P> {
+    ) -> Driver<P> where P: Platform<P> {
 
-        SymbolicDriver {
+        Driver {
             program: program,
             location: location,
             engine: engine,
-            arch: arch,
+            architecture: architecture,
             platform: platform
         }
     }
@@ -65,7 +65,9 @@ impl<'e, P> SymbolicDriver<'e, P> {
     /// Steps this engine forward, consuming the engine and returning some
     /// variable number of `EngineDriver` back depending on how many possible
     /// states are possible.
-    pub fn step(mut self) -> Result<Vec<SymbolicDriver<'e, P>>> where P: Platform<P> {
+    pub fn step(mut self)
+    -> Result<Vec<Driver<P>>> where P: Platform<P> {
+
         let mut new_engine_drivers = Vec::new();
         let location = self.location.apply(&self.program).unwrap();
         match *location.function_location() {
@@ -95,21 +97,21 @@ impl<'e, P> SymbolicDriver<'e, P> {
                             let engine = successor.into_engine();
                             let locations = location.advance_forward()?;
                             if locations.len() == 1 {
-                                new_engine_drivers.push(SymbolicDriver::new(
+                                new_engine_drivers.push(Driver::new(
                                     self.program.clone(),
                                     locations[0].clone().into(),
                                     engine,
-                                    self.arch,
+                                    self.architecture.clone(),
                                     self.platform.clone(),
                                 ));
                             }
                             else {
                                 for location in locations {
-                                    new_engine_drivers.push(SymbolicDriver::new(
+                                    new_engine_drivers.push(Driver::new(
                                         self.program.clone(),
                                         location.into(),
                                         engine.clone(),
-                                        self.arch,
+                                        self.architecture.clone(),
                                         self.platform.clone()
                                     ));
                                 }
@@ -118,18 +120,20 @@ impl<'e, P> SymbolicDriver<'e, P> {
                         SuccessorType::Branch(address) => {
                             match il::RefProgramLocation::from_address(&self.program, address) {
                                 // We have already disassembled the branch target. Go straight to it.
-                                Some(location) => new_engine_drivers.push(SymbolicDriver::new(
+                                Some(location) => new_engine_drivers.push(Driver::new(
                                     self.program.clone(),
                                     location.into(),
                                     successor.into_engine(),
-                                    self.arch,
+                                    self.architecture.clone(),
                                     self.platform.clone()
                                 )),
                                 // There's no instruction at this address. We will attempt
                                 // disassembling a function here.
                                 None => {
                                     let engine = successor.into_engine();
-                                    let function = self.arch.translate_function(&engine, address);
+                                    let function = self.architecture
+                                                       .translator()
+                                                       .translate_function(&engine, address);
                                     match function {
                                         Ok(function) => {
                                             let mut program = self.program.clone();
@@ -139,11 +143,11 @@ impl<'e, P> SymbolicDriver<'e, P> {
                                                 address
                                             );
                                             if let Some(location) = location {
-                                                new_engine_drivers.push(SymbolicDriver::new(
+                                                new_engine_drivers.push(Driver::new(
                                                     program.clone(),
                                                     location.into(),
                                                     engine,
-                                                    self.arch,
+                                                    self.architecture.clone(),
                                                     self.platform.clone()
                                                 ));
                                             }
@@ -169,11 +173,11 @@ impl<'e, P> SymbolicDriver<'e, P> {
                             };
                             for location in locations {
                                 for result in &results {
-                                    new_engine_drivers.push(SymbolicDriver::new(
+                                    new_engine_drivers.push(Driver::new(
                                         self.program.clone(),
                                         location.clone().into(),
                                         result.1.clone(),
-                                        self.arch,
+                                        self.architecture.clone(),
                                         RC::new(result.0.clone())
                                     ));
                                 }
@@ -188,21 +192,21 @@ impl<'e, P> SymbolicDriver<'e, P> {
                         if edge.condition().is_none() {
                             let locations = location.advance_forward()?;
                             if locations.len() == 1 {
-                                new_engine_drivers.push(SymbolicDriver::new(
+                                new_engine_drivers.push(Driver::new(
                                     self.program.clone(),
                                     locations[0].clone().into(),
                                     self.engine,
-                                    self.arch,
+                                    self.architecture,
                                     self.platform.clone()
                                 ));
                             }
                             else {
                                 for location in location.advance_forward()? {
-                                    new_engine_drivers.push(SymbolicDriver::new(
+                                    new_engine_drivers.push(Driver::new(
                                         self.program.clone(),
                                         location.into(),
                                         self.engine.clone(),
-                                        self.arch,
+                                        self.architecture.clone(),
                                         self.platform.clone()
                                     ));
                                 }
@@ -215,21 +219,21 @@ impl<'e, P> SymbolicDriver<'e, P> {
                             engine.add_constraint(condition.clone())?;
                             let locations = location.advance_forward()?;
                             if locations.len() == 1 {
-                                new_engine_drivers.push(SymbolicDriver::new(
+                                new_engine_drivers.push(Driver::new(
                                     self.program.clone(),
                                     locations[0].clone().into(),
                                     engine,
-                                    self.arch,
+                                    self.architecture,
                                     self.platform.clone()
                                 ));
                             }
                             else {
                                 for location in location.advance_forward()? {
-                                    new_engine_drivers.push(SymbolicDriver::new(
+                                    new_engine_drivers.push(Driver::new(
                                         self.program.clone(),
                                         location.into(),
                                         engine.clone(),
-                                        self.arch,
+                                        self.architecture.clone(),
                                         self.platform.clone()
                                     ));
                                 }
@@ -241,11 +245,11 @@ impl<'e, P> SymbolicDriver<'e, P> {
             il::RefFunctionLocation::EmptyBlock(_) => {    
                 let locations = location.advance_forward()?;
                 for location in locations {
-                    new_engine_drivers.push(SymbolicDriver::new(
+                    new_engine_drivers.push(Driver::new(
                         self.program.clone(),
                         location.into(),
                         self.engine.clone(),
-                        self.arch,
+                        self.architecture.clone(),
                         self.platform.clone()
                     ));
                 }
@@ -286,12 +290,12 @@ impl<'e, P> SymbolicDriver<'e, P> {
     }
 
     /// Return the underlying symbolic engine for this `EngineDriver`
-    pub fn engine(&self) -> &SymbolicEngine {
+    pub fn engine(&self) -> &Engine {
         &self.engine
     }
 
     /// Return a mutable reference to the engine
-    pub fn engine_mut(&mut self) -> &mut SymbolicEngine {
+    pub fn engine_mut(&mut self) -> &mut Engine {
         &mut self.engine
     }
 }

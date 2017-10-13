@@ -2,7 +2,7 @@ use symbolic::*;
 use il;
 
 /// The type of successor from execution of an `Operation` over a `SymbolicEngine`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SuccessorType {
     /// Control flow should contine normally, with no special considerations.
     FallThrough,
@@ -16,18 +16,18 @@ pub enum SuccessorType {
 
 /// A `SymbolicSuccessor` is the result of executing an `Operation` over a
 /// `SymbolicEngine`.
-#[derive(Clone)]
-pub struct SymbolicSuccessor {
+#[derive(Clone, Debug)]
+pub struct Successor {
     type_: SuccessorType,
-    engine: SymbolicEngine
+    engine: Engine
 }
 
 
-impl SymbolicSuccessor {
-    pub(crate) fn new(engine: SymbolicEngine, type_: SuccessorType)
-        -> SymbolicSuccessor {
+impl Successor {
+    pub(crate) fn new(engine: Engine, type_: SuccessorType)
+        -> Successor {
 
-        SymbolicSuccessor {
+        Successor {
             engine: engine,
             type_: type_
         }
@@ -39,14 +39,14 @@ impl SymbolicSuccessor {
     }
 
     /// Consume this `SymbolicSuccessor` and turn it into a `SymbolicEngine`.
-    pub fn into_engine(self) -> SymbolicEngine {
+    pub fn into_engine(self) -> Engine {
         self.engine
     }
 }
 
 
-impl Into<SymbolicEngine> for SymbolicSuccessor {
-    fn into(self) -> SymbolicEngine {
+impl Into<Engine> for Successor {
+    fn into(self) -> Engine {
         self.engine
     }
 }
