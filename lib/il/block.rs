@@ -77,6 +77,12 @@ impl Block {
     }
 
 
+    /// Returns try if this `Block` is empty, meaning it has no `Instruction`
+    pub fn is_empty(&self) -> bool {
+        self.instructions.is_empty()
+    }
+
+
     /// Returns an `Instruction` by index, or `None` if the instruction does not
     /// exist.
     pub fn instruction(&self, index: u64) -> Option<&Instruction> {

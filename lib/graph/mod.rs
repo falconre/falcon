@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use error::*;
 
 
-pub trait Vertex: Clone + Eq + PartialEq + Sync {
+pub trait Vertex: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
     // The index of this vertex.
     fn index(&self) -> u64;
     // A string to display in dot graphviz format.
@@ -14,7 +14,7 @@ pub trait Vertex: Clone + Eq + PartialEq + Sync {
 }
 
 
-pub trait Edge: Clone + Debug + Eq + PartialEq + Sync {
+pub trait Edge: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
     /// The index of the head vertex.
     fn head(&self) -> u64;
     /// The index of the tail vertex.
@@ -25,7 +25,7 @@ pub trait Edge: Clone + Debug + Eq + PartialEq + Sync {
 
 
 /// An empty vertex for creating structures when data is not required
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct NullVertex {
     index: u64
 }
@@ -47,7 +47,7 @@ impl Vertex for NullVertex {
 
 
 /// An empty edge for creating structures when data is not required
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct NullEdge {
     head: u64,
     tail: u64
@@ -73,7 +73,7 @@ impl Edge for NullEdge {
 
 
 /// A directed graph.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Graph<V, E> {
     head: Option<u64>,
     vertices: BTreeMap<u64, V>,
