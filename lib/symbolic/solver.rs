@@ -80,13 +80,13 @@ impl Solver {
 
         // Collect all scalars from constraints
         for constraint in &constraints {
-            for scalar in constraint.collect_scalars() {
+            for scalar in constraint.scalars() {
                 scalars.insert((scalar.name().to_string(), scalar.bits()));
             }
         }
 
         // And all scalars from the expression we are solving
-        for scalar in expr.collect_scalars() {
+        for scalar in expr.scalars() {
             scalars.insert((scalar.name().to_string(), scalar.bits()));
         }
 
