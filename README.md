@@ -40,3 +40,9 @@ I push to master for development. If you want to build off a Falcon which does n
 You will need the correct dependencies for bindgen to build the capstone bindings, as well as `z3` on the commandline. The `Dockerfile` has everything required to get you set up.
 
 For OSX (on which I'm developing), `brew install z3` seems to be enough to make things work, as well as a typical rust install.
+
+## Steps for OSX
+* brew install capstone
+* git clone https://github.com/falconre/falcon.git 
+* cd falcon && cargo test && cargo doc
+* open target/doc/falcon/index.html for documenation 
