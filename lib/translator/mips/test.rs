@@ -73,8 +73,6 @@ fn get_scalar(
                            .blocks()
                            .len();
 
-    println!("{}", driver.program().function(0).unwrap().control_flow_graph());
-
     loop {
         driver = driver.step().unwrap();
         if let Some(index) = driver.location().block_index() {
@@ -1446,8 +1444,6 @@ fn jr() {
         vec![("$a0", expr_const(0xf, 32))],
         memory::Memory::new(Endian::Big)
     );
-
-    println!("{}", driver.program().function(0).unwrap().control_flow_graph());
 
     let driver = step_to(driver, 0x10);
 

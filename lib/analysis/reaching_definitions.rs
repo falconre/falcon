@@ -58,11 +58,126 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>
     fn join(
         &self,
         mut state0: BTreeSet<il::RefProgramLocation<'r>>,
-        state1: &'r BTreeSet<il::RefProgramLocation>
+        state1: &BTreeSet<il::RefProgramLocation<'r>>
     ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
         for state in state1 {
             state0.insert(state.clone());
         }
         Ok(state0)
     }
+}
+
+
+#[test]
+fn reaching_definitions_test() {
+    /*
+    a = in
+    b = 4
+    if a < 10 {
+        c = a
+    }
+    else {
+        c = b
+    }
+    b = c
+    */
+    let mut control_flow_graph = il::ControlFlowGraph::new();
+
+    let head_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("a", 32), il::expr_scalar("in", 32));
+        block.assign(il::scalar("b", 32), il::expr_const(4, 32));
+
+        block.index()
+    };
+
+    let gt_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("c", 32), il::expr_scalar("b", 32));
+
+        block.index()
+    };
+
+    let lt_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("c", 32), il::expr_scalar("a", 32));
+
+        block.index()
+    };
+
+    let tail_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("b", 32), il::expr_scalar("c", 32));
+
+        block.index()
+    };
+
+    let condition = il::Expression::cmpltu(
+        il::expr_scalar("a", 32),
+        il::expr_const(10, 32)
+    ).unwrap();
+
+    control_flow_graph.conditional_edge(head_index, lt_index, condition.clone()).unwrap();
+    control_flow_graph.conditional_edge(head_index, gt_index, 
+        il::Expression::cmpeq(condition, il::expr_const(0, 1)).unwrap()
+    ).unwrap();
+
+    control_flow_graph.unconditional_edge(lt_index, tail_index).unwrap();
+    control_flow_graph.unconditional_edge(gt_index, tail_index).unwrap();
+
+    let function = il::Function::new(0, control_flow_graph);
+
+    let rd = reaching_definitions(&function).unwrap();
+
+    let block = function.control_flow_graph().block(3).unwrap();
+    let instruction = block.instruction(0).unwrap();
+
+    let function_location = il::RefFunctionLocation::Instruction(block, instruction);
+    let program_location = il::RefProgramLocation::new(&function, function_location);
+
+    let r = &rd[&program_location];
+
+    let block = function.control_flow_graph().block(0).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(1).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(2).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(3).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(0).unwrap();
+    assert!(!r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(1).unwrap()
+        )
+    )));
 }

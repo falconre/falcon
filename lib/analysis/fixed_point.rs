@@ -16,7 +16,7 @@ pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + Eq + PartialEq> {
     ) -> Result<State>;
 
     /// Given two states, join them into one state.
-    fn join(&self, state0: State, state1: &'f State) -> Result<State>;
+    fn join(&self, state0: State, state1: &State) -> Result<State>;
 }
 
 
@@ -28,7 +28,7 @@ pub fn fixed_point_forward<'f, Analysis, State> (
 where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + PartialEq {
     let mut states: BTreeMap<il::RefProgramLocation<'f>, State> = BTreeMap::new();
 
-    let mut queue: VecDeque<il::RefProgramLocation> = VecDeque::new();
+    let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
 
     // Populate all initial states, and fill the queue
     for block in function.blocks() {
@@ -53,10 +53,19 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
     while !queue.is_empty() {
         let location = queue.pop_front().unwrap();
 
-        let state = match states.get(&location) {
-            Some(state) => analysis.trans(location.clone(), Some(state.clone()))?,
-            None => analysis.trans(location.clone(), None)?
-        };
+        let predecessors = location.backward()?;
+
+        let state = predecessors.iter().fold(None, |s, p| {
+            match states.get(p) {
+                Some(in_state) => match s {
+                    Some(s) => Some(analysis.join(s, in_state).unwrap()),
+                    None => Some(in_state.clone())
+                },
+                None => s
+            }
+        });
+
+        let state = analysis.trans(location.clone(), state)?;
 
         if let Some(in_state) = states.get(&location) {
             if state == *in_state {
@@ -64,7 +73,9 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
             }
         }
 
-        for successor in location.advance_forward()? {
+        states.insert(location.clone(), state);
+
+        for successor in location.forward()? {
             queue.push_back(successor);
         }
     }
