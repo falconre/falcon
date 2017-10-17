@@ -98,7 +98,7 @@ impl Expression {
     }
 
     /// Returns all `Scalars` used in this `Expression`
-    pub fn collect_scalars(&self) -> Vec<&Scalar> {
+    pub fn scalars(&self) -> Vec<&Scalar> {
         let mut scalars: Vec<&Scalar> = Vec::new();
         match *self {
             Expression::Scalar(ref scalar) => {
@@ -121,20 +121,20 @@ impl Expression {
             Expression::Cmpneq(ref lhs, ref rhs) |
             Expression::Cmplts(ref lhs, ref rhs) |
             Expression::Cmpltu(ref lhs, ref rhs) => {
-                scalars.append(&mut lhs.collect_scalars());
-                scalars.append(&mut rhs.collect_scalars());
+                scalars.append(&mut lhs.scalars());
+                scalars.append(&mut rhs.scalars());
             },
             Expression::Zext(_, ref rhs) |
             Expression::Sext(_, ref rhs) |
             Expression::Trun(_, ref rhs) => {
-                scalars.append(&mut rhs.collect_scalars());
+                scalars.append(&mut rhs.scalars());
             }
         }
         scalars
     }
 
     /// Return mutable references to all `Scalars` in this `Expression`.
-    pub fn collect_scalars_mut(&mut self) -> Vec<&mut Scalar> {
+    pub fn scalars_mut(&mut self) -> Vec<&mut Scalar> {
         let mut scalars: Vec<&mut Scalar> = Vec::new();
         match *self {
             Expression::Scalar(ref mut scalar) => {
@@ -157,13 +157,13 @@ impl Expression {
             Expression::Cmpneq(ref mut lhs, ref mut rhs) |
             Expression::Cmplts(ref mut lhs, ref mut rhs) |
             Expression::Cmpltu(ref mut lhs, ref mut rhs) => {
-                scalars.append(&mut lhs.collect_scalars_mut());
-                scalars.append(&mut rhs.collect_scalars_mut());
+                scalars.append(&mut lhs.scalars_mut());
+                scalars.append(&mut rhs.scalars_mut());
             },
             Expression::Zext(_, ref mut rhs) |
             Expression::Sext(_, ref mut rhs) |
             Expression::Trun(_, ref mut rhs) => {
-                scalars.append(&mut rhs.collect_scalars_mut());
+                scalars.append(&mut rhs.scalars_mut());
             }
         }
         scalars

@@ -1,207 +1,202 @@
-use analysis::fixed_point::*;
-use analysis::analysis_location::AnalysisLocation::*;
+use analysis::fixed_point;
 use error::*;
 use il;
-use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
 
 
-/// The result of reaching definitions.
-///
-/// The result of reaching definitions is two sets, one with all
-/// `AnalysisLocation`s which are valid upon entry to an `AnalysisLocation`
-/// (the in_ set), and all `AnalysisLocation`s which are valid upon exit from
-/// an `AnalysisLocation` (the out set).
-#[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
-pub struct Reaches {
-    in_: BTreeSet<AnalysisLocation>,
-    out: BTreeSet<AnalysisLocation>
+struct ReachingDefinitions {}
+
+
+#[allow(dead_code)]
+/// Compute reaching definitions for the given function.
+pub fn reaching_definitions<'r>(function: &'r il::Function)
+-> Result<BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>>> {
+    fixed_point::fixed_point_forward(ReachingDefinitions{}, function)
 }
 
 
-impl Reaches {
-    pub fn new() -> Reaches {
-        Reaches {
-            in_: BTreeSet::new(),
-            out: BTreeSet::new()
-        }
-    }
-
-    /// The set of `AnalysisLocation`s whose variables written are valid upon
-    /// entry to this `Reach`.
-    pub fn in_(&self) -> &BTreeSet<AnalysisLocation> {
-        &self.in_
-    }
-
-    fn set_in_to_out(&mut self) {
-        self.in_ = self.out.clone();
-    }
-
-    fn out_insert(&mut self, analysis_location: AnalysisLocation) {
-        self.out.insert(analysis_location);
-    }
-
-    fn out_remove(&mut self, analysis_location: &AnalysisLocation) {
-        self.out.remove(analysis_location);
-    }
-
-    /// The set of AnalysisLocation whose variables written are valid upon
-    /// exit from this `Reach`.
-    pub fn out(&self) -> &BTreeSet<AnalysisLocation> {
-        &self.out
-    }
-
-    // Provides a string representation of this struct.
-    pub fn to_string(&self) -> String {
-        format!(
-            "{{in({}), out({})}}",
-            self.in_()
-                .iter()
-                .map(|il| format!("{}", il))
-                .collect::<Vec<String>>()
-                .join(", "),
-            self.out()
-                .iter()
-                .map(|il| format!("{}", il))
-                .collect::<Vec<String>>()
-                .join(", "),
-               )
-    }
-}
-
-
-impl Ord for Reaches {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.in_ < other.in_ {
-            return Ordering::Less;
-        }
-        if self.in_ > other.in_ {
-            return Ordering::Greater;
-        }
-        if self.out < other.out {
-            return Ordering::Less;
-        }
-        if self.out > other.out {
-            return Ordering::Greater;
-        }
-        Ordering::Equal
-    }
-}
-
-
-impl PartialOrd for Reaches {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-
-
-
-impl fmt::Display for Reaches {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string())
-    }
-}
-
-
-pub fn compute(control_flow_graph: &il::ControlFlowGraph)
--> Result<BTreeMap<AnalysisLocation, Reaches>> {
-    let reaching_definitions = ReachingDefinitions::new(control_flow_graph);
-    reaching_definitions.compute()
-}
-
-
-struct ReachingDefinitions<'a> {
-    control_flow_graph: &'a il::ControlFlowGraph
-}
-
-
-impl<'a> ReachingDefinitions<'a> {
-    pub fn new(control_flow_graph: &'a il::ControlFlowGraph) -> ReachingDefinitions<'a> {
-        ReachingDefinitions {
-            control_flow_graph: control_flow_graph
-        }
-    }
-
-    pub fn compute(&self) -> Result<BTreeMap<AnalysisLocation, Reaches>> {
-        fixed_point_forward(self, self.control_flow_graph)
-    }
-}
-
-
-
-impl<'f> FixedPointAnalysis<Reaches> for ReachingDefinitions<'f> {
+impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>>> for ReachingDefinitions {
     fn trans(
         &self,
-        analysis_location: &AnalysisLocation,
-        reaches_in: &Option<Reaches>
-    ) -> Result<Reaches> {
+        location: il::RefProgramLocation<'r>,
+        state: Option<BTreeSet<il::RefProgramLocation<'r>>>
+    ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
 
-        // Copy in state to out state
-        let mut reaches_out = match *reaches_in {
-            Some(ref reaches_in) => {
-                reaches_in.clone()
-            }
-            None => Reaches::new()
+        let mut state = match state {
+            Some(state) => state,
+            None => BTreeSet::new()
         };
 
-        // reaches_out.out() contains the outputs of all the predecessor
-        // analylis_location points for this analysis_location. We need to
-        // copy those over to reaches_out.in()
-        reaches_out.set_in_to_out();
-
-        // Handle edges and instructions differently, as edges never assign and
-        // always pass reaching definitions through
-        match *analysis_location {
-            // Edges...
-            Edge(_) |
-            EmptyBlock(_) => Ok(reaches_out),
-            // Instructions..
-            Instruction(ref il) => { 
-                // If this instruction writes to a variable
-                if let Some(this_dst) = il.find(self.control_flow_graph)?
-                                          .variable_written() {
-
-                    let mut to_kill = Vec::new();
-                    // Evaluate every location that reaches this location as a
-                    // candidate to be killed.
-                    for kill_location in reaches_out.in_().iter() {
-                        // Candidates should always be instructions.
-                        if let AnalysisLocation::Instruction(ref il) = *kill_location {
-                            // If this candidate writes to an instruction
-                            if let Some(dst) = il.find(self.control_flow_graph)?
-                                                 .variable_written() {
-                                // Do they write to the same variable?
-                                if this_dst.name() == dst.name() {
-                                    // Add this kill_location to be killed.
-                                    to_kill.push(kill_location.clone());
-                                }
-                            }
+        match *location.function_location() {
+            il::RefFunctionLocation::Instruction(_, ref instruction) => {
+                let mut kill = Vec::new();
+                if let Some(variable) = instruction.operation().variable_written() {
+                    for location in &state {
+                        if location.instruction()
+                                   .unwrap()
+                                   .operation()
+                                   .variable_written()
+                                   .unwrap()
+                                   .multi_var_clone() == variable.multi_var_clone() {
+                            kill.push(location.clone());
                         }
                     }
-
-                    // Remove all the locations we identified for killing from
-                    // the out set.
-                    for tk in to_kill {
-                        reaches_out.out_remove(&tk);
+                    for k in kill {
+                        state.remove(&k);
                     }
-
-                    // Add this location to the out set.
-                    reaches_out.out_insert(il.clone().into());
+                    state.insert(location.clone());
                 }
-
-                Ok(reaches_out)
-            }
+            },
+            il::RefFunctionLocation::EmptyBlock(_) |
+            il::RefFunctionLocation::Edge(_) => {}
         }
+
+        Ok(state)
     }
 
 
-    fn join(&self, mut state0: Reaches, state1: &Reaches) -> Result<Reaches> {
-        for al in state1.out() {
-            state0.out_insert(al.clone());
+    fn join(
+        &self,
+        mut state0: BTreeSet<il::RefProgramLocation<'r>>,
+        state1: &BTreeSet<il::RefProgramLocation<'r>>
+    ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
+        for state in state1 {
+            state0.insert(state.clone());
         }
         Ok(state0)
     }
+}
+
+
+#[test]
+fn reaching_definitions_test() {
+    /*
+    a = in
+    b = 4
+    if a < 10 {
+        c = a
+        [0xdeadbeef] = c
+    }
+    else {
+        c = b
+    }
+    b = c
+    c = [0xdeadbeef]
+    */
+    let mut control_flow_graph = il::ControlFlowGraph::new();
+
+    let head_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("a", 32), il::expr_scalar("in", 32));
+        block.assign(il::scalar("b", 32), il::expr_const(4, 32));
+
+        block.index()
+    };
+
+    let gt_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("c", 32), il::expr_scalar("b", 32));
+
+        block.index()
+    };
+
+    let lt_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("c", 32), il::expr_scalar("a", 32));
+        block.store(il::array("mem", 1 << 32), il::expr_const(0xdeadbeef, 32), il::expr_scalar("c", 32));
+
+        block.index()
+    };
+
+    let tail_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.assign(il::scalar("b", 32), il::expr_scalar("c", 32));
+        block.load(il::scalar("c", 32), il::expr_const(0xdeadbeef, 32), il::array("mem", 1 << 32));
+
+        block.index()
+    };
+
+    let condition = il::Expression::cmpltu(
+        il::expr_scalar("a", 32),
+        il::expr_const(10, 32)
+    ).unwrap();
+
+    control_flow_graph.conditional_edge(head_index, lt_index, condition.clone()).unwrap();
+    control_flow_graph.conditional_edge(head_index, gt_index, 
+        il::Expression::cmpeq(condition, il::expr_const(0, 1)).unwrap()
+    ).unwrap();
+
+    control_flow_graph.unconditional_edge(lt_index, tail_index).unwrap();
+    control_flow_graph.unconditional_edge(gt_index, tail_index).unwrap();
+
+    let function = il::Function::new(0, control_flow_graph);
+
+    let rd = reaching_definitions(&function).unwrap();
+
+    // for r in rd.iter() {
+    //     println!("{}", r.0);
+    //     for d in r.1 {
+    //         println!("  {}", d);
+    //     }
+    // }
+
+    let block = function.control_flow_graph().block(3).unwrap();
+    let instruction = block.instruction(0).unwrap();
+
+    let function_location = il::RefFunctionLocation::Instruction(block, instruction);
+    let program_location = il::RefProgramLocation::new(&function, function_location);
+
+    let r = &rd[&program_location];
+
+    let block = function.control_flow_graph().block(0).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(1).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(2).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(2).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(1).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(3).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(0).unwrap();
+    assert!(!r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(1).unwrap()
+        )
+    )));
 }

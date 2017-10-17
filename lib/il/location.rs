@@ -125,7 +125,80 @@ impl<'p> RefProgramLocation<'p> {
     }
 
 
-    fn advance_instruction_forward(&self, block: &'p Block, instruction: &Instruction)
+    fn instruction_backward(&self, block: &'p Block, instruction: &Instruction)
+    -> Result<Vec<RefProgramLocation<'p>>> {
+        let instructions = block.instructions();
+        for i in (0..instructions.len()).rev() {
+            if instructions[i].index() == instruction.index() {
+                if i > 0 {
+                    let instruction = &instructions[i - 1];
+                    return Ok(vec![RefProgramLocation::new(self.function,
+                        RefFunctionLocation::Instruction(block, instruction))]);
+                }
+                let edges = match self.function
+                                      .control_flow_graph()
+                                      .edges_in(block.index()) {
+                    Some(edges) => edges,
+                    None => bail!("Could not find block {} in function {:?}",
+                        block.index(),
+                        self.function.index())
+                };
+                let mut locations = Vec::new();
+                for edge in edges {
+                    locations.push(RefProgramLocation::new(self.function,
+                        RefFunctionLocation::Edge(edge)));
+                }
+                return Ok(locations);
+            }
+        }
+
+        Err(format!("Could not find instruction {} in block {} in function {:?}",
+            instruction.index(),
+            block.index(),
+            self.function.index()).into())
+    }
+
+
+    fn edge_backward(&self, edge: &'p Edge) -> Result<Vec<RefProgramLocation<'p>>> {
+        let block = match self.function.block(edge.head()) {
+            Some(block) => block,
+            None => bail!("Could not find block {} in function {:?}",
+                edge.head(), self.function.index())
+        };
+
+        let instructions = block.instructions();
+        if instructions.is_empty() {
+            Ok(vec![RefProgramLocation::new(self.function,
+                RefFunctionLocation::EmptyBlock(block))])
+        }
+        else {
+            Ok(vec![RefProgramLocation::new(self.function,
+                RefFunctionLocation::Instruction(block, instructions.last().unwrap()))])
+        }
+    }
+
+
+    fn empty_block_backward(&self, block: &'p Block)
+    -> Result<Vec<RefProgramLocation<'p>>> {
+
+        let edges = match self.function
+                              .control_flow_graph()
+                              .edges_in(block.index()) {
+            Some(edges) => edges,
+            None => bail!("Could not find block {} in function {:?}",
+                block.index(), self.function.index())
+        };
+
+        let mut locations = Vec::new();
+        for edge in edges {
+            locations.push(RefProgramLocation::new(self.function,
+                RefFunctionLocation::Edge(edge)));
+        }
+        Ok(locations)
+    }
+
+
+    fn instruction_forward(&self, block: &'p Block, instruction: &Instruction)
     -> Result<Vec<RefProgramLocation<'p>>> {
 
         let instructions = block.instructions();
@@ -144,33 +217,31 @@ impl<'p> RefProgramLocation<'p> {
                                       .control_flow_graph()
                                       .edges_out(block.index()) {
                     Some(edges) => edges,
-                    None => bail!("Could not find block {} in function {}",
+                    None => bail!("Could not find block {} in function {:?}",
                         block.index(),
-                        self.function.index().unwrap())
+                        self.function.index())
                 };
                 let mut locations = Vec::new();
                 for edge in edges {
-                    locations.push(RefProgramLocation::new(&self.function,
+                    locations.push(RefProgramLocation::new(self.function,
                         RefFunctionLocation::Edge(edge)));
                 }
-                return Ok(locations)
+                return Ok(locations);
             }
         }
 
-        Err(format!("Could not find instruction {} in block {} in function {}",
+        Err(format!("Could not find instruction {} in block {} in function {:?}",
             instruction.index(),
             block.index(), 
-            self.function.index().unwrap()).into())
+            self.function.index()).into())
     }
 
 
-    fn advance_edge_forward(&self, edge: &'p Edge)
-    -> Result<Vec<RefProgramLocation<'p>>> {
-
+    fn edge_forward(&self, edge: &'p Edge) -> Result<Vec<RefProgramLocation<'p>>> {
         let block = match self.function.block(edge.tail()) {
             Some(block) => block,
-            None => bail!("Could not find block {} in function {}",
-                edge.tail(), self.function.index().unwrap())
+            None => bail!("Could not find block {} in function {:?}",
+                edge.tail(), self.function.index())
         };
 
         let instructions = block.instructions();
@@ -185,20 +256,19 @@ impl<'p> RefProgramLocation<'p> {
     }
 
 
-    fn advance_empty_block_forward(&self, block: &'p Block)
+    fn empty_block_forward(&self, block: &'p Block)
     -> Result<Vec<RefProgramLocation<'p>>> {
 
         let edges = match self.function
                                .control_flow_graph()
-                               .edges_out(block.index()){
+                               .edges_out(block.index()) {
             Some(edges) => edges,
-            None => bail!("Could not find block {} in function {}",
-                block.index(), self.function.index().unwrap())
+            None => bail!("Could not find block {} in function {:?}",
+                block.index(), self.function.index())
         };
 
         let mut locations = Vec::new();
         for edge in edges {
-
             locations.push(RefProgramLocation::new(self.function,
                 RefFunctionLocation::Edge(edge)));
         }
@@ -209,16 +279,26 @@ impl<'p> RefProgramLocation<'p> {
 
     /// Advance the `RefProgramLocation` forward.
     ///
-    /// This causes the underlying `RefFunctionLocation` to reference the next
-    /// `RefFunctionLocation`. This does _not_ follow targets of
-    /// `Operation::Brc`.
-    pub fn advance_forward(&self) -> Result<Vec<RefProgramLocation<'p>>> {
+    /// This does _not_ follow targets of `Operation::Brc`.
+    pub fn forward(&self) -> Result<Vec<RefProgramLocation<'p>>> {
         match self.function_location {
-            // We are currently at an instruction
             RefFunctionLocation::Instruction(block, instruction) => 
-                self.advance_instruction_forward(block, instruction),
-            RefFunctionLocation::Edge(edge) => self.advance_edge_forward(edge),
-            RefFunctionLocation::EmptyBlock(block) =>self.advance_empty_block_forward(block)
+                self.instruction_forward(block, instruction),
+            RefFunctionLocation::Edge(edge) => self.edge_forward(edge),
+            RefFunctionLocation::EmptyBlock(block) =>self.empty_block_forward(block)
+        }
+    }
+
+
+    /// Advance the `RefProgramLocation` backward.
+    ///
+    /// This does _not_ follow targets of `Operation::Brc`.
+    pub fn backward(&self) -> Result<Vec<RefProgramLocation<'p>>> {
+        match self.function_location {
+            RefFunctionLocation::Instruction(block, instruction) =>
+                self.instruction_backward(block, instruction),
+            RefFunctionLocation::Edge(edge) => self.edge_backward(edge),
+            RefFunctionLocation::EmptyBlock(block) => self.empty_block_backward(block)
         }
     }
 }
@@ -226,7 +306,10 @@ impl<'p> RefProgramLocation<'p> {
 
 impl<'f> fmt::Display for RefProgramLocation<'f> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{:x}:{}", self.function.index().unwrap(), self.function_location)
+        match self.function.index() {
+            Some(index) => write!(f, "0x{:x}:{}", index, self.function_location),
+            None => write!(f, "{}", self.function_location)
+        }
     }
 }
 

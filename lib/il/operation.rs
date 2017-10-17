@@ -77,8 +77,8 @@ impl Operation {
 
     /// Get eacn `Variable` read by this `Operation`.
     pub fn variables_read(&self) -> Vec<&Variable> {
-        fn collect_scalars(expr: &Expression) -> Vec<&Variable> {
-            expr.collect_scalars()
+        fn scalars(expr: &Expression) -> Vec<&Variable> {
+            expr.scalars()
                 .iter()
                 .map(|s| *s as &Variable)
                 .collect::<Vec<&Variable>>()
@@ -86,19 +86,19 @@ impl Operation {
         let mut read: Vec<&Variable> = Vec::new();
         match *self {
             Operation::Assign { ref src, .. } => {
-                read.append(&mut collect_scalars(src));
+                read.append(&mut scalars(src));
             },
             Operation::Store { ref index, ref src, .. } => {
-                read.append(&mut collect_scalars(index));
-                read.append(&mut collect_scalars(src));
+                read.append(&mut scalars(index));
+                read.append(&mut scalars(src));
             },
             Operation::Load { ref index, ref src, .. } => {
-                read.append(&mut collect_scalars(index));
+                read.append(&mut scalars(index));
                 read.push(src);
             },
             Operation::Brc { ref target, ref condition } => {
-                read.append(&mut collect_scalars(target));
-                read.append(&mut collect_scalars(condition));
+                read.append(&mut scalars(target));
+                read.append(&mut scalars(condition));
             },
             Operation::Phi { ref src, .. } => {
                 for multi_var in src {
@@ -106,7 +106,7 @@ impl Operation {
                 }
             },
             Operation::Raise { ref expr } => {
-                read.append(&mut collect_scalars(expr));
+                read.append(&mut scalars(expr));
             }
         }
         read
@@ -114,9 +114,9 @@ impl Operation {
 
     /// Get a mutable reference to each `Variable` read by this `Operation`.
     pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
-        fn collect_scalars_mut(expr: &mut Expression) -> Vec<&mut Variable> {
+        fn scalars_mut(expr: &mut Expression) -> Vec<&mut Variable> {
             let mut v: Vec<&mut Variable> = Vec::new();
-            for s in expr.collect_scalars_mut() {
+            for s in expr.scalars_mut() {
                 v.push(s)
             }
             v
@@ -126,19 +126,19 @@ impl Operation {
 
         match *self {
             Operation::Assign { ref mut src, .. } => {
-                read.append(&mut collect_scalars_mut(src));
+                read.append(&mut scalars_mut(src));
             },
             Operation::Store { ref mut index, ref mut src, .. } => {
-                read.append(&mut collect_scalars_mut(index));
-                read.append(&mut collect_scalars_mut(src));
+                read.append(&mut scalars_mut(index));
+                read.append(&mut scalars_mut(src));
             },
             Operation::Load { ref mut index, ref mut src, .. } => {
-                read.append(&mut collect_scalars_mut(index));
+                read.append(&mut scalars_mut(index));
                 read.push(src);
             },
             Operation::Brc { ref mut target, ref mut condition } => {
-                read.append(&mut collect_scalars_mut(target));
-                read.append(&mut collect_scalars_mut(condition));
+                read.append(&mut scalars_mut(target));
+                read.append(&mut scalars_mut(condition));
             },
             Operation::Phi { ref mut src, .. } => {
                 for multi_var in src {
@@ -146,7 +146,7 @@ impl Operation {
                 }
             },
             Operation::Raise { ref mut expr } => {
-                read.append(&mut collect_scalars_mut(expr));
+                read.append(&mut scalars_mut(expr));
             }
         }
 

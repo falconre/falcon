@@ -38,7 +38,7 @@ impl Driver {
 
                 match successor.type_().clone() {
                     SuccessorType::FallThrough => {
-                        let locations = location.advance_forward()?;
+                        let locations = location.forward()?;
                         if locations.len() == 1 {
                             return Ok(Driver::new(
                                 self.program.clone(),
@@ -102,7 +102,7 @@ impl Driver {
                 }
             },
             il::RefFunctionLocation::Edge(_) => {
-                let locations = location.advance_forward()?;
+                let locations = location.forward()?;
                 return Ok(Driver::new(
                     self.program.clone(),
                     locations[0].clone().into(),
@@ -111,7 +111,7 @@ impl Driver {
                 ));
             },
             il::RefFunctionLocation::EmptyBlock(_) => {
-                let locations = location.advance_forward()?;
+                let locations = location.forward()?;
                 if locations.len() == 1 {
                     return Ok(Driver::new(
                         self.program.clone(),

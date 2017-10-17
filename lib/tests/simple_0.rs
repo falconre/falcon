@@ -11,11 +11,8 @@
 
 #[cfg(test)]
 fn simple_0_test () -> Result<Vec<u8>> {
-    // let filename = Path::new("test_binaries/Palindrome/Palindrome.json");
-    // let elf = ::falcon::loader::json::Json::from_file(filename)?;
     let filename = Path::new("test_binaries/simple-0/simple-0");
     let elf = loader::elf::ElfLinker::new(filename)?;
-    // let mut elf = ::falcon::loader::elf::Elf::from_file(filename)?;
 
     let mut program = il::Program::new();
     program.add_function(elf.function(elf.program_entry())?);

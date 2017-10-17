@@ -95,7 +95,7 @@ impl<P> Driver<P> {
                             // Get the possible successor locations for the current
                             // location
                             let engine = successor.into_engine();
-                            let locations = location.advance_forward()?;
+                            let locations = location.forward()?;
                             if locations.len() == 1 {
                                 new_engine_drivers.push(Driver::new(
                                     self.program.clone(),
@@ -162,7 +162,7 @@ impl<P> Driver<P> {
                         },
                         SuccessorType::Raise(expression) => {
                             let platform = RC::make_mut(&mut self.platform).to_owned();
-                            let locations = location.advance_forward()?;
+                            let locations = location.forward()?;
                             let engine = successor.clone().into_engine();
                             let results = match platform.raise(&expression, engine) {
                                 Ok(results) => results,
@@ -190,7 +190,7 @@ impl<P> Driver<P> {
                 match *edge.condition() {
                     None => {
                         if edge.condition().is_none() {
-                            let locations = location.advance_forward()?;
+                            let locations = location.forward()?;
                             if locations.len() == 1 {
                                 new_engine_drivers.push(Driver::new(
                                     self.program.clone(),
@@ -201,7 +201,7 @@ impl<P> Driver<P> {
                                 ));
                             }
                             else {
-                                for location in location.advance_forward()? {
+                                for location in location.forward()? {
                                     new_engine_drivers.push(Driver::new(
                                         self.program.clone(),
                                         location.into(),
@@ -217,7 +217,7 @@ impl<P> Driver<P> {
                         if self.engine.sat(Some(vec![condition.clone()]))? {
                             let mut engine = self.engine.clone();
                             engine.add_constraint(condition.clone())?;
-                            let locations = location.advance_forward()?;
+                            let locations = location.forward()?;
                             if locations.len() == 1 {
                                 new_engine_drivers.push(Driver::new(
                                     self.program.clone(),
@@ -228,7 +228,7 @@ impl<P> Driver<P> {
                                 ));
                             }
                             else {
-                                for location in location.advance_forward()? {
+                                for location in location.forward()? {
                                     new_engine_drivers.push(Driver::new(
                                         self.program.clone(),
                                         location.into(),
@@ -243,7 +243,7 @@ impl<P> Driver<P> {
                 }
             },
             il::RefFunctionLocation::EmptyBlock(_) => {    
-                let locations = location.advance_forward()?;
+                let locations = location.forward()?;
                 for location in locations {
                     new_engine_drivers.push(Driver::new(
                         self.program.clone(),
