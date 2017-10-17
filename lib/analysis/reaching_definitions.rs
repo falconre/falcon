@@ -75,11 +75,13 @@ fn reaching_definitions_test() {
     b = 4
     if a < 10 {
         c = a
+        [0xdeadbeef] = c
     }
     else {
         c = b
     }
     b = c
+    c = [0xdeadbeef]
     */
     let mut control_flow_graph = il::ControlFlowGraph::new();
 
@@ -104,6 +106,7 @@ fn reaching_definitions_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("c", 32), il::expr_scalar("a", 32));
+        block.store(il::array("mem", 1 << 32), il::expr_const(0xdeadbeef, 32), il::expr_scalar("c", 32));
 
         block.index()
     };
@@ -112,6 +115,7 @@ fn reaching_definitions_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("b", 32), il::expr_scalar("c", 32));
+        block.load(il::scalar("c", 32), il::expr_const(0xdeadbeef, 32), il::array("mem", 1 << 32));
 
         block.index()
     };
@@ -132,6 +136,13 @@ fn reaching_definitions_test() {
     let function = il::Function::new(0, control_flow_graph);
 
     let rd = reaching_definitions(&function).unwrap();
+
+    // for r in rd.iter() {
+    //     println!("{}", r.0);
+    //     for d in r.1 {
+    //         println!("  {}", d);
+    //     }
+    // }
 
     let block = function.control_flow_graph().block(3).unwrap();
     let instruction = block.instruction(0).unwrap();
@@ -162,6 +173,14 @@ fn reaching_definitions_test() {
         il::RefFunctionLocation::Instruction(
             block,
             block.instruction(0).unwrap()
+        )
+    )));
+
+    let block = function.control_flow_graph().block(2).unwrap();
+    assert!(r.contains(&il::RefProgramLocation::new(&function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(1).unwrap()
         )
     )));
 

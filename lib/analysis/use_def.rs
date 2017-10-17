@@ -24,17 +24,12 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>
     fn trans(
         &self,
         location: il::RefProgramLocation<'r>,
-        state: Option<BTreeSet<il::RefProgramLocation<'r>>>
+        _: Option<BTreeSet<il::RefProgramLocation<'r>>>
     ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
 
-        let mut state = match state {
-            Some(state) => state,
-            None => BTreeSet::new()
-        };
-
-        match *location.function_location() {
+        let state_out = match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                let mut new_locations = Vec::new();
+                let mut state_out = BTreeSet::new();
                 for variable_read in instruction.operation().variables_read() {
                     for rd in &self.rd[&location] {
                         if rd.instruction()
@@ -43,17 +38,15 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>
                              .variable_written()
                              .unwrap()
                              .multi_var_clone() == variable_read.multi_var_clone() {
-                            new_locations.push(rd.clone());
+                            state_out.insert(rd.clone());
                         }
                     }
                 }
-                for new_location in new_locations {
-                    state.insert(new_location);
-                }
+                state_out
             },
             il::RefFunctionLocation::Edge(ref edge) => {
+                let mut state_out = BTreeSet::new();
                 if let Some(ref condition) = *edge.condition() {
-                    let mut new_locations = Vec::new();
                     for variable_read in condition.scalars() {
                         for rd in &self.rd[&location] {
                             if rd.instruction()
@@ -62,21 +55,18 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>
                                  .variable_written()
                                  .unwrap()
                                  .multi_var_clone() == variable_read.multi_var_clone() {
-                                new_locations.push(rd.clone());
+                                state_out.insert(rd.clone());
                             }
                         }
                     }
-                    for new_location in new_locations {
-                        state.insert(new_location);
-                    }
                 }
+                state_out
             },
-            il::RefFunctionLocation::EmptyBlock(_) => {}
-        }
+            il::RefFunctionLocation::EmptyBlock(_) => BTreeSet::new()
+        };
 
-        Ok(state)
+        Ok(state_out)
     }
-
 
     fn join(
         &self,
@@ -98,11 +88,13 @@ fn use_def_test() {
     b = 4
     if a < 10 {
         c = a
+        [0xdeadbeef] = c
     }
     else {
         c = b
     }
     b = c
+    c = [0xdeadbeef]
     */
     let mut control_flow_graph = il::ControlFlowGraph::new();
 
@@ -127,6 +119,7 @@ fn use_def_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("c", 32), il::expr_scalar("a", 32));
+        block.store(il::array("mem", 1 << 32), il::expr_const(0xdeadbeef, 32), il::expr_scalar("c", 32));
 
         block.index()
     };
@@ -135,6 +128,7 @@ fn use_def_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("b", 32), il::expr_scalar("c", 32));
+        block.load(il::scalar("c", 32), il::expr_const(0xdeadbeef, 32), il::array("mem", 1 << 32));
 
         block.index()
     };
@@ -228,4 +222,19 @@ fn use_def_test() {
             block.instruction(0).unwrap()
         )
     )].len() == 2);
+
+    let block = function.control_flow_graph().block(3).unwrap();
+    assert!(ud[&il::RefProgramLocation::new(
+        &function,
+        il::RefFunctionLocation::Instruction(
+            block,
+            block.instruction(1).unwrap()
+        )
+    )].contains(&il::RefProgramLocation::new(
+        &function,
+        il::RefFunctionLocation::Instruction(
+            function.control_flow_graph().block(2).unwrap(),
+            function.control_flow_graph().block(2).unwrap().instruction(1).unwrap()
+        )
+    )));
 }
