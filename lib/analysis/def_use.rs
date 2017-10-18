@@ -6,17 +6,17 @@ use std::collections::{BTreeMap, BTreeSet};
 
 
 #[allow(dead_code)]
-/// Compute use definition chains for the given function.
-pub fn use_def<'r>(function: &'r il::Function)
+/// Compute definition use chains for the given function.
+pub fn def_use<'r>(function: &'r il::Function)
 -> Result<BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
-    let mut ud = BTreeMap::new();
+    let mut du: BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>> = BTreeMap::new();
 
     for (location, _) in &rd {
-        let defs = match *location.function_location() {
+        du.entry(location.clone()).or_insert(BTreeSet::new());
+        match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                let mut defs = BTreeSet::new();
                 for variable_read in instruction.operation().variables_read() {
                     for rd in &rd[&location] {
                         if rd.instruction()
@@ -25,14 +25,12 @@ pub fn use_def<'r>(function: &'r il::Function)
                              .variable_written()
                              .unwrap()
                              .multi_var_clone() == variable_read.multi_var_clone() {
-                            defs.insert(rd.clone());
+                            du.entry(rd.clone()).or_insert(BTreeSet::new()).insert(location.clone());
                         }
                     }
                 }
-                defs
             },
             il::RefFunctionLocation::Edge(ref edge) => {
-                let mut defs = BTreeSet::new();
                 if let Some(ref condition) = *edge.condition() {
                     for variable_read in condition.scalars() {
                         for rd in &rd[&location] {
@@ -42,19 +40,17 @@ pub fn use_def<'r>(function: &'r il::Function)
                                  .variable_written()
                                  .unwrap()
                                  .multi_var_clone() == variable_read.multi_var_clone() {
-                                defs.insert(rd.clone());
+                                du.entry(rd.clone()).or_insert(BTreeSet::new()).insert(location.clone());
                             }
                         }
                     }
                 }
-                defs
             },
-            il::RefFunctionLocation::EmptyBlock(_) => BTreeSet::new()
-        };
-        ud.insert(location.clone(), defs);
+            il::RefFunctionLocation::EmptyBlock(_) => {}
+        }
     }
 
-    Ok(ud)
+    Ok(du)
 }
 
 
@@ -126,35 +122,36 @@ fn use_def_test() {
 
     let function = il::Function::new(0, control_flow_graph);
 
-    let ud = use_def(&function).unwrap();
+    let du = def_use(&function).unwrap();
 
-    // for u in ud.iter() {
-    //     println!("{}", u.0);
-    //     for d in u.1 {
-    //         println!("  {}", d);
+    // println!("");
+    // for d in du.iter() {
+    //     println!("{}", d.0);
+    //     for u in d.1 {
+    //         println!("  {}", u);
     //     }
     // }
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(ud[&il::RefProgramLocation::new(
+    assert!(du[&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
             block,
             block.instruction(0).unwrap()
         )
-    )].len() == 0);
+    )].len() == 3);
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(ud[&il::RefProgramLocation::new(
+    assert!(du[&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
             block,
             block.instruction(1).unwrap()
         )
-    )].len() == 0);
+    )].len() == 1);
 
     let block = function.control_flow_graph().block(1).unwrap();
-    assert!(ud[&il::RefProgramLocation::new(
+    assert!(du[&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
             block,
@@ -162,47 +159,8 @@ fn use_def_test() {
         )
     )].len() == 1);
 
-    let block = function.control_flow_graph().block(3).unwrap();
-    assert!(ud[&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
-        )
-    )].contains(&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            function.control_flow_graph().block(1).unwrap(),
-            function.control_flow_graph().block(1).unwrap().instruction(0).unwrap()
-        )
-    )));
-
-    let block = function.control_flow_graph().block(3).unwrap();
-    assert!(ud[&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
-        )
-    )].contains(&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            function.control_flow_graph().block(2).unwrap(),
-            function.control_flow_graph().block(2).unwrap().instruction(0).unwrap()
-        )
-    )));
-
-    let block = function.control_flow_graph().block(3).unwrap();
-    assert!(ud[&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
-        )
-    )].len() == 2);
-
-    let block = function.control_flow_graph().block(3).unwrap();
-    assert!(ud[&il::RefProgramLocation::new(
+    let block = function.control_flow_graph().block(0).unwrap();
+    assert!(du[&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
             block,
@@ -211,8 +169,8 @@ fn use_def_test() {
     )].contains(&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
-            function.control_flow_graph().block(2).unwrap(),
-            function.control_flow_graph().block(2).unwrap().instruction(1).unwrap()
+            function.control_flow_graph().block(1).unwrap(),
+            function.control_flow_graph().block(1).unwrap().instruction(0).unwrap()
         )
     )));
 }
