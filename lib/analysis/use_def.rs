@@ -1,4 +1,4 @@
-use analysis::{fixed_point, reaching_definitions};
+use analysis::reaching_definitions;
 use error::*;
 use il;
 use il::variable::Variable;
@@ -6,32 +6,19 @@ use std::collections::{BTreeMap, BTreeSet};
 
 
 #[allow(dead_code)]
-struct UseDef<'r> {
-    rd: BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>>
-}
-
-
-#[allow(dead_code)]
 /// Compute use definition chains for the given function.
 pub fn use_def<'r>(function: &'r il::Function)
 -> Result<BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
-    fixed_point::fixed_point_forward(UseDef { rd: rd }, function)
-}
 
+    let mut ud = BTreeMap::new();
 
-impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>>> for UseDef<'r> {
-    fn trans(
-        &self,
-        location: il::RefProgramLocation<'r>,
-        _: Option<BTreeSet<il::RefProgramLocation<'r>>>
-    ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
-
-        let state_out = match *location.function_location() {
+    for (location, _) in &rd {
+        let defs = match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
                 let mut state_out = BTreeSet::new();
                 for variable_read in instruction.operation().variables_read() {
-                    for rd in &self.rd[&location] {
+                    for rd in &rd[&location] {
                         if rd.instruction()
                              .unwrap()
                              .operation()
@@ -48,7 +35,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>
                 let mut state_out = BTreeSet::new();
                 if let Some(ref condition) = *edge.condition() {
                     for variable_read in condition.scalars() {
-                        for rd in &self.rd[&location] {
+                        for rd in &rd[&location] {
                             if rd.instruction()
                                  .unwrap()
                                  .operation()
@@ -64,21 +51,12 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>
             },
             il::RefFunctionLocation::EmptyBlock(_) => BTreeSet::new()
         };
-
-        Ok(state_out)
+        ud.insert(location.clone(), defs);
     }
 
-    fn join(
-        &self,
-        mut state0: BTreeSet<il::RefProgramLocation<'r>>,
-        state1: &BTreeSet<il::RefProgramLocation<'r>>
-    ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
-        for state in state1 {
-            state0.insert(state.clone());
-        }
-        Ok(state0)
-    }
+    Ok(ud)
 }
+
 
 
 #[test]
