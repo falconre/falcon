@@ -1,6 +1,6 @@
 use executor::*;
 use il::*;
-use std::rc::Rc;
+use RC;
 use translator::mips::*;
 use types::{Architecture, Endian};
 
@@ -28,7 +28,7 @@ fn init_driver_block(
         engine.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(Rc::new(program), location, engine, Architecture::Mips)
+    driver::Driver::new(RC::new(program), location, engine, Architecture::Mips)
 }
 
 
@@ -54,7 +54,7 @@ fn init_driver_function(
         engine.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(Rc::new(program), location, engine, Architecture::Mips)
+    driver::Driver::new(RC::new(program), location, engine, Architecture::Mips)
 }
 
 

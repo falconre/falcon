@@ -5,7 +5,7 @@
 #[cfg(test)]use loader::Loader;
 #[cfg(test)]use platform::*;
 #[cfg(test)]use std::path::Path;
-#[cfg(test)]use std::rc::Rc;
+#[cfg(test)]use RC;
 #[cfg(test)]use types;
 
 
@@ -43,11 +43,11 @@ fn simple_0_test () -> Result<Vec<u8>> {
     ).unwrap().into();
     // let pl = ProgramLocation::from_address(0x804880f, &program).unwrap();
     let driver = Driver::new(
-        Rc::new(program),
+        RC::new(program),
         pl,
         engine,
         elf.architecture()?,
-        Rc::new(platform)
+        RC::new(platform)
     );
     let mut drivers = vec![driver];
 
