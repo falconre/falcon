@@ -42,7 +42,9 @@ You will need the correct dependencies for bindgen to build the capstone binding
 For OSX (on which I'm developing), `brew install z3` seems to be enough to make things work, as well as a typical rust install.
 
 ## Steps for OSX
-* brew install capstone
-* git clone https://github.com/falconre/falcon.git 
-* cd falcon && cargo test && cargo doc
-* open target/doc/falcon/index.html for documenation 
+```
+brew install capstone
+git clone https://github.com/falconre/falcon.git 
+cd falcon && cargo test && cargo doc
+```
+open `target/doc/falcon/index.html` for documenation 
