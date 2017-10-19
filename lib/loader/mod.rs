@@ -14,7 +14,7 @@ use types::Architecture;
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionEntry {
     address: u64,
-    name: String
+    name: Option<String>
 }
 
 
@@ -23,17 +23,9 @@ impl FunctionEntry {
     ///
     /// If no name is provided: `sup_{:X}` will be used to name the function.
     pub fn new(address: u64, name: Option<String>) -> FunctionEntry {
-        match name {
-            Some(name) => FunctionEntry {
-                address: address,
-                name: name
-            },
-            None => {
-                FunctionEntry {
-                    address: address,
-                    name: format!("sub_{:X}", address)
-                }
-            }
+        FunctionEntry {
+            address: address,
+            name: name
         }
     }
 
@@ -43,7 +35,7 @@ impl FunctionEntry {
     }
 
     /// Get the name for this `FunctionEntry`.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &Option<String> {
         &self.name
     }
 }
@@ -51,7 +43,10 @@ impl FunctionEntry {
 
 impl fmt::Display for FunctionEntry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} -> {:X}", self.name, self.address)
+        match self.name {
+            Some(ref name) => write!(f, "{} -> {:X}", name, self.address),
+            None => write!(f, "{:X}", self.address)
+        }
     }
 }
 
@@ -91,7 +86,7 @@ pub trait Loader: Clone {
             let address = function_entry.address();
             trace!("adding function at {:X}", address);
             let mut function = translator.translate_function(&memory, address)?;
-            function.set_name(Some(function_entry.name().to_string()));
+            function.set_name(function_entry.name().clone());
             program.add_function(function);
         }
 

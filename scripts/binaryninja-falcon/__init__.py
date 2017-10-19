@@ -26,7 +26,8 @@ def falcon_export(bv) :
     fh.write(json.dumps({
         'functions': functions,
         'segments': segments,
-        'arch': bv.arch.name
+        'arch': bv.arch.name,
+        'entry': bv.entry_point
     }))
     fh.close()
 
