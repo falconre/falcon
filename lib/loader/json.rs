@@ -19,7 +19,8 @@ use std::path::Path;
 pub struct Json {
     function_entries: Vec<FunctionEntry>,
     memory: Memory,
-    architecture: Architecture
+    architecture: Architecture,
+    entry: u64
 }
 
 
@@ -42,6 +43,11 @@ impl Json {
                 }
             }
             _ => bail!("architecture missing")
+        };
+
+        let entry = match root["entry"] {
+            Value::Number(ref number) => number.as_u64().unwrap(),
+            _ => bail!("entry missing")
         };
 
         let mut function_entries = Vec::new();
@@ -93,7 +99,8 @@ impl Json {
         Ok(Json{
             function_entries: function_entries,
             memory: memory,
-            architecture: architecture
+            architecture: architecture,
+            entry: entry
         })
     }
 }
@@ -112,12 +119,7 @@ impl Loader for Json {
 
 
     fn program_entry(&self) -> u64 {
-        for entry in &self.function_entries {
-            if entry.name() == "main" {
-                return entry.address()
-            }
-        }
-        0
+        self.entry
     }
 
 
