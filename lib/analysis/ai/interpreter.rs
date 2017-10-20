@@ -4,10 +4,10 @@ use error::*;
 use il;
 
 
-struct Interpreter<D: domain::Domain<M, V>, M: domain::Memory<V>, V: domain::Value> {
-    m: ::std::marker::PhantomData<M>,
-    v: ::std::marker::PhantomData<V>,
-    domain: D
+pub struct Interpreter<D: domain::Domain<M, V>, M: domain::Memory<V>, V: domain::Value> {
+    pub m: ::std::marker::PhantomData<M>,
+    pub v: ::std::marker::PhantomData<V>,
+    pub domain: D
 }
 
 
@@ -21,11 +21,11 @@ impl<D, M, V> Interpreter<D, M, V> where D: domain::Domain<M, V>,
             il::Expression::Scalar(ref scalar) => {
                 match state.variable(scalar) {
                     Some(v) => domain::Expression::value(v.clone()),
-                    None => domain::Expression::value(self.domain.empty())
+                    None => domain::Expression::value(V::empty(scalar.bits()))
                 }
             },
             il::Expression::Constant(ref constant) =>
-                domain::Expression::value(self.domain.constant(constant)),
+                domain::Expression::value(V::constant(constant.clone())),
             il::Expression::Add(ref lhs, ref rhs) =>
                 domain::Expression::add(self.symbolize(lhs, state), self.symbolize(rhs, state)),
             il::Expression::Sub(ref lhs, ref rhs) =>
@@ -78,7 +78,7 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
 
         let mut state = match state {
             Some(state) => state,
-            None => domain::State::new(self.domain.memory())
+            None => domain::State::new(M::new(self.domain.endian()))
         };
 
         let state = match *location.function_location() {
@@ -97,7 +97,7 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                     },
                     il::Operation::Load { ref dst, ref index, .. } => {
                         let index = self.domain.eval(&self.symbolize(index, &state))?;
-                        let value = state.memory.load(&index)?;
+                        let value = state.memory.load(&index, dst.bits())?;
                         state.set_variable(dst.clone(), value.clone());
                         state
                     },
@@ -128,6 +128,6 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
 
     fn join(&self, state0: domain::State<M, V>, state1: &domain::State<M, V>)
     -> Result<domain::State<M, V>> {
-        self.domain.join(state0, state1)
+        state0.join(state1)
     }
 }

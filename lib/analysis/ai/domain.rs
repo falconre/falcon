@@ -2,21 +2,30 @@ use error::*;
 use il;
 use std::collections::{HashMap};
 use std::fmt::Debug;
+use types::Endian;
 
 
-pub trait Value: Clone + Debug + Eq + PartialEq {}
-pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq {
-    fn store(&mut self, index: &V, value: V) -> Result<()>;
-    fn load(&self, index: &V) -> Result<V>;
+pub trait Value: Clone + Debug + Eq + PartialEq {
+    /// Join this abstract value with another
+    fn join(&self, other: &Self) -> Result<Self>;
+
+    /// Return an empty/bottom abstract value
+    fn empty(bits: usize) -> Self;
+
+    /// Take an il::Constant, and turn it into an abstract value
+    fn constant(constant: il::Constant) -> Self; 
 }
 
+
+pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq {
+    fn store(&mut self, index: &V, value: V) -> Result<()>;
+    fn load(&self, index: &V, bits: usize) -> Result<V>;
+    fn new(endian: Endian) -> Self;
+    fn join(self, other: &Self) -> Result<Self>;
+}
+
+
 pub trait Domain<M: Memory<V>, V: Value> {
-    /// Take an il::Constant, and turn it into an abstract value
-    fn constant(&self, constant: &il::Constant) -> V;
-
-    /// Join two abstract values into one
-    fn join(&self, lhs: State<M, V>, rhs: &State<M, V>) -> Result<State<M, V>>;
-
     /// Evaluate an expression of abstract values
     fn eval(&self, expr: &Expression<V>) -> Result<V>;
 
@@ -28,11 +37,8 @@ pub trait Domain<M: Memory<V>, V: Value> {
     fn raise(&self, expr: &V, state: State<M, V>)
     -> Result<State<M, V>>;
 
-    /// Create a new, empty memory representation
-    fn memory(&self) -> M;
-
-    /// Return an empty, or bottom, value
-    fn empty(&self) -> V;
+    /// Return the endianness used for analysis
+    fn endian(&self) -> Endian;
 }
 
 
@@ -60,8 +66,6 @@ pub enum Expression<V: Value> {
 }
 
 
-
-
 #[macro_use]
 macro_rules! expression_binop {
     ($p: path, $n: ident) => {
@@ -70,6 +74,7 @@ macro_rules! expression_binop {
         }
     }
 }
+
 
 #[macro_use]
 macro_rules! expression_extop {
@@ -106,11 +111,13 @@ impl<V> Expression<V> where V: Value {
     expression_extop!(Expression::Trun, trun);
 }
 
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State<M: Memory<V>, V: Value> {
     pub(crate) variables: HashMap<il::Scalar, V>,
     pub(crate) memory: M
 }
+
 
 impl<M, V> State<M, V> where M: Memory<V>, V: Value {
     pub fn new(memory: M) -> State<M, V> {
@@ -128,5 +135,18 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
 
     pub fn set_variable(&mut self, key: il::Scalar, value: V) {
         self.variables.insert(key, value);
+    }
+
+
+    pub fn join(mut self, other: &Self) -> Result<Self> {
+        for variable in &other.variables {
+            let v = match self.variables.get(variable.0) {
+                Some (v) => v.join(variable.1)?,
+                None => variable.1.clone()
+            };
+            self.variables.insert(variable.0.clone(), v);
+        }
+        self.memory = Memory::join(self.memory, &other.memory)?;
+        Ok(self)
     }
 }
