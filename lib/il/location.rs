@@ -369,14 +369,18 @@ impl<'f> fmt::Display for RefFunctionLocation<'f> {
 /// A location independent of any specific instance of `Program`.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct ProgramLocation {
-    function_index: u64,
+    function_index: Option<u64>,
     function_location: FunctionLocation
 }
 
 
 impl ProgramLocation {
     /// Create a new `ProgramLocation` from a function index and `FunctionLocation`
-    pub fn new(function_index: u64, function_location: FunctionLocation) -> ProgramLocation {
+    pub fn new(
+        function_index: Option<u64>,
+        function_location: FunctionLocation
+    ) -> ProgramLocation {
+
         ProgramLocation {
             function_index: function_index,
             function_location: function_location
@@ -387,7 +391,12 @@ impl ProgramLocation {
     /// "Apply" this `ProgramLocation` to a `Program`, returning a
     /// `RefProgramLocation`.
     pub fn apply<'p>(&self, program: &'p Program) -> Option<RefProgramLocation<'p>> {
-        let function = match program.function(self.function_index) {
+        if self.function_index.is_none() {
+            return None;
+        }
+        let function_index = self.function_index.unwrap();
+
+        let function = match program.function(function_index) {
             Some(function) => function,
             None => { return None; }
         };
@@ -421,7 +430,7 @@ impl ProgramLocation {
 impl<'p> From<RefProgramLocation<'p>> for ProgramLocation {
     fn from(program_location: RefProgramLocation) -> ProgramLocation {
         ProgramLocation {
-            function_index: program_location.function().index().unwrap(),
+            function_index: program_location.function().index(),
             function_location: program_location.function_location.into()
         }
     }
@@ -430,7 +439,10 @@ impl<'p> From<RefProgramLocation<'p>> for ProgramLocation {
 
 impl fmt::Display for ProgramLocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{:x}:{}", self.function_index, self.function_location)
+        match self.function_index {
+            Some(function_index) => write!(f, "0x{:x}:{}", function_index, self.function_location),
+            None => write!(f, "{}", self.function_location)
+        }
     }
 }
 
