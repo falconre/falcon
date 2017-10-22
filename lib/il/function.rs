@@ -58,6 +58,11 @@ impl Function {
         self.control_flow_graph.edge(head, tail)
     }
 
+    /// Return a vec of all `Edge` in this `Function`
+    pub fn edges(&self) -> Vec<&Edge> {
+        self.control_flow_graph.edges()
+    }
+
     /// Return the `ControlFlowGraph` for this `Function`.
     pub fn control_flow_graph(&self) -> &ControlFlowGraph {
         &self.control_flow_graph
