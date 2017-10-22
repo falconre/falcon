@@ -3,12 +3,12 @@ use analysis::fixed_point;
 use error::*;
 use executor::eval;
 use il;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use types::Endian;
 
 
-const MAX_CARDINALITY: usize = 8;
+const MAX_CARDINALITY: usize = 4;
 
 
 pub type KMemory = memory::Memory<KSet>;
@@ -16,9 +16,9 @@ pub type KState = domain::State<KMemory, KSet>;
 
 
 #[allow(dead_code)]
-pub fn kset<'k>(function: &'k il::Function, endian: Endian)
+pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMemory)
 -> Result<BTreeMap<il::RefProgramLocation<'k>, KState>> {
-    let domain = KSetDomain {endian: endian };
+    let domain = KSetDomain { endian: endian, memory: initial_memory };
     let interpreter = interpreter::Interpreter {
         m: ::std::marker::PhantomData,
         v: ::std::marker::PhantomData,
@@ -86,7 +86,7 @@ impl KSet {
     }
 
 
-    fn eval(expr: &domain::Expression<KSet>) -> Result<KSet> {
+    pub fn eval(expr: &domain::Expression<KSet>) -> Result<KSet> {
         match *expr {
             domain::Expression::Value(ref kset) => Ok(kset.clone()),
             domain::Expression::Add(ref lhs, ref rhs) => 
@@ -168,7 +168,7 @@ impl KSet {
         }
     }
 
-    fn bits(&self) -> usize {
+    pub fn bits(&self) -> usize {
         match *self {
             KSet::Top(bits) => bits,
             KSet::Bottom(bits) => bits,
@@ -176,13 +176,13 @@ impl KSet {
         }
     }
 
-    fn constant(constant: il::Constant) -> KSet {
+    pub fn constant(constant: il::Constant) -> KSet {
         let mut b = BTreeSet::new();
         b.insert(constant);
         KSet::Value(b)
     }
 
-    fn join(&self, rhs: &KSet) -> Result<KSet> {
+    pub fn join(&self, rhs: &KSet) -> Result<KSet> {
         Ok(match *self {
             KSet::Top(bits) => KSet::Top(bits),
             KSet::Bottom(_) => rhs.clone(),
@@ -207,7 +207,7 @@ impl KSet {
         })
     }
 
-    fn empty(bits: usize) -> KSet {
+    pub fn empty(bits: usize) -> KSet {
         KSet::Bottom(bits)
     }
 }
@@ -313,7 +313,8 @@ impl domain::Memory<KSet> for KMemory {
 
 
 struct KSetDomain {
-    endian: Endian
+    endian: Endian,
+    memory: KMemory
 }
 
 
@@ -332,6 +333,13 @@ impl domain::Domain<KMemory, KSet> for KSetDomain {
 
     fn endian(&self) -> Endian {
         self.endian.clone()
+    }
+
+    fn new_state(&self) -> KState {
+        KState {
+            variables: HashMap::new(),
+            memory: self.memory.clone()
+        }
     }
 }
 

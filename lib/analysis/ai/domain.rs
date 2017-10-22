@@ -31,15 +31,16 @@ pub trait Domain<M: Memory<V>, V: Value> {
     fn eval(&self, expr: &Expression<V>) -> Result<V>;
 
     /// Handle a brc operation
-    fn brc(&self, target: &V, condition: &V, state: State<M, V>)
-    -> Result<State<M, V>>;
+    fn brc(&self, target: &V, condition: &V, state: State<M, V>) -> Result<State<M, V>>;
 
     /// Handle a raise operation
-    fn raise(&self, expr: &V, state: State<M, V>)
-    -> Result<State<M, V>>;
+    fn raise(&self, expr: &V, state: State<M, V>) -> Result<State<M, V>>;
 
     /// Return the endianness used for analysis
     fn endian(&self) -> Endian;
+
+    /// Return an empty state
+    fn new_state(&self) -> State<M, V>;
 }
 
 

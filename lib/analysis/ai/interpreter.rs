@@ -80,7 +80,7 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
 
         let mut state = match state {
             Some(state) => state,
-            None => domain::State::new(M::new(self.domain.endian()))
+            None => self.domain.new_state()
         };
 
         let state = match *location.function_location() {
