@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 
-const PAGE_SIZE: usize = 4092;
+const PAGE_SIZE: usize = 4096;
 
 
 pub trait MemoryValue: Clone + Debug + Eq + PartialEq {
@@ -44,7 +44,7 @@ pub trait MemoryValue: Clone + Debug + Eq + PartialEq {
 }
 
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
 enum MemoryCell<V: MemoryValue> {
     Value(V),
     Backref(u64)
@@ -60,7 +60,7 @@ impl<V> MemoryCell<V> where V: MemoryValue {
 }
 
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 struct Page<V: MemoryValue> {
     size: usize,
     cells: Vec<MemoryCell<V>>
@@ -111,7 +111,7 @@ impl<V> Page<V> where V: MemoryValue {
 
 
 /// A symbolic memory model for Falcon IL expressions.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct Memory<V: MemoryValue> {
     endian: Endian,
     pages: BTreeMap<u64, RC<Page<V>>>
@@ -155,6 +155,18 @@ impl<V> Memory<V> where V: MemoryValue {
     }
 
 
+    /// Don't take backrefs into account during this store. Needed sometimes to
+    /// keep us from infinitely recursing
+    fn store_no_backref(&mut self, address: u64, value: V) -> Result<()> {
+        let bytes = value.bits() / 8;
+        self.store_cell(address, MemoryCell::Value(value))?;
+        for i in 1..bytes {
+            self.store_cell(address + i as u64, MemoryCell::Backref(address))?;
+        }
+        Ok(())
+    }
+
+
     /// Store an expression at the given address.
     ///
     /// The value must have a bit-width >= 8, and the bit-width must be evenly divisible
@@ -188,87 +200,67 @@ impl<V> Memory<V> where V: MemoryValue {
         //  WWWW    and continues after out expression.
         //          Handle case 2, then case 1, and case 3 will be fine.
 
-        // If the byte after the last byte is a Backref
+
+        // Handle backrefs that come after by finding the first address after
+        // our write, truncating it to the appropriate size, and rewriting it
         let address_after_write = address + (value.bits() / 8) as u64;
 
-        let write = if let Some(cell) = self.load_cell(address_after_write)? {
-            if let MemoryCell::Backref(backref_address) = *cell {
-                let value = self.load_cell(backref_address)?
-                                .unwrap()
-                                .value()
-                                .unwrap();
-                let value_bits = value.bits();
-                let shift_bits = (address_after_write - backref_address) * 8;
-                let final_bits = value_bits - shift_bits as usize;
-                match self.endian {
-                    Endian::Little => {
-                        let value = value.shr(shift_bits as usize)?.trun(final_bits)?;
-                        Some((address_after_write, value))
-                    },
-                    Endian::Big => {
-                        let value = value.trun(final_bits)?;
-                        Some((address_after_write, value))
-                    }
+        let value_to_write =
+            if let Some(cell) = self.load_cell(address_after_write)? {
+                if let MemoryCell::Backref(backref_address) = *cell {
+                    let backref_value = self.load_cell(backref_address)?
+                                            .unwrap()
+                                            .value()
+                                            .unwrap();
+                    // furthest most address backref value reaches
+                    let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
+                    // how many bits are left after our write
+                    let left_bits = ((backref_furthest_address - address_after_write) * 8) as usize;
+                    // load that value
+                    Some(self.load(address_after_write, left_bits)?)
+                }
+                else {
+                    None
                 }
             }
             else {
                 None
-            }
-        }
-        else {
-            None
-        };
+            };
 
-        if let Some((address, value)) = write {
-            let value_bytes = (value.bits() / 8) as u64;
-            self.store_cell(address, MemoryCell::Value(value))?;
-            for i in 1..value_bytes {
-                self.store_cell(address + i, MemoryCell::Backref(address))?;
-            }
+        if let Some(value_to_write) = value_to_write {
+            self.store_no_backref(address_after_write, value_to_write)?;
         }
 
-        // If the first byte of the write is a Backref
-        let write = if let Some(cell) = self.load_cell(address)? {
-            if let MemoryCell::Backref(backref_address) = *cell {
-                let value = self.load_cell(backref_address)?
-                                .unwrap()
-                                .value()
-                                .unwrap();
-                let value_bits = value.bits();
-                let final_bits = (address - backref_address) as usize * 8;
-                let shift_bits = value_bits - final_bits;
-                match self.endian {
-                    Endian::Little => {
-                        let value = value.trun(final_bits)?;
-                        Some((backref_address, value))
-                    },
-                    Endian::Big => {
-                        let value = value.shr(shift_bits)?.trun(final_bits)?;
-                        Some((backref_address, value))
-                    }
+        // handle values we overwrite before this write
+        let value_to_write =
+            if let Some(cell) = self.load_cell(address)? {
+                if let MemoryCell::Backref(backref_address) = *cell {
+                    let backref_value = self.load_cell(backref_address)?
+                                            .unwrap()
+                                            .value().
+                                            unwrap();
+                    // furthest most address backref value reaches
+                    let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
+                    // how many bits are we about to overwrite
+                    let overwrite_bits = (backref_furthest_address - address) * 8;
+                    // how many bits are left over
+                    let left_bits = backref_value.bits() - overwrite_bits as usize;
+                    Some((backref_address, self.load(backref_address, left_bits)?))
+                }
+                else {
+                    None
                 }
             }
             else {
                 None
-            }
-        }
-        else {
-            None
-        };
+            };
 
-        if let Some((address, value)) = write {
-            self.store(address, value)?;
+        if let Some(value_to_write) = value_to_write {
+            self.store_no_backref(value_to_write.0, value_to_write.1)?;
         }
 
-        // Now store this value and set its backrefs
-        let bits = value.bits();
-        self.store_cell(address, MemoryCell::Value(value))?;
-
-        for i in 1..(bits / 8) {
-            self.store_cell(address + i as u64, MemoryCell::Backref(address))?;
-        }
-
-        Ok(())
+        // Go ahead and store this value
+        self.store_no_backref(address, value)
     }
 
 
@@ -321,7 +313,10 @@ impl<V> Memory<V> where V: MemoryValue {
                         value.clone()
                     }
                     else {
-                        value.trun(bits)?
+                        match self.endian {
+                            Endian::Little => value.trun(bits)?,
+                            Endian::Big => value.shr(value.bits() - bits)?.trun(bits)?
+                        }
                     }
                 },
                 MemoryCell::Backref(backref_address) => {
@@ -329,15 +324,15 @@ impl<V> Memory<V> where V: MemoryValue {
                                     .unwrap()
                                     .value()
                                     .unwrap();
-                    let value_bits = value.bits();
-                    let shift_bits = ((address - backref_address) * 8) as usize;
-                    let final_bits = value_bits - shift_bits as usize;
                     let value = match self.endian {
                         Endian::Little => {
-                            value.shl(shift_bits)?.trun(final_bits)?
+                            let shift_bits = ((address - backref_address) * 8) as usize;
+                            value.shr(shift_bits)?.trun(bits)?
                         },
                         Endian::Big => {
-                            value.trun(final_bits)?
+                            let offset = ((address - backref_address) * 8) as usize;
+                            let shift_bits = value.bits() - bits - offset;
+                            value.shr(shift_bits)?.trun(bits)?
                         }
                     };
                     if value.bits() > bits {
@@ -358,22 +353,30 @@ impl<V> Memory<V> where V: MemoryValue {
             return Ok(load_value);
         }
 
+        /*
+        000000AA -> AA000000 offset = 0
+        000000BB -> 00BB0000 0ffset = 1
+        offset = 1
+        */
+
         // Fall back to single-byte loads
-        let mut result = self.load(address, 8)?;
+        let mut result: Option<V> = None;
         let bytes = (bits / 8) as u64;
-        for offset in 1..bytes {
+        for offset in 0..bytes {
             let value = self.load(address + offset, 8)?;
-            // trace!("LOAD [{:x}]={}", address + offset, expr);
             let value = value.zext(bits)?;
             let shift = match self.endian {
                 Endian::Big => (bytes - offset - 1) * 8,
                 Endian::Little => offset * 8
             };
             let value = value.shl(shift as usize)?;
-            result = result.or(&value)?;
+            result = match result {
+                Some(r) => Some(r.or(&value)?),
+                None => Some(value)
+            };
         }
 
-        Ok(result)
+        Ok(result.unwrap())
     }
 
     pub fn join(mut self, other: &Memory<V>) -> Result<Memory<V>> {
@@ -405,6 +408,7 @@ impl<V> Memory<V> where V: MemoryValue {
                             if let Some(this_value) = this_cells[i].value() {
                                 if let Some(other_value) = other_cells[i].value() {
                                     if this_value.bits() == other_value.bits() {
+
                                         // join them and store the value
                                         let value = this_value.join(other_value)?;
                                         cells.push(MemoryCell::Value(value));
@@ -413,8 +417,8 @@ impl<V> Memory<V> where V: MemoryValue {
                                 }
                             }
 
-                            // Otherwise get 8-bit values from both pages, join, push
                             let address = other_page.0 + i as u64;
+
                             let this_value = self.load(address, 8)?;
                             let other_value = other.load(address, 8)?;
                             cells.push(MemoryCell::Value(this_value.join(&other_value)?));
@@ -427,5 +431,107 @@ impl<V> Memory<V> where V: MemoryValue {
             self.pages.insert(*other_page.0, page);
         }
         Ok(self)
+    }
+}
+
+
+#[cfg(test)]
+mod memory_tests {
+    use analysis::ai::domain::Value;
+    use analysis::ai::kset::KSet;
+    use analysis::ai::memory::Memory;
+    use il;
+    use types::Endian;
+
+    #[test]
+    fn ai_memory_big_endian() {
+        let mut memory: Memory<KSet> = Memory::new(Endian::Big);
+
+        let value = KSet::constant(il::const_(0xAABBCCDD, 32));
+
+        memory.store(0x100, value.clone()).unwrap();
+
+        let load_value = memory.load(0x100, 32).unwrap();
+
+        assert_eq!(load_value, value);
+
+        let load_0 = memory.load(0x100, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xAA, 8)));
+
+        let load_0 = memory.load(0x101, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xBB, 8)));
+
+        let load_0 = memory.load(0x102, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xCC, 8)));
+
+        let load_0 = memory.load(0x103, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xDD, 8)));
+
+        memory.store(0x102, KSet::constant(il::const_(0xFF, 8))).unwrap();
+
+        let load_0 = memory.load(0x100, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xAA, 8)));
+
+        let load_0 = memory.load(0x101, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xBB, 8)));
+
+        let load_0 = memory.load(0x102, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xFF, 8)));
+
+        let load_0 = memory.load(0x103, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xDD, 8)));
+
+        assert_eq!(memory.load(0x100, 32).unwrap(), KSet::constant(il::const_(0xaabbffdd, 32)));
+
+        let other_memory: Memory<KSet> = Memory::new(Endian::Big);
+        let memory = memory.join(&other_memory).unwrap();
+
+        assert_eq!(memory.load(0x100, 32).unwrap(), KSet::constant(il::const_(0xaabbffdd, 32)));        
+    }
+
+    #[test]
+    fn ai_memory_little_endian() {
+        let mut memory: Memory<KSet> = Memory::new(Endian::Little);
+
+        let value = KSet::constant(il::const_(0xAABBCCDD, 32));
+
+        memory.store(0x100, value.clone()).unwrap();
+
+        let load_value = memory.load(0x100, 32).unwrap();
+
+        assert_eq!(load_value, value);
+
+        let load_0 = memory.load(0x100, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xDD, 8)));
+
+        let load_0 = memory.load(0x101, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xCC, 8)));
+
+        let load_0 = memory.load(0x102, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xBB, 8)));
+
+        let load_0 = memory.load(0x103, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xAA, 8)));
+
+        memory.store(0x102, KSet::constant(il::const_(0xFF, 8))).unwrap();
+
+        let load_0 = memory.load(0x100, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xDD, 8)));
+
+        let load_0 = memory.load(0x101, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xCC, 8)));
+
+        let load_0 = memory.load(0x102, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xFF, 8)));
+
+        let load_0 = memory.load(0x103, 8).unwrap();
+        assert_eq!(load_0, KSet::constant(il::const_(0xAA, 8)));
+
+        assert_eq!(memory.load(0x100, 32).unwrap(), KSet::constant(il::const_(0xAAFFCCDD, 32)));
+
+        let other_memory: Memory<KSet> = Memory::new(Endian::Little);
+        let memory = memory.join(&other_memory).unwrap();
+
+        assert_eq!(memory.load(0x100, 32).unwrap(), KSet::constant(il::const_(0xAAFFCCDD, 32)));        
     }
 }

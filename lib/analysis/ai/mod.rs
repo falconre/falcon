@@ -1,4 +1,4 @@
-mod domain;
-mod kset;
-mod interpreter;
-mod memory;
+pub mod domain;
+pub mod kset;
+pub mod interpreter;
+pub mod memory;

@@ -4,19 +4,20 @@ use error::*;
 use executor::eval;
 use il;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use types::Endian;
 
 
-const MAX_CARDINALITY: usize = 16;
+const MAX_CARDINALITY: usize = 8;
 
 
-type KMemory = memory::Memory<KSet>;
-type KState = domain::State<KMemory, KSet>;
+pub type KMemory = memory::Memory<KSet>;
+pub type KState = domain::State<KMemory, KSet>;
 
 
 #[allow(dead_code)]
-pub fn ksets<'k>(function: &'k il::Function, endian: Endian)
--> Result<BTreeMap<il::RefProgramLocation<'k>, domain::State<KMemory, KSet>>> {
+pub fn kset<'k>(function: &'k il::Function, endian: Endian)
+-> Result<BTreeMap<il::RefProgramLocation<'k>, KState>> {
     let domain = KSetDomain {endian: endian };
     let interpreter = interpreter::Interpreter {
         m: ::std::marker::PhantomData,
@@ -27,7 +28,7 @@ pub fn ksets<'k>(function: &'k il::Function, endian: Endian)
 }
 
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum KSet {
     Top(usize),
     Value(BTreeSet<il::Constant>),
@@ -41,11 +42,11 @@ impl KSet {
     where F: Fn(&il::Constant, &il::Constant) -> Result<il::Constant> {
         Ok(match *lhs {
             KSet::Top(bits) => KSet::Top(bits),
-            KSet::Bottom(_) => rhs.clone(),
+            KSet::Bottom(bits) => KSet::Bottom(bits),
             KSet::Value(ref lhs_value) => {
                 match *rhs {
                     KSet::Top(bits) => KSet::Top(bits),
-                    KSet::Bottom(_) => lhs.clone(),
+                    KSet::Bottom(bits) => KSet::Bottom(bits),
                     KSet::Value(ref rhs_value) => {
                         let mut b: BTreeSet<il::Constant> = BTreeSet::new();
                         for l in lhs_value {
@@ -72,8 +73,8 @@ impl KSet {
     fn ext<F>(bits: usize, k: &KSet, op: F) -> Result<KSet>
     where F: Fn(usize, &il::Constant) -> Result<il::Constant> {
         Ok(match *k {
-            KSet::Top(bits) => KSet::Top(bits),
-            KSet::Bottom(bits) => KSet::Bottom(bits),
+            KSet::Top(_) => KSet::Top(bits),
+            KSet::Bottom(_) => KSet::Bottom(bits),
             KSet::Value(ref value) => {
                 let mut b: BTreeSet<il::Constant> = BTreeSet::new();
                 for v in value {
@@ -331,5 +332,20 @@ impl domain::Domain<KMemory, KSet> for KSetDomain {
 
     fn endian(&self) -> Endian {
         self.endian.clone()
+    }
+}
+
+
+impl fmt::Display for KSet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            KSet::Top(bits) => write!(f, "⊤:{}", bits),
+            KSet::Bottom(bits) => write!(f, "⊥:{}", bits),
+            KSet::Value(ref values) => write!(f, "{{{}}}", values
+                .iter()
+                .map(|v| format!("{}", v))
+                .collect::<Vec<String>>()
+                .join(","))
+        }
     }
 }

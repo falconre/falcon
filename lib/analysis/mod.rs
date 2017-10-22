@@ -1,5 +1,5 @@
-mod def_use;
-mod ai;
-mod fixed_point;
-mod reaching_definitions;
-mod use_def;
+pub mod def_use;
+pub mod ai;
+pub mod fixed_point;
+pub mod reaching_definitions;
+pub mod use_def;

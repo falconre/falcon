@@ -1,11 +1,12 @@
 use error::*;
 use il;
+use serde::Serialize;
 use std::collections::{HashMap};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use types::Endian;
 
 
-pub trait Value: Clone + Debug + Eq + PartialEq {
+pub trait Value: Clone + Display + Debug + Eq + PartialEq + Serialize {
     /// Join this abstract value with another
     fn join(&self, other: &Self) -> Result<Self>;
 
@@ -17,7 +18,7 @@ pub trait Value: Clone + Debug + Eq + PartialEq {
 }
 
 
-pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq {
+pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq + Serialize {
     fn store(&mut self, index: &V, value: V) -> Result<()>;
     fn load(&self, index: &V, bits: usize) -> Result<V>;
     fn new(endian: Endian) -> Self;
@@ -112,10 +113,21 @@ impl<V> Expression<V> where V: Value {
 }
 
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct State<M: Memory<V>, V: Value> {
     pub(crate) variables: HashMap<il::Scalar, V>,
     pub(crate) memory: M
+}
+
+
+impl<M, V> State<M, V> where M: Memory<V>, V: Value {
+    pub fn variables(&self) -> &HashMap<il::Scalar, V> {
+        &self.variables
+    }
+
+    pub fn memory(&self) -> &M {
+        &self.memory
+    }
 }
 
 

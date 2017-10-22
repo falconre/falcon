@@ -20,7 +20,9 @@ impl<D, M, V> Interpreter<D, M, V> where D: domain::Domain<M, V>,
         match *expression {
             il::Expression::Scalar(ref scalar) => {
                 match state.variable(scalar) {
-                    Some(v) => domain::Expression::value(v.clone()),
+                    Some(v) => {
+                        domain::Expression::value(v.clone())
+                    },
                     None => domain::Expression::value(V::empty(scalar.bits()))
                 }
             },
