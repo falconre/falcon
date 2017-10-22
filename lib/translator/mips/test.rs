@@ -1,6 +1,6 @@
 use executor::*;
 use il::*;
-use std::rc::Rc;
+use RC;
 use translator::mips::*;
 use types::{Architecture, Endian};
 
@@ -21,14 +21,14 @@ fn init_driver_block(
 
     program.add_function(function);
 
-    let location = ProgramLocation::new(0, FunctionLocation::EmptyBlock(0));
+    let location = ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0));
 
     let mut engine = engine::Engine::new(memory);
     for scalar in scalars {
         engine.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(Rc::new(program), location, engine, Architecture::Mips)
+    driver::Driver::new(RC::new(program), location, engine, Architecture::Mips)
 }
 
 
@@ -47,14 +47,14 @@ fn init_driver_function(
 
     program.add_function(function);
 
-    let location = ProgramLocation::new(0, FunctionLocation::Instruction(0, 0));
+    let location = ProgramLocation::new(Some(0), FunctionLocation::Instruction(0, 0));
 
     let mut engine = engine::Engine::new(memory);
     for scalar in scalars {
         engine.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(Rc::new(program), location, engine, Architecture::Mips)
+    driver::Driver::new(RC::new(program), location, engine, Architecture::Mips)
 }
 
 

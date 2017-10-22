@@ -42,12 +42,19 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
         else {
             for instruction in block.instructions() {
                 let location = il::RefFunctionLocation::Instruction(block, instruction);
-            let location = il::RefProgramLocation::new(function, location);
+                let location = il::RefProgramLocation::new(function, location);
                 let state = analysis.trans(location.clone(), None)?;
                 queue.push_back(location.clone());
                 states.insert(location, state);
             }
         }
+    }
+    for edge in function.edges() {
+        let location = il::RefFunctionLocation::Edge(edge);
+        let location = il::RefProgramLocation::new(function, location);
+        let state = analysis.trans(location.clone(), None)?;
+        queue.push_back(location.clone());
+        states.insert(location, state);
     }
 
     while !queue.is_empty() {

@@ -17,17 +17,21 @@ pub struct Constant {
 impl Constant {
     /// Create a new `Constant` with the given value and bitness.
     pub fn new(value: u64, bits: usize) -> Constant {
-        Constant { value: value, bits: bits }
+        Constant { value: Constant::trim_value(value, bits), bits: bits }
+    }
+
+    fn trim_value(value: u64, bits: usize) -> u64 {
+        if bits == 64 {
+            value
+        }
+        else {
+            value & ((1 << bits) - 1)
+        }
     }
 
     /// Get the value of this `Constant`.
     pub fn value(&self) -> u64 {
-        if self.bits == 64 {
-            self.value
-        }
-        else {
-            self.value & ((1 << self.bits) - 1)
-        }
+        self.value
     }
 
     /// Get the number of bits for this `Constant`.
