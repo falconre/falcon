@@ -21,7 +21,7 @@ fn init_driver_block(
 
     program.add_function(function);
 
-    let location = ProgramLocation::new(0, FunctionLocation::EmptyBlock(0));
+    let location = ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0));
 
     let mut engine = engine::Engine::new(memory);
     for scalar in scalars {
@@ -47,7 +47,7 @@ fn init_driver_function(
 
     program.add_function(function);
 
-    let location = ProgramLocation::new(0, FunctionLocation::Instruction(0, 0));
+    let location = ProgramLocation::new(Some(0), FunctionLocation::Instruction(0, 0));
 
     let mut engine = engine::Engine::new(memory);
     for scalar in scalars {
