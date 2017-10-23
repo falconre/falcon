@@ -73,7 +73,7 @@ pub trait Loader: Clone {
     }
 
     /// Lift executable into an il::Program
-    fn to_program(&self) -> Result<il::Program> {
+    fn program(&self) -> Result<il::Program> {
         // Get out architecture-specific translator
         let translator = self.architecture()?.translator();
 
