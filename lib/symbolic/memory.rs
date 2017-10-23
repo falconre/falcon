@@ -130,6 +130,16 @@ impl Memory {
     }
 
 
+    fn store_no_backref(&mut self, address: u64, value: il::Expression) -> Result<()> {
+        let bytes = value.bits() / 8;
+        self.store_cell(address, MemoryCell::Expression(value))?;
+        for i in 1..bytes {
+            self.store_cell(address + i as u64, MemoryCell::Backref(address))?;
+        }
+        Ok(())
+    }
+
+
     /// Store an expression at the given address.
     ///
     /// The value must have a bit-width >= 8, and the bit-width must be evenly divisible
@@ -166,89 +176,54 @@ impl Memory {
         // If the byte after the last byte is a Backref
         let address_after_write = address + (value.bits() / 8) as u64;
 
-        let write = if let Some(cell) = self.load_cell(address_after_write)? {
-            if let MemoryCell::Backref(backref_address) = *cell {
-                let expr = self.load_cell(backref_address)?
-                               .unwrap()
-                               .expression()
-                               .unwrap();
-                let expr_bits = expr.bits();
-                let shift_bits = (address_after_write - backref_address) * 8;
-                let final_bits = expr_bits - shift_bits as usize;
-                match self.endian {
-                    Endian::Little => {
-                        let expr = il::Expression::shr(
-                            expr.clone(),
-                            il::expr_const(shift_bits, expr_bits)
-                        )?;
-                        let expr = il::Expression::trun(final_bits, expr)?;
-                        Some((address_after_write, expr))
-                    },
-                    Endian::Big => {
-                        let expr = il::Expression::trun(final_bits, expr.clone())?;
-                        Some((address_after_write, expr))
-                    }
+        let expr_to_write =
+            if let Some(cell) = self.load_cell(address_after_write)? {
+                if let MemoryCell::Backref(backref_address) = *cell {
+                    let backref_expr = self.load_cell(backref_address)?
+                                           .unwrap()
+                                           .expression()
+                                           .unwrap();
+                    let backref_furthest_address = backref_address + (backref_expr.bits() / 8) as u64;
+                    let left_bits = ((backref_furthest_address - address_after_write) * 8) as usize;
+                    Some(self.load(address_after_write, left_bits)?.unwrap())
+                }
+                else {
+                    None
                 }
             }
             else {
                 None
-            }
-        }
-        else {
-            None
-        };
+            };
 
-        if let Some((address, expr)) = write {
-            let expr_bytes = (expr.bits() / 8) as u64;
-            self.store_cell(address, MemoryCell::Expression(expr))?;
-            for i in 1..expr_bytes {
-                self.store_cell(address + i, MemoryCell::Backref(address))?;
-            }
+        if let Some(expr_to_write) = expr_to_write {
+            self.store_no_backref(address_after_write, expr_to_write)?;
         }
 
-        // If the first byte of the write is a Backref
-        let write = if let Some(cell) = self.load_cell(address)? {
-            if let MemoryCell::Backref(backref_address) = *cell {
-                let expr = self.load_cell(backref_address)?
-                               .unwrap()
-                               .expression()
-                               .unwrap();
-                let expr_bits = expr.bits();
-                let final_bits = (address - backref_address) as usize * 8;
-                let shift_bits = (expr_bits - final_bits) as u64;
-                match self.endian {
-                    Endian::Little => {
-                        let expr = il::Expression::trun(final_bits, expr.clone())?;
-                        Some((backref_address, expr))
-                    },
-                    Endian::Big => {
-                        let expr = il::Expression::shr(expr.clone(), il::expr_const(shift_bits, expr_bits))?;
-                        let expr = il::Expression::trun(final_bits, expr)?;
-                        Some((backref_address, expr))
-                    }
+        let expr_to_write =
+            if let Some(cell) = self.load_cell(address)? {
+                if let MemoryCell::Backref(backref_address) = *cell {
+                    let backref_expr = self.load_cell(backref_address)?
+                                           .unwrap()
+                                           .expression()
+                                           .unwrap();
+                    let backref_furthest_address = backref_address + (backref_expr.bits() / 8) as u64;
+                    let overwrite_bits = (backref_furthest_address - address) * 8;
+                    let left_bits = backref_expr.bits() - overwrite_bits as usize;
+                    Some((backref_address, self.load(backref_address, left_bits)?.unwrap()))
+                }
+                else {
+                    None
                 }
             }
             else {
                 None
-            }
-        }
-        else {
-            None
-        };
+            };
 
-        if let Some((address, expr)) = write {
-            self.store(address, expr)?;
+        if let Some(expr_to_write) = expr_to_write {
+            self.store_no_backref(expr_to_write.0, expr_to_write.1)?;
         }
 
-        // Now store this value and set its backrefs
-        let bits = value.bits();
-        self.store_cell(address, MemoryCell::Expression(value))?;
-
-        for i in 1..(bits / 8) {
-            self.store_cell(address + i as u64, MemoryCell::Backref(address))?;
-        }
-
-        Ok(())
+        self.store_no_backref(address, value)
     }
 
 
@@ -301,7 +276,16 @@ impl Memory {
                         expr.clone()
                     }
                     else {
-                        il::Expression::trun(bits, expr.clone())?
+                        match self.endian {
+                            Endian::Little => il::Expression::trun(bits, expr.clone())?,
+                            Endian::Big => il::Expression::trun(
+                                bits,
+                                il::Expression::shr(
+                                    expr.clone(),
+                                    il::expr_const((expr.bits() - bits) as u64, expr.bits())
+                                )?
+                            )?
+                        }
                     }
                 },
                 MemoryCell::Backref(backref_address) => {
@@ -309,19 +293,27 @@ impl Memory {
                                    .unwrap()
                                    .expression()
                                    .unwrap();
-                    let expr_bits = expr.bits();
-                    let shift_bits = (address - backref_address) * 8;
-                    let final_bits = expr_bits - shift_bits as usize;
                     let expr = match self.endian {
                         Endian::Little => {
-                            let expr = il::Expression::shl(expr.clone(),
-                                    il::expr_const(shift_bits, expr_bits))?;
-                            let expr = il::Expression::trun(final_bits, expr)?;
-                            expr
+                            let shift_bits = ((address - backref_address) * 8) as usize;
+                            il::Expression::trun(
+                                bits,
+                                il::Expression::shr(
+                                    expr.clone(),
+                                    il::expr_const(shift_bits as u64, expr.bits())
+                                )?
+                            )?
                         },
                         Endian::Big => {
-                            let expr = il::Expression::trun(final_bits, expr.clone())?;
-                            expr
+                            let offset = ((address - backref_address) * 8) as usize;
+                            let shift_bits = expr.bits() - bits - offset;
+                            il::Expression::trun(
+                                bits,
+                                il::Expression::shr(
+                                    expr.clone(),
+                                    il::expr_const(shift_bits as u64, expr.bits())
+                                )?
+                            )?
                         }
                     };
                     if expr.bits() > bits {
@@ -337,27 +329,24 @@ impl Memory {
             return Ok(None);
         };
 
-        // if we're done, finish
         if load_expr.bits() == bits {
             return Ok(Some(load_expr));
         }
 
-        // Fall back to single-byte loads
-        let mut result = None;
+        let mut result: Option<il::Expression> = None;
         let bytes = (bits / 8) as u64;
         for offset in 0..bytes {
             let expr = match self.load(address + offset, 8)? {
                 Some(expr) => expr,
                 None => return Ok(None)
             };
-            // trace!("LOAD [{:x}]={}", address + offset, expr);
-            let expr = il::Expression::zext(bits, expr.clone())?;
+            let expr = il::Expression::zext(bits, expr)?;
             let shift = match self.endian {
                 Endian::Big => (bytes - offset - 1) * 8,
                 Endian::Little => offset * 8
             };
-            let shift = il::expr_const(shift, bits);
-            let expr = il::Expression::shl(expr, shift)?;
+            let expr_bits = expr.bits();
+            let expr = il::Expression::shl(expr, il::expr_const(shift, expr_bits))?;
             result = match result {
                 Some(result) => Some(il::Expression::or(result, expr)?),
                 None => Some(expr)
@@ -365,5 +354,120 @@ impl Memory {
         }
 
         Ok(result)
+    }
+}
+
+
+#[cfg(test)]
+mod memory_tests {
+    use executor::eval;
+    use il;
+    use symbolic::memory::Memory;
+    use types::Endian;
+
+    #[test]
+    fn symbolc_memory_big_endian() {
+        let mut memory = Memory::new(Endian::Big);
+
+        memory.store(0x100, il::expr_const(0xaabbccdd, 32)).unwrap();
+
+        assert_eq!(
+            eval(&memory.load(0x100, 32).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaabbccdd, 32)).unwrap()
+        );
+
+        assert_eq!(
+            eval(&memory.load(0x100, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaa, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x101, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xbb, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x102, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xcc, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x103, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xdd, 8)).unwrap()
+        );
+
+        memory.store(0x102, il::expr_const(0xFF, 8)).unwrap();
+
+        assert_eq!(
+            eval(&memory.load(0x100, 32).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaabbffdd, 32)).unwrap()
+        );
+
+        assert_eq!(
+            eval(&memory.load(0x100, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaa, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x101, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xbb, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x102, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xff, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x103, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xdd, 8)).unwrap()
+        );
+    }
+
+    #[test]
+    fn ai_memory_little_endian() {
+        let mut memory = Memory::new(Endian::Little);
+
+        memory.store(0x100, il::expr_const(0xaabbccdd, 32)).unwrap();
+
+        assert_eq!(
+            eval(&memory.load(0x100, 32).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaabbccdd, 32)).unwrap()
+        );
+
+        assert_eq!(
+            eval(&memory.load(0x100, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xdd, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x101, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xcc, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x102, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xbb, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x103, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaa, 8)).unwrap()
+        );
+
+        memory.store(0x102, il::expr_const(0xff, 8)).unwrap();
+
+        assert_eq!(
+            eval(&memory.load(0x100, 32).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaaffccdd, 32)).unwrap()
+        );
+
+        assert_eq!(
+            eval(&memory.load(0x100, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xdd, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x101, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xcc, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x102, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xff, 8)).unwrap()
+        );
+        assert_eq!(
+            eval(&memory.load(0x103, 8).unwrap().unwrap()).unwrap(),
+            eval(&il::expr_const(0xaa, 8)).unwrap()
+        );       
     }
 }

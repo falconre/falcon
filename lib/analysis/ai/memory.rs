@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 
-const PAGE_SIZE: usize = 4096;
+const PAGE_SIZE: usize = 1024;
 
 
 pub trait MemoryValue: Clone + Debug + Eq + PartialEq {
@@ -237,8 +237,8 @@ impl<V> Memory<V> where V: MemoryValue {
                 if let MemoryCell::Backref(backref_address) = *cell {
                     let backref_value = self.load_cell(backref_address)?
                                             .unwrap()
-                                            .value().
-                                            unwrap();
+                                            .value()
+                                            .unwrap();
                     // furthest most address backref value reaches
                     let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
                     // how many bits are we about to overwrite
@@ -437,7 +437,6 @@ impl<V> Memory<V> where V: MemoryValue {
 
 #[cfg(test)]
 mod memory_tests {
-    use analysis::ai::domain::Value;
     use analysis::ai::kset::KSet;
     use analysis::ai::memory::Memory;
     use il;
