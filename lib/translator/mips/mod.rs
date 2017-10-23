@@ -282,6 +282,13 @@ impl Translator for Mips {
                         TranslateBranchDelay::None
                     },
                     TranslateBranchDelay::Branch => {
+                        // If we don't have enough bytes left to disassemble the
+                        // next instruction, add this instruction as a successor
+                        // and return
+                        if bytes.len() - offset < 8 {
+                            successors.push((address + offset as u64, None));
+                            break;
+                        }
                         TranslateBranchDelay::DelaySlot(instruction_graph)
                     },
                     TranslateBranchDelay::DelaySlot(cfg) => {
@@ -290,6 +297,13 @@ impl Translator for Mips {
                         break
                     },
                     TranslateBranchDelay::BranchFallThrough => {
+                        // If we don't have enough bytes left to disassemble the
+                        // next instruction, add this instruction as a successor
+                        // and return
+                        if bytes.len() - offset < 8 {
+                            successors.push((address + offset as u64, None));
+                            break;
+                        }
                         TranslateBranchDelay::DelaySlotFallThrough(instruction_graph)
                     },
                     TranslateBranchDelay::DelaySlotFallThrough(cfg) => {
