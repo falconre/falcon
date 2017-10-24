@@ -2038,6 +2038,19 @@ fn multu() {
 
 
 #[test]
+fn negu() {
+    /* negu $a0, $a1 */
+    let result = get_scalar(
+        &[0x00, 0x05, 0x20, 0x23],
+        vec![("$a1", expr_const(0xff00ff00, 32))],
+        memory::Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value(), 0xff0100);
+}
+
+
+#[test]
 fn nop() {
     let bytes = &[0x00, 0x00, 0x00, 0x00];
     let block_translation_result = Mips::new().translate_block(bytes, 0).unwrap();

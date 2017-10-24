@@ -132,6 +132,7 @@ impl Translator for Mips {
                     capstone::mips_insn::MIPS_INS_MUL    => semantics::mul(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_MULT   => semantics::mult(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_MULTU  => semantics::multu(&mut instruction_graph, &instruction),
+                    capstone::mips_insn::MIPS_INS_NEGU   => semantics::negu(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_NOP    => semantics::nop(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_NOR    => semantics::nor(&mut instruction_graph, &instruction),
                     capstone::mips_insn::MIPS_INS_OR     => semantics::or(&mut instruction_graph, &instruction),

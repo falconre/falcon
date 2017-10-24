@@ -1332,6 +1332,29 @@ pub fn multu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
 
 
 
+pub fn negu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rd = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(rd, Expr::sub(expr_const(0, 32), rs)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
         control_flow_graph.new_block()?.index()
