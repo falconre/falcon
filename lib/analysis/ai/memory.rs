@@ -7,7 +7,10 @@
 //! are written to, we use the copy-on-write functionality of rust's `std::rc::Rc` type,
 //! giving us copy-on-write paging. This allows for very fast forks of `SymbolicMemory`.
 
+use analysis::ai::domain;
 use error::*;
+use il;
+use loader;
 use RC;
 use types::Endian;
 use std::collections::BTreeMap;
@@ -431,6 +434,22 @@ impl<V> Memory<V> where V: MemoryValue {
             self.pages.insert(*other_page.0, page);
         }
         Ok(self)
+    }
+}
+
+
+impl<V> From<loader::memory::Memory> for Memory<V>
+where V: MemoryValue + domain::Value {
+    fn from(loader_memory: loader::memory::Memory) -> Memory<V> {
+        let mut memory: Memory<V> = Memory::new(loader_memory.endian());
+        for (address, segment) in loader_memory.segments() {
+            let bytes = segment.bytes();
+            for i in 0..segment.len() {
+                memory.store(address + i as u64, V::constant(il::const_(bytes[i] as u64, 8)))
+                      .unwrap();
+            }
+        }
+        memory
     }
 }
 
