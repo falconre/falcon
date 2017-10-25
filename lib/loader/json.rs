@@ -73,7 +73,7 @@ impl Json {
             bail!("functions missing");
         }
 
-        let mut memory = Memory::new();
+        let mut memory = Memory::new(architecture.endian());
         if let Value::Array(ref segments) = root["segments"] {
             for segment in segments {
                 let address = match segment["address"] {

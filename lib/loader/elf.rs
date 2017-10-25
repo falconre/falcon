@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use types::Endian;
 
 // http://stackoverflow.com/questions/37678698/function-to-build-a-fixed-sized-array-from-slice/37679019#37679019
 use std::convert::AsMut;
@@ -51,10 +52,23 @@ impl ElfLinker {
     /// Takes a path to an Elf and loads the Elf, its dependencies, and links
     /// them together.
     pub fn new(filename: &Path) -> Result<ElfLinker> {
+        let mut file = File::open(filename)?;
+        let mut buf = Vec::with_capacity(1024);
+        file.read(&mut buf)?;
+        let mut endian = Endian::Big;
+        if let goblin::Object::Elf(elf_peek) = goblin::Object::parse(&buf)? {
+            if elf_peek.header.endianness()?.is_little() {
+                endian = Endian::Little;
+            }
+        }
+        else {
+            bail!(format!("{} was not an Elf", filename.to_str().unwrap()));
+        }
+
         let mut elf_linker = ElfLinker {
             filename: filename.to_owned(),
             loaded: BTreeMap::new(),
-            memory: Memory::new(),
+            memory: Memory::new(endian),
             symbols: BTreeMap::new(),
             next_lib_address: DEFAULT_LIB_BASE,
             user_functions: Vec::new(),
@@ -444,7 +458,7 @@ impl Elf {
 impl Loader for Elf {
     fn memory(&self) -> Result<Memory> {
         let elf = self.elf();
-        let mut memory = Memory::new();
+        let mut memory = Memory::new(self.architecture()?.endian());
 
         for ph in elf.program_headers {
             if ph.p_type == goblin::elf::program_header::PT_LOAD {

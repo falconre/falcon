@@ -4,6 +4,8 @@ use error::*;
 use translator::TranslationMemory;
 use std::collections::BTreeMap;
 use std::cmp::{Ord, Ordering, PartialOrd};
+use types::Endian;
+
 
 bitflags! {
     /// RWX permissions for memory.
@@ -81,15 +83,22 @@ impl PartialOrd for MemorySegment {
 /// A full representation of all memory as given by a loader.
 #[derive(Clone, Debug)]
 pub struct Memory {
-    segments: BTreeMap<u64, MemorySegment>
+    segments: BTreeMap<u64, MemorySegment>,
+    endian: Endian
 }
 
 impl Memory {
     /// Create a new, empty `Memory`
-    pub fn new() -> Memory {
+    pub fn new(endian: Endian) -> Memory {
         Memory {
-            segments: BTreeMap::new()
+            segments: BTreeMap::new(),
+            endian: endian
         }
+    }
+
+    /// Get the endianness of this memory model
+    pub fn endian(&self) -> Endian {
+        self.endian.clone()
     }
 
     /// Add a `MemorySegment` to this `Memory`
