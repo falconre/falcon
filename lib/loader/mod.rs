@@ -7,6 +7,7 @@ pub mod memory;
 use error::*;
 use il;
 use std::fmt;
+use translator::TranslationMemory;
 use types::Architecture;
 
 
@@ -84,10 +85,12 @@ pub trait Loader: Clone {
 
         for function_entry in self.function_entries()? {
             let address = function_entry.address();
-            trace!("adding function at {:X}", address);
-            let mut function = translator.translate_function(&memory, address)?;
-            function.set_name(function_entry.name().clone());
-            program.add_function(function);
+            // Ensure we can actually get memory at this function address
+            if TranslationMemory::get_u8(&memory, address).is_some() {
+                let mut function = translator.translate_function(&memory, address)?;
+                function.set_name(function_entry.name().clone());
+                program.add_function(function);
+            }
         }
 
         Ok(program)

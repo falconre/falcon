@@ -458,15 +458,15 @@ impl Loader for Elf {
                     bytes.append(&mut vec![0; (ph.p_memsz - ph.p_filesz) as usize]);
                 }
 
-                let mut permissions = NONE;
+                let mut permissions = memory::MemoryPermissions::NONE;
                 if ph.p_flags & goblin::elf::program_header::PF_R != 0 {
-                    permissions |= READ;
+                    permissions |= MemoryPermissions::READ;
                 }
                 if ph.p_flags & goblin::elf::program_header::PF_W != 0 {
-                    permissions |= WRITE;
+                    permissions |= MemoryPermissions::WRITE;
                 }
                 if ph.p_flags & goblin::elf::program_header::PF_X != 0 {
-                    permissions |= EXECUTE;
+                    permissions |= MemoryPermissions::EXECUTE;
                 }
                 
                 let segment = MemorySegment::new(

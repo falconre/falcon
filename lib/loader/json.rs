@@ -89,7 +89,7 @@ impl Json {
                     _ => bail!("bytes missing for segment")
                 };
 
-                memory.add_segment(MemorySegment::new(address, bytes, ALL));
+                memory.add_segment(MemorySegment::new(address, bytes, MemoryPermissions::ALL));
             }
         }
         else {

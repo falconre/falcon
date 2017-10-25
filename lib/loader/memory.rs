@@ -218,11 +218,26 @@ impl Memory {
     pub fn segments(&self) -> &BTreeMap<u64, MemorySegment> {
         &self.segments
     }
+
+    /// get permissions for an address
+    pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
+        for segment in &self.segments {
+            if *segment.0 <= address && segment.0 + segment.1.len() as u64 > address {
+                return Some(segment.1.permissions);
+            }
+        }
+        None
+    }
 }
 
 
 impl TranslationMemory for Memory {
     fn get_u8(&self, address: u64) -> Option<u8> {
+        if let Some(permissions) = self.permissions(address) {
+            if !permissions.contains(MemoryPermissions::READ | MemoryPermissions::EXECUTE) {
+                return None;
+            }
+        }
         self.get_u8(address)
     }
 }
