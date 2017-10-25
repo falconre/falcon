@@ -24,7 +24,7 @@ impl Program {
         }
     }
 
-    /// Search for a `Function` by its optional address, assuming one way assigned.
+    /// Search for a `Function` by its optional address, assuming one was assigned.
     /// Returns the `Function` if found, or `None` if not found.
     pub fn function_by_address(&self, address: u64) -> Option<&Function> {
         for function in &self.functions {
