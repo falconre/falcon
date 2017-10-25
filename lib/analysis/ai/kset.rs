@@ -357,3 +357,10 @@ impl fmt::Display for KSet {
         }
     }
 }
+
+
+impl Into<HashMap<il::Scalar, KSet>> for KState {
+    fn into(self) -> HashMap<il::Scalar, KSet> {
+        self.variables
+    }
+}
