@@ -53,8 +53,8 @@ impl ElfLinker {
     /// them together.
     pub fn new(filename: &Path) -> Result<ElfLinker> {
         let mut file = File::open(filename)?;
-        let mut buf = Vec::with_capacity(1024);
-        file.read(&mut buf)?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
         let mut endian = Endian::Big;
         if let goblin::Object::Elf(elf_peek) = goblin::Object::parse(&buf)? {
             if elf_peek.header.endianness()?.is_little() {
