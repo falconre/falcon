@@ -15,8 +15,7 @@ use il::*;
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Array {
     name: String,
-    size: u64,
-    ssa: Option<u32>
+    size: u64
 }
 
 
@@ -29,7 +28,6 @@ impl Array {
         Array {
             name: name.into(),
             size: size,
-            ssa: None
         }
     }
 
@@ -53,21 +51,7 @@ impl Variable for Array {
     /// An identifier uniquely identifies the variable in the form
     /// `<name>[]#<ssa>`
     fn identifier(&self) -> String {
-        format!(
-            "{}[]{}",
-            self.name,
-            match self.ssa {
-                Some(ssa) => format!("#{}", ssa),
-                None => String::new()
-        })
-    }
-
-    fn ssa(&self) -> Option<u32> {
-        self.ssa
-    }
-
-    fn set_ssa(&mut self, ssa: Option<u32>) {
-        self.ssa = ssa;
+        format!("{}[]", self.name)
     }
 
     fn multi_var_clone(&self) -> MultiVar {

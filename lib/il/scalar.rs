@@ -6,8 +6,7 @@ use il::*;
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Scalar {
     name: String,
-    bits: usize,
-    ssa: Option<u32>
+    bits: usize
 }
 
 
@@ -16,8 +15,7 @@ impl Scalar {
     pub fn new<S>(name: S, bits: usize) -> Scalar where S: Into<String> {
         Scalar {
             name: name.into(),
-            bits: bits,
-            ssa: None
+            bits: bits
         }
     }
 
@@ -41,22 +39,7 @@ impl Variable for Scalar {
     /// An identifier uniquely identifies the variable in the form
     /// `<name>:<bits>#<ssa>`
     fn identifier(&self) -> String {
-        format!(
-            "{}:{}{}",
-            self.name,
-            self.bits,
-            match self.ssa {
-                Some(ssa) => format!("#{}", ssa),
-                None => String::new()
-        })
-    }
-
-    fn ssa(&self) -> Option<u32> {
-        self.ssa
-    }
-
-    fn set_ssa(&mut self, ssa: Option<u32>) {
-        self.ssa = ssa;
+        format!("{}:{}", self.name, self.bits)
     }
 
     fn multi_var_clone(&self) -> MultiVar {

@@ -5,12 +5,6 @@ use std::fmt;
 
 
 pub trait Variable : fmt::Debug + fmt::Display + Sync + Send {
-    /// Gets the optional SSA value for this `Variable`.
-    fn ssa(&self) -> Option<u32>;
-
-    /// Sets the optional SSA value for this `Variable`.
-    fn set_ssa(&mut self, ssa: Option<u32>);
-
     /// Gets the name of this `Variable`.
     fn name(&self) -> &str;
 
@@ -42,20 +36,6 @@ impl Variable for MultiVar {
         match *self {
             MultiVar::Array(ref array) => array.name(),
             MultiVar::Scalar(ref scalar) => scalar.name()
-        }
-    }
-
-    fn ssa(&self) -> Option<u32> {
-        match *self {
-            MultiVar::Array(ref array) => array.ssa(),
-            MultiVar::Scalar(ref scalar) => scalar.ssa()
-        }
-    }
-
-    fn set_ssa(&mut self, ssa: Option<u32>) {
-        match *self {
-            MultiVar::Array(ref mut array) => array.set_ssa(ssa),
-            MultiVar::Scalar(ref mut scalar) => scalar.set_ssa(ssa)
         }
     }
 
