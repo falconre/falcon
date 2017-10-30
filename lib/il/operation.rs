@@ -29,11 +29,6 @@ pub enum Operation {
         target: Expression,
         condition: Expression
     },
-    /// Phi operation for SSA
-    Phi {
-        dst: MultiVar,
-        src: Vec<MultiVar>
-    },
     /// Raise operation for handling things such as system calls
     Raise {
         expr: Expression,
@@ -65,11 +60,6 @@ impl Operation {
         Operation::Brc { target: target, condition: condition }
     }
 
-    /// Create a new `Operation::Phi`.
-    pub fn phi(dst: MultiVar, src: Vec<MultiVar>) -> Operation {
-        Operation::Phi { dst: dst, src: src }
-    }
-
     /// Create a new `Operation::Raise`.
     pub fn raise(expr: Expression) -> Operation {
         Operation::Raise { expr: expr }
@@ -99,11 +89,6 @@ impl Operation {
             Operation::Brc { ref target, ref condition } => {
                 read.append(&mut scalars(target));
                 read.append(&mut scalars(condition));
-            },
-            Operation::Phi { ref src, .. } => {
-                for multi_var in src {
-                    read.push(multi_var);
-                }
             },
             Operation::Raise { ref expr } => {
                 read.append(&mut scalars(expr));
@@ -140,11 +125,6 @@ impl Operation {
                 read.append(&mut scalars_mut(target));
                 read.append(&mut scalars_mut(condition));
             },
-            Operation::Phi { ref mut src, .. } => {
-                for multi_var in src {
-                    read.push(multi_var);
-                }
-            },
             Operation::Raise { ref mut expr } => {
                 read.append(&mut scalars_mut(expr));
             }
@@ -160,7 +140,6 @@ impl Operation {
             Operation::Assign { ref dst, .. } |
             Operation::Load   { ref dst, .. } => Some(dst),
             Operation::Store  { ref dst, .. } => Some(dst),
-            Operation::Phi    { ref dst, .. } => Some(dst),
             Operation::Brc    { .. } |
             Operation::Raise  { .. } => None
         }
@@ -173,7 +152,6 @@ impl Operation {
             Operation::Assign { ref mut dst, .. } |
             Operation::Load   { ref mut dst, .. } => Some(dst),
             Operation::Store  { ref mut dst, .. } => Some(dst),
-            Operation::Phi    { ref mut dst, .. } => Some(dst),
             Operation::Brc    { .. } |
             Operation::Raise  { .. } => None
         }
@@ -192,12 +170,6 @@ impl fmt::Display for Operation {
                 write!(f, "{} = {}[{}]", dst, src, index),
             Operation::Brc { ref target, ref condition } =>
                 write!(f, "brc {} ? {}", target, condition),
-            Operation::Phi { ref dst, ref src } => 
-                write!(f, "phi {} <- {{{}}}", dst,
-                    src.iter()
-                       .map(|v| format!("{}", v))
-                       .collect::<Vec<String>>()
-                       .join(", ")),
             Operation::Raise { ref expr } => 
                 write!(f, "raise({})", expr)
         }

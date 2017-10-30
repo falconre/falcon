@@ -36,8 +36,6 @@ impl Variable for Scalar {
         self.name()
     }
 
-    /// An identifier uniquely identifies the variable in the form
-    /// `<name>:<bits>#<ssa>`
     fn identifier(&self) -> String {
         format!("{}:{}", self.name, self.bits)
     }

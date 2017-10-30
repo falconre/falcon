@@ -64,13 +64,6 @@ impl Instruction {
     }
 
 
-    pub(crate) fn phi(index: u64, dst: MultiVar, src: Vec<MultiVar>)
-    -> Instruction {
-
-        Instruction::new(index, Operation::phi(dst, src))
-    }
-
-
     pub(crate) fn raise(index: u64, expr: Expression) -> Instruction {
         Instruction::new(index, Operation::Raise { expr: expr })
     }
@@ -109,16 +102,6 @@ impl Instruction {
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Brc`
     pub fn is_brc(&self) -> bool {
         if let Operation::Brc{..} = self.operation {
-            true
-        }
-        else {
-            false
-        }
-    }
-
-    /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Phi`
-    pub fn is_phi(&self) -> bool {
-        if let Operation::Phi{..} = self.operation {
             true
         }
         else {

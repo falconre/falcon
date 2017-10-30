@@ -111,9 +111,6 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                     il::Operation::Raise { ref expr } => {
                         let expr = self.domain.eval(&self.symbolize(expr, &state))?;
                         self.domain.raise(&expr, state)?
-                    },
-                    il::Operation::Phi { .. } => {
-                        bail!("Phi unimplemented for abstract interpretation")
                     }
                 }
             },

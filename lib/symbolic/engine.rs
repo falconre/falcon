@@ -336,9 +336,6 @@ impl Engine {
                 }
                 successors
             },
-            il::Operation::Phi { .. } => {
-                panic!("Phi unimplemented");
-            },
             il::Operation::Raise { ref expr } => {
                 vec![Successor::new(
                     self,

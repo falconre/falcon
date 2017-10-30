@@ -151,9 +151,6 @@ impl Engine {
                     Successor::new(self, SuccessorType::FallThrough)
                 }
             },
-            il::Operation::Phi { .. } => {
-                unimplemented!("Phi unimplemented for concrete execution")
-            },
             il::Operation::Raise { ref expr } => {
                 Successor::new(self, SuccessorType::Raise(expr.clone()))
             }
