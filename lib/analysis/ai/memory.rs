@@ -1,12 +1,3 @@
-//! A symbolic memory model.
-//!
-//! Each cell of `SymbolicMemory` is a valid `il::Expr`. Concrete values may be stored as
-//! `il::Constant`, and symbolic values stored as valid expressions.
-//!
-//! `SymbolicMemory` is paged under-the-hood with reference-counted pages. When these pages
-//! are written to, we use the copy-on-write functionality of rust's `std::rc::Rc` type,
-//! giving us copy-on-write paging. This allows for very fast forks of `SymbolicMemory`.
-
 use analysis::ai::domain;
 use error::*;
 use il;
@@ -47,7 +38,7 @@ pub trait MemoryValue: Clone + Debug + Eq + PartialEq {
 }
 
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 enum MemoryCell<V: MemoryValue> {
     Value(V),
     Backref(u64)
@@ -63,7 +54,7 @@ impl<V> MemoryCell<V> where V: MemoryValue {
 }
 
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct Page<V: MemoryValue> {
     size: usize,
     cells: Vec<MemoryCell<V>>
@@ -114,7 +105,7 @@ impl<V> Page<V> where V: MemoryValue {
 
 
 /// A symbolic memory model for Falcon IL expressions.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Memory<V: MemoryValue> {
     endian: Endian,
     pages: BTreeMap<u64, RC<Page<V>>>
