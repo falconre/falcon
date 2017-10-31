@@ -20,7 +20,7 @@ pub struct Instruction {
 
 
 impl Instruction {
-    pub(crate) fn new(index: u64, operation: Operation) -> Instruction {
+    pub fn new(index: u64, operation: Operation) -> Instruction {
         Instruction {
             operation: operation,
             index: index,
@@ -30,12 +30,12 @@ impl Instruction {
     }
 
 
-    pub(crate) fn assign(index: u64, dst: Scalar, src: Expression) -> Instruction {
+    pub fn assign(index: u64, dst: Scalar, src: Expression) -> Instruction {
         Instruction::new(index, Operation::assign(dst, src))
     }
 
 
-    pub(crate) fn store(
+    pub fn store(
         instruction_index: u64,
         dst: Array,
         dst_index: Expression,
@@ -46,7 +46,7 @@ impl Instruction {
     }
 
 
-    pub(crate) fn load(
+    pub fn load(
         instruction_index: u64,
         dst: Scalar,
         src_index: Expression,
@@ -57,14 +57,14 @@ impl Instruction {
     }
 
 
-    pub(crate) fn brc(index: u64, target: Expression, condition: Expression)
+    pub fn brc(index: u64, target: Expression, condition: Expression)
     -> Instruction {
 
         Instruction::new(index, Operation::brc(target, condition))
     }
 
 
-    pub(crate) fn raise(index: u64, expr: Expression) -> Instruction {
+    pub fn raise(index: u64, expr: Expression) -> Instruction {
         Instruction::new(index, Operation::Raise { expr: expr })
     }
 

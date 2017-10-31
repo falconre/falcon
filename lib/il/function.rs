@@ -93,7 +93,7 @@ impl Function {
     }
 
 
-    pub(crate) fn set_index(&mut self, index: Option<u64>) {
+    pub fn set_index(&mut self, index: Option<u64>) {
         self.index = index;
     }
 }
