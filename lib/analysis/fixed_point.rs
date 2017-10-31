@@ -30,39 +30,41 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
 
     let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
 
-    // Populate all initial states, and fill the queue
-    for block in function.blocks() {
-        if block.is_empty() {
-            let location = il::RefFunctionLocation::EmptyBlock(block);
+    // Find the entry block to the function.
+    let entry_index = function.control_flow_graph()
+                              .entry()
+                              .ok_or("Function's control flow graph must have entry")?;
+    let entry_block = function.control_flow_graph()
+                              .block(entry_index)
+                              .ok_or(format!("Could not find block for {}", entry_index))?;
+
+    // Add our first initial state.
+    match entry_block.instructions().first() {
+        Some(ref instruction) => {
+            let location = il::RefFunctionLocation::Instruction(entry_block, instruction);
             let location = il::RefProgramLocation::new(function, location);
-            let state = analysis.trans(location.clone(), None)?;
             queue.push_back(location.clone());
-            states.insert(location, state);
-        }
-        else {
-            for instruction in block.instructions() {
-                let location = il::RefFunctionLocation::Instruction(block, instruction);
-                let location = il::RefProgramLocation::new(function, location);
-                let state = analysis.trans(location.clone(), None)?;
-                queue.push_back(location.clone());
-                states.insert(location, state);
-            }
+        },
+        None => {
+            let location = il::RefFunctionLocation::EmptyBlock(entry_block);
+            let location = il::RefProgramLocation::new(function, location);
+            queue.push_back(location.clone());
         }
     }
-    for edge in function.edges() {
-        let location = il::RefFunctionLocation::Edge(edge);
-        let location = il::RefProgramLocation::new(function, location);
-        let state = analysis.trans(location.clone(), None)?;
-        queue.push_back(location.clone());
-        states.insert(location, state);
-    }
+
+
+    // Along the lines of reverse post-order, we use this mapping of
+    // predecessors to correctly order, and speed up, our analysis
+    let predecessors = function.control_flow_graph()
+                               .graph()
+                               .compute_predecessors()?;
 
     while !queue.is_empty() {
         let location = queue.pop_front().unwrap();
 
-        let predecessors = location.backward()?;
+        let location_predecessors = location.backward()?;
 
-        let state = predecessors.iter().fold(None, |s, p| {
+        let state = location_predecessors.iter().fold(None, |s, p| {
             match states.get(p) {
                 Some(in_state) => match s {
                     Some(s) => Some(analysis.join(s, in_state).unwrap()),
@@ -76,14 +78,69 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
 
         if let Some(in_state) = states.get(&location) {
             if state == *in_state {
+                match *location.function_location() {
+                    // If we are in a block, and traversing to an edge, and the
+                    // edge points to a predecessor, skip it.
+                    il::RefFunctionLocation::Instruction(block, _) |
+                    il::RefFunctionLocation::EmptyBlock(block) => {
+                        for successor in location.forward()? {
+                            if let il::RefFunctionLocation::Edge(ref edge) = *successor.function_location() {
+                                if    predecessors[&block.index()].contains(&edge.tail())
+                                   || queue.contains(&successor) {
+                                    continue;
+                                }
+                            }
+                            queue.push_back(successor);
+                        }
+                    },
+                    il::RefFunctionLocation::Edge(_) => {
+                        for successor in location.forward()? {
+                            if !queue.contains(&successor) {
+                                queue.push_back(successor);
+                            }
+                        }
+                    }
+                }
                 continue;
             }
         }
 
         states.insert(location.clone(), state);
 
+        let mut successors_handled = false;
+
+        match *location.function_location() {
+            il::RefFunctionLocation::Instruction(block, _) |
+            il::RefFunctionLocation::EmptyBlock(block) => {
+                for successor in location.forward()? {
+                    if let il::RefFunctionLocation::Edge(ref edge) = *successor.function_location() {
+                        if    !predecessors[&block.index()].contains(&edge.tail())
+                           || queue.contains(&successor) {
+                            continue;
+                        }
+                    }
+                    queue.push_back(successor);
+                    successors_handled = true;
+                }
+            },
+            il::RefFunctionLocation::Edge(_) => {
+                for successor in location.forward()? {
+                    if !queue.contains(&successor) {
+                        queue.push_back(successor);
+                    }
+                }
+                successors_handled = true;
+            }
+        }
+
+        if successors_handled {
+            continue;
+        }
+
         for successor in location.forward()? {
-            queue.push_back(successor);
+            if !queue.contains(&successor) {
+                queue.push_back(successor);
+            }
         }
     }
 
