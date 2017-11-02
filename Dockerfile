@@ -1,28 +1,25 @@
-FROM ubuntu:xenial
+FROM debian:stretch
 
 RUN apt-get update && \
     apt-get -y dist-upgrade && \
-    apt-get -y install wget && \
-    echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" >> /etc/apt/sources.list && \
-    echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" >> /etc/apt/sources.list && \
-    wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
+    apt-get -y install curl gnupg2 && \
+    echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-4.0 main" >> /etc/apt/sources.list && \
+    echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-4.0 main" >> /etc/apt/sources.list && \
+    curl http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
     apt-get update && \
     apt-get -y install build-essential \
-                       clang-3.9 \
+                       clang-4.0 \
                        curl \
-                       llvm-3.9-dev \
+                       llvm-4.0-dev \
                        libcapstone3 \
                        libcapstone-dev \
-                       libclang-3.9-dev \
+                       libclang-4.0-dev \
                        pkg-config && \
     apt-get clean
 
 RUN curl https://sh.rustup.rs -sSf > /tmp/install.sh && \
     chmod 755 /tmp/install.sh && \
     /tmp/install.sh -y
-
-RUN curl https://files.reversing.io/z3-xenial-x64-05.aug.2017.gz | gzip -d > /usr/local/bin/z3 && \
-    chmod 755 /usr/local/bin/z3
 
 SHELL ["/bin/bash", "-c"]
 
