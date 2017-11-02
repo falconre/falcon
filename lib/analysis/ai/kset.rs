@@ -5,7 +5,7 @@ use error::*;
 use executor::eval;
 use il;
 use memory;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use types::Endian;
 
@@ -19,7 +19,7 @@ pub type KState<'m> = domain::State<KMemory<'m>, KSet>;
 
 #[allow(dead_code)]
 pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMemory<'k>)
-    -> Result<BTreeMap<il::RefProgramLocation<'k>, KState<'k>>> {
+    -> Result<HashMap<il::RefProgramLocation<'k>, KState<'k>>> {
 
     let domain = KSetDomain { endian: endian, memory: initial_memory };
     let interpreter = interpreter::Interpreter {
@@ -31,10 +31,10 @@ pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMem
 }
 
 
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum KSet {
     Top(usize),
-    Value(BTreeSet<il::Constant>),
+    Value(HashSet<il::Constant>),
     Bottom(usize)
 }
 
@@ -51,7 +51,7 @@ impl KSet {
                     KSet::Top(bits) => KSet::Top(bits),
                     KSet::Bottom(bits) => KSet::Bottom(bits),
                     KSet::Value(ref rhs_value) => {
-                        let mut b: BTreeSet<il::Constant> = BTreeSet::new();
+                        let mut b: HashSet<il::Constant> = HashSet::new();
                         for l in lhs_value {
                             for r in rhs_value {
                                 b.insert(op(l, r)?);
@@ -79,7 +79,7 @@ impl KSet {
             KSet::Top(_) => KSet::Top(bits),
             KSet::Bottom(_) => KSet::Bottom(bits),
             KSet::Value(ref value) => {
-                let mut b: BTreeSet<il::Constant> = BTreeSet::new();
+                let mut b: HashSet<il::Constant> = HashSet::new();
                 for v in value {
                     b.insert(op(bits, v)?);
                 }
@@ -180,7 +180,7 @@ impl KSet {
     }
 
     pub fn constant(constant: il::Constant) -> KSet {
-        let mut b = BTreeSet::new();
+        let mut b = HashSet::new();
         b.insert(constant);
         KSet::Value(b)
     }

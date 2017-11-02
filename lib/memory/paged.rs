@@ -2,7 +2,7 @@ use error::*;
 use il;
 use RC;
 use types::Endian;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use memory::backing;
 use memory::MemoryPermissions;
@@ -62,13 +62,25 @@ impl<V> Page<V> where V: Value {
 }
 
 
+impl<'m, V: Value> PartialEq for Memory<'m, V> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.pages == other.pages && self.endian == other.endian {
+            true
+        }
+        else {
+            false
+        }
+    }
+}
+
+
 /// A symbolic memory model for Falcon IL expressions.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct Memory<'m, V: Value> {
     #[serde(skip)]
     backing: Option<&'m backing::Memory>,
     endian: Endian,
-    pub(crate) pages: BTreeMap<u64, RC<Page<V>>>
+    pub(crate) pages: HashMap<u64, RC<Page<V>>>
 }
 
 
@@ -77,7 +89,7 @@ impl<'m, V> Memory<'m, V> where V: Value {
         Memory {
             backing: None,
             endian: endian,
-            pages: BTreeMap::new()
+            pages: HashMap::new()
         }
     }
 
@@ -86,7 +98,7 @@ impl<'m, V> Memory<'m, V> where V: Value {
         Memory {
             backing: Some(backing),
             endian: endian,
-            pages: BTreeMap::new()
+            pages: HashMap::new()
         }
     }
 

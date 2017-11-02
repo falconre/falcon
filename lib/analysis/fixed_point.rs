@@ -1,6 +1,6 @@
 use error::*;
 use il;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 
@@ -24,11 +24,11 @@ pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + Eq + PartialEq> {
 pub fn fixed_point_forward<'f, Analysis, State> (
     analysis: Analysis,
     function: &'f il::Function
-) -> Result<BTreeMap<il::RefProgramLocation<'f>, State>>
+) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
 where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + PartialEq {
-    let mut states: BTreeMap<il::RefProgramLocation<'f>, State> = BTreeMap::new();
+    let mut states: HashMap<il::RefProgramLocation<'f>, State> = HashMap::new();
 
-    let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
+    let mut queue: HashSet<il::RefProgramLocation<'f>> = HashSet::new();
 
     // Find the entry block to the function.
     let entry_index = function.control_flow_graph()
@@ -43,12 +43,12 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
         Some(ref instruction) => {
             let location = il::RefFunctionLocation::Instruction(entry_block, instruction);
             let location = il::RefProgramLocation::new(function, location);
-            queue.push_back(location.clone());
+            queue.insert(location.clone());
         },
         None => {
             let location = il::RefFunctionLocation::EmptyBlock(entry_block);
             let location = il::RefProgramLocation::new(function, location);
-            queue.push_back(location.clone());
+            queue.insert(location.clone());
         }
     }
 
@@ -60,7 +60,8 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
                                .compute_predecessors()?;
 
     while !queue.is_empty() {
-        let location = queue.pop_front().unwrap();
+        let location = queue.iter().next().unwrap().clone();
+        queue.remove(&location);
 
         let location_predecessors = location.backward()?;
 
@@ -85,19 +86,16 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
                     il::RefFunctionLocation::EmptyBlock(block) => {
                         for successor in location.forward()? {
                             if let il::RefFunctionLocation::Edge(ref edge) = *successor.function_location() {
-                                if    predecessors[&block.index()].contains(&edge.tail())
-                                   || queue.contains(&successor) {
+                                if predecessors[&block.index()].contains(&edge.tail()) {
                                     continue;
                                 }
                             }
-                            queue.push_back(successor);
+                            queue.insert(successor);
                         }
                     },
                     il::RefFunctionLocation::Edge(_) => {
                         for successor in location.forward()? {
-                            if !queue.contains(&successor) {
-                                queue.push_back(successor);
-                            }
+                            queue.insert(successor);
                         }
                     }
                 }
@@ -114,20 +112,17 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
             il::RefFunctionLocation::EmptyBlock(block) => {
                 for successor in location.forward()? {
                     if let il::RefFunctionLocation::Edge(ref edge) = *successor.function_location() {
-                        if    !predecessors[&block.index()].contains(&edge.tail())
-                           || queue.contains(&successor) {
+                        if !predecessors[&block.index()].contains(&edge.tail()) {
                             continue;
                         }
                     }
-                    queue.push_back(successor);
+                    queue.insert(successor);
                     successors_handled = true;
                 }
             },
             il::RefFunctionLocation::Edge(_) => {
                 for successor in location.forward()? {
-                    if !queue.contains(&successor) {
-                        queue.push_back(successor);
-                    }
+                    queue.insert(successor);
                 }
                 successors_handled = true;
             }
@@ -138,9 +133,7 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
         }
 
         for successor in location.forward()? {
-            if !queue.contains(&successor) {
-                queue.push_back(successor);
-            }
+            queue.insert(successor);
         }
     }
 
