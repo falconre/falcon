@@ -9,8 +9,6 @@ extern crate core;
 extern crate error_chain;
 extern crate goblin;
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate log;
 extern crate regex;
 extern crate serde;
@@ -24,9 +22,7 @@ pub mod executor;
 pub mod graph;
 pub mod il;
 pub mod loader;
-pub mod platform;
-pub mod symbolic;
-mod tests;
+pub mod memory;
 pub mod translator;
 pub mod types;
 

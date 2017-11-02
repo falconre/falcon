@@ -1,8 +1,10 @@
-use analysis::ai::{domain, interpreter, memory};
+use analysis::ai;
+use analysis::ai::{domain, interpreter};
 use analysis::fixed_point;
 use error::*;
 use executor::eval;
 use il;
+use memory;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use types::Endian;
@@ -11,13 +13,14 @@ use types::Endian;
 const MAX_CARDINALITY: usize = 4;
 
 
-pub type KMemory = memory::Memory<KSet>;
-pub type KState = domain::State<KMemory, KSet>;
+pub type KMemory<'m> = ai::memory::Memory<'m, KSet>;
+pub type KState<'m> = domain::State<KMemory<'m>, KSet>;
 
 
 #[allow(dead_code)]
-pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMemory)
--> Result<BTreeMap<il::RefProgramLocation<'k>, KState>> {
+pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMemory<'k>)
+    -> Result<BTreeMap<il::RefProgramLocation<'k>, KState<'k>>> {
+
     let domain = KSetDomain { endian: endian, memory: initial_memory };
     let interpreter = interpreter::Interpreter {
         m: ::std::marker::PhantomData,
@@ -220,7 +223,11 @@ impl Into<domain::Expression<KSet>> for KSet {
 }
 
 
-impl memory::MemoryValue for KSet {
+impl memory::value::Value for KSet {
+    fn constant(constant: il::Constant) -> KSet {
+        KSet::constant(constant)
+    }
+
     fn bits(&self) -> usize {
         self.bits()
     }
@@ -253,7 +260,10 @@ impl memory::MemoryValue for KSet {
             other.clone().into()
         ))
     }
+}
 
+
+impl ai::memory::Value for KSet {
     fn join(&self, other: &KSet) -> Result<KSet> {
         KSet::join(self, other)
     }
@@ -279,7 +289,7 @@ impl domain::Value for KSet {
 }
 
 
-impl domain::Memory<KSet> for KMemory {
+impl<'m> domain::Memory<KSet> for KMemory<'m> {
     fn store(&mut self, index: &KSet, value: KSet) -> Result<()> {
         if let KSet::Value(ref kindex) = *index {
             for i in kindex {
@@ -302,32 +312,32 @@ impl domain::Memory<KSet> for KMemory {
         }
     }
 
-    fn new(endian: Endian) -> KMemory {
-        memory::Memory::<KSet>::new(endian)
+    fn new(endian: Endian) -> KMemory<'m> {
+        ai::memory::Memory::<KSet>::new(endian)
     }
 
-    fn join(self, other: &KMemory) -> Result<KMemory> {
-        memory::Memory::<KSet>::join(self, other)
+    fn join(self, other: &KMemory) -> Result<KMemory<'m>> {
+        ai::memory::Memory::<KSet>::join(self, other)
     }
 }
 
 
-struct KSetDomain {
+struct KSetDomain<'m> {
     endian: Endian,
-    memory: KMemory
+    memory: KMemory<'m>
 }
 
 
-impl domain::Domain<KMemory, KSet> for KSetDomain {
+impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
     fn eval(&self, expr: &domain::Expression<KSet>) -> Result<KSet> {
         KSet::eval(expr)
     } 
 
-    fn brc(&self, _: &KSet, _: &KSet, state: KState) -> Result<KState> {
+    fn brc(&self, _: &KSet, _: &KSet, state: KState<'m>) -> Result<KState<'m>> {
         Ok(state)
     }
 
-    fn raise(&self, _: &KSet, state: KState) -> Result<KState> {
+    fn raise(&self, _: &KSet, state: KState<'m>) -> Result<KState<'m>> {
         Ok(state)
     }
 
@@ -335,7 +345,7 @@ impl domain::Domain<KMemory, KSet> for KSetDomain {
         self.endian.clone()
     }
 
-    fn new_state(&self) -> KState {
+    fn new_state(&self) -> KState<'m> {
         KState {
             variables: HashMap::new(),
             memory: self.memory.clone()
@@ -359,7 +369,7 @@ impl fmt::Display for KSet {
 }
 
 
-impl Into<HashMap<il::Scalar, KSet>> for KState {
+impl<'m> Into<HashMap<il::Scalar, KSet>> for KState<'m> {
     fn into(self) -> HashMap<il::Scalar, KSet> {
         self.variables
     }

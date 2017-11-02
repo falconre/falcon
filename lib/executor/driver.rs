@@ -6,15 +6,15 @@ use RC;
 use types::Architecture;
 
 #[derive(Debug, Clone)]
-pub struct Driver {
+pub struct Driver<'d> {
     program: RC<il::Program>,
     location: il::ProgramLocation,
-    engine: Engine,
+    engine: Engine<'d>,
     architecture: Architecture,
 }
 
 
-impl Driver {
+impl<'d> Driver<'d> {
     pub fn new(
         program: RC<il::Program>,
         location: il::ProgramLocation,
@@ -30,7 +30,7 @@ impl Driver {
     }
 
 
-    pub fn step(self) -> Result<Driver> {
+    pub fn step(self) -> Result<Driver<'d>> {
         let location = self.location.apply(&self.program).unwrap();
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, instruction) => {

@@ -4,7 +4,8 @@ use error::*;
 use goblin;
 use goblin::Hint;
 use loader::*;
-use loader::memory::*;
+use memory::backing::Memory;
+use memory::MemoryPermissions;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
@@ -107,8 +108,10 @@ impl ElfLinker {
 
 
         // Update our memory map based on what's in the Elf
-        for segment in elf.memory()?.segments() {
-            self.memory.add_segment(segment.1.clone());
+        for (address, section) in elf.memory()?.sections() {
+            self.memory.set_memory(*address,
+                                   section.data().to_owned(),
+                                   section.permissions());
         }
 
         // Add this Elf to the loaded Elfs
@@ -174,7 +177,7 @@ impl ElfLinker {
                         Some(v) => v.to_owned() as u32,
                         None => bail!("Could not resolve symbol {}", sym_name)
                     };
-                    self.memory.set_u32_le(
+                    self.memory.set32(
                         reloc.r_offset as u64 + elf.base_address(),
                         value
                     )?;
@@ -200,7 +203,7 @@ impl ElfLinker {
                             continue
                         }
                     };
-                    self.memory.set_u32_le(
+                    self.memory.set32(
                         reloc.r_offset as u64 + elf.base_address(),
                         value
                     )?;
@@ -212,20 +215,20 @@ impl ElfLinker {
                         Some(v) => v.to_owned() as u32,
                         None => bail!("Could not resolve symbol {}", sym_name)
                     };
-                    self.memory.set_u32_le(
+                    self.memory.set32(
                         reloc.r_offset as u64 + elf.base_address(),
                         value
                     )?;
                 },
                 goblin::elf::reloc::R_386_RELATIVE => {
-                    let value = self.memory.get_u32_le(reloc.r_offset as u64 + elf.base_address());
+                    let value = self.memory.get32(reloc.r_offset as u64 + elf.base_address());
                     let value = match value {
                         Some(value) => elf.base_address() as u32 + value,
                         None => bail!("Invalid address for R_386_RELATIVE {:?}:{:x}",
                                       self.filename,
                                       reloc.r_offset)
                     };
-                    self.memory.set_u32_le(reloc.r_offset as u64 + elf.base_address(), value)?;
+                    self.memory.set32(reloc.r_offset as u64 + elf.base_address(), value)?;
                 },
                 goblin::elf::reloc::R_386_GOTPC => {
                     bail!("R_386_GOT_PC");
@@ -253,7 +256,7 @@ impl ElfLinker {
 
 
 impl Loader for ElfLinker {
-    fn memory(&self) -> Result<memory::Memory> {
+    fn memory(&self) -> Result<Memory> {
         Ok(self.memory.clone())
     }
 
@@ -482,14 +485,10 @@ impl Loader for Elf {
                 if ph.p_flags & goblin::elf::program_header::PF_X != 0 {
                     permissions |= MemoryPermissions::EXECUTE;
                 }
-                
-                let segment = MemorySegment::new(
-                    ph.p_vaddr + self.base_address,
-                    bytes,
-                    permissions
-                );
 
-                memory.add_segment(segment);
+                memory.set_memory(ph.p_vaddr + self.base_address,
+                                  bytes,
+                                  permissions);
             }
         }
 

@@ -2,6 +2,7 @@
 
 use error::*;
 use il::*;
+use memory::MemoryPermissions;
 use std::collections::{BTreeMap, VecDeque};
 use types::Endian;
 
@@ -16,11 +17,19 @@ const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
 ///
 /// Anything that implements this trait can be used as a memory backing for lifting.
 pub trait TranslationMemory {
+    fn permissions(&self, address:u64) -> Option<MemoryPermissions>;
+
     fn get_u8(&self, address: u64) -> Option<u8>;
 
     fn get_bytes(&self, address: u64, length: usize) -> Vec<u8> {
         let mut bytes = Vec::new();
         for i in 0..length {
+            match self.permissions(address) {
+                Some(permissions) => if !permissions.contains(MemoryPermissions::EXECUTE) {
+                    break;
+                },
+                None => break
+            }
             match self.get_u8(address + i as u64) {
                 Some(u) => bytes.push(u),
                 None => break

@@ -11,14 +11,14 @@ pub enum SuccessorType {
 
 
 #[derive(Clone)]
-pub struct Successor {
-    engine: Engine,
+pub struct Successor<'s> {
+    engine: Engine<'s>,
     type_: SuccessorType
 }
 
 
-impl Successor {
-    pub(crate) fn new(engine: Engine, type_: SuccessorType) -> Successor {
+impl<'s> Successor<'s> {
+    pub(crate) fn new(engine: Engine<'s>, type_: SuccessorType) -> Successor<'s> {
         Successor {
             engine: engine,
             type_: type_
@@ -37,8 +37,8 @@ impl Successor {
 }
 
 
-impl Into<Engine> for Successor {
-    fn into(self) -> Engine {
+impl<'e> Into<Engine<'e>> for Successor<'e> {
+    fn into(self) -> Engine<'e> {
         self.engine
     }
 }

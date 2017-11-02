@@ -8,7 +8,6 @@ pub mod solver;
 pub mod successor;
 pub mod util;
 
-pub use self::util::*;
 pub use self::memory::*;
 pub use self::solver::*;
 pub use self::driver::*;

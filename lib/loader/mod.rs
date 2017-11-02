@@ -1,11 +1,11 @@
 //! Loading executable binaries into Falcon
 
 pub mod elf;
-pub mod json;
-pub mod memory;
+
 
 use error::*;
 use il;
+use memory;
 use std::fmt;
 use translator::TranslationMemory;
 use types::Architecture;
@@ -55,7 +55,7 @@ impl fmt::Display for FunctionEntry {
 /// Generic trait for all loaders
 pub trait Loader: Clone {
     /// Get a model of the memory contained in the binary
-    fn memory(&self) -> Result<memory::Memory>;
+    fn memory(&self) -> Result<memory::backing::Memory>;
 
     /// Get addresses for known function entries
     fn function_entries(&self) -> Result<Vec<FunctionEntry>>;

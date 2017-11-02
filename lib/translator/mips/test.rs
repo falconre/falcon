@@ -1,15 +1,29 @@
 use executor::*;
+use memory;
 use il::*;
 use RC;
 use translator::mips::*;
-use types::{Architecture, Endian};
+use types::Architecture;
 
 
-fn init_driver_block(
+#[macro_use]
+macro_rules! backing {
+    ($e: expr) => {
+        {
+            let v: Vec<u8> = $e.to_vec();
+            let mut b = memory::backing::Memory::new(Endian::Big);
+            b.set_memory(0, v, memory::MemoryPermissions::EXECUTE);
+            b
+        }
+    }
+}
+
+
+fn init_driver_block<'d>(
     instruction_bytes: &[u8],
-    scalars: Vec<(&str, Expression)>,
-    memory: memory::Memory
-) -> driver::Driver {
+    scalars: Vec<(&str, Constant)>,
+    memory: Memory<'d>
+) -> driver::Driver<'d> {
     let mut bytes = vec![0x00, 0x00, 0x00, 0x00];
     bytes.append(&mut instruction_bytes.to_vec());
     bytes.append(&mut vec![0x00, 0x00, 0x00, 0x00]);
@@ -32,15 +46,12 @@ fn init_driver_block(
 }
 
 
-fn init_driver_function(
-    instruction_bytes: &[u8],
-    scalars: Vec<(&str, Expression)>,
-    mut memory: memory::Memory
-) -> driver::Driver {
-    for i in 0..instruction_bytes.len() {
-        memory.store(i as u64, expr_const(instruction_bytes[i] as u64, 8))
-              .unwrap();
-    }
+fn init_driver_function<'d>(
+    backing: &'d memory::backing::Memory,
+    scalars: Vec<(&str, Constant)>
+) -> driver::Driver<'d> {
+
+    let memory = Memory::new_with_backing(Endian::Big, backing);
 
     let function = Mips::new().translate_function(&memory, 0).unwrap();
     let mut program = Program::new();
@@ -60,8 +71,8 @@ fn init_driver_function(
 
 fn get_scalar(
     instruction_bytes: &[u8],
-    scalars: Vec<(&str, Expression)>,
-    memory: memory::Memory,
+    scalars: Vec<(&str, Constant)>,
+    memory: Memory,
     result_scalar: &str
 ) -> Constant {
 
@@ -82,16 +93,14 @@ fn get_scalar(
         }
     }
 
-    return driver.engine()
-                 .symbolize_and_eval(driver.engine().get_scalar(result_scalar).unwrap())
-                 .unwrap();
+    driver.engine().get_scalar(result_scalar).unwrap().clone()
 }
 
 
 fn get_raise(
     instruction_bytes: &[u8],
-    scalars: Vec<(&str, Expression)>,
-    memory: memory::Memory
+    scalars: Vec<(&str, Constant)>,
+    memory: Memory
 ) -> Option<Expression> {
 
     let mut driver = init_driver_block(instruction_bytes, scalars, memory);
@@ -145,9 +154,9 @@ fn add() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(1, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(1, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 2);
@@ -155,9 +164,9 @@ fn add() {
 
     let result = get_raise(
         instruction_bytes,
-        vec![("$a1", expr_const(0x7fffffff, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big)
+        vec![("$a1", const_(0x7fffffff, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big)
     ).unwrap();
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
@@ -169,9 +178,9 @@ fn add() {
 
     let result = get_raise(
         instruction_bytes,
-        vec![("$a1", expr_const(0xffffffff, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big)
+        vec![("$a1", const_(0xffffffff, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big)
     ).unwrap();
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
@@ -190,8 +199,8 @@ fn addi() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1235);
@@ -199,8 +208,8 @@ fn addi() {
 
     let result = get_raise(
         instruction_bytes,
-        vec![("$a1", expr_const(0x7fffffff, 32))],
-        memory::Memory::new(Endian::Big)
+        vec![("$a1", const_(0x7fffffff, 32))],
+        Memory::new(Endian::Big)
     ).unwrap();
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
@@ -219,16 +228,16 @@ fn addiu() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1235);
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0x7fffffff, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x7fffffff, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x80001233);
@@ -243,9 +252,9 @@ fn addu() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(1, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(1, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 2);
@@ -253,9 +262,9 @@ fn addu() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0x7fffffff, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x7fffffff, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x80000000);
@@ -263,9 +272,9 @@ fn addu() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0xffffffff, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xffffffff, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -280,9 +289,9 @@ fn and() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0x8000ffff, 32)),
-             ("$a2", expr_const(0x1234, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x8000ffff, 32)),
+             ("$a2", const_(0x1234, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1234);
@@ -297,8 +306,8 @@ fn andi() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0x8000ffff, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x8000ffff, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1234);
@@ -318,7 +327,7 @@ fn b() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x10, 0x00, 0x00, 0x03,
         0x34, 0x84, 0x00, 0x00,
         0x34, 0x84, 0x00, 0x01,
@@ -326,20 +335,16 @@ fn b() {
         0x34, 0x84, 0x00, 0x02,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x2
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x2);
 }
 
 
@@ -356,7 +361,7 @@ fn bal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x11, 0x00, 0x03,
         0x20, 0x84, 0x12, 0x34,
@@ -364,25 +369,17 @@ fn bal() {
         0x00, 0x00, 0x00, 0x00,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x1234
-    );
-
-    assert_eq!(
-        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
-        0xc
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1234);
+    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
@@ -398,7 +395,7 @@ fn beq() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x24, 0x04, 0x00, 0x10,
         0x24, 0x05, 0x00, 0x10,
         0x10, 0x85, 0x00, 0x02,
@@ -406,20 +403,16 @@ fn beq() {
         0x20, 0x84, 0x12, 0x34,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x10
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x10);
 
     /*
     addiu $a0, $zero, 0x10
@@ -430,7 +423,7 @@ fn beq() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x24, 0x04, 0x00, 0x10,
         0x24, 0x05, 0x00, 0x20,
         0x10, 0x85, 0x00, 0x02,
@@ -438,20 +431,16 @@ fn beq() {
         0x20, 0x84, 0x12, 0x34,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x1244
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1244);
 }
 
 
@@ -465,27 +454,23 @@ fn beqz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x24, 0x05, 0x00, 0x10,
         0x10, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x20, 0x84, 0x12, 0x34,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x0);
 
     /*
     addiu $a1, $zero, 0x10
@@ -495,27 +480,23 @@ fn beqz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x24, 0x05, 0x00, 0x10,
         0x10, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x20, 0x84, 0x12, 0x34,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x1235
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1235);
 }
 
 
@@ -530,27 +511,23 @@ fn bgez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x81, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x20, 0x84, 0x12, 0x34,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -560,27 +537,23 @@ fn bgez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x81, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x20, 0x84, 0x12, 0x34,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0x1, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0x1, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -590,27 +563,23 @@ fn bgez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x81, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x20, 0x84, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xfffffffe, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xfffffffe, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0xffffffff
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0xffffffff);
 }
 
 
@@ -624,32 +593,24 @@ fn bgezal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x91, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
-
-    assert_eq!(
-        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
-        0xc
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
 
     /*
     ori $a0, 0x0000
@@ -659,32 +620,24 @@ fn bgezal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x91, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
-
-    assert_eq!(
-        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
-        0xc
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
 
     /*
     ori $a0, 0x0000
@@ -694,27 +647,23 @@ fn bgezal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x91, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 }
 
 
@@ -728,27 +677,23 @@ fn bgtz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x1c, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -758,27 +703,23 @@ fn bgtz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x1c, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -788,27 +729,23 @@ fn bgtz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x1c, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 }
 
 
@@ -822,27 +759,23 @@ fn blez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x18, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -852,27 +785,23 @@ fn blez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x18, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -882,27 +811,23 @@ fn blez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x18, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
 }
 
 
@@ -916,27 +841,23 @@ fn bltz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -946,27 +867,23 @@ fn bltz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -976,27 +893,23 @@ fn bltz() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
 }
 
 
@@ -1010,27 +923,23 @@ fn bltzal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x90, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1040,27 +949,23 @@ fn bltzal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x90, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1070,32 +975,24 @@ fn bltzal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x04, 0x90, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xffffffff, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
-
-    assert_eq!(
-        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
-        0xc
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
@@ -1109,27 +1006,23 @@ fn bne() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x14, 0x85, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1139,27 +1032,23 @@ fn bne() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x14, 0x85, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -1169,27 +1058,23 @@ fn bne() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x14, 0x85, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(1, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 }
 
 
@@ -1203,27 +1088,23 @@ fn bnez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x14, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1233,27 +1114,23 @@ fn bnez() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x14, 0x80, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00,
         0x24, 0x05, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(1, 32)), ("$a1", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a1").unwrap()).unwrap().value(),
-        0x0
-    );
+    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
 }
 
 
@@ -1261,9 +1138,9 @@ fn bnez() {
 fn break_ () {
     let result = get_raise(
         &[0x00, 0x00, 0x00, 0x0d],
-        vec![("$a1", expr_const(0x7fffffff, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big)
+        vec![("$a1", const_(0x7fffffff, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big)
     ).unwrap();
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "break");
@@ -1281,9 +1158,9 @@ fn clo () {
     */
     let result = get_scalar(
         &[0x70, 0xa4, 0x20, 0x21],
-        vec![("$a0", expr_const(1, 32)),
-             ("$a1", expr_const(0xff000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(1, 32)),
+             ("$a1", const_(0xff000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 8);
@@ -1297,9 +1174,9 @@ fn clz () {
     */
     let result = get_scalar(
         &[0x70, 0xa4, 0x20, 0x20],
-        vec![("$a0", expr_const(1, 32)),
-             ("$a1", expr_const(0x08000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(1, 32)),
+             ("$a1", const_(0x08000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 4);
@@ -1313,9 +1190,9 @@ fn div () {
     */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1a],
-        vec![("$a0", expr_const(19, 32)),
-             ("$a1", expr_const(4, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(19, 32)),
+             ("$a1", const_(4, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 4);
@@ -1325,9 +1202,9 @@ fn div () {
     */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1a],
-        vec![("$a0", expr_const(19, 32)),
-             ("$a1", expr_const(4, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(19, 32)),
+             ("$a1", const_(4, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 3);
@@ -1337,9 +1214,9 @@ fn div () {
     */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1a],
-        vec![("$a0", expr_const(0xffffffec, 32)),
-             ("$a1", expr_const(4, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xffffffec, 32)),
+             ("$a1", const_(4, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 0xfffffffb);
@@ -1353,9 +1230,9 @@ fn divu () {
     */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1b],
-        vec![("$a0", expr_const(19, 32)),
-             ("$a1", expr_const(4, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(19, 32)),
+             ("$a1", const_(4, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 4);
@@ -1365,9 +1242,9 @@ fn divu () {
     */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1b],
-        vec![("$a0", expr_const(19, 32)),
-             ("$a1", expr_const(4, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(19, 32)),
+             ("$a1", const_(4, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 3);
@@ -1377,9 +1254,9 @@ fn divu () {
     */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1b],
-        vec![("$a0", expr_const(0xffffffec, 32)),
-             ("$a1", expr_const(4, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xffffffec, 32)),
+             ("$a1", const_(4, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 0x3ffffffb);
@@ -1396,27 +1273,23 @@ fn j() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x08, 0x00, 0x00, 0x04,
         0x24, 0x04, 0x00, 0x01,
         0x24, 0x04, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x1
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1);
 }
 
 
@@ -1430,27 +1303,23 @@ fn jr() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x00, 0x80, 0x00, 0x08,
         0x24, 0x84, 0x00, 0x01,
         0x24, 0x04, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xf, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xf, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x10
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x10);
 }
 
 
@@ -1464,32 +1333,24 @@ fn jal() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x0c, 0x00, 0x00, 0x04,
         0x24, 0x84, 0x00, 0x01,
         0x24, 0x04, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x1
-    );
-
-    assert_eq!(
-        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
-        0xc
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1);
+    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
@@ -1503,43 +1364,35 @@ fn jalr() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0x00, 0x80, 0xf8, 0x09,
         0x24, 0x84, 0x00, 0x01,
         0x24, 0x04, 0x00, 0x01,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xf, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xf, 32))]
     );
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(
-        eval(driver.engine().get_scalar("$a0").unwrap()).unwrap().value(),
-        0x10
-    );
-
-    assert_eq!(
-        eval(driver.engine().get_scalar("$ra").unwrap()).unwrap().value(),
-        0xc
-    );
+    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x10);
+    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
 #[test]
 fn lb() {
-    let mut memory = memory::Memory::new(Endian::Big);
-    memory.store(0xdeadbeef, expr_const(0xdeadbeef, 32)).unwrap();
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbeef, const_(0xdeadbeef, 32)).unwrap();
 
     let result = get_scalar(
         &[0x80, 0xa4, 0x00, 0xef],
-        vec![("$a1", expr_const(0xdeadbe00, 32))],
+        vec![("$a1", const_(0xdeadbe00, 32))],
         memory,
         "$a0"
     );
@@ -1549,12 +1402,12 @@ fn lb() {
 
 #[test]
 fn lbu() {
-    let mut memory = memory::Memory::new(Endian::Big);
-    memory.store(0xdeadbeef, expr_const(0xdeadbeef, 32)).unwrap();
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbeef, const_(0xdeadbeef, 32)).unwrap();
 
     let result = get_scalar(
         &[0x90, 0xa4, 0x00, 0xf0],
-        vec![("$a1", expr_const(0xdeadbe00, 32))],
+        vec![("$a1", const_(0xdeadbe00, 32))],
         memory,
         "$a0"
     );
@@ -1564,12 +1417,12 @@ fn lbu() {
 
 #[test]
 fn lh() {
-    let mut memory = memory::Memory::new(Endian::Big);
-    memory.store(0xdeadbeef, expr_const(0xdeadbeef, 32)).unwrap();
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbeef, const_(0xdeadbeef, 32)).unwrap();
 
     let result = get_scalar(
         &[0x84, 0xa4, 0x00, 0xef],
-        vec![("$a1", expr_const(0xdeadbe00, 32))],
+        vec![("$a1", const_(0xdeadbe00, 32))],
         memory,
         "$a0"
     );
@@ -1579,12 +1432,12 @@ fn lh() {
 
 #[test]
 fn lhu() {
-    let mut memory = memory::Memory::new(Endian::Big);
-    memory.store(0xdeadbeef, expr_const(0xdeadbeef, 32)).unwrap();
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbeef, const_(0xdeadbeef, 32)).unwrap();
 
     let result = get_scalar(
         &[0x94, 0xa4, 0x00, 0xef],
-        vec![("$a1", expr_const(0xdeadbe00, 32))],
+        vec![("$a1", const_(0xdeadbe00, 32))],
         memory,
         "$a0"
     );
@@ -1597,7 +1450,7 @@ fn lui() {
     let result = get_scalar(
         &[0x3c, 0x04, 0x12, 0x34],
         vec![],
-        memory::Memory::new(Endian::Big),
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x12340000);
@@ -1606,12 +1459,12 @@ fn lui() {
 
 #[test]
 fn lw() {
-    let mut memory = memory::Memory::new(Endian::Big);
-    memory.store(0xdeadbeef, expr_const(0xdeadbeef, 32)).unwrap();
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbeef, const_(0xdeadbeef, 32)).unwrap();
 
     let result = get_scalar(
         &[0x8c, 0xa4, 0x00, 0xef],
-        vec![("$a1", expr_const(0xdeadbe00, 32))],
+        vec![("$a1", const_(0xdeadbe00, 32))],
         memory,
         "$a0"
     );
@@ -1623,55 +1476,55 @@ fn lw() {
 fn madd() {
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 51);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 2);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
-        vec![("$a0", expr_const(0x10000000, 32)),
-             ("$a1", expr_const(32, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0x10000000, 32)),
+             ("$a1", const_(32, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 4);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 0xffffffd8);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0xffffffff);
@@ -1682,55 +1535,55 @@ fn madd() {
 fn maddu() {
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 51);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 2);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
-        vec![("$a0", expr_const(0x10000000, 32)),
-             ("$a1", expr_const(32, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0x10000000, 32)),
+             ("$a1", const_(32, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 4);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(4, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(4, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 0xfffffff0);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(4, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(4, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 3);
@@ -1741,8 +1594,8 @@ fn maddu() {
 fn mfhi() {
     let result = get_scalar(
         &[0x00, 0x00, 0x20, 0x10],
-        vec![("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 2);
@@ -1753,8 +1606,8 @@ fn mfhi() {
 fn mflo() {
     let result = get_scalar(
         &[0x00, 0x00, 0x20, 0x12],
-        vec![("$lo", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$lo", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 2);
@@ -1765,8 +1618,8 @@ fn mflo() {
 fn move_() {
     let result = get_scalar(
         &[0x00, 0xa0, 0x20, 0x25],
-        vec![("$a1", expr_const(1234, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(1234, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1234);
@@ -1775,7 +1628,7 @@ fn move_() {
     let result = get_scalar(
         &[0x00, 0x00, 0x20, 0x25],
         vec![],
-        memory::Memory::new(Endian::Big),
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -1786,10 +1639,10 @@ fn move_() {
 fn movn() {
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x0b],
-        vec![("$a0", expr_const(1, 32)),
-             ("$a1", expr_const(2, 32)),
-             ("$a2", expr_const(3, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(1, 32)),
+             ("$a1", const_(2, 32)),
+             ("$a2", const_(3, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 2);
@@ -1797,10 +1650,10 @@ fn movn() {
 
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x0b],
-        vec![("$a0", expr_const(1, 32)),
-             ("$a1", expr_const(2, 32)),
-             ("$a2", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(1, 32)),
+             ("$a1", const_(2, 32)),
+             ("$a2", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
@@ -1811,10 +1664,10 @@ fn movn() {
 fn movz() {
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x0a],
-        vec![("$a0", expr_const(1, 32)),
-             ("$a1", expr_const(2, 32)),
-             ("$a2", expr_const(3, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(1, 32)),
+             ("$a1", const_(2, 32)),
+             ("$a2", const_(3, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
@@ -1822,10 +1675,10 @@ fn movz() {
 
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x0a],
-        vec![("$a0", expr_const(1, 32)),
-             ("$a1", expr_const(2, 32)),
-             ("$a2", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(1, 32)),
+             ("$a1", const_(2, 32)),
+             ("$a2", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 2);
@@ -1836,55 +1689,55 @@ fn movz() {
 fn msub() {
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 49);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0xfffffffe);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
-        vec![("$a0", expr_const(0x10000001, 32)),
-             ("$a1", expr_const(32, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0x10000001, 32)),
+             ("$a1", const_(32, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 0xffffffd8);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0xffffffff);
@@ -1895,55 +1748,55 @@ fn msub() {
 fn msubu() {
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 49);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
-        vec![("$a0", expr_const(5, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(5, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0xfffffffe);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
-        vec![("$a0", expr_const(0x10000001, 32)),
-             ("$a1", expr_const(32, 32)),
-             ("$lo", expr_const(1, 32)),
-             ("$hi", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0x10000001, 32)),
+             ("$a1", const_(32, 32)),
+             ("$lo", const_(1, 32)),
+             ("$hi", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 0xffffffd8);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
-        vec![("$a0", expr_const(0xfffffffc, 32)),
-             ("$a1", expr_const(10, 32)),
-             ("$lo", expr_const(0, 32)),
-             ("$hi", expr_const(0, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xfffffffc, 32)),
+             ("$a1", const_(10, 32)),
+             ("$lo", const_(0, 32)),
+             ("$hi", const_(0, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0x9);
@@ -1954,8 +1807,8 @@ fn msubu() {
 fn mthi() {
     let result = get_scalar(
         &[0x00, 0x80, 0x00, 0x11],
-        vec![("$a0", expr_const(0xdeadbeef, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xdeadbeef, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0xdeadbeef);
@@ -1966,8 +1819,8 @@ fn mthi() {
 fn mtlo() {
     let result = get_scalar(
         &[0x00, 0x80, 0x00, 0x13],
-        vec![("$a0", expr_const(0xdeadbeef, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xdeadbeef, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 0xdeadbeef);
@@ -1979,10 +1832,10 @@ fn mul() {
     /* mul $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x70, 0xa6, 0x20, 0x02],
-        vec![("$a0", expr_const(0, 32)),
-             ("$a1", expr_const(7, 32)),
-             ("$a2", expr_const(11, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0, 32)),
+             ("$a1", const_(7, 32)),
+             ("$a2", const_(11, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 77);
@@ -1994,9 +1847,9 @@ fn mult() {
     /* mult $a0, $a1 */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x18],
-        vec![("$a0", expr_const(11, 32)),
-             ("$a1", expr_const(7, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(11, 32)),
+             ("$a1", const_(7, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 77);
@@ -2004,9 +1857,9 @@ fn mult() {
     /* mult $a0, $a1 */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x18],
-        vec![("$a0", expr_const(0xffffffff, 32)),
-             ("$a1", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xffffffff, 32)),
+             ("$a1", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 0xffffffff);
@@ -2018,9 +1871,9 @@ fn multu() {
     /* multu $a0, $a1 */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x19],
-        vec![("$a0", expr_const(11, 32)),
-             ("$a1", expr_const(7, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(11, 32)),
+             ("$a1", const_(7, 32))],
+        Memory::new(Endian::Big),
         "$lo"
     );
     assert_eq!(result.value(), 77);
@@ -2028,9 +1881,9 @@ fn multu() {
     /* mult $a0, $a1 */
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x19],
-        vec![("$a0", expr_const(0xffffffff, 32)),
-             ("$a1", expr_const(2, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a0", const_(0xffffffff, 32)),
+             ("$a1", const_(2, 32))],
+        Memory::new(Endian::Big),
         "$hi"
     );
     assert_eq!(result.value(), 1);
@@ -2042,8 +1895,8 @@ fn negu() {
     /* negu $a0, $a1 */
     let result = get_scalar(
         &[0x00, 0x05, 0x20, 0x23],
-        vec![("$a1", expr_const(0xff00ff00, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xff00ff00, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0xff0100);
@@ -2064,9 +1917,9 @@ fn nor() {
     /* nor $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x27],
-        vec![("$a1", expr_const(0x0000ff00, 32)),
-             ("$a2", expr_const(0xff000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x0000ff00, 32)),
+             ("$a2", const_(0xff000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x00ff00ff);
@@ -2078,9 +1931,9 @@ fn or() {
     /* or $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x25],
-        vec![("$a1", expr_const(0x0000ff00, 32)),
-             ("$a2", expr_const(0xff000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x0000ff00, 32)),
+             ("$a2", const_(0xff000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0xff00ff00);
@@ -2092,8 +1945,8 @@ fn ori() {
     /* ori $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x34, 0xa4, 0x12, 0x34],
-        vec![("$a1", expr_const(0x00ff0000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x00ff0000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x00ff1234);
@@ -2107,24 +1960,22 @@ fn sb() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0xa0, 0xa4, 0x00, 0xef,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0x41, 32)),
-             ("$a1", expr_const(0xdeadbe00, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0x41, 32)),
+             ("$a1", const_(0xdeadbe00, 32))]
     );
 
     let driver = step_to(driver, 0x4);
 
-    fn memval(memory: &memory::Memory, address: u64) -> u8 {
-        let expr = memory.load(address, 8).unwrap().unwrap();
-        eval(&expr).unwrap().value() as u8
+    fn memval(memory: &Memory, address: u64) -> u16 {
+        memory.load(address, 8).unwrap().unwrap().value() as u16
     }
 
     assert_eq!(memval(driver.engine().memory(), 0xdeadbeef), 0x41);
@@ -2138,24 +1989,22 @@ fn sh() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0xa4, 0xa4, 0x00, 0xef,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xbeef, 32)),
-             ("$a1", expr_const(0xdeadbe00, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xbeef, 32)),
+             ("$a1", const_(0xdeadbe00, 32))]
     );
 
     let driver = step_to(driver, 0x4);
 
-    fn memval(memory: &memory::Memory, address: u64) -> u16 {
-        let expr = memory.load(address, 16).unwrap().unwrap();
-        eval(&expr).unwrap().value() as u16
+    fn memval(memory: &Memory, address: u64) -> u16 {
+        memory.load(address, 16).unwrap().unwrap().value() as u16
     }
 
     assert_eq!(memval(driver.engine().memory(), 0xdeadbeef), 0xbeef);
@@ -2167,8 +2016,8 @@ fn sll() {
     /* sllv $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x00, 0x05, 0x24, 0x00],
-        vec![("$a1", expr_const(0x1234, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1234, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x12340000);
@@ -2180,9 +2029,9 @@ fn sllv() {
     /* sllv $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x00, 0xc5, 0x20, 0x04],
-        vec![("$a1", expr_const(0x1234, 32)),
-             ("$a2", expr_const(16, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1234, 32)),
+             ("$a2", const_(16, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x12340000);
@@ -2194,9 +2043,9 @@ fn slt() {
     /* slt $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2a],
-        vec![("$a1", expr_const(0x1000, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1000, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2204,9 +2053,9 @@ fn slt() {
     /* slt $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2a],
-        vec![("$a1", expr_const(0xfff, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xfff, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
@@ -2214,9 +2063,9 @@ fn slt() {
     /* slt $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2a],
-        vec![("$a1", expr_const(0x1001, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1001, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2224,9 +2073,9 @@ fn slt() {
     /* slt $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2a],
-        vec![("$a1", expr_const(0x80000000, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
@@ -2238,32 +2087,32 @@ fn slti() {
     /* slti $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x28, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
     /* slti $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x28, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0xfff, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xfff, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
     /* slti $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x28, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0x1001, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1001, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
     /* slti $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x28, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0x80000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
@@ -2275,32 +2124,32 @@ fn sltiu() {
     /* sltiu $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x2c, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
     /* sltiu $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x2c, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0xfff, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xfff, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
     /* sltiu $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x2c, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0x1001, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1001, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
     /* sltiu $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x2c, 0xa4, 0x10, 0x00],
-        vec![("$a1", expr_const(0x80000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2312,9 +2161,9 @@ fn sltu() {
     /* sltu $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2b],
-        vec![("$a1", expr_const(0x1000, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1000, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2322,9 +2171,9 @@ fn sltu() {
     /* sltu $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2b],
-        vec![("$a1", expr_const(0xfff, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xfff, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 1);
@@ -2332,9 +2181,9 @@ fn sltu() {
     /* sltu $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2b],
-        vec![("$a1", expr_const(0x1001, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x1001, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2342,9 +2191,9 @@ fn sltu() {
     /* sltu $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xa6, 0x20, 0x2b],
-        vec![("$a1", expr_const(0x80000000, 32)),
-             ("$a2", expr_const(0x1000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32)),
+             ("$a2", const_(0x1000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2356,8 +2205,8 @@ fn sra() {
     /* sra $a0, $a1, 0x10 */
     let result = get_scalar(
         &[0x00, 0x05, 0x24, 0x03],
-        vec![("$a1", expr_const(0x12340000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x12340000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1234);
@@ -2365,8 +2214,8 @@ fn sra() {
     /* sra $a0, $a1, 0x10 */
     let result = get_scalar(
         &[0x00, 0x05, 0x24, 0x03],
-        vec![("$a1", expr_const(0x80000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0xffff8000);
@@ -2378,9 +2227,9 @@ fn srav() {
     /* srav $a0, $a1, 0x10 */
     let result = get_scalar(
         &[0x00, 0xc5, 0x20, 0x07],
-        vec![("$a1", expr_const(0x12340000, 32)),
-             ("$a2", expr_const(0x10, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x12340000, 32)),
+             ("$a2", const_(0x10, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1234);
@@ -2388,9 +2237,9 @@ fn srav() {
     /* srav $a0, $a1, 0x10 */
     let result = get_scalar(
         &[0x00, 0xc5, 0x20, 0x07],
-        vec![("$a1", expr_const(0x80000000, 32)),
-             ("$a2", expr_const(0x10, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32)),
+             ("$a2", const_(0x10, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0xffff8000);
@@ -2402,8 +2251,8 @@ fn srl() {
     /* srl $a0, $a1, 0x10 */
     let result = get_scalar(
         &[0x00, 0x05, 0x24, 0x02],
-        vec![("$a1", expr_const(0x12340000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x12340000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1234);
@@ -2411,8 +2260,8 @@ fn srl() {
     /* srl $a0, $a1, 0x10 */
     let result = get_scalar(
         &[0x00, 0x05, 0x24, 0x02],
-        vec![("$a1", expr_const(0x80000000, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x00008000);
@@ -2424,9 +2273,9 @@ fn srlv() {
     /* srlv $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xc5, 0x20, 0x06],
-        vec![("$a1", expr_const(0x12340000, 32)),
-             ("$a2", expr_const(0x10, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x12340000, 32)),
+             ("$a2", const_(0x10, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x1234);
@@ -2434,9 +2283,9 @@ fn srlv() {
     /* srlv $a0, $a1, $a2 */
     let result = get_scalar(
         &[0x00, 0xc5, 0x20, 0x06],
-        vec![("$a1", expr_const(0x80000000, 32)),
-             ("$a2", expr_const(0x10, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32)),
+             ("$a2", const_(0x10, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x00008000);
@@ -2451,9 +2300,9 @@ fn sub() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(1, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(1, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2461,9 +2310,9 @@ fn sub() {
 
     let result = get_raise(
         instruction_bytes,
-        vec![("$a1", expr_const(0, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big)
+        vec![("$a1", const_(0, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big)
     ).unwrap();
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
@@ -2475,9 +2324,9 @@ fn sub() {
 
     let result = get_raise(
         instruction_bytes,
-        vec![("$a1", expr_const(0x80000000, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big)
+        vec![("$a1", const_(0x80000000, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big)
     ).unwrap();
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
@@ -2496,9 +2345,9 @@ fn subu() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(1, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(1, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0);
@@ -2506,9 +2355,9 @@ fn subu() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0xffffffff);
@@ -2516,9 +2365,9 @@ fn subu() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0x80000000, 32)),
-             ("$a2", expr_const(1, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0x80000000, 32)),
+             ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0x7fffffff);
@@ -2533,25 +2382,23 @@ fn sw() {
     jr $ra
     nop
     */
-    let instruction_bytes = &[
+    let instruction_bytes = backing!([
         0x34, 0x84, 0x00, 0x00,
         0xac, 0xa4, 0x00, 0xe0,
         0x03, 0xe0, 0x00, 0x08,
         0x00, 0x00, 0x00, 0x00
-    ];
+    ]);
 
     let driver = init_driver_function(
-        instruction_bytes,
-        vec![("$a0", expr_const(0xdeadbeef, 32)),
-             ("$a1", expr_const(0xdeadbe00, 32))],
-        memory::Memory::new(Endian::Big)
+        &instruction_bytes,
+        vec![("$a0", const_(0xdeadbeef, 32)),
+             ("$a1", const_(0xdeadbe00, 32))]
     );
 
     let driver = step_to(driver, 0x8);
 
-    fn memval(memory: &memory::Memory, address: u64) -> u32 {
-        let expr = memory.load(address, 32).unwrap().unwrap();
-        eval(&expr).unwrap().value() as u32
+    fn memval(memory: &Memory, address: u64) -> u32 {
+        memory.load(address, 32).unwrap().unwrap().value() as u32
     }
 
     assert_eq!(memval(driver.engine().memory(), 0xdeadbee0), 0xdeadbeef);
@@ -2563,7 +2410,7 @@ fn syscall () {
     let result = get_raise(
         &[0x00, 0x00, 0x00, 0x0c],
         vec![],
-        memory::Memory::new(Endian::Big)
+        Memory::new(Endian::Big)
     ).unwrap();
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "syscall");
@@ -2582,9 +2429,9 @@ fn xor() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0xff00ff00, 32)),
-             ("$a2", expr_const(0x0f0f0f0f, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xff00ff00, 32)),
+             ("$a2", const_(0x0f0f0f0f, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0xf00ff00f);
@@ -2599,9 +2446,9 @@ fn xori() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("$a1", expr_const(0xff00ff00, 32)),
-             ("$a2", expr_const(0x00000f0f, 32))],
-        memory::Memory::new(Endian::Big),
+        vec![("$a1", const_(0xff00ff00, 32)),
+             ("$a2", const_(0x00000f0f, 32))],
+        Memory::new(Endian::Big),
         "$a0"
     );
     assert_eq!(result.value(), 0xff00f00f);
