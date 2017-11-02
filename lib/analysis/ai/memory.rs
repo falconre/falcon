@@ -24,6 +24,12 @@ impl<'m, V> Memory<'m, V> where V: Value {
     }
 
 
+    pub fn new_with_backing(endian: Endian, backing: &'m memory::backing::Memory)
+        -> Memory<'m, V> {
+            Memory(paged::Memory::new_with_backing(endian, backing))
+        }
+
+
     pub fn store(&mut self, address: u64, value: V) -> Result<()> {
         self.0.store(address, value)
     }

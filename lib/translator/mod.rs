@@ -121,6 +121,7 @@ pub trait Translator: {
         memory: &TranslationMemory,
         function_address: u64)
     -> Result<Function> {
+
         let mut translation_queue = VecDeque::new();
         let mut translation_results = BTreeMap::new();
 

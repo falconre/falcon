@@ -1,14 +1,12 @@
 //! Loading executable binaries into Falcon
 
-pub mod elf;
-
-
 use error::*;
 use il;
 use memory;
 use std::fmt;
-use translator::TranslationMemory;
 use types::Architecture;
+
+pub mod elf;
 
 
 /// A declared entry point for a function.
@@ -85,8 +83,10 @@ pub trait Loader: Clone {
 
         for function_entry in self.function_entries()? {
             let address = function_entry.address();
-            // Ensure we can actually get memory at this function address
-            if TranslationMemory::get_u8(&memory, address).is_some() {
+            // Ensure this memory is marked executable
+            if memory.permissions(address)
+                     .map_or(false, |p|
+                        p.contains(memory::MemoryPermissions::EXECUTE)) {
                 let mut function = translator.translate_function(&memory, address)?;
                 function.set_name(function_entry.name().clone());
                 program.add_function(function);

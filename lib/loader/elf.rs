@@ -1,6 +1,5 @@
 //! ELF Linker/Loader
 
-use error::*;
 use goblin;
 use goblin::Hint;
 use loader::*;
