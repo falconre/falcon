@@ -9,12 +9,15 @@ RUN apt-get update && \
     apt-get update && \
     apt-get -y install build-essential \
                        clang-4.0 \
+                       cmake \
                        curl \
                        llvm-4.0-dev \
                        libcapstone3 \
                        libcapstone-dev \
                        libclang-4.0-dev \
-                       pkg-config && \
+                       libssl-dev \
+                       pkg-config \
+                       zlib1g-dev && \
     apt-get clean
 
 RUN curl https://sh.rustup.rs -sSf > /tmp/install.sh && \
