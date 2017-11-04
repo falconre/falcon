@@ -1,7 +1,7 @@
 use analysis::fixed_point;
 use error::*;
 use il;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{HashMap, HashSet};
 
 
 struct ReachingDefinitions {}
@@ -10,21 +10,21 @@ struct ReachingDefinitions {}
 #[allow(dead_code)]
 /// Compute reaching definitions for the given function.
 pub fn reaching_definitions<'r>(function: &'r il::Function)
--> Result<BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>>> {
+-> Result<HashMap<il::RefProgramLocation<'r>, HashSet<il::RefProgramLocation<'r>>>> {
     fixed_point::fixed_point_forward(ReachingDefinitions{}, function)
 }
 
 
-impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>>> for ReachingDefinitions {
+impl<'r> fixed_point::FixedPointAnalysis<'r, HashSet<il::RefProgramLocation<'r>>> for ReachingDefinitions {
     fn trans(
         &self,
         location: il::RefProgramLocation<'r>,
-        state: Option<BTreeSet<il::RefProgramLocation<'r>>>
-    ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
+        state: Option<HashSet<il::RefProgramLocation<'r>>>
+    ) -> Result<HashSet<il::RefProgramLocation<'r>>> {
 
         let mut state = match state {
             Some(state) => state,
-            None => BTreeSet::new()
+            None => HashSet::new()
         };
 
         match *location.function_location() {
@@ -57,9 +57,9 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, BTreeSet<il::RefProgramLocation<'r>
 
     fn join(
         &self,
-        mut state0: BTreeSet<il::RefProgramLocation<'r>>,
-        state1: &BTreeSet<il::RefProgramLocation<'r>>
-    ) -> Result<BTreeSet<il::RefProgramLocation<'r>>> {
+        mut state0: HashSet<il::RefProgramLocation<'r>>,
+        state1: &HashSet<il::RefProgramLocation<'r>>
+    ) -> Result<HashSet<il::RefProgramLocation<'r>>> {
         for state in state1 {
             state0.insert(state.clone());
         }
@@ -133,7 +133,7 @@ fn reaching_definitions_test() {
     control_flow_graph.unconditional_edge(lt_index, tail_index).unwrap();
     control_flow_graph.unconditional_edge(gt_index, tail_index).unwrap();
 
-    control_flow_graph.set_entry(head_index);
+    control_flow_graph.set_entry(head_index).unwrap();
 
     let function = il::Function::new(0, control_flow_graph);
 

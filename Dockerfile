@@ -21,9 +21,6 @@ RUN curl https://sh.rustup.rs -sSf > /tmp/install.sh && \
     chmod 755 /tmp/install.sh && \
     /tmp/install.sh -y
 
-RUN curl https://files.reversing.io/z3-xenial-x64-05.aug.2017.gz | gzip -d > /usr/local/bin/z3 && \
-    chmod 755 /usr/local/bin/z3
-
 SHELL ["/bin/bash", "-c"]
 
 COPY . /falcon/

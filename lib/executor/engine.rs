@@ -1,17 +1,16 @@
 use executor::*;
-use executor::memory::*;
 use executor::successor::*;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
-pub struct Engine {
-    scalars: BTreeMap<String, il::Expression>,
-    memory: Memory,
+pub struct Engine<'e> {
+    scalars: BTreeMap<String, il::Constant>,
+    memory: Memory<'e>,
 }
 
 
-impl Engine {
-    pub fn new(memory: Memory) -> Engine {
+impl<'e> Engine<'e> {
+    pub fn new(memory: Memory<'e>) -> Engine<'e> {
         Engine {
             scalars: BTreeMap::new(),
             memory: memory
@@ -24,17 +23,17 @@ impl Engine {
     }
 
 
-    pub fn memory_mut(&mut self) -> &mut Memory {
+    pub fn memory_mut(&'e mut self) -> &'e mut Memory {
         &mut self.memory
     }
 
 
-    pub fn set_scalar<S: Into<String>>(&mut self, name: S, value: il::Expression) {
+    pub fn set_scalar<S: Into<String>>(&mut self, name: S, value: il::Constant) {
         self.scalars.insert(name.into(), value);
     }
 
 
-    pub fn get_scalar(&self, name: &str) -> Option<&il::Expression> {
+    pub fn get_scalar(&self, name: &str) -> Option<&il::Constant> {
         self.scalars.get(name)
     }
 
@@ -45,7 +44,7 @@ impl Engine {
         Ok(match *expression {
             il::Expression::Scalar(ref scalar) => {
                 match self.scalars.get(scalar.name()) {
-                    Some(expr) => expr.clone(),
+                    Some(expr) => expr.clone().into(),
                     None => il::Expression::Scalar(scalar.clone())
                 }
             },
@@ -115,17 +114,17 @@ impl Engine {
     }
 
 
-    pub fn execute(mut self, operation: &il::Operation) -> Result<Successor> {
+    pub fn execute(mut self, operation: &il::Operation) -> Result<Successor<'e>> {
         Ok(match *operation {
             il::Operation::Assign { ref dst, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
-                self.set_scalar(dst.name(), src.into());
+                self.set_scalar(dst.name(), src);
                 Successor::new(self, SuccessorType::FallThrough)
             },
             il::Operation::Store { ref index, ref src, .. } => {
                 let src = self.symbolize_and_eval(src)?;
                 let index = self.symbolize_and_eval(index)?;
-                self.memory.store(index.value(), src.into())?;
+                self.memory.store(index.value(), src)?;
                 Successor::new(self, SuccessorType::FallThrough)
             },
             il::Operation::Load { ref dst, ref index, .. } => {
@@ -133,7 +132,7 @@ impl Engine {
                 let value = self.memory.load(index.value(), dst.bits())?;
                 match value {
                     Some(v) => {
-                        self.set_scalar(dst.name(), v);
+                        self.set_scalar(dst.name(), v.into());
                         Successor::new(self, SuccessorType::FallThrough)
                     },
                     None => {

@@ -120,7 +120,7 @@ fn use_def_test() {
     control_flow_graph.unconditional_edge(lt_index, tail_index).unwrap();
     control_flow_graph.unconditional_edge(gt_index, tail_index).unwrap();
 
-    control_flow_graph.set_entry(head_index);
+    control_flow_graph.set_entry(head_index).unwrap();
 
     let function = il::Function::new(0, control_flow_graph);
 

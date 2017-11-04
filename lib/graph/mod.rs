@@ -333,7 +333,9 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Computes dominators for all vertices in the graph
-    pub fn compute_dominators(&self, start_index: u64) -> Result<BTreeMap<u64, BTreeSet<u64>>> {
+    pub fn compute_dominators(&self, start_index: u64)
+        -> Result<BTreeMap<u64, BTreeSet<u64>>> {
+            
         if !self.vertices.contains_key(&start_index) {
             bail!("vertex {} not in graph", start_index);
         }

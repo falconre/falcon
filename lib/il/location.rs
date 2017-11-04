@@ -18,7 +18,7 @@ use il::*;
 use std::fmt;
 
 /// A location applied to a `Program`.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RefProgramLocation<'p> {
     function: &'p Function,
     function_location: RefFunctionLocation<'p>
@@ -315,7 +315,7 @@ impl<'f> fmt::Display for RefProgramLocation<'f> {
 
 
 /// A location applied to a `Function`.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum RefFunctionLocation<'f> {
     Instruction(&'f Block, &'f Instruction),
     Edge(&'f Edge),

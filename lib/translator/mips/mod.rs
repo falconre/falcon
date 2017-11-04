@@ -287,6 +287,7 @@ impl Translator for Mips {
                         // next instruction, add this instruction as a successor
                         // and return
                         if bytes.len() - offset < 8 {
+                            successors.clear();
                             successors.push((address + offset as u64, None));
                             break;
                         }
@@ -302,6 +303,7 @@ impl Translator for Mips {
                         // next instruction, add this instruction as a successor
                         // and return
                         if bytes.len() - offset < 8 {
+                            successors.clear();
                             successors.push((address + offset as u64, None));
                             break;
                         }

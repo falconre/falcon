@@ -1,14 +1,12 @@
 //! Loading executable binaries into Falcon
 
-pub mod elf;
-pub mod json;
-pub mod memory;
-
 use error::*;
 use il;
+use memory;
 use std::fmt;
-use translator::TranslationMemory;
 use types::Architecture;
+
+pub mod elf;
 
 
 /// A declared entry point for a function.
@@ -55,7 +53,7 @@ impl fmt::Display for FunctionEntry {
 /// Generic trait for all loaders
 pub trait Loader: Clone {
     /// Get a model of the memory contained in the binary
-    fn memory(&self) -> Result<memory::Memory>;
+    fn memory(&self) -> Result<memory::backing::Memory>;
 
     /// Get addresses for known function entries
     fn function_entries(&self) -> Result<Vec<FunctionEntry>>;
@@ -85,8 +83,10 @@ pub trait Loader: Clone {
 
         for function_entry in self.function_entries()? {
             let address = function_entry.address();
-            // Ensure we can actually get memory at this function address
-            if TranslationMemory::get_u8(&memory, address).is_some() {
+            // Ensure this memory is marked executable
+            if memory.permissions(address)
+                     .map_or(false, |p|
+                        p.contains(memory::MemoryPermissions::EXECUTE)) {
                 let mut function = translator.translate_function(&memory, address)?;
                 function.set_name(function_entry.name().clone());
                 program.add_function(function);
