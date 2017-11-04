@@ -1,7 +1,7 @@
 use analysis::reaching_definitions;
 use error::*;
 use il;
-use il::variable::Variable;
+use il::Variable;
 use std::collections::{BTreeMap, BTreeSet};
 
 

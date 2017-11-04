@@ -3,19 +3,19 @@
 use error::*;
 use graph;
 
-pub mod array;
-pub mod block;
-pub mod constant;
-pub mod control_flow_graph;
-pub mod edge;
-pub mod expression;
-pub mod function;
-pub mod instruction;
-pub mod location;
-pub mod operation;
-pub mod scalar;
-pub mod program;
-pub mod variable;
+mod array;
+mod block;
+mod constant;
+mod control_flow_graph;
+mod edge;
+mod expression;
+mod function;
+mod instruction;
+mod location;
+mod operation;
+mod scalar;
+mod program;
+mod variable;
 
 pub use self::array::*;
 pub use self::block::*;
