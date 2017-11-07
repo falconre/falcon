@@ -165,7 +165,7 @@ impl<'m, V> Memory<'m, V> where V: Value {
     /// by 8.
     pub fn store(&mut self, address: u64, value: V) -> Result<()> {
         if value.bits() % 8 != 0 || value.bits() == 0 {
-            return Err(format!("Storing value in symbolic with bit width not divisible by 8 and > 0 {}",
+            return Err(format!("Storing value in paged memory with bit width not divisible by 8 and > 0 {}",
                 value.bits()).into());
         }
 
@@ -265,10 +265,10 @@ impl<'m, V> Memory<'m, V> where V: Value {
     /// bits at the given address, `None` will be returned.
     pub fn load(&self, address: u64, bits: usize) -> Result<Option<V>> {
         if bits % 8 != 0 {
-            return Err(format!("Loading symbolic memory with non-8 bit-width {}", bits).into());
+            return Err(format!("Loading paged memory with non-8 bit-width {}", bits).into());
         }
         else if bits == 0 {
-            return Err("Loading symbolic memory with 0 bit-width".into());
+            return Err("Loading paged memory with 0 bit-width".into());
         }
 
         // The scenarios we need to account for

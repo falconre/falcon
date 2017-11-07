@@ -4,7 +4,7 @@ use il::*;
 use std::fmt;
 
 
-pub trait Variable : fmt::Debug + fmt::Display + Sync + Send {
+pub trait Variable : fmt::Debug + fmt::Display + Sync {
     /// Gets the name of this `Variable`.
     fn name(&self) -> &str;
 

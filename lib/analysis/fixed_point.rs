@@ -52,13 +52,6 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
         }
     }
 
-
-    // Along the lines of reverse post-order, we use this mapping of
-    // predecessors to correctly order, and speed up, our analysis
-    let predecessors = function.control_flow_graph()
-                               .graph()
-                               .compute_predecessors()?;
-
     while !queue.is_empty() {
         let location = queue.iter().next().unwrap().clone();
         queue.remove(&location);
@@ -79,58 +72,11 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
 
         if let Some(in_state) = states.get(&location) {
             if state == *in_state {
-                match *location.function_location() {
-                    // If we are in a block, and traversing to an edge, and the
-                    // edge points to a predecessor, skip it.
-                    il::RefFunctionLocation::Instruction(block, _) |
-                    il::RefFunctionLocation::EmptyBlock(block) => {
-                        for successor in location.forward()? {
-                            if let il::RefFunctionLocation::Edge(ref edge) = *successor.function_location() {
-                                if predecessors[&block.index()].contains(&edge.tail()) {
-                                    continue;
-                                }
-                            }
-                            queue.insert(successor);
-                        }
-                    },
-                    il::RefFunctionLocation::Edge(_) => {
-                        for successor in location.forward()? {
-                            queue.insert(successor);
-                        }
-                    }
-                }
                 continue;
             }
         }
 
         states.insert(location.clone(), state);
-
-        let mut successors_handled = false;
-
-        match *location.function_location() {
-            il::RefFunctionLocation::Instruction(block, _) |
-            il::RefFunctionLocation::EmptyBlock(block) => {
-                for successor in location.forward()? {
-                    if let il::RefFunctionLocation::Edge(ref edge) = *successor.function_location() {
-                        if !predecessors[&block.index()].contains(&edge.tail()) {
-                            continue;
-                        }
-                    }
-                    queue.insert(successor);
-                    successors_handled = true;
-                }
-            },
-            il::RefFunctionLocation::Edge(_) => {
-                for successor in location.forward()? {
-                    queue.insert(successor);
-                }
-                successors_handled = true;
-            }
-        }
-
-        if successors_handled {
-            continue;
-        }
 
         for successor in location.forward()? {
             queue.insert(successor);
