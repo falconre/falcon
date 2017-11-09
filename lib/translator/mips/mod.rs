@@ -10,7 +10,7 @@ use types::Endian;
 #[cfg(test)] mod test;
 mod semantics;
 
-/// The X86 translator.
+/// The MIPS translator.
 #[derive(Clone, Debug)]
 pub struct Mips;
 

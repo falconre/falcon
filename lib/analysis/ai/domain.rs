@@ -1,3 +1,5 @@
+//! Abstractions/traits for an Abstract Domain
+
 use error::*;
 use il;
 use serde::Serialize;
@@ -6,6 +8,7 @@ use std::fmt::{Debug, Display};
 use types::Endian;
 
 
+/// An abstract value
 pub trait Value: Clone + Display + Debug + Eq + PartialEq + Serialize {
     /// Join this abstract value with another
     fn join(&self, other: &Self) -> Result<Self>;
@@ -18,6 +21,7 @@ pub trait Value: Clone + Display + Debug + Eq + PartialEq + Serialize {
 }
 
 
+/// A memory model which operates over abstract values
 pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq + Serialize {
     fn store(&mut self, index: &V, value: V) -> Result<()>;
     fn load(&self, index: &V, bits: usize) -> Result<V>;
@@ -26,6 +30,8 @@ pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq + Serialize {
 }
 
 
+/// An abstract domain which handles all operations required for the abstract
+/// interpreter.
 pub trait Domain<M: Memory<V>, V: Value> {
     /// Evaluate an expression of abstract values
     fn eval(&self, expr: &Expression<V>) -> Result<V>;
@@ -44,6 +50,10 @@ pub trait Domain<M: Memory<V>, V: Value> {
 }
 
 
+/// An abstract expression
+///
+/// This is a slightly modified version of a regular Falcon IL expression, where
+/// Scalar and Constant are replaced with Value
 pub enum Expression<V: Value> {
     Value(V),
     Add(Box<Expression<V>>, Box<Expression<V>>),
@@ -114,6 +124,8 @@ impl<V> Expression<V> where V: Value {
 }
 
 
+/// An abstract state, which holds the values of all variables and a memory
+/// model.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct State<M: Memory<V>, V: Value> {
     pub(crate) variables: HashMap<il::Scalar, V>,
@@ -122,10 +134,12 @@ pub struct State<M: Memory<V>, V: Value> {
 
 
 impl<M, V> State<M, V> where M: Memory<V>, V: Value {
+    /// Retrieve the variables tied to this `State`
     pub fn variables(&self) -> &HashMap<il::Scalar, V> {
         &self.variables
     }
 
+    /// Retrieve the memory model tied to this `State`
     pub fn memory(&self) -> &M {
         &self.memory
     }
@@ -133,6 +147,7 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
 
 
 impl<M, V> State<M, V> where M: Memory<V>, V: Value {
+    /// Create a new `State` with no variables and the given `Memory`
     pub fn new(memory: M) -> State<M, V> {
         State {
             variables: HashMap::new(),
@@ -140,17 +155,18 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
         }
     }
 
-
+    /// Retrieve the abstract `Value` associated with the given `Scalar`
     pub fn variable(&self, key: &il::Scalar) -> Option<&V> {
         self.variables.get(key)
     }
 
-
+    /// Set the value associated with `Scalar` to an abstract `Value` in this
+    /// state
     pub fn set_variable(&mut self, key: il::Scalar, value: V) {
         self.variables.insert(key, value);
     }
 
-
+    /// Join this abstract state with another abstract state.
     pub fn join(mut self, other: &Self) -> Result<Self> {
         for variable in &other.variables {
             let v = match self.variables.get(variable.0) {

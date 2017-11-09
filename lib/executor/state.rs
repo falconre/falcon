@@ -1,43 +1,54 @@
+/// A concrete state for execution over Falcon IL.
+
 use executor::*;
 use executor::successor::*;
 use std::collections::BTreeMap;
 
+/// A concrete `State`.
 #[derive(Debug, Clone)]
-pub struct Engine<'e> {
+pub struct State<'e> {
     scalars: BTreeMap<String, il::Constant>,
     memory: Memory<'e>,
 }
 
 
-impl<'e> Engine<'e> {
-    pub fn new(memory: Memory<'e>) -> Engine<'e> {
-        Engine {
+impl<'e> State<'e> {
+    /// Create a new `State` from the given memory model.
+    pub fn new(memory: Memory<'e>) -> State<'e> {
+        State {
             scalars: BTreeMap::new(),
             memory: memory
         }
     }
 
 
+    /// Retrieve the `Memory` associated with this `State`.
     pub fn memory(&self) -> &Memory {
         &self.memory
     }
 
 
+    /// Retrieve a mutable reference to the `Memory` associated with this
+    /// `State`.
     pub fn memory_mut(&'e mut self) -> &'e mut Memory {
         &mut self.memory
     }
 
 
+    /// Set the value of the given scalar to a concrete value.
     pub fn set_scalar<S: Into<String>>(&mut self, name: S, value: il::Constant) {
         self.scalars.insert(name.into(), value);
     }
 
 
+    /// Get the concrete value of the given scalar.
     pub fn get_scalar(&self, name: &str) -> Option<&il::Constant> {
         self.scalars.get(name)
     }
 
 
+    /// Symbolize an expression, replacing all scalars with the concrete values
+    /// stored in this state.
     pub fn symbolize_expression(&self, expression: &il::Expression)
     -> Result<il::Expression> {
 
@@ -107,6 +118,9 @@ impl<'e> Engine<'e> {
     }
 
 
+    /// Symbolize the given expression, replacing all scalars with the concrete
+    /// values held in this state, and evaluate the expression to a single
+    /// concrete value.
     pub fn symbolize_and_eval(&self, expression: &il::Expression)
     -> Result<il::Constant> {
         let expression = self.symbolize_expression(expression)?;
@@ -114,6 +128,7 @@ impl<'e> Engine<'e> {
     }
 
 
+    /// Execute an `il::Operation`, returning the post-execution `State`.
     pub fn execute(mut self, operation: &il::Operation) -> Result<Successor<'e>> {
         Ok(match *operation {
             il::Operation::Assign { ref dst, ref src } => {

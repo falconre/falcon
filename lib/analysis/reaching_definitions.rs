@@ -4,15 +4,16 @@ use il;
 use std::collections::{HashMap, HashSet};
 
 
-struct ReachingDefinitions {}
-
-
 #[allow(dead_code)]
 /// Compute reaching definitions for the given function.
 pub fn reaching_definitions<'r>(function: &'r il::Function)
 -> Result<HashMap<il::RefProgramLocation<'r>, HashSet<il::RefProgramLocation<'r>>>> {
     fixed_point::fixed_point_forward(ReachingDefinitions{}, function)
 }
+
+
+// We require a struct to implement methods for our analysis over.
+struct ReachingDefinitions {}
 
 
 impl<'r> fixed_point::FixedPointAnalysis<'r, HashSet<il::RefProgramLocation<'r>>> for ReachingDefinitions {

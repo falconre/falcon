@@ -1,20 +1,22 @@
+//! Definition Use Analysis
+
 use analysis::reaching_definitions;
 use error::*;
 use il;
 use il::Variable;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{HashMap, HashSet};
 
 
 #[allow(dead_code)]
 /// Compute definition use chains for the given function.
 pub fn def_use<'r>(function: &'r il::Function)
--> Result<BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>>> {
+-> Result<HashMap<il::RefProgramLocation<'r>, HashSet<il::RefProgramLocation<'r>>>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
-    let mut du: BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>> = BTreeMap::new();
+    let mut du: HashMap<il::RefProgramLocation<'r>, HashSet<il::RefProgramLocation<'r>>> = HashMap::new();
 
     for (location, _) in &rd {
-        du.entry(location.clone()).or_insert(BTreeSet::new());
+        du.entry(location.clone()).or_insert(HashSet::new());
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
                 for variable_read in instruction.operation().variables_read() {
@@ -25,7 +27,7 @@ pub fn def_use<'r>(function: &'r il::Function)
                              .variable_written()
                              .unwrap()
                              .multi_var_clone() == variable_read.multi_var_clone() {
-                            du.entry(rd.clone()).or_insert(BTreeSet::new()).insert(location.clone());
+                            du.entry(rd.clone()).or_insert(HashSet::new()).insert(location.clone());
                         }
                     }
                 }
@@ -40,7 +42,7 @@ pub fn def_use<'r>(function: &'r il::Function)
                                  .variable_written()
                                  .unwrap()
                                  .multi_var_clone() == variable_read.multi_var_clone() {
-                                du.entry(rd.clone()).or_insert(BTreeSet::new()).insert(location.clone());
+                                du.entry(rd.clone()).or_insert(HashSet::new()).insert(location.clone());
                             }
                         }
                     }

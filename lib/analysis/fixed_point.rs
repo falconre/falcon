@@ -1,10 +1,12 @@
+//! A fixed-point engine for data-flow analysis.
+
 use error::*;
 use il;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 
-/// A trait which implements a forwards, flow-sensitive analysis to a
+/// A trait which implements a forward, flow-sensitive analysis to a
 /// fixed point.
 pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + Eq + PartialEq> {
     /// Given an input state for a block, create an output state for this

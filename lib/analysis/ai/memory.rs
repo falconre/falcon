@@ -1,3 +1,8 @@
+//! A memory model for abstract interpretation
+//!
+//! This memory model wraps falcon::memory::paged::Memory and adds a `join`
+//! method which operates over abstract values.
+
 use error::*;
 use memory::paged;
 use memory;
@@ -6,35 +11,43 @@ use types::Endian;
 use std::fmt::Debug;
 
 
+/// The `Value` trait must be implemented for abstract values operated over by
+/// this memory model.
 pub trait Value: memory::value::Value + Clone + Debug + Eq + PartialEq {
-    /// Join two values together
+    /// Join this abstract value with another.
     fn join(&self, other: &Self) -> Result<Self>;
 
-    /// Return an empty value
+    /// Return an empty value.
     fn empty(bits: usize) -> Self;
 }
 
 
+/// A memory model for abstract interpretation.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Memory<'m, V: Value>(paged::Memory<'m, V>);
 
 impl<'m, V> Memory<'m, V> where V: Value {
+    /// Create a new memory model for abstract interpretation.
     pub fn new(endian: Endian) -> Memory<'m, V> {
         Memory(paged::Memory::new(endian))
     }
 
 
+    /// Create a new memory model for abstract interpretation with the given
+    /// memory backing.
     pub fn new_with_backing(endian: Endian, backing: &'m memory::backing::Memory)
         -> Memory<'m, V> {
             Memory(paged::Memory::new_with_backing(endian, backing))
         }
 
 
+    /// Store an abstract value at the given address.
     pub fn store(&mut self, address: u64, value: V) -> Result<()> {
         self.0.store(address, value)
     }
 
 
+    /// Load an abstract value from the given address.
     pub fn load(&self, address: u64, bits: usize) -> Result<V> {
         Ok(match self.0.load(address, bits)? {
             Some(v) => v,
@@ -43,6 +56,7 @@ impl<'m, V> Memory<'m, V> where V: Value {
     }
 
 
+    /// Join this abstract memory moel with another.
     pub fn join(mut self, other: &Memory<V>) -> Result<Memory<'m, V>> {
         // for every page in the other memory
         for other_page in &other.0.pages {

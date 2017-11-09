@@ -1,3 +1,31 @@
+//! An implementation of the KSet analysis domain
+//!
+//! ```
+//! # use falcon::error::*;
+//! use falcon::analysis::ai::kset;
+//! use falcon::loader::Elf;
+//! use falcon::loader::Loader;
+//! use std::path::Path;
+//!
+//! # fn example () -> Result<()> {
+//! // Load an elf for analysis
+//! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
+//! // Get the endianness of the architecture for this elf
+//! let endian = elf.architecture()?.endian();
+//! // Get the underlying memory of this Elf as a memory backing
+//! let backing = elf.memory()?;
+//! // Lift one function from the Elf at address 0x804849b
+//! let function = elf.function(0x804849b)?;
+//! // Set up a memory model for this analysis
+//! let memory: kset::KMemory =
+//!     kset::KMemory::new_with_backing(endian.clone(), &backing);
+//! // Run the ksets analysis
+//! let ksets = kset::kset(&function, endian, memory)?;
+//! # Ok(())
+//! # }
+//! ```
+
+
 use analysis::ai;
 use analysis::ai::{domain, interpreter};
 use analysis::fixed_point;
@@ -10,14 +38,17 @@ use std::fmt;
 use types::Endian;
 
 
-const MAX_CARDINALITY: usize = 4;
+/// The cardinality for this analysis.
+pub const MAX_CARDINALITY: usize = 4;
 
 
+/// A `falcon::memory::paged::Memory` set up for ksets analysis.
 pub type KMemory<'m> = ai::memory::Memory<'m, KSet>;
+
+/// A `falcon::analysis::ai::domain::State` set up for ksets analysis.
 pub type KState<'m> = domain::State<KMemory<'m>, KSet>;
 
-
-#[allow(dead_code)]
+/// Run ksets analysis on the given function
 pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMemory<'k>)
     -> Result<HashMap<il::RefProgramLocation<'k>, KState<'k>>> {
 
@@ -31,6 +62,7 @@ pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMem
 }
 
 
+/// A KSet
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum KSet {
     Top(usize),
@@ -89,6 +121,7 @@ impl KSet {
     }
 
 
+    /// Evaluate the given KSet expression, and receive the resulting KSet
     pub fn eval(expr: &domain::Expression<KSet>) -> Result<KSet> {
         match *expr {
             domain::Expression::Value(ref kset) => Ok(kset.clone()),
@@ -171,6 +204,7 @@ impl KSet {
         }
     }
 
+    /// Retrieve the size of this `KSet` in bits
     pub fn bits(&self) -> usize {
         match *self {
             KSet::Top(bits) => bits,
@@ -179,12 +213,14 @@ impl KSet {
         }
     }
 
+    /// Create a `KSet` from an `il::Constant`
     pub fn constant(constant: il::Constant) -> KSet {
         let mut b = HashSet::new();
         b.insert(constant);
         KSet::Value(b)
     }
 
+    /// Join two `KSet` together.
     pub fn join(&self, rhs: &KSet) -> Result<KSet> {
         Ok(match *self {
             KSet::Top(bits) => KSet::Top(bits),
@@ -210,6 +246,7 @@ impl KSet {
         })
     }
 
+    /// Create a `KSet` representing an empty value.
     pub fn empty(bits: usize) -> KSet {
         KSet::Bottom(bits)
     }

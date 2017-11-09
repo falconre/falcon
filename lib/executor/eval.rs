@@ -13,6 +13,8 @@ fn sign_extend(constant: &il::Constant) -> i64 {
     }
 }
 
+/// Evaluate an `il::Expression` where all terminals are `il::Constant`, and
+/// return the resulting `il::Constant`.
 pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
 
     match *expr {

@@ -1,9 +1,13 @@
+//! A value used in the paged memory model.
+
 use error::*;
 use executor::eval;
 use il;
 use std::fmt::Debug;
 
 
+/// In order for a value to be used in the paged memory model, it must implement
+/// this trait.
 pub trait Value: Clone + Debug + Eq + PartialEq {
     /// Turn an il::Constant into a representation of this Value
     fn constant(constant: il::Constant) -> Self;

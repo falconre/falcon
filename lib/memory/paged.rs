@@ -1,3 +1,8 @@
+//! A memory model with copy-on-write pages, which attempts not to split values
+//! and accepts a memory backing.
+//!
+//! This memory model operates over types which implement the `Value` trait.
+
 use error::*;
 use il;
 use RC;
@@ -9,7 +14,8 @@ use memory::MemoryPermissions;
 use memory::value::Value;
 
 
-const PAGE_SIZE: usize = 1024;
+/// The size of the copy-on-write pages.
+pub const PAGE_SIZE: usize = 1024;
 
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -74,7 +80,7 @@ impl<'m, V: Value> PartialEq for Memory<'m, V> {
 }
 
 
-/// A symbolic memory model for Falcon IL expressions.
+/// A copy-on-write paged memory model.
 #[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct Memory<'m, V: Value> {
     #[serde(skip)]
@@ -85,6 +91,7 @@ pub struct Memory<'m, V: Value> {
 
 
 impl<'m, V> Memory<'m, V> where V: Value {
+    /// Create a new paged memory model with the given endianness.
     pub fn new(endian: Endian) -> Memory<'m, V> {
         Memory {
             backing: None,
@@ -93,7 +100,11 @@ impl<'m, V> Memory<'m, V> where V: Value {
         }
     }
 
-
+    /// Create a new paged memory model with the given endianness and memory
+    /// backing.
+    ///
+    /// Paged memory will use the given backing when asked to load values which
+    /// it does not have.
     pub fn new_with_backing(endian: Endian, backing: &'m backing::Memory) -> Memory<'m, V> {
         Memory {
             backing: Some(backing),
@@ -102,7 +113,7 @@ impl<'m, V> Memory<'m, V> where V: Value {
         }
     }
 
-
+    /// Get the permissions for the given address.
     pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
         match self.backing {
             Some(backing) => backing.permissions(address),
@@ -159,10 +170,10 @@ impl<'m, V> Memory<'m, V> where V: Value {
     }
 
 
-    /// Store an expression at the given address.
+    /// Store a value at the given address.
     ///
-    /// The value must have a bit-width >= 8, and the bit-width must be evenly divisible
-    /// by 8.
+    /// The value must have a bit-width >= 8, and the bit-width must be evenly
+    /// divisible by 8.
     pub fn store(&mut self, address: u64, value: V) -> Result<()> {
         if value.bits() % 8 != 0 || value.bits() == 0 {
             return Err(format!("Storing value in paged memory with bit width not divisible by 8 and > 0 {}",
@@ -258,11 +269,12 @@ impl<'m, V> Memory<'m, V> where V: Value {
     }
 
 
-    /// Loads an expression from the given address.
+    /// Loads a value from the given address.
     ///
     /// `bits` must be >= 8, and evenly divisible by 8.
-    /// If a value exists, it will be returned in `Some(expr)`. If no value exists for all
-    /// bits at the given address, `None` will be returned.
+    ///
+    /// If a value cannot be retrieved for all bits of the load, `None` will
+    /// be returned.
     pub fn load(&self, address: u64, bits: usize) -> Result<Option<V>> {
         if bits % 8 != 0 {
             return Err(format!("Loading paged memory with non-8 bit-width {}", bits).into());

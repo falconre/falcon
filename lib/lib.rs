@@ -1,4 +1,39 @@
 //! Falcon: A Binary Analysis Framework in Rust.
+//! 
+//! Falcon is a framework in rust for implementing formal analyses over binary
+//! programs. A quick synopsis of Falcon's modules:
+//! 
+//! * **analysis** - A fixed-point engine and methods for abstract interpretation
+//! over Falcon IL. Example, usable analyses are given.
+//! * **executor** - A concrete execution engine over Falcon IL.
+//! * **graph** - A simple directed graph library.
+//! * **il** - Falcon's Intermediate Language.
+//! * **loader** - Loaders for binary formats, currently supporting Elf.
+//! * **memory** - A layered memory model over generic types.
+//! * **translator** - Translators from native architectures to Falcon IL.
+//!
+//! Falcon also has bindings for the scripting language
+//! [gluon](https://github.com/gluon-lang/gluon), which makes exploratory 
+//! analysis over Falcon quick and pleasant.
+//!
+//! ```
+//! # use falcon::error::*;
+//! use falcon::loader::Elf;
+//! use falcon::loader::Loader;
+//! use std::path::Path;
+//!
+//! # fn example () -> Result<()> {
+//! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
+//! for function in elf.program()?.functions() {
+//!     for block in function.blocks() {
+//!         println!("Block {} in Function {:x}", block.index(), function.address());
+//!         println!("{}", block);
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+
 
 extern crate base64;
 #[macro_use]
@@ -39,6 +74,7 @@ use std::sync::Arc;
 type RC<T> = Arc<T>;
 
 
+/// Falcon Error types.
 pub mod error {
     error_chain! {
         types {

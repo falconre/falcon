@@ -10,6 +10,7 @@ pub struct Scalar {
 }
 
 
+/// A scalar value for Falcon IL.
 impl Scalar {
     /// Create a new `Scalar` with the given name and bitness.
     pub fn new<S>(name: S, bits: usize) -> Scalar where S: Into<String> {

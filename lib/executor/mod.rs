@@ -1,19 +1,20 @@
-//! Various methods of executing over Falcon IL
+//! Concrete execution over Falcon IL.
 
 use error::*;
 use il;
 use memory;
 
-pub mod engine;
-pub mod eval;
-pub mod driver;
-pub mod successor;
+mod state;
+mod eval;
+mod driver;
+mod successor;
 
-pub use self::engine::*;
+pub use self::state::*;
 pub use self::eval::eval;
 pub use self::driver::*;
 pub use self::successor::*;
 
+/// A `falcon::memory::paged::Memory` over `il::Constant`.
 pub type Memory<'m> = memory::paged::Memory<'m, il::Constant>;
 
 use memory::MemoryPermissions;

@@ -3,12 +3,14 @@
 use il::*;
 use std::fmt;
 
-
+/// A variable provides generic operations over `Array`, and `Scalar`.
 pub trait Variable : fmt::Debug + fmt::Display + Sync {
     /// Gets the name of this `Variable`.
     fn name(&self) -> &str;
 
-    /// Gets an identifier for this `Variable`. An identifier will include the `SSA` value.
+    /// Gets an identifier for this `Variable`.
+    ///
+    /// An identifier is the representation used when printing Falcon IL.
     fn identifier(&self) -> String;
 
     /// Clone this `Variable` into a `MultiVar`.

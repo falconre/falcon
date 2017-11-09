@@ -1,15 +1,18 @@
 //! An `Instruction` holds an `Operation`.
-//!
-//! An `instruction` gives location to an `Operation`.
-//!
-//! An `Instruction` is created automatically when calling various `Operation`-type functions
-//! over a `Block`, such as `Block::assign`.
 
 use il::*;
 use std::fmt;
 
 /// An `Instruction` represents location, and non-semantical information about
 /// an `Operation`.
+///
+/// An `instruction` gives location to an `Operation`.
+///
+/// Methods are provided to create individual instructions, as all uses cases
+/// cannot be seen beforehand. However, it is generally poor-form to create
+/// an `Instruction` manually. You should use the methods on `Block` which 
+/// correspond to the `Operation` you wish to create, and the `Instruction`
+/// will be created automatically.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Instruction {
     operation: Operation,
@@ -20,6 +23,12 @@ pub struct Instruction {
 
 
 impl Instruction {
+    /// Create a new instruction with the given index and operation.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the methods
+    /// on `il::Block` which correspond to the operation you wish to append to
+    /// that block.
     pub fn new(index: u64, operation: Operation) -> Instruction {
         Instruction {
             operation: operation,
@@ -30,11 +39,21 @@ impl Instruction {
     }
 
 
+    /// Create a new `Assign` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `assign` method on `il::Block` instead.
     pub fn assign(index: u64, dst: Scalar, src: Expression) -> Instruction {
         Instruction::new(index, Operation::assign(dst, src))
     }
 
 
+    /// Create a new `Store` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `store` method on `il::Block` instead.
     pub fn store(
         instruction_index: u64,
         dst: Array,
@@ -46,6 +65,11 @@ impl Instruction {
     }
 
 
+    /// Create a new `Load` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `load` method on `il::Block` instead.
     pub fn load(
         instruction_index: u64,
         dst: Scalar,
@@ -57,6 +81,11 @@ impl Instruction {
     }
 
 
+    /// Create a new `Brc` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `brc` method on `il::Block` instead.
     pub fn brc(index: u64, target: Expression, condition: Expression)
     -> Instruction {
 
@@ -64,6 +93,11 @@ impl Instruction {
     }
 
 
+    /// Create a new `Raise` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `raise` method on `il::Block` instead.
     pub fn raise(index: u64, expr: Expression) -> Instruction {
         Instruction::new(index, Operation::Raise { expr: expr })
     }

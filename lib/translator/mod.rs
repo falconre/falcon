@@ -1,4 +1,22 @@
-//! Translates native architectures to Falcon IL.
+//! Translators for various architectures to Falcon IL.
+//!
+//! Translators in Falcon do not lift individual instructions, but instead lift
+//! basic blocks. This is both more performant than lifting individual
+//! instructions, and allows Falcon to deal with weird cases such as the delay
+//! slot in the MIPS architecture.
+//!
+//! Translators lift individual instructions to `ControlFlowGraph`, and combine
+//! these graphs to form a single block. A single instruction may lift to not
+//! only multiple Falcon IL instructions, but also multiple IL blocks.
+//!
+//! Direct branches in Falcon IL are omitted in the IL, and instead edges with
+//! conditional guards are emitted. The Brc operation is only emitted for
+//! indirect branches, and instructions which are typically used to call other
+//! procedures.
+//!
+//! If you are lifting directly from an Elf binary, you do not need to pay
+//! attention to the translators. The correct translator will be chosen
+//! automatically.
 
 use error::*;
 use il::*;
@@ -40,10 +58,7 @@ pub trait TranslationMemory {
 }
 
 
-/// The result of a native block translation.
-///
-/// _"Block"_ in `BlockTranslationResult` refers to a block in the native architecture, not a
-/// `Block` from Falcon IL.
+/// The result of translating a block from a native architecture.
 ///
 /// # Native blocks translated to `ControlFlowGraph`
 ///
@@ -108,6 +123,7 @@ impl BlockTranslationResult {
 }
 
 
+/// A generic translation trait, implemented by various architectures.
 pub trait Translator: {
     /// Translates a basic block
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;

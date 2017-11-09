@@ -1,21 +1,19 @@
-//! Load an executable from a JSON-serialized format.
-//!
-//! This module is useful for exporting executables from things like Binary Ninja.
-//!
-//! For an example of the JSON-format, see the _binaryninja-falcon_ directory in _scripts_.
+//! Experimental loader which takes a program specification in Json form.
 
 use base64;
-use error::*;
 use loader::*;
-use loader::memory::*;
+use memory::backing::*;
+use memory::MemoryPermissions;
 use serde_json;
 use serde_json::Value;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-/// An executable loaded from the JSON-serializable format.
-#[derive(Clone, Debug)]
+/// Experimental loader which takes a program specification in Json form.
+///
+/// See the binary ninja script for an example use.
+#[derive(Clone)]
 pub struct Json {
     function_entries: Vec<FunctionEntry>,
     memory: Memory,
@@ -89,7 +87,7 @@ impl Json {
                     _ => bail!("bytes missing for segment")
                 };
 
-                memory.add_segment(MemorySegment::new(address, bytes, MemoryPermissions::ALL));
+                memory.set_memory(address, bytes, MemoryPermissions::ALL);
             }
         }
         else {

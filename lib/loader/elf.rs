@@ -30,7 +30,7 @@ const DEFAULT_LIB_BASE: u64 = 0x8000_0000;
 const LIB_BASE_STEP: u64    = 0x0400_0000;
 
 
-/// Loads and links multiple ELFs together
+/// Loader which links together multiple Elf files. Currently only X86 supported.
 #[derive(Clone, Debug)]
 pub struct ElfLinker {
     /// The filename (path included) of the file we're loading.
@@ -325,7 +325,7 @@ impl ElfSymbol {
 }
 
 
-/// Loads a single ELf.
+/// Loader for a single ELf file.
 #[derive(Clone, Debug)]
 pub struct Elf {
     base_address: u64,

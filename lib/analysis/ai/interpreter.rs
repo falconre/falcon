@@ -1,9 +1,12 @@
+//! An interpreter over abstract domains.
+
 use analysis::fixed_point;
 use analysis::ai::domain;
 use error::*;
 use il;
 
 
+/// An interpreter for abstract domains.
 pub struct Interpreter<D: domain::Domain<M, V>, M: domain::Memory<V>, V: domain::Value> {
     pub m: ::std::marker::PhantomData<M>,
     pub v: ::std::marker::PhantomData<V>,
@@ -14,7 +17,7 @@ pub struct Interpreter<D: domain::Domain<M, V>, M: domain::Memory<V>, V: domain:
 impl<D, M, V> Interpreter<D, M, V> where D: domain::Domain<M, V>,
                                          M: domain::Memory<V>,
                                          V: domain::Value {
-    pub fn symbolize(&self, expression: &il::Expression, state: &domain::State<M, V>)
+    fn symbolize(&self, expression: &il::Expression, state: &domain::State<M, V>)
     -> domain::Expression<V> {
 
         match *expression {

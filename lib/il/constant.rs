@@ -1,6 +1,4 @@
 //! A `Constant` holds a single value.
-//!
-//! Currently, only constant values upto 64-bits are supported.
 
 use std::fmt;
 use il::*;

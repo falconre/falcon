@@ -1,3 +1,9 @@
+//! A flat representation of memory provided by lifters, typically used in a
+//! read-only fashion
+//!
+//! This memory model implements the `TranslationMemory` trait, allowing lifters
+//! to use it to lift instructions.
+
 use error::*;
 use memory::MemoryPermissions;
 use std::collections::Bound::Included;
@@ -6,6 +12,8 @@ use translator::TranslationMemory;
 use types::Endian;
 
 
+/// A section of backed memory. Essentially a vector of type `u8` with
+/// permissions.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Section {
     data: Vec<u8>,
@@ -14,6 +22,7 @@ pub struct Section {
 
 
 impl Section {
+    /// Create a new memory section.
     pub fn new(data: Vec<u8>, permissions: MemoryPermissions) -> Section {
         Section {
             data: data,
@@ -21,28 +30,29 @@ impl Section {
         }
     }
 
-
+    /// Get this memory section's data.
     pub fn data(&self) -> &[u8] {
         &self.data
     }
 
-
+    /// Get the length of this memory section.
     pub fn len(&self) -> usize {
         self.data.len()
     }
 
-
+    /// Get the permissions of this memory section.
     pub fn permissions(&self) -> MemoryPermissions {
         self.permissions.clone()
     }
 
-
+    /// Truncate the data of this memory section.
     fn truncate(&mut self, size: usize) {
         self.data.truncate(size);
     }
 }
 
 
+/// A simple memory model, containing permissioned sections of type `u8`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Memory {
     endian: Endian,
@@ -52,6 +62,7 @@ pub struct Memory {
 
 
 impl Memory {
+    /// Create a new backed memory module with the given endianness.
     pub fn new(endian: Endian) -> Memory {
         Memory {
             endian: endian,
@@ -59,12 +70,12 @@ impl Memory {
         }
     }
 
-
+    /// Get the sections in this memory module.
     pub fn sections(&self) -> &BTreeMap<u64, Section> {
         &self.sections
     }
 
-
+    /// Get the permissions at the given address.
     pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
         match self.section_address(address) {
             Some(section_address) => Some(self.sections[&section_address].permissions()),
@@ -72,7 +83,7 @@ impl Memory {
         }
     }
 
-
+    /// Get the `u8` value at the given address.
     pub fn get8(&self, address: u64) -> Option<u8> {
         match self.section_address_offset(address) {
             Some((address, offset)) =>
@@ -81,8 +92,8 @@ impl Memory {
         }
     }
 
-
-
+    /// Set the 32-bit value at the given address, allowing the memory model
+    /// to account for the underlying endianness.
     pub fn set32(&mut self, address: u64, value: u32) -> Result<()> {
         let (section_address, offset) =
             self.section_address_offset(address)
@@ -115,7 +126,8 @@ impl Memory {
         Ok(())
     }
 
-
+    /// Get the 32-bit value at the given address, allowing the memory model to
+    /// account for the underlying endianness.
     pub fn get32(&self, address: u64) -> Option<u32> {
         let (section_address, offset) = match self.section_address_offset(address) {
             Some((section_address, offset)) => (section_address, offset),
@@ -144,7 +156,10 @@ impl Memory {
         })
     }
 
-
+    /// Set the memory at the given address, and give that memory the given
+    /// permissions.
+    ///
+    /// This takes care of the underlying memory sections automatically.
     pub fn set_memory(
         &mut self,
         address: u64,

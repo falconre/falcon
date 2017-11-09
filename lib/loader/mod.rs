@@ -1,4 +1,22 @@
 //! Loading executable binaries into Falcon
+//!
+//! ```
+//! # use falcon::error::*;
+//! use falcon::loader::Elf;
+//! use falcon::loader::Loader;
+//! use std::path::Path;
+//!
+//! # fn example () -> Result<()> {
+//! // Load an elf for analysis
+//! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
+//! // Lift a program from the elf
+//! let program = elf.program()?;
+//! for function in program.functions() {
+//!     println!("0x{:08x}: {}", function.address(), function.name());
+//! }
+//! # Ok(())
+//! # }
+//! ```
 
 use error::*;
 use il;
@@ -6,8 +24,11 @@ use memory;
 use std::fmt;
 use types::Architecture;
 
-pub mod elf;
+mod elf;
+mod json;
 
+pub use self::elf::*;
+pub use self::json::*;
 
 /// A declared entry point for a function.
 #[derive(Clone, Debug, PartialEq)]

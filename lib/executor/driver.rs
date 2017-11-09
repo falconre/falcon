@@ -1,40 +1,44 @@
+//! A driver concretely executes a Falcon IL programs.
+
 use error::*;
-use executor::engine::Engine;
+use executor::State;
 use executor::successor::*;
 use il;
 use RC;
 use types::Architecture;
 
+/// A driver for a concrete executor over Falcon IL.
 #[derive(Debug, Clone)]
 pub struct Driver<'d> {
     program: RC<il::Program>,
     location: il::ProgramLocation,
-    engine: Engine<'d>,
+    state: State<'d>,
     architecture: Architecture,
 }
 
 
 impl<'d> Driver<'d> {
+    /// Create a new driver for concrete execution over Falcon IL.
     pub fn new(
         program: RC<il::Program>,
         location: il::ProgramLocation,
-        engine: Engine,
+        state: State<'d>,
         architecture: Architecture,
     ) -> Driver {
         Driver {
             program: program,
             location: location,
-            engine: engine,
+            state: state,
             architecture: architecture
         }
     }
 
-
+    /// Step forward over Falcon IL.
     pub fn step(self) -> Result<Driver<'d>> {
         let location = self.location.apply(&self.program).unwrap();
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, instruction) => {
-                let successor = self.engine.execute(instruction.operation())?;
+                let successor = self.state.execute(instruction.operation())?;
 
                 match successor.type_().clone() {
                     SuccessorType::FallThrough => {
@@ -52,7 +56,7 @@ impl<'d> Driver<'d> {
                             // edge should be satisfiable
                             for location in locations {
                                 if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
-                                    if successor.engine()
+                                    if successor.state()
                                                 .symbolize_and_eval(&edge.condition().clone().unwrap())?
                                                 .value() == 1 {
                                         return Ok(Driver::new(
@@ -76,10 +80,10 @@ impl<'d> Driver<'d> {
                                 self.architecture
                             )),
                             None => {
-                                let engine: Engine = successor.into();
+                                let state: State = successor.into();
                                 let function = self.architecture
                                                    .translator()
-                                                   .translate_function(engine.memory(), address)
+                                                   .translate_function(state.memory(), address)
                                                    .expect(&format!("Failed to lift function at 0x{:x}", address));
                                 let mut program = self.program.clone();
                                 RC::make_mut(&mut program).add_function(function);
@@ -90,7 +94,7 @@ impl<'d> Driver<'d> {
                                 return Ok(Driver::new(
                                     program.clone(),
                                     location.unwrap().into(),
-                                    engine,
+                                    state,
                                     self.architecture
                                 ));
                             }
@@ -106,7 +110,7 @@ impl<'d> Driver<'d> {
                 return Ok(Driver::new(
                     self.program.clone(),
                     locations[0].clone().into(),
-                    self.engine,
+                    self.state,
                     self.architecture
                 ));
             },
@@ -116,20 +120,20 @@ impl<'d> Driver<'d> {
                     return Ok(Driver::new(
                         self.program.clone(),
                         locations[0].clone().into(),
-                        self.engine,
+                        self.state,
                         self.architecture
                     ));
                 }
                 else {
                     for location in locations {
                         if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
-                            if self.engine
+                            if self.state
                                    .symbolize_and_eval(&edge.condition().clone().unwrap())?
                                    .value() == 1 {
                                 return Ok(Driver::new(
                                     self.program.clone(),
                                     location.clone().into(),
-                                    self.engine,
+                                    self.state,
                                     self.architecture
                                 ));
                             }
@@ -141,15 +145,18 @@ impl<'d> Driver<'d> {
         }
     }
 
+    /// Retrieve the Falcon IL program associated with this driver.
     pub fn program(&self) -> &il::Program {
         &self.program
     }
 
+    /// Retrieve the `il::ProgramLocation` associated with this driver.
     pub fn location(&self) -> &il::ProgramLocation {
         &self.location
     }
 
-    pub fn engine(&self) -> &Engine {
-        &self.engine
+    /// Retrieve the concrete `State` associated with this driver.
+    pub fn state(&self) -> &State {
+        &self.state
     }
 }

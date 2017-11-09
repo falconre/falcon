@@ -23,7 +23,7 @@ fn init_driver_block<'d>(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Constant)>,
     memory: Memory<'d>
-) -> driver::Driver<'d> {
+) -> Driver<'d> {
     let mut bytes = vec![0x00, 0x00, 0x00, 0x00];
     bytes.append(&mut instruction_bytes.to_vec());
     bytes.append(&mut vec![0x00, 0x00, 0x00, 0x00]);
@@ -37,19 +37,19 @@ fn init_driver_block<'d>(
 
     let location = ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0));
 
-    let mut engine = engine::Engine::new(memory);
+    let mut state = State::new(memory);
     for scalar in scalars {
-        engine.set_scalar(scalar.0, scalar.1);
+        state.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(RC::new(program), location, engine, Architecture::Mips)
+    Driver::new(RC::new(program), location, state, Architecture::Mips)
 }
 
 
 fn init_driver_function<'d>(
     backing: &'d memory::backing::Memory,
     scalars: Vec<(&str, Constant)>
-) -> driver::Driver<'d> {
+) -> Driver<'d> {
 
     let memory = Memory::new_with_backing(Endian::Big, backing);
 
@@ -60,12 +60,12 @@ fn init_driver_function<'d>(
 
     let location = ProgramLocation::new(Some(0), FunctionLocation::Instruction(0, 0));
 
-    let mut engine = engine::Engine::new(memory);
+    let mut state = State::new(memory);
     for scalar in scalars {
-        engine.set_scalar(scalar.0, scalar.1);
+        state.set_scalar(scalar.0, scalar.1);
     }
 
-    driver::Driver::new(RC::new(program), location, engine, Architecture::Mips)
+    Driver::new(RC::new(program), location, state, Architecture::Mips)
 }
 
 
@@ -93,7 +93,7 @@ fn get_scalar(
         }
     }
 
-    driver.engine().get_scalar(result_scalar).unwrap().clone()
+    driver.state().get_scalar(result_scalar).unwrap().clone()
 }
 
 
@@ -130,7 +130,7 @@ fn get_raise(
 }
 
 
-fn step_to(mut driver: driver::Driver, target_address: u64) -> driver::Driver {
+fn step_to(mut driver: Driver, target_address: u64) -> Driver {
 
     loop {
         driver = driver.step().unwrap();
@@ -344,7 +344,7 @@ fn b() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x2);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x2);
 }
 
 
@@ -378,8 +378,8 @@ fn bal() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1234);
-    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1234);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
@@ -412,7 +412,7 @@ fn beq() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x10);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x10);
 
     /*
     addiu $a0, $zero, 0x10
@@ -440,7 +440,7 @@ fn beq() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1244);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1244);
 }
 
 
@@ -470,7 +470,7 @@ fn beqz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x0);
 
     /*
     addiu $a1, $zero, 0x10
@@ -496,7 +496,7 @@ fn beqz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1235);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1235);
 }
 
 
@@ -527,7 +527,7 @@ fn bgez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -553,7 +553,7 @@ fn bgez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -579,7 +579,7 @@ fn bgez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0xffffffff);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0xffffffff);
 }
 
 
@@ -609,8 +609,8 @@ fn bgezal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
-    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
 
     /*
     ori $a0, 0x0000
@@ -636,8 +636,8 @@ fn bgezal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
-    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
 
     /*
     ori $a0, 0x0000
@@ -663,7 +663,7 @@ fn bgezal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 }
 
 
@@ -693,7 +693,7 @@ fn bgtz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -719,7 +719,7 @@ fn bgtz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -745,7 +745,7 @@ fn bgtz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 }
 
 
@@ -775,7 +775,7 @@ fn blez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -801,7 +801,7 @@ fn blez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -827,7 +827,7 @@ fn blez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
 }
 
 
@@ -857,7 +857,7 @@ fn bltz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -883,7 +883,7 @@ fn bltz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -909,7 +909,7 @@ fn bltz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
 }
 
 
@@ -939,7 +939,7 @@ fn bltzal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -965,7 +965,7 @@ fn bltzal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -991,8 +991,8 @@ fn bltzal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
-    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
@@ -1022,7 +1022,7 @@ fn bne() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1048,7 +1048,7 @@ fn bne() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -1074,7 +1074,7 @@ fn bne() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 }
 
 
@@ -1104,7 +1104,7 @@ fn bnez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1130,7 +1130,7 @@ fn bnez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
 }
 
 
@@ -1289,7 +1289,7 @@ fn j() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1);
 }
 
 
@@ -1319,7 +1319,7 @@ fn jr() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x10);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x10);
 }
 
 
@@ -1349,8 +1349,8 @@ fn jal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x1);
-    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
@@ -1380,8 +1380,8 @@ fn jalr() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.engine().get_scalar("$a0").unwrap().value(), 0x10);
-    assert_eq!(driver.engine().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x10);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
 }
 
 
@@ -1978,7 +1978,7 @@ fn sb() {
         memory.load(address, 8).unwrap().unwrap().value() as u16
     }
 
-    assert_eq!(memval(driver.engine().memory(), 0xdeadbeef), 0x41);
+    assert_eq!(memval(driver.state().memory(), 0xdeadbeef), 0x41);
 }
 
 
@@ -2007,7 +2007,7 @@ fn sh() {
         memory.load(address, 16).unwrap().unwrap().value() as u16
     }
 
-    assert_eq!(memval(driver.engine().memory(), 0xdeadbeef), 0xbeef);
+    assert_eq!(memval(driver.state().memory(), 0xdeadbeef), 0xbeef);
 }
 
 
@@ -2401,7 +2401,7 @@ fn sw() {
         memory.load(address, 32).unwrap().unwrap().value() as u32
     }
 
-    assert_eq!(memval(driver.engine().memory(), 0xdeadbee0), 0xdeadbeef);
+    assert_eq!(memval(driver.state().memory(), 0xdeadbee0), 0xdeadbeef);
 }
 
 
