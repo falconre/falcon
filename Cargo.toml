@@ -2,11 +2,15 @@
 name = "falcon"
 version = "0.2.0"
 authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
+repository = "https://github.com/falconre/falcon"
+description = "A Binary Analysis Framework in Rust"
+license = " Apache-2.0"
+readme = "README.md"
 
 [dependencies]
 base64 = "0.5"
 bitflags = "1.0"
-capstone_rust = { git = "https://github.com/endeav0r/capstone-rust", rev="30b2398725" }
+falcon_capstone = "0.2.0"
 error-chain = "0.11"
 goblin = "0.0.11"
 lazy_static = "0.2"

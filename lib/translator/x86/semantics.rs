@@ -1,6 +1,6 @@
-use capstone_rust::capstone;
-use capstone_rust::capstone::{cs_x86_op};
-use capstone_rust::capstone_sys::{x86_op_type, x86_reg};
+use falcon_capstone::capstone;
+use falcon_capstone::capstone::cs_x86_op;
+use falcon_capstone::capstone_sys::{x86_op_type, x86_reg};
 use error::*;
 use il::*;
 use il::Expression as Expr;

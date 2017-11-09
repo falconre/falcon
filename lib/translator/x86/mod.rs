@@ -1,6 +1,6 @@
 //! Capstone-based translator for 32-bit x86.
 
-use capstone_rust::{capstone, capstone_sys};
+use falcon_capstone::{capstone, capstone_sys};
 use error::*;
 use il::*;
 use translator::{Translator, BlockTranslationResult};

@@ -1,5 +1,5 @@
-use capstone_rust::capstone;
-use capstone_rust::capstone_sys::mips_reg;
+use falcon_capstone::capstone;
+use falcon_capstone::capstone_sys::mips_reg;
 use error::*;
 use il::*;
 use il::Expression as Expr;

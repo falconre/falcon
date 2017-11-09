@@ -38,10 +38,10 @@
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
-extern crate capstone_rust;
 extern crate core;
 #[macro_use]
 extern crate error_chain;
+extern crate falcon_capstone;
 extern crate goblin;
 #[macro_use]
 extern crate log;
