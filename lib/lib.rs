@@ -38,14 +38,12 @@
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
-extern crate core;
 #[macro_use]
 extern crate error_chain;
 extern crate falcon_capstone;
 extern crate goblin;
 #[macro_use]
 extern crate log;
-extern crate regex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -86,8 +84,6 @@ pub mod error {
             Goblin(::goblin::error::Error);
             Io(::std::io::Error);
             Json(::serde_json::Error);
-            ParseIntError(::core::num::ParseIntError);
-            Regex(::regex::Error);
             Utf8(::std::string::FromUtf8Error);
         }
 
