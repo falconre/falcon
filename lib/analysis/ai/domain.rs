@@ -166,6 +166,12 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
         self.variables.insert(key, value);
     }
 
+    /// Remove a variable from this state. Returns true if the variable was
+    /// present in this state.
+    pub fn remove_variable(&mut self, key: &il::Scalar) {
+        self.variables.remove(key);
+    }
+
     /// Join this abstract state with another abstract state.
     pub fn join(mut self, other: &Self) -> Result<Self> {
         for variable in &other.variables {
