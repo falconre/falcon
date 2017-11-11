@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/falconre/falcon.svg?branch=master)](https://travis-ci.org/falconre/falcon)
 [![Coverage Status](https://coveralls.io/repos/github/falconre/falcon/badge.svg)](https://coveralls.io/github/falconre/falcon)
+[![Crates.io Version](https://img.shields.io/crates/v/falcon.svg)](https://crates.io/crates/falcon/)
+[![Documentation](https://docs.rs/falcon/badge.svg)](https://docs.rs/falcon/)
 
 # Welcome to Falcon
 
@@ -12,7 +14,6 @@ Falcon is a formal binary analysis framework in Rust. Falcon provides a platform
 
 # Questions / Support
 
-* Documentation is available [here](https://files.reversing.io/falcon-docs/0.2.0/falcon/) for the tagged `0.2.0` release. Please run `cargo doc` for the latest documentation.
 * I write about Falcon on my [blog](http://reversing.io/). [Just posts about Falcon](http://reversing.io/tags/falcon/).
 * I am idling in irc.freenode.net#rust-falcon.
 * You can also find me in the Binary Ninja slack under the name "endeavor".

@@ -2,21 +2,21 @@ use analysis::reaching_definitions;
 use error::*;
 use il;
 use il::Variable;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{HashMap, HashSet};
 
 
 #[allow(dead_code)]
 /// Compute use definition chains for the given function.
 pub fn use_def<'r>(function: &'r il::Function)
--> Result<BTreeMap<il::RefProgramLocation<'r>, BTreeSet<il::RefProgramLocation<'r>>>> {
+-> Result<HashMap<il::RefProgramLocation<'r>, HashSet<il::RefProgramLocation<'r>>>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
-    let mut ud = BTreeMap::new();
+    let mut ud = HashMap::new();
 
     for (location, _) in &rd {
         let defs = match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                let mut defs = BTreeSet::new();
+                let mut defs = HashSet::new();
                 for variable_read in instruction.operation().variables_read() {
                     for rd in &rd[&location] {
                         if rd.instruction()
@@ -32,7 +32,7 @@ pub fn use_def<'r>(function: &'r il::Function)
                 defs
             },
             il::RefFunctionLocation::Edge(ref edge) => {
-                let mut defs = BTreeSet::new();
+                let mut defs = HashSet::new();
                 if let Some(ref condition) = *edge.condition() {
                     for variable_read in condition.scalars() {
                         for rd in &rd[&location] {
@@ -49,7 +49,7 @@ pub fn use_def<'r>(function: &'r il::Function)
                 }
                 defs
             },
-            il::RefFunctionLocation::EmptyBlock(_) => BTreeSet::new()
+            il::RefFunctionLocation::EmptyBlock(_) => HashSet::new()
         };
         ud.insert(location.clone(), defs);
     }
