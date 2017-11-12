@@ -23,8 +23,6 @@ pub trait Value: Clone + Debug + Eq + PartialEq {
 
 /// A memory model which operates over abstract values
 pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq + Serialize {
-    fn store(&mut self, index: &V, value: V) -> Result<()>;
-    fn load(&self, index: &V, bits: usize) -> Result<V>;
     fn new(endian: Endian) -> Self;
     fn join(self, other: &Self) -> Result<Self>;
 }
@@ -35,6 +33,12 @@ pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq + Serialize {
 pub trait Domain<M: Memory<V>, V: Value> {
     /// Evaluate an expression of abstract values
     fn eval(&self, expr: &Expression<V>) -> Result<V>;
+
+    /// Handle a store operation
+    fn store(&self, memory: &mut M, index: &V, value: V) -> Result<()>;
+
+    /// Handle a load operation
+    fn load(&self, memory: &M, index: &V, bits: usize) -> Result<V>;
 
     /// Handle a brc operation
     fn brc(&self, target: &V, condition: &V, state: State<M, V>) -> Result<State<M, V>>;
@@ -54,7 +58,8 @@ pub trait Domain<M: Memory<V>, V: Value> {
 ///
 /// This is a slightly modified version of a regular Falcon IL expression, where
 /// Scalar and Constant are replaced with Value
-pub enum Expression<V: Value> {
+#[derive(Clone)]
+pub enum Expression<V: Clone> {
     Value(V),
     Add(Box<Expression<V>>, Box<Expression<V>>),
     Sub(Box<Expression<V>>, Box<Expression<V>>),
@@ -98,7 +103,7 @@ macro_rules! expression_extop {
 }
 
 
-impl<V> Expression<V> where V: Value {
+impl<V> Expression<V> where V: Clone {
     pub fn value(value: V) -> Expression<V> {
         Expression::Value(value)
     }
@@ -121,7 +126,32 @@ impl<V> Expression<V> where V: Value {
     expression_extop!(Expression::Zext, zext);
     expression_extop!(Expression::Sext, sext);
     expression_extop!(Expression::Trun, trun);
+    pub fn into_<W>(self) -> Expression<W> where V: Into<W>, W: Clone {
+        match self {
+            Expression::Value(v) => Expression::Value(v.into()),
+            Expression::Add(lhs, rhs) => Expression::add(lhs.into_(), rhs.into_()),
+            Expression::Sub(lhs, rhs) => Expression::sub(lhs.into_(), rhs.into_()),
+            Expression::Mul(lhs, rhs) => Expression::mul(lhs.into_(), rhs.into_()),
+            Expression::Divu(lhs, rhs) => Expression::divu(lhs.into_(), rhs.into_()),
+            Expression::Modu(lhs, rhs) => Expression::modu(lhs.into_(), rhs.into_()),
+            Expression::Divs(lhs, rhs) => Expression::divs(lhs.into_(), rhs.into_()),
+            Expression::Mods(lhs, rhs) => Expression::mods(lhs.into_(), rhs.into_()),
+            Expression::And(lhs, rhs) => Expression::and(lhs.into_(), rhs.into_()),
+            Expression::Or(lhs, rhs) => Expression::or(lhs.into_(), rhs.into_()),
+            Expression::Xor(lhs, rhs) => Expression::xor(lhs.into_(), rhs.into_()),
+            Expression::Shl(lhs, rhs) => Expression::shl(lhs.into_(), rhs.into_()),
+            Expression::Shr(lhs, rhs) => Expression::shr(lhs.into_(), rhs.into_()),
+            Expression::Cmpeq(lhs, rhs) => Expression::cmpeq(lhs.into_(), rhs.into_()),
+            Expression::Cmpneq(lhs, rhs) => Expression::cmpneq(lhs.into_(), rhs.into_()),
+            Expression::Cmplts(lhs, rhs) => Expression::cmplts(lhs.into_(), rhs.into_()),
+            Expression::Cmpltu(lhs, rhs) => Expression::cmpltu(lhs.into_(), rhs.into_()),
+            Expression::Zext(bits, rhs) => Expression::zext(bits, rhs.into_()),
+            Expression::Sext(bits, rhs) => Expression::sext(bits, rhs.into_()),
+            Expression::Trun(bits, rhs) => Expression::trun(bits, rhs.into_()),
+        }
+    }
 }
+
 
 
 /// An abstract state, which holds the values of all variables and a memory

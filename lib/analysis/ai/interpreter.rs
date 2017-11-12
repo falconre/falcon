@@ -97,12 +97,12 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                     il::Operation::Store { ref index, ref src, .. } => {
                         let index = self.domain.eval(&self.symbolize(index, &state))?;
                         let src = self.domain.eval(&self.symbolize(src, &state))?;
-                        state.memory.store(&index, src)?;
+                        self.domain.store(&mut state.memory, &index, src)?;
                         state
                     },
                     il::Operation::Load { ref dst, ref index, .. } => {
                         let index = self.domain.eval(&self.symbolize(index, &state))?;
-                        let value = state.memory.load(&index, dst.bits())?;
+                        let value = self.domain.load(&state.memory, &index, dst.bits())?;
                         state.set_variable(dst.clone(), value.clone());
                         state
                     },

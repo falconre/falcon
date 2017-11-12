@@ -327,28 +327,6 @@ impl domain::Value for KSet {
 
 
 impl<'m> domain::Memory<KSet> for KMemory<'m> {
-    fn store(&mut self, index: &KSet, value: KSet) -> Result<()> {
-        if let KSet::Value(ref kindex) = *index {
-            for i in kindex {
-                self.store(i.value(), value.clone())?
-            }
-        }
-        Ok(())
-    }
-
-    fn load(&self, index: &KSet, bits: usize) -> Result<KSet> {
-        if let KSet::Value(ref kindex) = *index {
-            let mut b = KSet::empty(index.bits());
-            for i in kindex {
-                b = b.join(&self.load(i.value(), bits)?)?;
-            }
-            Ok(b)
-        }
-        else {
-            Ok(KSet::empty(index.bits()))
-        }
-    }
-
     fn new(endian: Endian) -> KMemory<'m> {
         ai::memory::Memory::<KSet>::new(endian)
     }
@@ -368,7 +346,29 @@ struct KSetDomain<'m> {
 impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
     fn eval(&self, expr: &domain::Expression<KSet>) -> Result<KSet> {
         KSet::eval(expr)
-    } 
+    }
+
+    fn store(&self, memory: &mut KMemory, index: &KSet, value: KSet) -> Result<()> {
+        if let KSet::Value(ref kindex) = *index {
+            for i in kindex {
+                memory.store(i.value(), value.clone())?
+            }
+        }
+        Ok(())
+    }
+
+    fn load(&self, memory: &KMemory, index: &KSet, bits: usize) -> Result<KSet> {
+        if let KSet::Value(ref kindex) = *index {
+            let mut b = KSet::empty(index.bits());
+            for i in kindex {
+                b = b.join(&memory.load(i.value(), bits)?)?;
+            }
+            Ok(b)
+        }
+        else {
+            Ok(KSet::empty(index.bits()))
+        }
+    }
 
     fn brc(&self, _: &KSet, _: &KSet, state: KState<'m>) -> Result<KState<'m>> {
         Ok(state)
