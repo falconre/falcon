@@ -18,3 +18,4 @@
 * Add `locations` function to `il::Function`
 * Add an `into_` method for `domain::Expression` to help translate expressions
 between domains.
+* Added `symbolize` function to `domain::State`

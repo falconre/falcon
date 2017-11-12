@@ -214,4 +214,60 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
         self.memory = Memory::join(self.memory, &other.memory)?;
         Ok(self)
     }
+
+    /// Replace scalars in the given `il::Expression` with the values held in this
+    /// state.
+    pub fn symbolize(&self, expression: &il::Expression) -> Expression<V> {
+
+        match *expression {
+            il::Expression::Scalar(ref scalar) => {
+                match self.variable(scalar) {
+                    Some(v) => {
+                        Expression::value(v.clone())
+                    },
+                    None => Expression::value(V::empty(scalar.bits()))
+                }
+            },
+            il::Expression::Constant(ref constant) =>
+                Expression::value(V::constant(constant.clone())),
+            il::Expression::Add(ref lhs, ref rhs) =>
+                Expression::add(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Sub(ref lhs, ref rhs) =>
+                Expression::sub(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Mul(ref lhs, ref rhs) =>
+                Expression::mul(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Divu(ref lhs, ref rhs) =>
+                Expression::divu(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Modu(ref lhs, ref rhs) =>
+                Expression::modu(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Divs(ref lhs, ref rhs) =>
+                Expression::divs(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Mods(ref lhs, ref rhs) =>
+                Expression::mods(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::And(ref lhs, ref rhs) =>
+                Expression::and(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Or(ref lhs, ref rhs) =>
+                Expression::or(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Xor(ref lhs, ref rhs) =>
+                Expression::xor(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Shl(ref lhs, ref rhs) =>
+                Expression::shl(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Shr(ref lhs, ref rhs) =>
+                Expression::shr(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Cmpeq(ref lhs, ref rhs) =>
+                Expression::cmpeq(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Cmpneq(ref lhs, ref rhs) =>
+                Expression::cmpneq(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Cmpltu(ref lhs, ref rhs) =>
+                Expression::cmpltu(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Cmplts(ref lhs, ref rhs) =>
+                Expression::cmplts(self.symbolize(lhs), self.symbolize(rhs)),
+            il::Expression::Zext(bits, ref rhs) =>
+                Expression::zext(bits, self.symbolize(rhs)),
+            il::Expression::Sext(bits, ref rhs) =>
+                Expression::sext(bits, self.symbolize(rhs)),
+            il::Expression::Trun(bits, ref rhs) =>
+                Expression::trun(bits, self.symbolize(rhs))
+        }
+    }
 }
