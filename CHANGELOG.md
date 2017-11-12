@@ -6,6 +6,7 @@
 
 ## Fixes
 * Removed unused regex and lazy_static crates.
+* Removed `Display + Serialize` trait requirements for `domain::Value`
 
 ## Additions
 * Add `remove_variable` function to `domain::State`

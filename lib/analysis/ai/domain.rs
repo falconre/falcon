@@ -4,12 +4,12 @@ use error::*;
 use il;
 use serde::Serialize;
 use std::collections::{HashMap};
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use types::Endian;
 
 
 /// An abstract value
-pub trait Value: Clone + Display + Debug + Eq + PartialEq + Serialize {
+pub trait Value: Clone + Debug + Eq + PartialEq {
     /// Join this abstract value with another
     fn join(&self, other: &Self) -> Result<Self>;
 
