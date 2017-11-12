@@ -35,6 +35,32 @@ impl Function {
         }
     }
 
+    /// Create a Vec of every RefFunctionLocation for this function.
+    ///
+    /// Convenient for analyses where we need to check every location in a
+    /// function
+    pub fn locations(&self) -> Vec<RefFunctionLocation> {
+        let mut locations = Vec::new();
+
+        for block in self.blocks() {
+            let instructions = block.instructions();
+            if instructions.is_empty() {
+                locations.push(RefFunctionLocation::EmptyBlock(block));
+            }
+            else {
+                for instruction in instructions {
+                    locations.push(RefFunctionLocation::Instruction(block, instruction));
+                }
+            }
+        }
+
+        for edge in self.edges() {
+            locations.push(RefFunctionLocation::Edge(edge))
+        }
+
+        locations
+    }
+
     /// Get the address of this `Function`.
     ///
     /// The address returned will be the address set when this `Function` was created,

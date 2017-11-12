@@ -10,3 +10,4 @@
 ## Additions
 * Add `remove_variable` function to `domain::State`
 * Add `stack_pointer` function `types::Architecture`
+* Add `locations` function to `il::Function`
