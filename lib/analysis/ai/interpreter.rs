@@ -19,7 +19,7 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
           M: 'a + domain::Memory<V>,
           V: 'a + domain::Value {
     fn trans(&self, location: il::RefProgramLocation<'a>, state: Option<domain::State<M, V>>)
-    -> Result<domain::State<M, V>> {
+        -> Result<domain::State<M, V>> {
 
         let mut state = match state {
             Some(state) => state,
@@ -57,19 +57,16 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                     }
                 }
             },
-            il::RefFunctionLocation::Edge(_) => {
-                state
-            },
-            il::RefFunctionLocation::EmptyBlock(_) => {
-                state
-            }
+            il::RefFunctionLocation::Edge(_) |
+            il::RefFunctionLocation::EmptyBlock(_) => state
         };
 
         Ok(state)
     }
 
     fn join(&self, state0: domain::State<M, V>, state1: &domain::State<M, V>)
-    -> Result<domain::State<M, V>> {
+        -> Result<domain::State<M, V>> {
+            
         state0.join(state1)
     }
 }

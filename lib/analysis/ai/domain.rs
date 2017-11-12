@@ -173,6 +173,11 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
     pub fn memory(&self) -> &M {
         &self.memory
     }
+
+    /// Retrieve a mutable reference to the memory model tied to this `State`
+    pub fn memory_mut(&mut self) -> &mut M {
+        &mut self.memory
+    }
 }
 
 

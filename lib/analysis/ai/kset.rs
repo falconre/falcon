@@ -359,14 +359,14 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
 
     fn load(&self, memory: &KMemory, index: &KSet, bits: usize) -> Result<KSet> {
         if let KSet::Value(ref kindex) = *index {
-            let mut b = KSet::empty(index.bits());
+            let mut b = KSet::empty(bits);
             for i in kindex {
                 b = b.join(&memory.load(i.value(), bits)?)?;
             }
             Ok(b)
         }
         else {
-            Ok(KSet::empty(index.bits()))
+            Ok(KSet::empty(bits))
         }
     }
 
