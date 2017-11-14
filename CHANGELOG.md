@@ -24,4 +24,5 @@
 * Add support for `Mipsel`, as it's only a minor change from Mips.
 * Impl `analysis::ai::Interpreter` and add simple `new` method to create a new
 abstract interpreter.
-* Lots of tests.
+* Added calling conventions to analysis.
+* Tests.
