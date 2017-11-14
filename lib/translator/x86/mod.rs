@@ -4,7 +4,6 @@ use falcon_capstone::{capstone, capstone_sys};
 use error::*;
 use il::*;
 use translator::{Translator, BlockTranslationResult};
-use types::Endian;
 
 
 mod semantics;
@@ -38,10 +37,6 @@ fn raise_fp(control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
 
 impl Translator for X86 {
-    fn endian(&self) -> Endian {
-        Endian::Little
-    }
-
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
         let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_X86, capstone::CS_MODE_32) {
             Ok(cs) => cs,

@@ -22,7 +22,6 @@ use error::*;
 use il::*;
 use memory::MemoryPermissions;
 use std::collections::{BTreeMap, VecDeque};
-use types::Endian;
 
 pub mod x86;
 pub mod mips;
@@ -127,9 +126,6 @@ impl BlockTranslationResult {
 pub trait Translator: {
     /// Translates a basic block
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;
-
-    /// Get the endianness of this `Arch`.
-    fn endian(&self) -> Endian;
 
     /// Translates a function
     fn translate_function(

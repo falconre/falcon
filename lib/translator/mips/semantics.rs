@@ -1968,6 +1968,24 @@ pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     let addr_expr = Expr::add(base, offset)?;
 
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.store(array("mem", MEM_SIZE), addr_expr, rt);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    /*
+    This code is a more accurate translation of `sw`, and raises an
+    `AddressError` if the address isn't properly aligned. Unfortunately, it's
+    super irritating, so for now we will leave it here, commented out.
+
+    This also should be implemented for `lw`, but isn't implemented there.
+
     let head_index = {
         control_flow_graph.new_block()?.index()
     };
@@ -2007,6 +2025,7 @@ pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
     control_flow_graph.set_entry(head_index)?;
     control_flow_graph.set_exit(terminating_index)?;
+    */
 
     Ok(())
 }

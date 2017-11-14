@@ -561,7 +561,10 @@ impl Loader for Elf {
             Ok(Architecture::X86)
         }
         else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
-            Ok(Architecture::Mips)
+            match elf.header.endianness()? {
+                goblin::container::Endian::Big => Ok(Architecture::Mips),
+                goblin::container::Endian::Little => Ok(Architecture::Mipsel),
+            }
         }
         else {
             Err("Unsupported Arcthiecture".into())
