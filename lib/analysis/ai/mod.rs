@@ -17,3 +17,5 @@ pub mod domain;
 pub mod kset;
 pub mod interpreter;
 pub mod memory;
+
+#[cfg(test)] mod test_lattice;

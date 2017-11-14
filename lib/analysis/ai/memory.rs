@@ -3,23 +3,17 @@
 //! This memory model wraps falcon::memory::paged::Memory and adds a `join`
 //! method which operates over abstract values.
 
+use analysis::ai::domain;
 use error::*;
 use memory::paged;
 use memory;
 use RC;
 use types::Endian;
-use std::fmt::Debug;
 
 
 /// The `Value` trait must be implemented for abstract values operated over by
 /// this memory model.
-pub trait Value: memory::value::Value + Clone + Debug + Eq + PartialEq {
-    /// Join this abstract value with another.
-    fn join(&self, other: &Self) -> Result<Self>;
-
-    /// Return an empty value.
-    fn empty(bits: usize) -> Self;
-}
+pub trait Value: memory::value::Value + domain::Value {}
 
 
 /// A memory model for abstract interpretation.

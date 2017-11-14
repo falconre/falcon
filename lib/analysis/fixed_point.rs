@@ -40,7 +40,6 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
                               .block(entry_index)
                               .ok_or(format!("Could not find block for {}", entry_index))?;
 
-    // Add our first initial state.
     match entry_block.instructions().first() {
         Some(ref instruction) => {
             let location = il::RefFunctionLocation::Instruction(entry_block, instruction);

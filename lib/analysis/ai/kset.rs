@@ -53,11 +53,7 @@ pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMem
     -> Result<HashMap<il::RefProgramLocation<'k>, KState<'k>>> {
 
     let domain = KSetDomain { endian: endian, memory: initial_memory };
-    let interpreter = interpreter::Interpreter {
-        m: ::std::marker::PhantomData,
-        v: ::std::marker::PhantomData,
-        domain: domain
-    };
+    let interpreter = interpreter::Interpreter::new(domain);
     fixed_point::fixed_point_forward(interpreter, function)
 }
 
@@ -250,6 +246,14 @@ impl KSet {
     pub fn empty(bits: usize) -> KSet {
         KSet::Bottom(bits)
     }
+
+    /// Retrieve values from the KSet, if they exist
+    pub fn value(&self) -> Option<&HashSet<il::Constant>> {
+        match *self {
+            KSet::Value(ref v) => Some(v),
+            _ => None
+        }
+    }
 }
 
 
@@ -300,15 +304,7 @@ impl memory::value::Value for KSet {
 }
 
 
-impl ai::memory::Value for KSet {
-    fn join(&self, other: &KSet) -> Result<KSet> {
-        KSet::join(self, other)
-    }
-
-    fn empty(bits: usize) -> KSet {
-        KSet::empty(bits)
-    }
-}
+impl ai::memory::Value for KSet {}
 
 
 impl domain::Value for KSet {
@@ -410,4 +406,16 @@ impl<'m> Into<HashMap<il::Scalar, KSet>> for KState<'m> {
     fn into(self) -> HashMap<il::Scalar, KSet> {
         self.variables
     }
+}
+
+
+#[test]
+fn kset_eval_add() {
+    let lhs = KSet::constant(il::const_(0x570000, 32));
+    let rhs = KSet::constant(il::const_(0x703c, 32));
+    let expr = domain::Expression::add(lhs.into(), rhs.into());
+    let result = KSet::eval(&expr).unwrap().value().unwrap().clone();
+
+    assert_eq!(result.len(), 1);
+    assert_eq!(*result.iter().next().unwrap(), il::const_(0x57703c, 32));
 }

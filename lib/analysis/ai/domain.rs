@@ -58,7 +58,7 @@ pub trait Domain<M: Memory<V>, V: Value> {
 ///
 /// This is a slightly modified version of a regular Falcon IL expression, where
 /// Scalar and Constant are replaced with Value
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expression<V: Clone> {
     Value(V),
     Add(Box<Expression<V>>, Box<Expression<V>>),
@@ -275,4 +275,25 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
                 Expression::trun(bits, self.symbolize(rhs))
         }
     }
+}
+
+
+#[test]
+fn symbolize() {
+    use analysis::ai::test_lattice::*;
+    use analysis::ai;
+
+    let memory = ai::memory::Memory::new(Endian::Big);
+    let mut state: TestLatticeState = State::new(memory);
+
+    state.set_variable(il::scalar("$a0", 32),
+                       TestLattice::Constant(il::const_(0x570000, 32)));
+
+    let expr = il::Expression::add(il::scalar("$a0", 32).into(), 
+                                   il::const_(0x703c, 32).into()).unwrap();
+    let expr = state.symbolize(&expr);
+
+    let result = TestLattice::eval(&expr).unwrap();
+
+    assert_eq!(result, TestLattice::Constant(il::const_(0x57703c, 32)));
 }

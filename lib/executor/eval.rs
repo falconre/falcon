@@ -146,3 +146,17 @@ pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
         }
     }
 }
+
+
+#[test]
+fn add() {
+    let lhs = il::expr_const(0x570000, 32);
+    let rhs = il::expr_const(0x703c, 32);
+    let expr = il::Expression::add(lhs, rhs).unwrap();
+    assert_eq!(eval(&expr).unwrap(), il::const_(0x57703c, 32));
+
+    let lhs = il::expr_const(0xffffffff, 32);
+    let rhs = il::expr_const(0x1, 32);
+    let expr = il::Expression::add(lhs, rhs).unwrap();
+    assert_eq!(eval(&expr).unwrap(), il::const_(0, 32));
+}
