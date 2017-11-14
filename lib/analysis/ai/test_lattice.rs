@@ -108,10 +108,6 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
         Ok(state)
     }
 
-    fn endian(&self) -> Endian {
-        Endian::Big
-    }
-
     fn new_state(&self) -> TestLatticeState<'d> {
         State::new(TestLatticeMemory::new(Endian::Big))
     }
@@ -238,15 +234,3 @@ impl Into<Expression<TestLattice>> for TestLattice {
 
 
 impl ai::memory::Value for TestLattice {}
-
-impl<'m> Memory<TestLattice> for TestLatticeMemory<'m> {
-    fn new(endian: Endian) -> TestLatticeMemory<'m> {
-        ai::memory::Memory::new(endian)
-    }
-
-    fn join(self, other: &TestLatticeMemory<'m>)
-        -> Result<TestLatticeMemory<'m>> {
-
-        ai::memory::Memory::<TestLattice>::join(self, other)
-    }
-}

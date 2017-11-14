@@ -7,6 +7,7 @@
 * Remove `endian()` method from `Translator` trait.
 * Removed required methods for `ai::memory::Memory`, since they overlap with
 `ai::domain::Value`.
+* `ai::ksets` takes a `CallingConvention` instead of `Endian`.
 
 ## Fixes
 

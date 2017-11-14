@@ -5,7 +5,6 @@ use il;
 use serde::Serialize;
 use std::collections::{HashMap};
 use std::fmt::Debug;
-use types::Endian;
 
 
 /// An abstract value
@@ -23,7 +22,6 @@ pub trait Value: Clone + Debug + Eq + PartialEq {
 
 /// A memory model which operates over abstract values
 pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq + Serialize {
-    fn new(endian: Endian) -> Self;
     fn join(self, other: &Self) -> Result<Self>;
 }
 
@@ -45,9 +43,6 @@ pub trait Domain<M: Memory<V>, V: Value> {
 
     /// Handle a raise operation
     fn raise(&self, expr: &V, state: State<M, V>) -> Result<State<M, V>>;
-
-    /// Return the endianness used for analysis
-    fn endian(&self) -> Endian;
 
     /// Return an empty state
     fn new_state(&self) -> State<M, V>;
@@ -282,6 +277,7 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
 fn symbolize() {
     use analysis::ai::test_lattice::*;
     use analysis::ai;
+    use types::Endian;
 
     let memory = ai::memory::Memory::new(Endian::Big);
     let mut state: TestLatticeState = State::new(memory);

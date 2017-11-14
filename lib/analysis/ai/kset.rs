@@ -11,16 +11,16 @@
 //! // Load an elf for analysis
 //! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
 //! // Get the endianness of the architecture for this elf
-//! let endian = elf.architecture()?.endian();
+//! let architecture = elf.architecture()?;
 //! // Get the underlying memory of this Elf as a memory backing
 //! let backing = elf.memory()?;
 //! // Lift one function from the Elf at address 0x804849b
 //! let function = elf.function(0x804849b)?;
 //! // Set up a memory model for this analysis
 //! let memory: kset::KMemory =
-//!     kset::KMemory::new_with_backing(endian.clone(), &backing);
+//!     kset::KMemory::new_with_backing(architecture.endian(), &backing);
 //! // Run the ksets analysis
-//! let ksets = kset::kset(&function, endian, memory)?;
+//! let ksets = kset::kset(&function, architecture.calling_convention(), memory)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -28,6 +28,7 @@
 
 use analysis::ai;
 use analysis::ai::{domain, interpreter};
+use analysis::calling_convention::*;
 use analysis::fixed_point;
 use error::*;
 use executor::eval;
@@ -35,7 +36,6 @@ use il;
 use memory;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use types::Endian;
 
 
 /// The cardinality for this analysis.
@@ -49,10 +49,15 @@ pub type KMemory<'m> = ai::memory::Memory<'m, KSet>;
 pub type KState<'m> = domain::State<KMemory<'m>, KSet>;
 
 /// Run ksets analysis on the given function
-pub fn kset<'k>(function: &'k il::Function, endian: Endian, initial_memory: KMemory<'k>)
-    -> Result<HashMap<il::RefProgramLocation<'k>, KState<'k>>> {
-
-    let domain = KSetDomain { endian: endian, memory: initial_memory };
+pub fn kset<'k>(
+    function: &'k il::Function,
+    calling_convention: CallingConvention,
+    initial_memory: KMemory<'k>
+) -> Result<HashMap<il::RefProgramLocation<'k>, KState<'k>>> {
+    let domain = KSetDomain { 
+        calling_convention: calling_convention,
+        memory: initial_memory
+    };
     let interpreter = interpreter::Interpreter::new(domain);
     fixed_point::fixed_point_forward(interpreter, function)
 }
@@ -322,19 +327,8 @@ impl domain::Value for KSet {
 }
 
 
-impl<'m> domain::Memory<KSet> for KMemory<'m> {
-    fn new(endian: Endian) -> KMemory<'m> {
-        ai::memory::Memory::<KSet>::new(endian)
-    }
-
-    fn join(self, other: &KMemory) -> Result<KMemory<'m>> {
-        ai::memory::Memory::<KSet>::join(self, other)
-    }
-}
-
-
 struct KSetDomain<'m> {
-    endian: Endian,
+    calling_convention: CallingConvention,
     memory: KMemory<'m>
 }
 
@@ -366,16 +360,15 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
         }
     }
 
-    fn brc(&self, _: &KSet, _: &KSet, state: KState<'m>) -> Result<KState<'m>> {
+    fn brc(&self, _: &KSet, _: &KSet, mut state: KState<'m>) -> Result<KState<'m>> {
+        for trashed_register in self.calling_convention.trashed_registers() {
+            state.remove_variable(trashed_register);
+        }
         Ok(state)
     }
 
     fn raise(&self, _: &KSet, state: KState<'m>) -> Result<KState<'m>> {
         Ok(state)
-    }
-
-    fn endian(&self) -> Endian {
-        self.endian.clone()
     }
 
     fn new_state(&self) -> KState<'m> {
