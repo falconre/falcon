@@ -309,9 +309,6 @@ impl memory::value::Value for KSet {
 }
 
 
-impl ai::memory::Value for KSet {}
-
-
 impl domain::Value for KSet {
     fn join(&self, other: &KSet) -> Result<KSet> {
         self.join(other)

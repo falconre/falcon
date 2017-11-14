@@ -12,16 +12,11 @@ use serde::Serialize;
 use types::Endian;
 
 
-/// The `Value` trait must be implemented for abstract values operated over by
-/// this memory model.
-pub trait Value: memory::value::Value + domain::Value + Serialize {}
-
-
 /// A memory model for abstract interpretation.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Memory<'m, V: Value>(paged::Memory<'m, V>);
+pub struct Memory<'m, V: memory::value::Value + domain::Value>(paged::Memory<'m, V>);
 
-impl<'m, V> Memory<'m, V> where V: Value {
+impl<'m, V> Memory<'m, V> where V: memory::value::Value + domain::Value {
     /// Create a new memory model for abstract interpretation.
     pub fn new(endian: Endian) -> Memory<'m, V> {
         Memory(paged::Memory::new(endian))
@@ -110,7 +105,7 @@ impl<'m, V> Memory<'m, V> where V: Value {
 }
 
 
-impl<'m, V: domain::Value + Value> domain::Memory<V> for Memory<'m, V> {
+impl<'m, V: memory::value::Value + domain::Value + Serialize> domain::Memory<V> for Memory<'m, V> {
     fn join(self, other: &Memory<V>) -> Result<Memory<'m, V>> {
         self.join(other)
     }

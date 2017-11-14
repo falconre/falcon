@@ -231,6 +231,3 @@ impl Into<Expression<TestLattice>> for TestLattice {
         Expression::Value(self)
     }
 }
-
-
-impl ai::memory::Value for TestLattice {}
