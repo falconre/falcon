@@ -74,9 +74,14 @@ impl Function {
         self.control_flow_graph.block(index)
     }
 
-    /// Return a vec of all `Block` in this `Function`
+    /// Return a Vec of all `Block` in this `Function`
     pub fn blocks(&self) -> Vec<&Block> {
         self.control_flow_graph.blocks()
+    }
+
+    /// Return a Vec of mutable references to all `Block` in this `Function`
+    pub fn blocks_mut(&mut self) -> Vec<&mut Block> {
+        self.control_flow_graph.blocks_mut()
     }
 
     /// Return an `Edge` from this `Function`'s `ControlFlowGraph` by index.
