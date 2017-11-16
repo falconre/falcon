@@ -2,7 +2,7 @@
 
 use error::*;
 use il;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
 
@@ -30,7 +30,7 @@ pub fn fixed_point_forward<'f, Analysis, State> (
 where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + PartialEq {
     let mut states: HashMap<il::RefProgramLocation<'f>, State> = HashMap::new();
 
-    let mut queue: HashSet<il::RefProgramLocation<'f>> = HashSet::new();
+    let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
 
     // Find the entry block to the function.
     let entry_index = function.control_flow_graph()
@@ -38,24 +38,23 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
                               .ok_or("Function's control flow graph must have entry")?;
     let entry_block = function.control_flow_graph()
                               .block(entry_index)
-                              .ok_or(format!("Could not find block for {}", entry_index))?;
+                              .ok_or(format!("Could not find block for entry {}", entry_index))?;
 
     match entry_block.instructions().first() {
         Some(ref instruction) => {
             let location = il::RefFunctionLocation::Instruction(entry_block, instruction);
             let location = il::RefProgramLocation::new(function, location);
-            queue.insert(location.clone());
+            queue.push_back(location.clone());
         },
         None => {
             let location = il::RefFunctionLocation::EmptyBlock(entry_block);
             let location = il::RefProgramLocation::new(function, location);
-            queue.insert(location.clone());
+            queue.push_back(location.clone());
         }
     }
 
     while !queue.is_empty() {
-        let location = queue.iter().next().unwrap().clone();
-        queue.remove(&location);
+        let location = queue.pop_front().unwrap();
 
         let location_predecessors = location.backward()?;
 
@@ -80,7 +79,9 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
         states.insert(location.clone(), state);
 
         for successor in location.forward()? {
-            queue.insert(successor);
+            if !queue.contains(&successor) {
+                queue.push_back(successor);
+            }
         }
     }
 

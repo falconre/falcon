@@ -89,9 +89,6 @@ impl KSet {
                             for r in rhs_value {
                                 b.insert(op(l, r)?);
                             }
-                            if b.len() > MAX_CARDINALITY {
-                                return Ok(KSet::Top(b.iter().next().unwrap().bits()));
-                            }
                         }
                         if b.len() > MAX_CARDINALITY {
                             KSet::Top(b.iter().next().unwrap().bits())
@@ -353,7 +350,7 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
             Ok(b)
         }
         else {
-            Ok(KSet::empty(bits))
+            Ok(KSet::Top(bits))
         }
     }
 
@@ -369,10 +366,7 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
     }
 
     fn new_state(&self) -> KState<'m> {
-        KState {
-            variables: HashMap::new(),
-            memory: self.memory.clone()
-        }
+        KState::new(self.memory.clone())
     }
 }
 

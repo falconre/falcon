@@ -15,6 +15,8 @@
 * Removed `Display + Serialize` trait requirements for `domain::Value`
 * Relax trait requirements for `domain::Expression`
 * Fixed a bug in `KSetDomain::load`
+* `HashSet` for worklist queue in fixed point was wrong. Replaced with VecDeque.
+* Memory load with Top/Bottom index should return Bottom in KSet.
 
 ## Additions
 
