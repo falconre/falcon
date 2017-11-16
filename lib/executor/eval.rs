@@ -160,3 +160,16 @@ fn add() {
     let expr = il::Expression::add(lhs, rhs).unwrap();
     assert_eq!(eval(&expr).unwrap(), il::const_(0, 32));
 }
+
+#[test]
+fn cmplts() {
+    let lhs = il::expr_const(0xffffffff, 32);
+    let rhs = il::expr_const(0, 32);
+    let expr = il::Expression::cmplts(lhs, rhs).unwrap();
+    assert_eq!(eval(&expr).unwrap(), il::const_(1, 1));
+
+    let lhs = il::expr_const(0, 32);
+    let rhs = il::expr_const(0xffffffff, 32);
+    let expr = il::Expression::cmplts(lhs, rhs).unwrap();
+    assert_eq!(eval(&expr).unwrap(), il::const_(0, 1));
+}

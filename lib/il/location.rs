@@ -69,13 +69,15 @@ impl<'p> RefProgramLocation<'p> {
         &self.function_location
     }
 
-    /// If this `RefProgramLocation` is referencing an `Instruction`, get that
+    /// If this `RefProgramLocation` references a `Block`, get that `Block`.
+    pub fn block(&self) -> Option<&Block> {
+        self.function_location.block()
+    }
+
+    /// If this `RefProgramLocation` references an `Instruction`, get that
     /// `Instruction`.
     pub fn instruction(&self) -> Option<&Instruction> {
-        match self.function_location {
-            RefFunctionLocation::Instruction(_, instruction) => Some(instruction),
-            _ => None
-        }
+        self.function_location.instruction()
     }
 
     /// If this `RefProgramLocation` is referencing an `Instruction` which has

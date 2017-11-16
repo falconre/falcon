@@ -134,8 +134,8 @@ pub trait Translator: {
         function_address: u64)
     -> Result<Function> {
 
-        let mut translation_queue = VecDeque::new();
-        let mut translation_results = BTreeMap::new();
+        let mut translation_queue: VecDeque<u64> = VecDeque::new();
+        let mut translation_results: BTreeMap<u64, BlockTranslationResult> = BTreeMap::new();
 
         translation_queue.push_front(function_address);
 

@@ -7,7 +7,6 @@ use analysis::ai::domain;
 use error::*;
 use memory::paged;
 use memory;
-use RC;
 use serde::Serialize;
 use types::Endian;
 
@@ -46,59 +45,57 @@ impl<'m, V> Memory<'m, V> where V: memory::value::Value + domain::Value {
     }
 
 
-    /// Join this abstract memory moel with another.
+    /// Returns true if all memory locations at address are None
+    fn empty_memory(&self, address: u64, length: usize) -> Result<bool> {
+        for i in 0..length {
+            if self.0.load(address + i as u64, 8)?.is_some() {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+
+    /// Join this abstract memory model with another.
     pub fn join(mut self, other: &Memory<V>) -> Result<Memory<'m, V>> {
         // for every page in the other memory
         for other_page in &other.0.pages {
-            let page = match self.0.pages.get(&other_page.0) {
-                // If this page exists in this memory
-                Some(this_page) =>
-                    // And the two pages are equivalent, clone this page.
-                    // It's an RC, so should be a cheap clone.
-                    if this_page == other_page.1 {
-                        this_page.clone()
+            let address = *other_page.0;
+            let page = other_page.1;
+            for i in 0..paged::PAGE_SIZE {
+                if let Some(other_value) = page.cells[i].as_ref()
+                                                        .and_then(|cell| cell.value()) {
+                    // If every value in this memory is None, we can just write the other
+                    // value
+                    if self.empty_memory(address + i as u64, other_value.bits() / 8)? {
+                        self.store(address + i as u64, other_value.clone())?;
+                        continue;
                     }
-                    else {
-                        // We're going to join cell by cell
-                        let mut cells = Vec::new();
-                        let other_cells = &other_page.1.cells;
-                        let this_cells = &this_page.cells;
-                        // for every cell
-                        for i in 0..this_cells.len() {
-                            // if the cells are equal, clone one and push it
-                            if this_cells[i] == other_cells[i] {
-                                cells.push(this_cells[i].clone());
-                                continue;
-                            }
-
-                            // If both cells are values, and they're the same bit-size, join
-                            // them and push the result
-                            if let Some(this_value) = this_cells[i].as_ref()
-                                                                   .and_then(|ref c| c.value()) {
-                                if let Some(other_value) = other_cells[i].as_ref()
-                                                                         .and_then(|ref c| c.value()) {
-                                    if memory::value::Value::bits(this_value) == other_value.bits() {
-
-                                        // join them and store the value
-                                        let value = this_value.join(other_value)?;
-                                        cells.push(Some(paged::MemoryCell::Value(value)));
-                                        continue;
-                                    }
-                                }
-                            }
-
-                            let address = other_page.0 + i as u64;
-
-                            let this_value = self.load(address, 8)?;
-                            let other_value = other.load(address, 8)?;
-                            cells.push(Some(paged::MemoryCell::Value(this_value.join(&other_value)?)));
+                    // Do we have a value here that matches perfectly?
+                    if let Some(this_value) = self.0.load(address + i as u64, other_value.bits())? {
+                        self.store(address + i as u64, this_value.join(other_value)?)?;
+                        continue;
+                    }
+                    // Otherwise join by byte
+                    let bytes = other_value.bits() / 8;
+                    for offset in 0..bytes {
+                        let shift = match self.0.endian() {
+                            Endian::Big => (bytes - offset - 1) * 8,
+                            Endian::Little => offset * 8
+                        };
+                        let other_byte = other_value.shr(shift)?;
+                        let other_byte = if other_byte.bits() == 8 {
+                            other_byte
                         }
-                        RC::new(paged::Page::new_with_cells(cells))
-                    },
-                // This page does not exist here, clone other page
-                None => other_page.1.clone()
-            };
-            self.0.pages.insert(*other_page.0, page);
+                        else {
+                            other_byte.trun(8)?
+                        };
+                        let byte_address = address + (i + offset) as u64;
+                        let this_byte = self.load(byte_address, 8)?;
+                        self.store(byte_address, this_byte.join(&other_byte)?)?;
+                    }
+                }
+            }
         }
         Ok(self)
     }
@@ -161,8 +158,39 @@ mod memory_tests {
 
         let other_memory: Memory<KSet> = Memory::new(Endian::Big);
         let memory = memory.join(&other_memory).unwrap();
+        assert_eq!(memory.load(0x100, 32).unwrap(), KSet::constant(il::const_(0xaabbffdd, 32)));
 
-        assert_eq!(memory.load(0x100, 32).unwrap(), KSet::constant(il::const_(0xaabbffdd, 32)));        
+        let other_memory: Memory<KSet> = Memory::new(Endian::Big);
+        let memory = other_memory.join(&memory).unwrap();
+        assert_eq!(memory.load(0x100, 32).unwrap(), KSet::constant(il::const_(0xaabbffdd, 32)));
+
+        let mut memory: Memory<KSet> = Memory::new(Endian::Big);
+        memory.store(0x100, KSet::constant(il::const_(0xAABBCCDD, 32))).unwrap();
+        let mut other_memory: Memory<KSet> = Memory::new(Endian::Big);
+        other_memory.store(0x100, KSet::constant(il::const_(0x11223344, 32))).unwrap();
+        let memory = memory.join(&other_memory).unwrap();
+
+        assert_eq!(memory.load(0x100, 8).unwrap(), 
+            KSet::constant(il::const_(0xaa, 8))
+                .join(&KSet::constant(il::const_(0x11, 8)))
+                .unwrap());
+
+        let mut memory: Memory<KSet> = Memory::new(Endian::Big);
+        memory.store(0x100, KSet::constant(il::const_(0xAABBCCDD, 32))).unwrap();
+        let mut other_memory: Memory<KSet> = Memory::new(Endian::Big);
+        other_memory.store(0x100, KSet::constant(il::const_(0x1122, 16))).unwrap();
+        let memory = memory.join(&other_memory).unwrap();
+
+        assert_eq!(memory.load(0x102, 16).unwrap(),  KSet::constant(il::const_(0xCCDD, 16)));
+        assert_eq!(memory.load(0x100, 8).unwrap(), 
+            KSet::constant(il::const_(0xaa, 8))
+                .join(&KSet::constant(il::const_(0x11, 8)))
+                .unwrap());
+        assert_eq!(memory.load(0x100, 8).unwrap(), 
+            KSet::constant(il::const_(0xbb, 8))
+                .join(&KSet::constant(il::const_(0x22, 8)))
+                .unwrap());
+
     }
 
     #[test]
