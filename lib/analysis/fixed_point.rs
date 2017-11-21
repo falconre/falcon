@@ -8,7 +8,7 @@ use std::fmt::Debug;
 
 /// A trait which implements a forward, flow-sensitive analysis to a
 /// fixed point.
-pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + Eq + PartialEq> {
+pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + PartialOrd> {
     /// Given an input state for a block, create an output state for this
     /// block.
     fn trans(
@@ -27,7 +27,7 @@ pub fn fixed_point_forward<'f, Analysis, State> (
     analysis: Analysis,
     function: &'f il::Function
 ) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
-where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + PartialEq {
+where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd {
     let mut states: HashMap<il::RefProgramLocation<'f>, State> = HashMap::new();
 
     let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
@@ -73,6 +73,18 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
         if let Some(in_state) = states.get(&location) {
             if state == *in_state {
                 continue;
+            }
+            else if !(state > *in_state) {
+                let ordering = match state.partial_cmp(in_state) {
+                    Some (ordering) => match ordering {
+                        ::std::cmp::Ordering::Less => "less",
+                        ::std::cmp::Ordering::Equal => "equal",
+                        ::std::cmp::Ordering::Greater => "greater"
+                    },
+                    None => { "no relation" }
+                };
+                bail!("Found a state which was not >= previous state (it was {}) @ {}",
+                    ordering, location);
             }
         }
 

@@ -34,12 +34,13 @@ use error::*;
 use executor::eval;
 use il;
 use memory;
+use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 
 /// The cardinality for this analysis.
-pub const MAX_CARDINALITY: usize = 4;
+pub const MAX_CARDINALITY: usize = 8;
 
 
 /// A `falcon::memory::paged::Memory` set up for ksets analysis.
@@ -71,6 +72,53 @@ pub enum KSet {
     Bottom(usize)
 }
 
+
+impl PartialOrd for KSet {
+    fn partial_cmp(&self, other: &KSet) -> Option<Ordering> {
+        match *self {
+            KSet::Top(_) => match *other {
+                KSet::Top(_) => Some(Ordering::Equal),
+                KSet::Value(_) |
+                KSet::Bottom(_) => Some(Ordering::Greater)
+            },
+            KSet::Value(ref lhs) => match *other {
+                KSet::Top(_) => Some(Ordering::Less),
+                KSet::Value(ref rhs) => {
+                    if lhs.len() == rhs.len() {
+                        for l in lhs {
+                            if !rhs.contains(l) {
+                                return None;
+                            }
+                        }
+                        Some(Ordering::Equal)
+                    }
+                    else if lhs.len() < rhs.len() {
+                        for l in lhs {
+                            if !rhs.contains(l) {
+                                return None;
+                            }
+                        }
+                        Some(Ordering::Less)
+                    }
+                    else {
+                        for r in rhs {
+                            if !lhs.contains(r) {
+                                return None;
+                            }
+                        }
+                        Some(Ordering::Greater)
+                    }
+                },
+                KSet::Bottom(_) => Some(Ordering::Greater)
+            },
+            KSet::Bottom(_) => match *other {
+                KSet::Top(_) |
+                KSet::Value(_) => Some(Ordering::Less),
+                KSet::Bottom(_) => Some(Ordering::Equal)
+            }
+        }
+    }
+}
 
 
 impl KSet {
@@ -311,8 +359,12 @@ impl domain::Value for KSet {
         self.join(other)
     }
 
-    fn empty(bits: usize) -> KSet {
-        KSet::empty(bits)
+    fn bottom(bits: usize) -> KSet {
+        KSet::Bottom(bits)
+    }
+
+    fn top(bits: usize) -> KSet {
+        KSet::Top(bits)
     }
 
     fn constant(constant: il::Constant) -> KSet {
@@ -333,24 +385,31 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
     }
 
     fn store(&self, memory: &mut KMemory, index: &KSet, value: KSet) -> Result<()> {
-        if let KSet::Value(ref kindex) = *index {
-            for i in kindex {
-                memory.store(i.value(), value.clone())?
-            }
+        match *index {
+            KSet::Value(ref kindex) => {
+                for i in kindex {
+                    memory.store(i.value(), value.clone())?
+                }
+            },
+            KSet::Top(_)=> {
+                memory.top()?;
+            },
+            _ => {}
         }
         Ok(())
     }
 
     fn load(&self, memory: &KMemory, index: &KSet, bits: usize) -> Result<KSet> {
-        if let KSet::Value(ref kindex) = *index {
-            let mut b = KSet::empty(bits);
-            for i in kindex {
-                b = b.join(&memory.load(i.value(), bits)?)?;
-            }
-            Ok(b)
-        }
-        else {
-            Ok(KSet::Top(bits))
+        match *index {
+            KSet::Value(ref kindex) => {
+                let mut b = KSet::empty(bits);
+                for i in kindex {
+                    b = b.join(&memory.load(i.value(), bits)?)?;
+                }
+                Ok(b)
+            },
+            KSet::Top(bits) |
+            KSet::Bottom(bits) => Ok(KSet::Top(bits))
         }
     }
 

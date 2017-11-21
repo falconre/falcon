@@ -1,14 +1,14 @@
-use analysis::reaching_definitions;
+use analysis::{LocationSet, reaching_definitions};
 use error::*;
 use il;
 use il::Variable;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 
 #[allow(dead_code)]
 /// Compute use definition chains for the given function.
 pub fn use_def<'r>(function: &'r il::Function)
--> Result<HashMap<il::RefProgramLocation<'r>, HashSet<il::RefProgramLocation<'r>>>> {
+-> Result<HashMap<il::RefProgramLocation<'r>, LocationSet<'r>>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     let mut ud = HashMap::new();
@@ -16,9 +16,9 @@ pub fn use_def<'r>(function: &'r il::Function)
     for (location, _) in &rd {
         let defs = match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                let mut defs = HashSet::new();
+                let mut defs = LocationSet::new();
                 for variable_read in instruction.operation().variables_read() {
-                    for rd in &rd[&location] {
+                    for rd in rd[&location].locations() {
                         if rd.instruction()
                              .unwrap()
                              .operation()
@@ -32,10 +32,10 @@ pub fn use_def<'r>(function: &'r il::Function)
                 defs
             },
             il::RefFunctionLocation::Edge(ref edge) => {
-                let mut defs = HashSet::new();
+                let mut defs = LocationSet::new();
                 if let Some(ref condition) = *edge.condition() {
                     for variable_read in condition.scalars() {
-                        for rd in &rd[&location] {
+                        for rd in rd[&location].locations() {
                             if rd.instruction()
                                  .unwrap()
                                  .operation()
@@ -49,7 +49,7 @@ pub fn use_def<'r>(function: &'r il::Function)
                 }
                 defs
             },
-            il::RefFunctionLocation::EmptyBlock(_) => HashSet::new()
+            il::RefFunctionLocation::EmptyBlock(_) => LocationSet::new()
         };
         ud.insert(location.clone(), defs);
     }

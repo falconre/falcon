@@ -127,14 +127,15 @@ fn test() {
 
         let results = fixed_point::fixed_point_forward(interpreter, &function)?;
 
-        let block = function.block(tail_index).unwrap();
-        let instruction = block.instruction(1).unwrap();
+        let block = function.block(tail_index)
+            .expect("Can't find block");
+        let instruction = block.instruction(1)
+            .expect("Can't find instruction");
         let rfl = il::RefFunctionLocation::Instruction(block, instruction);
         let rpl = il::RefProgramLocation::new(&function, rfl);
 
-        let a0 = results[&rpl].variable(&il::scalar("$a0", 32)).unwrap();
-
-        println!("{:?}", a0);
+        let a0 = results[&rpl].variable(&il::scalar("$a0", 32))
+            .expect("Can't find $a0");
 
         assert_eq!(*a0, TestLattice::Constant(il::const_(0x577038, 32)));
 

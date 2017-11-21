@@ -120,6 +120,16 @@ impl<'m, V> Memory<'m, V> where V: Value {
         }
     }
 
+    /// Get a reference to the memory backing, if there is one
+    pub fn backing(&self) -> Option<&backing::Memory> {
+        self.backing.clone()
+    }
+
+    /// Set the memory backing
+    pub fn set_backing(&mut self, backing: Option<&'m backing::Memory>) {
+        self.backing = backing;
+    }
+
 
     fn store_cell(&mut self, address: u64, cell: MemoryCell<V>) {
         let page_address = address & !(PAGE_SIZE as u64 - 1);
