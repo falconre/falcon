@@ -85,5 +85,10 @@ impl fmt::Display for Edge {
 impl graph::Edge for Edge {
     fn head(&self) -> u64 { self.head }
     fn tail(&self) -> u64 { self.tail }
-    fn dot_label(&self) -> String { format!("{}", self) }
+    fn dot_label(&self) -> String { 
+        match self.condition {
+            Some(ref condition) => format!("{}", condition),
+            None => "".to_string()
+        }
+    }
 }
