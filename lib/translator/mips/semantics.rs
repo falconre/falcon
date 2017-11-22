@@ -32,7 +32,12 @@ impl MIPSRegister {
     }
 
     pub fn expression(&self) -> Expr {
-        expr_scalar(self.name, self.bits)
+        if self.name == "$zero" {
+            expr_const(0, 32)
+        }
+        else {
+            expr_scalar(self.name, self.bits)
+        }
     }
 }
 
