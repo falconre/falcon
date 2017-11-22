@@ -45,8 +45,8 @@ impl Translator for X86 {
 
         cs.option(capstone::cs_opt_type::CS_OPT_DETAIL, capstone::cs_opt_value::CS_OPT_ON).unwrap();
 
-        // our graph for the block which we will build iteratively with each instruction
-        let mut block_graph = ControlFlowGraph::new();
+        // A vec which holds each lifted instruction in this block.
+        let mut block_graphs: Vec<(u64, ControlFlowGraph)> = Vec::new();
 
         // the length of this block in bytes
         let mut length: usize = 0;
@@ -252,7 +252,7 @@ impl Translator for X86 {
 
                 instruction_graph.set_address(Some(instruction.address));
 
-                block_graph.append(&instruction_graph)?;
+                block_graphs.push((instruction.address, instruction_graph));
 
                 length += instruction.size as usize;
 
@@ -317,6 +317,6 @@ impl Translator for X86 {
             offset += instruction.size as usize;
         }
 
-        Ok(BlockTranslationResult::new(block_graph, address, length, successors))
+        Ok(BlockTranslationResult::new(block_graphs, address, length, successors))
     }
 }

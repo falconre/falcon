@@ -67,8 +67,9 @@ pub trait TranslationMemory {
 /// translation of a block. The *entry* and *exit* for this `ControlFlowGraph` should be
 /// set.
 pub struct BlockTranslationResult {
-    /// A control flow graph which holds the semantics of this block
-    control_flow_graph: ControlFlowGraph,
+    /// A vector of one `ControlFlowGraph` per instruction, which represents the
+    /// semantics of this block
+    instructions: Vec<(u64, ControlFlowGraph)>,
     /// The address at which this block was translated
     address: u64,
     /// The length of this block in bytes as represented in the host architecture
@@ -82,18 +83,18 @@ impl BlockTranslationResult {
     /// Create a new `BlockTranslationResult`.
     ///
     /// # Parameters
-    /// * `control_flow_graph` - A `ControlFlowGraph` representing the semantics of this block.
+    /// * `instructions` - A Vec of address/`ControlFlowGraph` pairs, one per instruction.
     /// * `address` - The address where this block was lifted.
     /// * `length` - The length of the block in bytes.
     /// * `successors` - Tuples of addresses and optional conditions for successors to this block.
     pub fn new(
-        control_flow_graph: ControlFlowGraph,
+        instructions: Vec<(u64, ControlFlowGraph)>,
         address: u64,
         length: usize,
         successors: Vec<(u64, Option<Expression>)>
     ) -> BlockTranslationResult {
         BlockTranslationResult {
-            control_flow_graph: control_flow_graph,
+            instructions: instructions,
             address: address,
             length: length,
             successors: successors
@@ -101,8 +102,8 @@ impl BlockTranslationResult {
     }
 
     /// Get the `ControlFlowGraph` for this `BlockTranslationResult`
-    pub fn control_flow_graph(&self) -> &ControlFlowGraph {
-        &self.control_flow_graph
+    pub fn instructions(&self) -> &Vec<(u64, ControlFlowGraph)> {
+        &self.instructions
     }
 
     /// Get the address wherefrom this block was translated.
@@ -134,7 +135,10 @@ pub trait Translator: {
         function_address: u64)
     -> Result<Function> {
 
+        // Addresses of blocks pending translation
         let mut translation_queue: VecDeque<u64> = VecDeque::new();
+
+        // The results of block translations
         let mut translation_results: BTreeMap<u64, BlockTranslationResult> = BTreeMap::new();
 
         translation_queue.push_front(function_address);
@@ -154,7 +158,9 @@ pub trait Translator: {
 
             // enqueue all successors
             for successor in block_translation_result.successors().iter() {
-                translation_queue.push_back(successor.0);
+                if !translation_queue.contains(&successor.0) {
+                    translation_queue.push_back(successor.0);
+                }
             }
 
             translation_results.insert(block_address, block_translation_result);
@@ -162,27 +168,69 @@ pub trait Translator: {
 
         // We now insert all of these blocks into a new control flow graph,
         // keeping track of their new entry and exit indices.
-        let mut indices: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
+
+        // A mapping of instruction address to entry/exit vertex indices
+        let mut instruction_indices: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
+
+        // A mapping of block address to entry/exit vertex indices;
+        let mut block_indices: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
+
         let mut control_flow_graph = ControlFlowGraph::new();
         for result in &translation_results {
-            let (entry, exit) = control_flow_graph.insert(result.1.control_flow_graph())?;
-            indices.insert(*result.0, (entry, exit));
+            let block_translation_result = result.1;
+            let mut block_entry = 0;
+            let mut block_exit = 0;
+            let mut previous_exit = None;
+            for &(address, ref instruction_graph) in block_translation_result.instructions.iter() {
+                // Have we already inserted this instruction?
+                let (entry, exit) =
+                    if instruction_indices.get(&address).is_some() {
+                        instruction_indices[&address]
+                    }
+                    else {
+                        let (entry, exit) = control_flow_graph.insert(instruction_graph)?;
+                        instruction_indices.insert(address, (entry, exit));
+                        (entry, exit)
+                    };
+                // Not our first instruction through this block.
+                if let Some(previous_exit) = previous_exit {
+                    // Check to see if this edge already exists
+                    if control_flow_graph.edge(previous_exit, entry).is_none() {
+                        control_flow_graph.unconditional_edge(previous_exit, entry)?;
+                    }
+                }
+                // Our first instruction through this block
+                else {
+                    block_entry = entry;
+                }
+                block_exit = exit;
+                previous_exit = Some(exit);
+            }
+            block_indices.insert(*result.0, (block_entry, block_exit));
         }
 
         // Insert the edges
         for result in translation_results {
-            let (_, this_exit) = indices[&result.0];
+            let (_, block_exit) = block_indices[&result.0];
             for successor in result.1.successors().iter() {
-                let (that_entry, _) = indices[&successor.0];
+                let (block_entry, _) = block_indices[&successor.0];
+                // check for duplicate edges
+                if control_flow_graph.edge(block_exit, block_entry).is_some() {
+                    continue;
+                }
                 match successor.1 {
-                    Some(ref condition) => control_flow_graph.conditional_edge(this_exit, that_entry, condition.clone())?,
-                    None => control_flow_graph.unconditional_edge(this_exit, that_entry)?
+                    Some(ref condition) =>
+                        control_flow_graph.conditional_edge(block_exit,
+                                                            block_entry,
+                                                            condition.clone())?,
+                    None => control_flow_graph.unconditional_edge(block_exit,
+                                                                  block_entry)?
                 }
             }
         }
 
         // One block is the start of our control_flow_graph
-        control_flow_graph.set_entry(indices[&function_address].0)?;
+        control_flow_graph.set_entry(block_indices[&function_address].0)?;
 
         // merge for the user
         control_flow_graph.merge()?;
