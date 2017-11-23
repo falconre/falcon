@@ -155,7 +155,7 @@ impl<'e> State<'e> {
                     }
                 }
             },
-            il::Operation::Brc { ref target } => {
+            il::Operation::Branch { ref target } => {
                 let target = self.symbolize_and_eval(target)?;
                 Successor::new(self, SuccessorType::Branch(target.value()))
             },

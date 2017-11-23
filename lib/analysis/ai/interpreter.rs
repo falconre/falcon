@@ -56,7 +56,7 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                         state.set_variable(dst.clone(), value.clone());
                         state
                     },
-                    il::Operation::Brc { ref target } => {
+                    il::Operation::Branch { ref target } => {
                         let target = self.domain.eval(&state.symbolize(target))?;
                         self.domain.brc(&target, state)?
                     },

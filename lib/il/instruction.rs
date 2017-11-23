@@ -78,9 +78,9 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `brc` method on `il::Block` instead.
-    pub fn brc(index: u64, target: Expression) -> Instruction {
+    pub fn branch(index: u64, target: Expression) -> Instruction {
 
-        Instruction::new(index, Operation::brc(target))
+        Instruction::new(index, Operation::branch(target))
     }
 
 
@@ -125,8 +125,8 @@ impl Instruction {
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Brc`
-    pub fn is_brc(&self) -> bool {
-        if let Operation::Brc{..} = self.operation {
+    pub fn is_branch(&self) -> bool {
+        if let Operation::Branch{..} = self.operation {
             true
         }
         else {

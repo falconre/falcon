@@ -160,9 +160,9 @@ impl Block {
     }
 
     /// Adds a conditional branch operation to the end of this block.
-    pub fn brc(&mut self, dst: Expression) {
+    pub fn branch(&mut self, dst: Expression) {
         let index = self.new_instruction_index();
-        self.push(Instruction::brc(index, dst));
+        self.push(Instruction::branch(index, dst));
     }
 
     /// Adds a raise operation to the end of this block.

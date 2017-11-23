@@ -368,7 +368,7 @@ pub fn bal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let block = control_flow_graph.new_block()?;
 
         block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
-        block.brc(expr_const(operand.imm() as u64, 32));
+        block.branch(expr_const(operand.imm() as u64, 32));
 
         block.index()
     };
@@ -396,7 +396,7 @@ pub fn bgezal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
         let block = control_flow_graph.new_block()?;
 
         block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
-        block.brc(target);
+        block.branch(target);
 
         block.index()
     };
@@ -444,7 +444,7 @@ pub fn bltzal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
         let block = control_flow_graph.new_block()?;
 
         block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
-        block.brc(target);
+        block.branch(target);
 
         block.index()
     };
@@ -686,7 +686,7 @@ pub fn jr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.brc(target);
+        block.branch(target);
         
         block.index()
     };
@@ -706,7 +706,7 @@ pub fn jal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let block = control_flow_graph.new_block()?;
 
         block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
-        block.brc(expr_const(detail.operands[0].imm() as u64, 32));
+        block.branch(expr_const(detail.operands[0].imm() as u64, 32));
         
         block.index()
     };
@@ -728,7 +728,7 @@ pub fn jalr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
         let block = control_flow_graph.new_block()?;
 
         block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
-        block.brc(target);
+        block.branch(target);
         
         block.index()
     };

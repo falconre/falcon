@@ -23,7 +23,7 @@ pub enum Operation {
         index: Expression,
     },
     /// Branch to the value given by target.
-    Brc {
+    Branch {
         target: Expression
     },
     /// Raise operation for handling things such as system calls.
@@ -53,8 +53,8 @@ impl Operation {
     }
 
     /// Create a new `Operation::Brc`.
-    pub fn brc(target: Expression) -> Operation {
-        Operation::Brc { target: target }
+    pub fn branch(target: Expression) -> Operation {
+        Operation::Branch { target: target }
     }
 
     /// Create a new `Operation::Raise`.
@@ -76,7 +76,7 @@ impl Operation {
             Operation::Load { ref index, .. } => {
                 read.append(&mut index.scalars());
             },
-            Operation::Brc { ref target } => {
+            Operation::Branch { ref target } => {
                 read.append(&mut target.scalars());
             },
             Operation::Raise { ref expr } => {
@@ -100,7 +100,7 @@ impl Operation {
             Operation::Load { ref mut index, .. } => {
                 read.append(&mut index.scalars_mut());
             },
-            Operation::Brc { ref mut target } => {
+            Operation::Branch { ref mut target } => {
                 read.append(&mut target.scalars_mut());
             },
             Operation::Raise { ref mut expr } => {
@@ -118,7 +118,7 @@ impl Operation {
             Operation::Assign { ref dst, .. } |
             Operation::Load   { ref dst, .. } => Some(dst),
             Operation::Store  { .. } |
-            Operation::Brc    { .. } |
+            Operation::Branch { .. } |
             Operation::Raise  { .. } => None
         }
     }
@@ -130,7 +130,7 @@ impl Operation {
             Operation::Assign { ref mut dst, .. } |
             Operation::Load   { ref mut dst, .. } => Some(dst),
             Operation::Store  { .. } |
-            Operation::Brc    { .. } |
+            Operation::Branch { .. } |
             Operation::Raise  { .. } => None
         }
     }
@@ -146,10 +146,10 @@ impl fmt::Display for Operation {
                 write!(f, "[{}] = {}", index, src),
             Operation::Load { ref dst, ref index } =>
                 write!(f, "{} = [{}]", dst, index),
-            Operation::Brc { ref target } =>
-                write!(f, "brc {} ", target),
+            Operation::Branch { ref target } =>
+                write!(f, "branch {}", target),
             Operation::Raise { ref expr } => 
-                write!(f, "raise({})", expr)
+                write!(f, "raise {}", expr)
         }
     }
 }

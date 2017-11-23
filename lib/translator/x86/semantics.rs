@@ -1099,7 +1099,7 @@ pub fn call(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
         push_value(&mut block, expr_const(ret_addr, 32))?;
 
-        block.brc(dst);
+        block.branch(dst);
 
         block.index()
     };
@@ -1848,7 +1848,7 @@ pub fn jmp(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         // at translation time
         if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
             let dst = operand_load(&mut block, &detail.operands[0])?;
-            block.brc(dst);
+            block.branch(dst);
         }
 
         block.index()
@@ -2345,7 +2345,7 @@ pub fn ret(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
             block.assign(scalar("esp", 32), Expr::add(expr_scalar("esp", 32), imm)?);
         }
 
-        block.brc(value);
+        block.branch(value);
 
         block.index()
     };
