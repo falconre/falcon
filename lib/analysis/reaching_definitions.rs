@@ -28,14 +28,13 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefini
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
                 let mut kill = Vec::new();
-                if let Some(variable) = instruction.operation().variable_written() {
+                if let Some(scalar) = instruction.operation().scalar_written() {
                     for location in state.locations() {
                         if location.instruction()
                                    .unwrap()
                                    .operation()
-                                   .variable_written()
-                                   .unwrap()
-                                   .multi_var_clone() == variable.multi_var_clone() {
+                                   .scalar_written()
+                                   .unwrap() == scalar {
                             kill.push(location.clone());
                         }
                     }
@@ -102,7 +101,7 @@ fn reaching_definitions_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("c", 32), il::expr_scalar("a", 32));
-        block.store(il::array("mem", 1 << 32), il::expr_const(0xdeadbeef, 32), il::expr_scalar("c", 32));
+        block.store(il::expr_const(0xdeadbeef, 32), il::expr_scalar("c", 32));
 
         block.index()
     };
@@ -111,7 +110,7 @@ fn reaching_definitions_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("b", 32), il::expr_scalar("c", 32));
-        block.load(il::scalar("c", 32), il::expr_const(0xdeadbeef, 32), il::array("mem", 1 << 32));
+        block.load(il::scalar("c", 32), il::expr_const(0xdeadbeef, 32));
 
         block.index()
     };
@@ -171,14 +170,6 @@ fn reaching_definitions_test() {
         il::RefFunctionLocation::Instruction(
             block,
             block.instruction(0).unwrap()
-        )
-    )));
-
-    let block = function.control_flow_graph().block(2).unwrap();
-    assert!(r.contains(&il::RefProgramLocation::new(&function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(1).unwrap()
         )
     )));
 

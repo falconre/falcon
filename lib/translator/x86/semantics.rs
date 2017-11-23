@@ -6,9 +6,6 @@ use il::*;
 use il::Expression as Expr;
 
 
-const MEM_SIZE: u64 = (1 << 48);
-
-
 /// Struct for dealing with x86 registers
 pub struct X86Register {
     name: &'static str,
@@ -238,7 +235,7 @@ pub fn operand_load(block: &mut Block, operand: &cs_x86_op) -> Result<Expression
 
     if operand.type_ == x86_op_type::X86_OP_MEM {
         let temp = block.temp(operand.size as usize * 8);
-        block.load(temp.clone(), op, array("mem", MEM_SIZE));
+        block.load(temp.clone(), op);
         return Ok(temp.into());
     }
     Ok(op)
@@ -256,7 +253,7 @@ pub fn operand_store(mut block: &mut Block, operand: &cs_x86_op, value: Expressi
         },
         x86_op_type::X86_OP_MEM => {
             let address = operand_value(operand)?;
-            block.store(array("mem", MEM_SIZE), address, value);
+            block.store(address, value);
             Ok(())
         },
         x86_op_type::X86_OP_FP => {
@@ -270,7 +267,7 @@ pub fn operand_store(mut block: &mut Block, operand: &cs_x86_op, value: Expressi
 pub fn pop_value(block: &mut Block, bits: usize) -> Result<Expression> {
     let temp = block.temp(bits);
 
-    block.load(temp.clone(), expr_scalar("esp", 32), array("mem", MEM_SIZE));
+    block.load(temp.clone(), expr_scalar("esp", 32));
     block.assign(scalar("esp", 32), Expr::add(expr_scalar("esp", 32), expr_const(bits as u64 / 8, 32))?);
 
     Ok(temp.into())
@@ -280,7 +277,7 @@ pub fn pop_value(block: &mut Block, bits: usize) -> Result<Expression> {
 /// Convenience function to push a value onto the stack
 pub fn push_value(block: &mut Block, value: Expression) -> Result<()> {
     block.assign(scalar("esp", 32), Expr::sub(expr_scalar("esp", 32), expr_const(4, 32))?);
-    block.store(array("mem", MEM_SIZE), expr_scalar("esp", 32), value);
+    block.store(expr_scalar("esp", 32), value);
     Ok(())
 }
 
@@ -1102,7 +1099,7 @@ pub fn call(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
         push_value(&mut block, expr_const(ret_addr, 32))?;
 
-        block.brc(dst, expr_const(1, 1));
+        block.brc(dst);
 
         block.index()
     };
@@ -1827,19 +1824,11 @@ pub fn int(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn jcc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = try!(details(instruction));
 
-    let block_index = {
-        let mut block = control_flow_graph.new_block()?;
+    if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
+        bail!("jcc instruction with non-immediate operand (this should never happen");
+    }
 
-        // we only need to emit a brc here if the destination cannot be determined
-        // at translation time
-        if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
-            let dst = operand_load(&mut block, &detail.operands[0])?;
-            let expr = cc_condition(&instruction)?;
-            block.brc(dst, expr);
-        }
-
-        block.index()
-    };
+    let block_index = control_flow_graph.new_block()?.index();
 
     control_flow_graph.set_entry(block_index)?;
     control_flow_graph.set_exit(block_index)?;
@@ -1859,7 +1848,7 @@ pub fn jmp(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         // at translation time
         if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
             let dst = operand_load(&mut block, &detail.operands[0])?;
-            block.brc(dst, expr_const(1, 1));
+            block.brc(dst);
         }
 
         block.index()
@@ -2356,7 +2345,7 @@ pub fn ret(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
             block.assign(scalar("esp", 32), Expr::add(expr_scalar("esp", 32), imm)?);
         }
 
-        block.brc(value, expr_const(1, 1));
+        block.brc(value);
 
         block.index()
     };

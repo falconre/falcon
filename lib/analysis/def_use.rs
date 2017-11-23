@@ -3,7 +3,6 @@
 use analysis::{LocationSet, reaching_definitions};
 use error::*;
 use il;
-use il::Variable;
 use std::collections::HashMap;
 
 
@@ -19,14 +18,13 @@ pub fn def_use<'r>(function: &'r il::Function)
         du.entry(location.clone()).or_insert(LocationSet::new());
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                for variable_read in instruction.operation().variables_read() {
+                for scalar_read in instruction.operation().scalars_read() {
                     for rd in rd[&location].locations() {
                         if rd.instruction()
                              .unwrap()
                              .operation()
-                             .variable_written()
-                             .unwrap()
-                             .multi_var_clone() == variable_read.multi_var_clone() {
+                             .scalar_written()
+                             .unwrap() == scalar_read {
                             du.entry(rd.clone()).or_insert(LocationSet::new()).insert(location.clone());
                         }
                     }
@@ -34,14 +32,13 @@ pub fn def_use<'r>(function: &'r il::Function)
             },
             il::RefFunctionLocation::Edge(ref edge) => {
                 if let Some(ref condition) = *edge.condition() {
-                    for variable_read in condition.scalars() {
+                    for scalar_read in condition.scalars() {
                         for rd in rd[&location].locations() {
                             if rd.instruction()
                                  .unwrap()
                                  .operation()
-                                 .variable_written()
-                                 .unwrap()
-                                 .multi_var_clone() == variable_read.multi_var_clone() {
+                                 .scalar_written()
+                                 .unwrap() == scalar_read {
                                 du.entry(rd.clone()).or_insert(LocationSet::new()).insert(location.clone());
                             }
                         }
@@ -95,7 +92,7 @@ fn use_def_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("c", 32), il::expr_scalar("a", 32));
-        block.store(il::array("mem", 1 << 32), il::expr_const(0xdeadbeef, 32), il::expr_scalar("c", 32));
+        block.store(il::expr_const(0xdeadbeef, 32), il::expr_scalar("c", 32));
 
         block.index()
     };
@@ -104,7 +101,7 @@ fn use_def_test() {
         let block = control_flow_graph.new_block().unwrap();
 
         block.assign(il::scalar("b", 32), il::expr_scalar("c", 32));
-        block.load(il::scalar("c", 32), il::expr_const(0xdeadbeef, 32), il::array("mem", 1 << 32));
+        block.load(il::scalar("c", 32), il::expr_const(0xdeadbeef, 32));
 
         block.index()
     };

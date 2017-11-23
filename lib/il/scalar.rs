@@ -29,20 +29,11 @@ impl Scalar {
     pub fn name(&self) -> &str {
         &self.name
     }
-}
 
-
-impl Variable for Scalar {
-    fn name(&self) -> &str {
-        self.name()
-    }
-
-    fn identifier(&self) -> String {
+    /// An identifier for the `Scalar`. This is the string which is displayed
+    /// when printing the IL.
+    pub fn identifier(&self) -> String {
         format!("{}:{}", self.name, self.bits)
-    }
-
-    fn multi_var_clone(&self) -> MultiVar {
-        MultiVar::Scalar(self.clone())
     }
 }
 

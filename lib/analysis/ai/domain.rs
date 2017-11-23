@@ -47,7 +47,7 @@ pub trait Domain<M: Memory<V>, V: Value> {
     fn load(&self, memory: &M, index: &V, bits: usize) -> Result<V>;
 
     /// Handle a brc operation
-    fn brc(&self, target: &V, condition: &V, state: State<M, V>) -> Result<State<M, V>>;
+    fn brc(&self, target: &V, state: State<M, V>) -> Result<State<M, V>>;
 
     /// Handle a raise operation
     fn raise(&self, expr: &V, state: State<M, V>) -> Result<State<M, V>>;
@@ -409,15 +409,15 @@ mod test_lattice {
 
         state1 = state0.clone();
 
-        state0.memory_mut().store(0x100, test_constant.clone()).unwrap();
+        state0.memory_mut().store_strong(0x100, test_constant.clone()).unwrap();
 
         assert_eq!(state0.partial_cmp(&state1), Some(Ordering::Less));
 
-        state1.memory_mut().store(0x100, test_constant.clone()).unwrap();
+        state1.memory_mut().store_strong(0x100, test_constant.clone()).unwrap();
 
         assert_eq!(state0.partial_cmp(&state1), Some(Ordering::Equal));
 
-        state1.memory_mut().store(0x100,
+        state1.memory_mut().store_strong(0x100,
             TestLattice::Constant(il::const_(0, 32))).unwrap();
         
         assert_eq!(state0.memory().load(0x100, 32).unwrap(), test_constant);

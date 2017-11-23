@@ -185,7 +185,6 @@
 use error::*;
 use graph;
 
-mod array;
 mod block;
 mod constant;
 mod control_flow_graph;
@@ -197,9 +196,7 @@ mod location;
 mod operation;
 mod scalar;
 mod program;
-mod variable;
 
-pub use self::array::*;
 pub use self::block::*;
 pub use self::constant::*;
 pub use self::control_flow_graph::*;
@@ -211,7 +208,6 @@ pub use self::location::*;
 pub use self::operation::*;
 pub use self::scalar::*;
 pub use self::program::*;
-pub use self::variable::*;
 
 /// A convenience function to create a new constant.
 ///
@@ -242,12 +238,4 @@ pub fn scalar<S>(name: S, bits: usize) -> Scalar where S: Into<String> {
 /// This is the preferred way to create an `Expression::Scalar`.
 pub fn expr_scalar<S>(name: S, bits: usize) -> Expression where S: Into<String> {
     Expression::scalar(Scalar::new(name, bits))
-}
-
-
-/// A convenience function to create a new array
-///
-/// This is the preferred way to create an `Array`.
-pub fn array<S>(name: S, size: u64) -> Array where S: Into<String> {
-    Array::new(name, size)
 }

@@ -23,9 +23,13 @@ pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + PartialOrd> {
 
 
 /// A forward, work-list data-flow analysis algorithm.
-pub fn fixed_point_forward<'f, Analysis, State> (
+///
+/// When force is true, the partial order over inputs is forced by joining
+/// states which do not inherently enforce the partial order.
+pub fn fixed_point_forward_options<'f, Analysis, State> (
     analysis: Analysis,
-    function: &'f il::Function
+    function: &'f il::Function,
+    force: bool
 ) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
 where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd {
     let mut states: HashMap<il::RefProgramLocation<'f>, State> = HashMap::new();
@@ -68,23 +72,33 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
             }
         });
 
-        let state = analysis.trans(location.clone(), state)?;
+        let mut state = analysis.trans(location.clone(), state)?;
 
         if let Some(in_state) = states.get(&location) {
-            if state == *in_state {
-                continue;
-            }
-            else if !(state > *in_state) {
-                let ordering = match state.partial_cmp(in_state) {
-                    Some (ordering) => match ordering {
-                        ::std::cmp::Ordering::Less => "less",
-                        ::std::cmp::Ordering::Equal => "equal",
-                        ::std::cmp::Ordering::Greater => "greater"
+            let ordering = match state.partial_cmp(in_state) {
+                Some (ordering) => match ordering {
+                    ::std::cmp::Ordering::Less => {
+                        if force {
+                            state = analysis.join(state, in_state)?;
+                            None
+                        }
+                        else {
+                            Some("less")
+                        }
                     },
-                    None => { "no relation" }
-                };
-                bail!("Found a state which was not >= previous state (it was {}) @ {}",
-                    ordering, location);
+                    ::std::cmp::Ordering::Equal => { continue; },
+                    ::std::cmp::Ordering::Greater => None
+                },
+                None => { Some("no relation") }
+            };
+            if force {
+                state = analysis.join(state, in_state)?;
+            }
+            else {
+                if let Some(ordering) = ordering {
+                    bail!("Found a state which was not >= previous state (it was {}) @ {}",
+                        ordering, location);
+                }
             }
         }
 
@@ -98,4 +112,14 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
     }
 
     Ok(states)
+}
+
+
+/// A guaranteed sound analysis, which enforces the partial order over states.
+pub fn fixed_point_forward<'f, Analysis, State> (
+    analysis: Analysis,
+    function: &'f il::Function
+) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd  {
+    fixed_point_forward_options(analysis, function, false)
 }

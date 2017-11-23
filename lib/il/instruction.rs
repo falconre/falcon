@@ -54,14 +54,10 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `store` method on `il::Block` instead.
-    pub fn store(
-        instruction_index: u64,
-        dst: Array,
-        dst_index: Expression,
-        src: Expression
-    ) -> Instruction {
+    pub fn store(instruction_index: u64, index: Expression, src: Expression)
+        -> Instruction {
 
-        Instruction::new(instruction_index, Operation::store(dst, dst_index, src))
+        Instruction::new(instruction_index, Operation::store(index, src))
     }
 
 
@@ -70,14 +66,10 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `load` method on `il::Block` instead.
-    pub fn load(
-        instruction_index: u64,
-        dst: Scalar,
-        src_index: Expression,
-        src: Array
-    ) -> Instruction {
+    pub fn load(instruction_index: u64, dst: Scalar, index: Expression)
+        -> Instruction {
 
-        Instruction::new(instruction_index, Operation::load(dst, src_index, src))
+        Instruction::new(instruction_index, Operation::load(dst, index))
     }
 
 
@@ -86,10 +78,9 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `brc` method on `il::Block` instead.
-    pub fn brc(index: u64, target: Expression, condition: Expression)
-    -> Instruction {
+    pub fn brc(index: u64, target: Expression) -> Instruction {
 
-        Instruction::new(index, Operation::brc(target, condition))
+        Instruction::new(index, Operation::brc(target))
     }
 
 
@@ -207,32 +198,26 @@ impl Instruction {
         }
     }
 
-    /// Get the `Variable` which will be written by this `Instruction`.
-    ///
-    /// This is a convenience function around `Operation::variable_written`.
-    pub fn variable_written(&self) -> Option<&Variable> {
-        self.operation.variable_written()
+    /// Get the `Scalar` which will be written by this `Instruction`.
+    pub fn scalar_written(&self) -> Option<&Scalar> {
+        self.operation.scalar_written()
     }
 
-    /// Get a mutable reference to the `Variable` which will be written by this `Instruction`.
-    ///
-    /// This is a convenience function around `Operation::variable_written_mut`.
-    pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
-        self.operation.variable_written_mut()
+    /// Get a mutable reference to the `Scalar` which will be written by this
+    /// `Instruction`.
+    pub fn scalar_written_mut(&mut self) -> Option<&mut Scalar> {
+        self.operation.scalar_written_mut()
     }
 
-    /// Get a Vec of each `Variable` read by this `Instruction`.
-    ///
-    /// This is a convenience function around `Operation::variables_read`.
-    pub fn variables_read(&self) -> Vec<&Variable> {
-        self.operation.variables_read()
+    /// Get a Vec of each `Scalar` read by this `Instruction`.
+    pub fn scalars_read(&self) -> Vec<&Scalar> {
+        self.operation.scalars_read()
     }
 
-    /// Get a Vec of mutable references for each `Variable` read by this `Instruction`.
-    ///
-    /// This is a convenience function around `Operation::variables_read_mut`.
-    pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
-        self.operation.variables_read_mut()
+    /// Get a Vec of mutable references for each `Scalar` read by this
+    /// `Instruction`.
+    pub fn scalars_read_mut(&mut self) -> Vec<&mut Scalar> {
+        self.operation.scalars_read_mut()
     }
 }
 

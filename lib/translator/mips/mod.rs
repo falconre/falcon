@@ -1,6 +1,6 @@
 //! Capstone-based translator for MIPS.
 
-use falcon_capstone::{capstone, capstone_sys};
+use falcon_capstone::capstone;
 use error::*;
 use il::*;
 use translator::{Translator, BlockTranslationResult};
@@ -81,17 +81,15 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
     let mut branch_delay = TranslateBranchDelay::None;
 
     loop {
+        if offset >= bytes.len() {
+            successors.push((address + offset as u64, None));
+            break;
+        }
         let disassembly_range = (offset)..bytes.len();
         let disassembly_bytes = bytes.get(disassembly_range).unwrap();
         let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
             Ok(instructions) => instructions,
-            Err(e) => match e.code() {
-                capstone_sys::cs_err::CS_ERR_OK => {
-                    successors.push((address + offset as u64, None));
-                    break;
-                }
-                _ => bail!("Capstone Error: {}", e.code() as u32)
-            }
+            Err(e) => bail!("Capstone Error: {}", e.code() as u32)
         };
 
         if instructions.count() == 0 {

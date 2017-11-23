@@ -40,7 +40,7 @@ use std::fmt;
 
 
 /// The cardinality for this analysis.
-pub const MAX_CARDINALITY: usize = 8;
+pub const MAX_CARDINALITY: usize = 4;
 
 
 /// A `falcon::memory::paged::Memory` set up for ksets analysis.
@@ -60,12 +60,12 @@ pub fn kset<'k>(
         memory: initial_memory
     };
     let interpreter = interpreter::Interpreter::new(domain);
-    fixed_point::fixed_point_forward(interpreter, function)
+    fixed_point::fixed_point_forward_options(interpreter, function, true)
 }
 
 
 /// A KSet
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub enum KSet {
     Top(usize),
     Value(HashSet<il::Constant>),
@@ -388,11 +388,8 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
         match *index {
             KSet::Value(ref kindex) => {
                 for i in kindex {
-                    memory.store(i.value(), value.clone())?
+                    memory.store_weak(i.value(), &value)?
                 }
-            },
-            KSet::Top(_)=> {
-                memory.top()?;
             },
             _ => {}
         }
@@ -413,7 +410,7 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
         }
     }
 
-    fn brc(&self, _: &KSet, _: &KSet, mut state: KState<'m>) -> Result<KState<'m>> {
+    fn brc(&self, _: &KSet, mut state: KState<'m>) -> Result<KState<'m>> {
         for trashed_register in self.calling_convention.trashed_registers() {
             state.remove_variable(trashed_register);
         }
@@ -441,6 +438,13 @@ impl fmt::Display for KSet {
                 .collect::<Vec<String>>()
                 .join(","))
         }
+    }
+}
+
+
+impl fmt::Debug for KSet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

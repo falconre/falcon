@@ -12,24 +12,21 @@ pub enum Operation {
         dst: Scalar,
         src: Expression
     },
-    /// Store the value given by expression at the address given.
+    /// Store the value in src at the address given in index.
     Store {
-        dst: Array,
         index: Expression,
         src: Expression
     },
-    /// Load the value given by address and place the result in the variable dst.
+    /// Load the value in memory at index and place the result in the variable dst.
     Load {
         dst: Scalar,
         index: Expression,
-        src: Array
     },
-    /// If condition is non-zero, branch to the value given by dst.
+    /// Branch to the value given by target.
     Brc {
-        target: Expression,
-        condition: Expression
+        target: Expression
     },
-    /// Raise operation for handling things such as system calls
+    /// Raise operation for handling things such as system calls.
     Raise {
         expr: Expression,
     }
@@ -46,18 +43,18 @@ impl Operation {
     }
 
     /// Create a new `Operation::Store`.
-    pub fn store(dst: Array, index: Expression, src: Expression) -> Operation {
-        Operation::Store { dst: dst, index: index, src: src }
+    pub fn store(index: Expression, src: Expression) -> Operation {
+        Operation::Store { index: index, src: src }
     }
 
     /// Create a new `Operation::Load`.
-    pub fn load(dst: Scalar, index: Expression, src: Array) -> Operation {
-        Operation::Load { dst: dst, index: index, src: src }
+    pub fn load(dst: Scalar, index: Expression) -> Operation {
+        Operation::Load { dst: dst, index: index }
     }
 
     /// Create a new `Operation::Brc`.
-    pub fn brc(target: Expression, condition: Expression) -> Operation {
-        Operation::Brc { target: target, condition: condition }
+    pub fn brc(target: Expression) -> Operation {
+        Operation::Brc { target: target }
     }
 
     /// Create a new `Operation::Raise`.
@@ -65,93 +62,74 @@ impl Operation {
         Operation::Raise { expr: expr }
     }
 
-    /// Get eacn `Variable` read by this `Operation`.
-    pub fn variables_read(&self) -> Vec<&Variable> {
-        fn scalars(expr: &Expression) -> Vec<&Variable> {
-            expr.scalars()
-                .iter()
-                .map(|s| *s as &Variable)
-                .collect::<Vec<&Variable>>()
-        }
-        let mut read: Vec<&Variable> = Vec::new();
+    /// Get each `Scalar` read by this `Operation`.
+    pub fn scalars_read(&self) -> Vec<&Scalar> {
+        let mut read: Vec<&Scalar> = Vec::new();
         match *self {
             Operation::Assign { ref src, .. } => {
-                read.append(&mut scalars(src));
+                read.append(&mut src.scalars());
             },
-            Operation::Store { ref index, ref src, .. } => {
-                read.append(&mut scalars(index));
-                read.append(&mut scalars(src));
+            Operation::Store { ref index, ref src } => {
+                read.append(&mut index.scalars());
+                read.append(&mut src.scalars());
             },
-            Operation::Load { ref index, ref src, .. } => {
-                read.append(&mut scalars(index));
-                read.push(src);
+            Operation::Load { ref index, .. } => {
+                read.append(&mut index.scalars());
             },
-            Operation::Brc { ref target, ref condition } => {
-                read.append(&mut scalars(target));
-                read.append(&mut scalars(condition));
+            Operation::Brc { ref target } => {
+                read.append(&mut target.scalars());
             },
             Operation::Raise { ref expr } => {
-                read.append(&mut scalars(expr));
+                read.append(&mut expr.scalars());
             }
         }
         read
     }
 
-    /// Get a mutable reference to each `Variable` read by this `Operation`.
-    pub fn variables_read_mut(&mut self) -> Vec<&mut Variable> {
-        fn scalars_mut(expr: &mut Expression) -> Vec<&mut Variable> {
-            let mut v: Vec<&mut Variable> = Vec::new();
-            for s in expr.scalars_mut() {
-                v.push(s)
-            }
-            v
-        }
-
-        let mut read: Vec<&mut Variable> = Vec::new();
-
+    /// Get a mutable reference to each `Scalar` read by this `Operation`.
+    pub fn scalars_read_mut(&mut self) -> Vec<&mut Scalar> {
+        let mut read: Vec<&mut Scalar> = Vec::new();
         match *self {
             Operation::Assign { ref mut src, .. } => {
-                read.append(&mut scalars_mut(src));
+                read.append(&mut src.scalars_mut());
             },
-            Operation::Store { ref mut index, ref mut src, .. } => {
-                read.append(&mut scalars_mut(index));
-                read.append(&mut scalars_mut(src));
+            Operation::Store { ref mut index, ref mut src } => {
+                read.append(&mut index.scalars_mut());
+                read.append(&mut src.scalars_mut());
             },
-            Operation::Load { ref mut index, ref mut src, .. } => {
-                read.append(&mut scalars_mut(index));
-                read.push(src);
+            Operation::Load { ref mut index, .. } => {
+                read.append(&mut index.scalars_mut());
             },
-            Operation::Brc { ref mut target, ref mut condition } => {
-                read.append(&mut scalars_mut(target));
-                read.append(&mut scalars_mut(condition));
+            Operation::Brc { ref mut target } => {
+                read.append(&mut target.scalars_mut());
             },
             Operation::Raise { ref mut expr } => {
-                read.append(&mut scalars_mut(expr));
+                read.append(&mut expr.scalars_mut());
             }
         }
 
         read
     }
 
-    /// Get a reference to the `Variable` written by this `Operation`, or `None`
-    /// if no `Variable` is written.
-    pub fn variable_written(&self) -> Option<&Variable> {
+    /// Get a reference to the `Scalar` written by this `Operation`, or `None`
+    /// if no `Scalar` is written.
+    pub fn scalar_written(&self) -> Option<&Scalar> {
         match *self {
             Operation::Assign { ref dst, .. } |
             Operation::Load   { ref dst, .. } => Some(dst),
-            Operation::Store  { ref dst, .. } => Some(dst),
+            Operation::Store  { .. } |
             Operation::Brc    { .. } |
             Operation::Raise  { .. } => None
         }
     }
 
-    /// Get a mutable reference to the `Variable` written by this `Operation`, or `None`,
-    /// if no `Variable` is written.
-    pub fn variable_written_mut(&mut self) -> Option<&mut Variable> {
+    /// Get a mutable reference to the `Scalar` written by this `Operation`, or `None`,
+    /// if no `Scalar` is written.
+    pub fn scalar_written_mut(&mut self) -> Option<&mut Scalar> {
         match *self {
             Operation::Assign { ref mut dst, .. } |
             Operation::Load   { ref mut dst, .. } => Some(dst),
-            Operation::Store  { ref mut dst, .. } => Some(dst),
+            Operation::Store  { .. } |
             Operation::Brc    { .. } |
             Operation::Raise  { .. } => None
         }
@@ -164,12 +142,12 @@ impl fmt::Display for Operation {
         match *self {
             Operation::Assign { ref dst, ref src } =>
                 write!(f, "{} = {}", dst, src),
-            Operation::Store { ref dst, ref index, ref src } =>
-                write!(f, "{}[{}] = {}", dst, index, src),
-            Operation::Load { ref dst, ref index, ref src } =>
-                write!(f, "{} = {}[{}]", dst, src, index),
-            Operation::Brc { ref target, ref condition } =>
-                write!(f, "brc {} ? {}", target, condition),
+            Operation::Store { ref index, ref src } =>
+                write!(f, "[{}] = {}", index, src),
+            Operation::Load { ref dst, ref index } =>
+                write!(f, "{} = [{}]", dst, index),
+            Operation::Brc { ref target } =>
+                write!(f, "brc {} ", target),
             Operation::Raise { ref expr } => 
                 write!(f, "raise({})", expr)
         }

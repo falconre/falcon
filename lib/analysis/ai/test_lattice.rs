@@ -107,7 +107,7 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
              value: TestLattice) -> Result<()> {
 
         if let Some(ref constant) = index.constant() {
-            memory.store(constant.value(), value)
+            memory.store_weak(constant.value(), &value)
         }
         else {
             Ok(())
@@ -127,7 +127,7 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
         }
     }
 
-    fn brc(&self, _: &TestLattice, _: &TestLattice, state: TestLatticeState<'d>)
+    fn brc(&self, _: &TestLattice, state: TestLatticeState<'d>)
         -> Result<TestLatticeState<'d>> {
 
         Ok(state)

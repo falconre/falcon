@@ -152,6 +152,22 @@ pub trait Translator: {
             }
 
             let block_bytes = memory.get_bytes(block_address, DEFAULT_TRANSLATION_BLOCK_BYTES);
+            if block_bytes.len() == 0 {
+                let mut control_flow_graph = ControlFlowGraph::new();
+                let block_index = control_flow_graph.new_block()?.index();
+                control_flow_graph.set_entry(block_index)?;
+                control_flow_graph.set_exit(block_index)?;
+                translation_results.insert(
+                    block_address,
+                    BlockTranslationResult::new(
+                        vec![(block_address, control_flow_graph)],
+                        block_address,
+                        0,
+                        Vec::new()
+                    )
+                );
+                continue;
+            }
 
             // translate this block
             let block_translation_result = self.translate_block(&block_bytes, block_address)?;

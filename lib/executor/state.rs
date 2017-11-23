@@ -136,13 +136,13 @@ impl<'e> State<'e> {
                 self.set_scalar(dst.name(), src);
                 Successor::new(self, SuccessorType::FallThrough)
             },
-            il::Operation::Store { ref index, ref src, .. } => {
+            il::Operation::Store { ref index, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
                 let index = self.symbolize_and_eval(index)?;
                 self.memory.store(index.value(), src)?;
                 Successor::new(self, SuccessorType::FallThrough)
             },
-            il::Operation::Load { ref dst, ref index, .. } => {
+            il::Operation::Load { ref dst, ref index } => {
                 let index = self.symbolize_and_eval(index)?;
                 let value = self.memory.load(index.value(), dst.bits())?;
                 match value {
@@ -155,15 +155,9 @@ impl<'e> State<'e> {
                     }
                 }
             },
-            il::Operation::Brc { ref target, ref condition } => {
-                let condition_result = self.symbolize_and_eval(condition)?;
-                if condition_result.value() == 1 {
-                    let target = self.symbolize_and_eval(target)?;
-                    Successor::new(self, SuccessorType::Branch(target.value()))
-                }
-                else {
-                    Successor::new(self, SuccessorType::FallThrough)
-                }
+            il::Operation::Brc { ref target } => {
+                let target = self.symbolize_and_eval(target)?;
+                Successor::new(self, SuccessorType::Branch(target.value()))
             },
             il::Operation::Raise { ref expr } => {
                 Successor::new(self, SuccessorType::Raise(expr.clone()))
