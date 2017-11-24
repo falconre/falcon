@@ -46,7 +46,10 @@ impl<'m, V> Memory<'m, V> where V: memory::value::Value + domain::Value {
 
     /// Perform a weak update, which joins the given value with the value in memory
     pub fn store_weak(&mut self, address: u64, value: &V) -> Result<()> {
-        let value = self.load(address, value.bits())?.join(value)?;
+        let value = match self.memory.load(address, value.bits())? {
+            Some(v) => v.join(value)?,
+            None => value.clone()
+        };
         self.memory.store(address, value)
     }
 

@@ -77,15 +77,7 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
         if let Some(in_state) = states.get(&location) {
             let ordering = match state.partial_cmp(in_state) {
                 Some (ordering) => match ordering {
-                    ::std::cmp::Ordering::Less => {
-                        if force {
-                            state = analysis.join(state, in_state)?;
-                            None
-                        }
-                        else {
-                            Some("less")
-                        }
-                    },
+                    ::std::cmp::Ordering::Less => Some("less"),
                     ::std::cmp::Ordering::Equal => { continue; },
                     ::std::cmp::Ordering::Greater => None
                 },
