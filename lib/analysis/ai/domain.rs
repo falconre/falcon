@@ -4,16 +4,20 @@ use error::*;
 use il;
 use serde::Serialize;
 use std::collections::{HashMap};
+use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::fmt::Debug;
 
 
 /// An abstract value
-pub trait Value: Clone + Debug + Eq + PartialEq {
+pub trait Value: Clone + Debug + PartialEq + PartialOrd {
     /// Join this abstract value with another
     fn join(&self, other: &Self) -> Result<Self>;
 
-    /// Return an empty/bottom abstract value
-    fn empty(bits: usize) -> Self;
+    /// Return an top abstract value
+    fn top(bits: usize) -> Self;
+
+    /// Return an bottom abstract value
+    fn bottom(bits: usize) -> Self;
 
     /// Take an il::Constant, and turn it into an abstract value
     fn constant(constant: il::Constant) -> Self; 
@@ -21,8 +25,12 @@ pub trait Value: Clone + Debug + Eq + PartialEq {
 
 
 /// A memory model which operates over abstract values
-pub trait Memory<V: Value>: Clone + Debug + Eq + PartialEq + Serialize {
+pub trait Memory<V: Value>: Clone + Debug + PartialEq + PartialOrd + Serialize {
+    /// Join this memory with another memory
     fn join(self, other: &Self) -> Result<Self>;
+
+    /// Return this memory with all values set to top.
+    fn top(&mut self) -> Result<()>;
 }
 
 
@@ -39,7 +47,7 @@ pub trait Domain<M: Memory<V>, V: Value> {
     fn load(&self, memory: &M, index: &V, bits: usize) -> Result<V>;
 
     /// Handle a brc operation
-    fn brc(&self, target: &V, condition: &V, state: State<M, V>) -> Result<State<M, V>>;
+    fn brc(&self, target: &V, state: State<M, V>) -> Result<State<M, V>>;
 
     /// Handle a raise operation
     fn raise(&self, expr: &V, state: State<M, V>) -> Result<State<M, V>>;
@@ -151,10 +159,78 @@ impl<V> Expression<V> where V: Clone {
 
 /// An abstract state, which holds the values of all variables and a memory
 /// model.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct State<M: Memory<V>, V: Value> {
     pub(crate) variables: HashMap<il::Scalar, V>,
     pub(crate) memory: M
+}
+
+
+impl<M: Memory<V>, V: Value> PartialOrd for State<M, V> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let mut ordering = Ordering::Equal;
+
+        for self_variable in &self.variables {
+            let variable_ordering = match other.variables.get(self_variable.0) {
+                Some(ref other_variable) => match self_variable.1.partial_cmp(other_variable) {
+                    Some(variable_ordering) => variable_ordering,
+                    None => { return None; }
+                },
+                None => Ordering::Greater
+            };
+            ordering =
+                if variable_ordering == Ordering::Equal {
+                    ordering
+                }
+                else if ordering == Ordering::Equal || ordering == variable_ordering {
+                    variable_ordering
+                }
+                else {
+                    return None;
+                };
+        }
+
+        for other_variable in &other.variables {
+            if self.variables.get(other_variable.0).is_none() {
+                ordering =
+                    if ordering == Ordering::Greater {
+                        return None;
+                    }
+                    else {
+                        Ordering::Less
+                    };
+            }
+        }
+
+        match self.memory.partial_cmp(&other.memory) {
+            Some(memory_ordering) =>
+                if memory_ordering == Ordering::Equal {
+                    Some(ordering)
+                }
+                else if ordering == Ordering::Equal || ordering == memory_ordering {
+                    Some(memory_ordering)
+                }
+                else {
+                    None
+                },
+            None => {
+                None
+            }
+        }
+    }
+}
+
+
+impl<M: Memory<V>, V: Value> PartialEq for State<M, V> {
+    fn eq(&self, other: &Self) -> bool {
+        match self.partial_cmp(other) {
+            Some(ordering) => match ordering {
+                Ordering::Equal => true,
+                _ => false
+            },
+            None => false
+        }
+    }
 }
 
 
@@ -225,7 +301,7 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
                     Some(v) => {
                         Expression::value(v.clone())
                     },
-                    None => Expression::value(V::empty(scalar.bits()))
+                    None => Expression::value(V::top(scalar.bits()))
                 }
             },
             il::Expression::Constant(ref constant) =>
@@ -292,4 +368,64 @@ fn symbolize() {
     let result = TestLattice::eval(&expr).unwrap();
 
     assert_eq!(result, TestLattice::Constant(il::const_(0x57703c, 32)));
+}
+
+#[cfg(test)]
+mod test_lattice {
+    use analysis::ai::domain;
+    use analysis::ai::memory;
+    use analysis::ai::test_lattice::*;
+    use il;
+    use std::cmp::{Ordering, PartialOrd};
+    use types::Endian;
+
+    type TestMemory<'m> = memory::Memory<'m, TestLattice>;
+    type TestState<'m> = domain::State<TestMemory<'m>, TestLattice>;
+
+    #[test]
+    fn ordering() {
+        let blank_memory = TestMemory::new(Endian::Big);
+        let mut state0 = TestState::new(blank_memory.clone());
+        let mut state1 = TestState::new(blank_memory.clone());
+
+        assert_eq!(state0.partial_cmp(&state1), Some(Ordering::Equal));
+
+        let test_constant = TestLattice::Constant(il::const_(0xdeadbeef, 32));
+        state0.set_variable(il::scalar("test", 32), test_constant.clone());
+
+        assert!(state0 > state1);
+
+        state1.set_variable(il::scalar("test", 32), test_constant.clone());
+
+        assert!(state0 == state1);
+
+        state0.set_variable(il::scalar("test", 32), TestLattice::Top(32));
+
+        assert!(state0 > state1);
+
+        state1.set_variable(il::scalar("blah", 32), TestLattice::Top(32));
+
+        assert!(!(state0 >= state1));
+
+        state1 = state0.clone();
+
+        state0.memory_mut().store_strong(0x100, test_constant.clone()).unwrap();
+
+        assert_eq!(state0.partial_cmp(&state1), Some(Ordering::Less));
+
+        state1.memory_mut().store_strong(0x100, test_constant.clone()).unwrap();
+
+        assert_eq!(state0.partial_cmp(&state1), Some(Ordering::Equal));
+
+        state1.memory_mut().store_strong(0x100,
+            TestLattice::Constant(il::const_(0, 32))).unwrap();
+        
+        assert_eq!(state0.memory().load(0x100, 32).unwrap(), test_constant);
+        assert_eq!(state1.memory().load(0x100, 32).unwrap(),
+            TestLattice::Constant(il::const_(0, 32)));
+        assert_eq!(state1.memory().load(0x100, 8).unwrap(),
+            TestLattice::Constant(il::const_(0, 8)));
+
+        assert_eq!(state0.partial_cmp(&state1), None);
+    }
 }

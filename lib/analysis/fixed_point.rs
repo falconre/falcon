@@ -2,13 +2,13 @@
 
 use error::*;
 use il;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
 
 /// A trait which implements a forward, flow-sensitive analysis to a
 /// fixed point.
-pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + Eq + PartialEq> {
+pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + PartialOrd> {
     /// Given an input state for a block, create an output state for this
     /// block.
     fn trans(
@@ -23,14 +23,18 @@ pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + Eq + PartialEq> {
 
 
 /// A forward, work-list data-flow analysis algorithm.
-pub fn fixed_point_forward<'f, Analysis, State> (
+///
+/// When force is true, the partial order over inputs is forced by joining
+/// states which do not inherently enforce the partial order.
+pub fn fixed_point_forward_options<'f, Analysis, State> (
     analysis: Analysis,
-    function: &'f il::Function
+    function: &'f il::Function,
+    force: bool
 ) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
-where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + PartialEq {
+where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd {
     let mut states: HashMap<il::RefProgramLocation<'f>, State> = HashMap::new();
 
-    let mut queue: HashSet<il::RefProgramLocation<'f>> = HashSet::new();
+    let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
 
     // Find the entry block to the function.
     let entry_index = function.control_flow_graph()
@@ -38,24 +42,23 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
                               .ok_or("Function's control flow graph must have entry")?;
     let entry_block = function.control_flow_graph()
                               .block(entry_index)
-                              .ok_or(format!("Could not find block for {}", entry_index))?;
+                              .ok_or(format!("Could not find block for entry {}", entry_index))?;
 
     match entry_block.instructions().first() {
         Some(ref instruction) => {
             let location = il::RefFunctionLocation::Instruction(entry_block, instruction);
             let location = il::RefProgramLocation::new(function, location);
-            queue.insert(location.clone());
+            queue.push_back(location.clone());
         },
         None => {
             let location = il::RefFunctionLocation::EmptyBlock(entry_block);
             let location = il::RefProgramLocation::new(function, location);
-            queue.insert(location.clone());
+            queue.push_back(location.clone());
         }
     }
 
     while !queue.is_empty() {
-        let location = queue.iter().next().unwrap().clone();
-        queue.remove(&location);
+        let location = queue.pop_front().unwrap();
 
         let location_predecessors = location.backward()?;
 
@@ -69,20 +72,46 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Eq + 
             }
         });
 
-        let state = analysis.trans(location.clone(), state)?;
+        let mut state = analysis.trans(location.clone(), state)?;
 
         if let Some(in_state) = states.get(&location) {
-            if state == *in_state {
-                continue;
+            let ordering = match state.partial_cmp(in_state) {
+                Some (ordering) => match ordering {
+                    ::std::cmp::Ordering::Less => Some("less"),
+                    ::std::cmp::Ordering::Equal => { continue; },
+                    ::std::cmp::Ordering::Greater => None
+                },
+                None => { Some("no relation") }
+            };
+            if force {
+                state = analysis.join(state, in_state)?;
+            }
+            else {
+                if let Some(ordering) = ordering {
+                    bail!("Found a state which was not >= previous state (it was {}) @ {}",
+                        ordering, location);
+                }
             }
         }
 
         states.insert(location.clone(), state);
 
         for successor in location.forward()? {
-            queue.insert(successor);
+            if !queue.contains(&successor) {
+                queue.push_back(successor);
+            }
         }
     }
 
     Ok(states)
+}
+
+
+/// A guaranteed sound analysis, which enforces the partial order over states.
+pub fn fixed_point_forward<'f, Analysis, State> (
+    analysis: Analysis,
+    function: &'f il::Function
+) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd  {
+    fixed_point_forward_options(analysis, function, false)
 }

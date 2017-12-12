@@ -1,6 +1,6 @@
 //! Capstone-based translator for MIPS.
 
-use falcon_capstone::{capstone, capstone_sys};
+use falcon_capstone::capstone;
 use error::*;
 use il::*;
 use translator::{Translator, BlockTranslationResult};
@@ -47,9 +47,9 @@ impl Translator for Mipsel {
 enum TranslateBranchDelay {
     None,
     Branch,
-    DelaySlot(ControlFlowGraph),
+    DelaySlot(u64, ControlFlowGraph),
     BranchFallThrough,
-    DelaySlotFallThrough(ControlFlowGraph)
+    DelaySlotFallThrough(u64, ControlFlowGraph)
 }
 
 
@@ -65,30 +65,31 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
 
     cs.option(capstone::cs_opt_type::CS_OPT_DETAIL, capstone::cs_opt_value::CS_OPT_ON).unwrap();
 
-    // our graph for the block which we will build iteratively with each instruction
-    let mut block_graph = ControlFlowGraph::new();
+    // A vec which holds each lifted instruction in this block.
+    let mut block_graphs: Vec<(u64, ControlFlowGraph)> = Vec::new();
 
-    // the length of this block in bytes
+    // the length of this block in bytes.
     let mut length: usize = 0;
 
+    // The successors which exit this block.
     let mut successors = Vec::new();
 
+    // Offset in bytes to the next instruction from the address given at entry.
     let mut offset: usize = 0;
 
+    // MIPS-specific enum to handle branch delay slot.
     let mut branch_delay = TranslateBranchDelay::None;
 
     loop {
+        if offset >= bytes.len() {
+            successors.push((address + offset as u64, None));
+            break;
+        }
         let disassembly_range = (offset)..bytes.len();
         let disassembly_bytes = bytes.get(disassembly_range).unwrap();
         let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
             Ok(instructions) => instructions,
-            Err(e) => match e.code() {
-                capstone_sys::cs_err::CS_ERR_OK => {
-                    successors.push((address + offset as u64, None));
-                    break;
-                }
-                _ => bail!("Capstone Error: {}", e.code() as u32)
-            }
+            Err(e) => bail!("Capstone Error: {}", e.code() as u32)
         };
 
         if instructions.count() == 0 {
@@ -296,7 +297,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
 
             branch_delay = match branch_delay {
                 TranslateBranchDelay::None => {
-                    block_graph.append(&instruction_graph)?;
+                    block_graphs.push((instruction.address, instruction_graph));
                     TranslateBranchDelay::None
                 },
                 TranslateBranchDelay::Branch => {
@@ -308,12 +309,12 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                         successors.push((address + offset as u64, None));
                         break;
                     }
-                    TranslateBranchDelay::DelaySlot(instruction_graph)
+                    TranslateBranchDelay::DelaySlot(instruction.address, instruction_graph)
                 },
-                TranslateBranchDelay::DelaySlot(cfg) => {
-                    block_graph.append(&instruction_graph)?;
-                    block_graph.append(&cfg)?;
-                    break
+                TranslateBranchDelay::DelaySlot(address, cfg) => {
+                    block_graphs.push((instruction.address, instruction_graph));
+                    block_graphs.push((address, cfg));
+                    break;
                 },
                 TranslateBranchDelay::BranchFallThrough => {
                     // If we don't have enough bytes left to disassemble the
@@ -324,11 +325,11 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                         successors.push((address + offset as u64, None));
                         break;
                     }
-                    TranslateBranchDelay::DelaySlotFallThrough(instruction_graph)
+                    TranslateBranchDelay::DelaySlotFallThrough(instruction.address, instruction_graph)
                 },
-                TranslateBranchDelay::DelaySlotFallThrough(cfg) => {
-                    block_graph.append(&instruction_graph)?;
-                    block_graph.append(&cfg)?;
+                TranslateBranchDelay::DelaySlotFallThrough(address, cfg) => {
+                    block_graphs.push((instruction.address, instruction_graph));
+                    block_graphs.push((address, cfg));
                     TranslateBranchDelay::None
                 }
             };
@@ -342,5 +343,5 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
         offset += instruction.size as usize;
     }
 
-    Ok(BlockTranslationResult::new(block_graph, address, length, successors))
+    Ok(BlockTranslationResult::new(block_graphs, address, length, successors))
 }

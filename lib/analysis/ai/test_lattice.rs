@@ -6,6 +6,7 @@ use error::*;
 use executor;
 use il;
 use memory;
+use std::cmp::{Ordering, PartialOrd};
 use types::Endian;
 
 pub type TestLatticeMemory<'m> = ai::memory::Memory<'m, TestLattice>;
@@ -62,6 +63,36 @@ impl TestLattice {
 }
 
 
+impl PartialOrd for TestLattice {
+    fn partial_cmp(&self, other: &TestLattice) -> Option<Ordering> {
+        match *self {
+            TestLattice::Top(_) => match *other {
+                TestLattice::Top(_) => Some(Ordering::Equal),
+                TestLattice::Constant(_) |
+                TestLattice::Bottom(_) => Some(Ordering::Greater)
+            },
+            TestLattice::Constant(ref lhs) => match *other {
+                TestLattice::Top(_) => Some(Ordering::Less),
+                TestLattice::Constant(ref rhs) => {
+                    if lhs == rhs {
+                        Some(Ordering::Equal)
+                    }
+                    else {
+                        None
+                    }
+                },
+                TestLattice::Bottom(_) => Some(Ordering::Greater)
+            },
+            TestLattice::Bottom(_) => match *other {
+                TestLattice::Top(_) |
+                TestLattice::Constant(_) => Some(Ordering::Less),
+                TestLattice::Bottom(_) => Some(Ordering::Equal)
+            }
+        }
+    }
+}
+
+
 pub struct TestLatticeDomain {}
 
 
@@ -76,7 +107,7 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
              value: TestLattice) -> Result<()> {
 
         if let Some(ref constant) = index.constant() {
-            memory.store(constant.value(), value)
+            memory.store_weak(constant.value(), &value)
         }
         else {
             Ok(())
@@ -96,7 +127,7 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
         }
     }
 
-    fn brc(&self, _: &TestLattice, _: &TestLattice, state: TestLatticeState<'d>)
+    fn brc(&self, _: &TestLattice, state: TestLatticeState<'d>)
         -> Result<TestLatticeState<'d>> {
 
         Ok(state)
@@ -134,8 +165,12 @@ impl Value for TestLattice {
         })
     }
 
-    fn empty(bits: usize) -> TestLattice {
+    fn bottom(bits: usize) -> TestLattice {
         TestLattice::Bottom(bits)
+    }
+
+    fn top(bits: usize) -> TestLattice {
+        TestLattice::Top(bits)
     }
 
     fn constant(constant: il::Constant) -> TestLattice {

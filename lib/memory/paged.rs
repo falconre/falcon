@@ -52,12 +52,6 @@ impl<V> Page<V> where V: Value {
         }
     }
 
-    pub(crate) fn new_with_cells(cells: Vec<Option<MemoryCell<V>>>) -> Page<V> {
-        Page {
-            cells: cells
-        }
-    }
-
     fn store(&mut self, offset: usize, cell: MemoryCell<V>) {
         self.cells.as_mut_slice()[offset] = Some(cell);
     }
@@ -100,6 +94,11 @@ impl<'m, V> Memory<'m, V> where V: Value {
         }
     }
 
+    /// Get the endiannes of this memory model
+    pub fn endian(&self) -> Endian {
+        self.endian.clone()
+    }
+
     /// Create a new paged memory model with the given endianness and memory
     /// backing.
     ///
@@ -119,6 +118,16 @@ impl<'m, V> Memory<'m, V> where V: Value {
             Some(backing) => backing.permissions(address),
             None => None
         }
+    }
+
+    /// Get a reference to the memory backing, if there is one
+    pub fn backing(&self) -> Option<&backing::Memory> {
+        self.backing.clone()
+    }
+
+    /// Set the memory backing
+    pub fn set_backing(&mut self, backing: Option<&'m backing::Memory>) {
+        self.backing = backing;
     }
 
 

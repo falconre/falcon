@@ -3,7 +3,7 @@ use memory;
 use il::*;
 use RC;
 use translator::mips::*;
-use types::Architecture;
+use types::{Architecture, Endian};
 
 
 #[macro_use]
@@ -22,22 +22,31 @@ macro_rules! backing {
 fn init_driver_block<'d>(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Constant)>,
-    memory: Memory<'d>
+    memory_: Memory<'d>
 ) -> Driver<'d> {
-    let mut bytes = vec![0x00, 0x00, 0x00, 0x00];
-    bytes.append(&mut instruction_bytes.to_vec());
-    bytes.append(&mut vec![0x00, 0x00, 0x00, 0x00]);
+    let mut bytes = instruction_bytes.to_vec();
+    // ori $a0, $a0, $a0
+    bytes.append(&mut vec![0x00, 0x84, 0x20, 0x25]);
 
-    let block_translation_result = Mips::new().translate_block(&bytes, 0).unwrap();
-    let control_flow_graph = block_translation_result.control_flow_graph();
-    let function = Function::new(0, control_flow_graph.clone());
+    let mut backing = memory::backing::Memory::new(Endian::Big);
+    backing.set_memory(0, bytes.to_vec(),
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ);
+    
+    let function = Mips::new().translate_function(&backing, 0).unwrap();
+
+    let location = if function.control_flow_graph()
+                              .block(0).unwrap()
+                              .instructions().len() == 0 {
+        ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0))
+    }
+    else {
+        ProgramLocation::new(Some(0), FunctionLocation::Instruction(0, 0))
+    };
+
     let mut program = Program::new();
-
     program.add_function(function);
 
-    let location = ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0));
-
-    let mut state = State::new(memory);
+    let mut state = State::new(memory_);
     for scalar in scalars {
         state.set_scalar(scalar.0, scalar.1);
     }
@@ -77,21 +86,15 @@ fn get_scalar(
 ) -> Constant {
 
     let mut driver = init_driver_block(instruction_bytes, scalars, memory);
-    let num_blocks = driver.program()
-                           .function(0)
-                           .unwrap()
-                           .control_flow_graph()
-                           .blocks()
-                           .len();
 
-    loop {
+    while driver.location()
+                .apply(driver.program()).unwrap()
+                .forward().unwrap()
+                .len() > 0 {
         driver = driver.step().unwrap();
-        if let Some(index) = driver.location().block_index() {
-            if index == num_blocks as u64 - 1 {
-                break;
-            }
-        }
     }
+    // The final step
+    // driver = driver.step().unwrap();
 
     driver.state().get_scalar(result_scalar).unwrap().clone()
 }
@@ -101,32 +104,21 @@ fn get_raise(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Constant)>,
     memory: Memory
-) -> Option<Expression> {
+) -> Expression {
 
     let mut driver = init_driver_block(instruction_bytes, scalars, memory);
-    let num_blocks = driver.program()
-                           .function(0)
-                           .unwrap()
-                           .control_flow_graph()
-                           .blocks()
-                           .len();
 
     loop {
+        {
+            let location = driver.location().apply(driver.program()).unwrap();
+            if let Some(instruction) = location.instruction() {
+                if let Operation::Raise { ref expr } = *instruction.operation() {
+                    return expr.clone();
+                }
+            }
+        }
         driver = driver.step().unwrap();
-        let location = driver.location().apply(driver.program()).unwrap();
-        if let Some(instruction) = location.instruction() {
-            if let Operation::Raise { ref expr } = *instruction.operation() {
-                return Some(expr.clone());
-            }
-        }
-        if let Some(index) = driver.location().block_index() {
-            if index == num_blocks as u64 - 1 {
-                break;
-            }
-        }
     }
-
-    None
 }
 
 
@@ -167,7 +159,7 @@ fn add() {
         vec![("$a1", const_(0x7fffffff, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
-    ).unwrap();
+    );
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
@@ -181,7 +173,7 @@ fn add() {
         vec![("$a1", const_(0xffffffff, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
-    ).unwrap();
+    );
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
@@ -210,7 +202,7 @@ fn addi() {
         instruction_bytes,
         vec![("$a1", const_(0x7fffffff, 32))],
         Memory::new(Endian::Big)
-    ).unwrap();
+    );
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
@@ -1141,7 +1133,7 @@ fn break_ () {
         vec![("$a1", const_(0x7fffffff, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
-    ).unwrap();
+    );
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "break");
     }
@@ -1906,8 +1898,14 @@ fn negu() {
 #[test]
 fn nop() {
     let bytes = &[0x00, 0x00, 0x00, 0x00];
-    let block_translation_result = Mips::new().translate_block(bytes, 0).unwrap();
-    let control_flow_graph = block_translation_result.control_flow_graph();
+
+    let mut backing = memory::backing::Memory::new(Endian::Big);
+    backing.set_memory(0, bytes.to_vec(),
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ);
+    
+    let function = Mips::new().translate_function(&backing, 0).unwrap();
+    let control_flow_graph = function.control_flow_graph();
+
     assert_eq!(control_flow_graph.block(0).unwrap().instructions().len(), 0);
 }
 
@@ -2313,7 +2311,7 @@ fn sub() {
         vec![("$a1", const_(0, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
-    ).unwrap();
+    );
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
@@ -2327,7 +2325,7 @@ fn sub() {
         vec![("$a1", const_(0x80000000, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
-    ).unwrap();
+    );
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "IntegerOverflow");
     }
@@ -2411,7 +2409,7 @@ fn syscall () {
         &[0x00, 0x00, 0x00, 0x0c],
         vec![],
         Memory::new(Endian::Big)
-    ).unwrap();
+    );
     if let Expression::Scalar(ref scalar) = result {
         assert_eq!(scalar.name(), "syscall");
     }

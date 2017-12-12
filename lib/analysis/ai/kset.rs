@@ -34,6 +34,7 @@ use error::*;
 use executor::eval;
 use il;
 use memory;
+use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
@@ -59,18 +60,65 @@ pub fn kset<'k>(
         memory: initial_memory
     };
     let interpreter = interpreter::Interpreter::new(domain);
-    fixed_point::fixed_point_forward(interpreter, function)
+    fixed_point::fixed_point_forward_options(interpreter, function, true)
 }
 
 
 /// A KSet
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub enum KSet {
     Top(usize),
     Value(HashSet<il::Constant>),
     Bottom(usize)
 }
 
+
+impl PartialOrd for KSet {
+    fn partial_cmp(&self, other: &KSet) -> Option<Ordering> {
+        match *self {
+            KSet::Top(_) => match *other {
+                KSet::Top(_) => Some(Ordering::Equal),
+                KSet::Value(_) |
+                KSet::Bottom(_) => Some(Ordering::Greater)
+            },
+            KSet::Value(ref lhs) => match *other {
+                KSet::Top(_) => Some(Ordering::Less),
+                KSet::Value(ref rhs) => {
+                    if lhs.len() == rhs.len() {
+                        for l in lhs {
+                            if !rhs.contains(l) {
+                                return None;
+                            }
+                        }
+                        Some(Ordering::Equal)
+                    }
+                    else if lhs.len() < rhs.len() {
+                        for l in lhs {
+                            if !rhs.contains(l) {
+                                return None;
+                            }
+                        }
+                        Some(Ordering::Less)
+                    }
+                    else {
+                        for r in rhs {
+                            if !lhs.contains(r) {
+                                return None;
+                            }
+                        }
+                        Some(Ordering::Greater)
+                    }
+                },
+                KSet::Bottom(_) => Some(Ordering::Greater)
+            },
+            KSet::Bottom(_) => match *other {
+                KSet::Top(_) |
+                KSet::Value(_) => Some(Ordering::Less),
+                KSet::Bottom(_) => Some(Ordering::Equal)
+            }
+        }
+    }
+}
 
 
 impl KSet {
@@ -88,9 +136,6 @@ impl KSet {
                         for l in lhs_value {
                             for r in rhs_value {
                                 b.insert(op(l, r)?);
-                            }
-                            if b.len() > MAX_CARDINALITY {
-                                return Ok(KSet::Top(b.iter().next().unwrap().bits()));
                             }
                         }
                         if b.len() > MAX_CARDINALITY {
@@ -314,8 +359,12 @@ impl domain::Value for KSet {
         self.join(other)
     }
 
-    fn empty(bits: usize) -> KSet {
-        KSet::empty(bits)
+    fn bottom(bits: usize) -> KSet {
+        KSet::Bottom(bits)
+    }
+
+    fn top(bits: usize) -> KSet {
+        KSet::Top(bits)
     }
 
     fn constant(constant: il::Constant) -> KSet {
@@ -336,28 +385,32 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
     }
 
     fn store(&self, memory: &mut KMemory, index: &KSet, value: KSet) -> Result<()> {
-        if let KSet::Value(ref kindex) = *index {
-            for i in kindex {
-                memory.store(i.value(), value.clone())?
-            }
+        match *index {
+            KSet::Value(ref kindex) => {
+                for i in kindex {
+                    memory.store_weak(i.value(), &value)?
+                }
+            },
+            _ => {}
         }
         Ok(())
     }
 
     fn load(&self, memory: &KMemory, index: &KSet, bits: usize) -> Result<KSet> {
-        if let KSet::Value(ref kindex) = *index {
-            let mut b = KSet::empty(bits);
-            for i in kindex {
-                b = b.join(&memory.load(i.value(), bits)?)?;
-            }
-            Ok(b)
-        }
-        else {
-            Ok(KSet::empty(bits))
+        match *index {
+            KSet::Value(ref kindex) => {
+                let mut b = KSet::empty(bits);
+                for i in kindex {
+                    b = b.join(&memory.load(i.value(), bits)?)?;
+                }
+                Ok(b)
+            },
+            KSet::Top(bits) |
+            KSet::Bottom(bits) => Ok(KSet::Top(bits))
         }
     }
 
-    fn brc(&self, _: &KSet, _: &KSet, mut state: KState<'m>) -> Result<KState<'m>> {
+    fn brc(&self, _: &KSet, mut state: KState<'m>) -> Result<KState<'m>> {
         for trashed_register in self.calling_convention.trashed_registers() {
             state.remove_variable(trashed_register);
         }
@@ -369,10 +422,7 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
     }
 
     fn new_state(&self) -> KState<'m> {
-        KState {
-            variables: HashMap::new(),
-            memory: self.memory.clone()
-        }
+        KState::new(self.memory.clone())
     }
 }
 
@@ -388,6 +438,13 @@ impl fmt::Display for KSet {
                 .collect::<Vec<String>>()
                 .join(","))
         }
+    }
+}
+
+
+impl fmt::Debug for KSet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

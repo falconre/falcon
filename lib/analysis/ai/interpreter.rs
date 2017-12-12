@@ -44,22 +44,21 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                         state.set_variable(dst.clone(), self.domain.eval(&expr)?);
                         state
                     },
-                    il::Operation::Store { ref index, ref src, .. } => {
+                    il::Operation::Store { ref index, ref src } => {
                         let index = self.domain.eval(&state.symbolize(index))?;
                         let src = self.domain.eval(&state.symbolize(src))?;
                         self.domain.store(&mut state.memory, &index, src)?;
                         state
                     },
-                    il::Operation::Load { ref dst, ref index, .. } => {
+                    il::Operation::Load { ref dst, ref index } => {
                         let index = self.domain.eval(&state.symbolize(index))?;
                         let value = self.domain.load(&state.memory, &index, dst.bits())?;
                         state.set_variable(dst.clone(), value.clone());
                         state
                     },
-                    il::Operation::Brc { ref target, ref condition } => {
+                    il::Operation::Branch { ref target } => {
                         let target = self.domain.eval(&state.symbolize(target))?;
-                        let condition = self.domain.eval(&state.symbolize(condition))?;
-                        self.domain.brc(&target, &condition, state)?
+                        self.domain.brc(&target, state)?
                     },
                     il::Operation::Raise { ref expr } => {
                         let expr = self.domain.eval(&state.symbolize(expr))?;
@@ -127,14 +126,15 @@ fn test() {
 
         let results = fixed_point::fixed_point_forward(interpreter, &function)?;
 
-        let block = function.block(tail_index).unwrap();
-        let instruction = block.instruction(1).unwrap();
+        let block = function.block(tail_index)
+            .expect("Can't find block");
+        let instruction = block.instruction(1)
+            .expect("Can't find instruction");
         let rfl = il::RefFunctionLocation::Instruction(block, instruction);
         let rpl = il::RefProgramLocation::new(&function, rfl);
 
-        let a0 = results[&rpl].variable(&il::scalar("$a0", 32)).unwrap();
-
-        println!("{:?}", a0);
+        let a0 = results[&rpl].variable(&il::scalar("$a0", 32))
+            .expect("Can't find $a0");
 
         assert_eq!(*a0, TestLattice::Constant(il::const_(0x577038, 32)));
 
