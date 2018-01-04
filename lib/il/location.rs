@@ -80,6 +80,11 @@ impl<'p> RefProgramLocation<'p> {
         self.function_location.instruction()
     }
 
+    /// If this `RefProgramLocation` references an `Edge`, get that `Edge`
+    pub fn edge(&self) -> Option<&Edge> {
+        self.function_location.edge()
+    }
+
     /// If this `RefProgramLocation` is referencing an `Instruction` which has
     /// an address set, return that address.
     pub fn address(&self) -> Option<u64> {
