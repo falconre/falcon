@@ -61,3 +61,34 @@ impl Value for il::Constant {
         eval(&il::Expression::or(self.clone().into(), other.clone().into())?)
     }
 }
+
+
+impl Value for il::Expression {
+    fn constant(constant: il::Constant) -> Self {
+        il::Expression::constant(constant)
+    }
+
+    fn bits(&self) -> usize {
+        self.bits()
+    }
+
+    fn shl(&self, bits: usize) -> Result<Self> {
+        il::Expression::shl(self.clone(), il::expr_const(bits as u64, self.bits()))
+    }
+
+    fn shr(&self, bits: usize) -> Result<Self> {
+        il::Expression::shr(self.clone(), il::expr_const(bits as u64, self.bits()))
+    }
+
+    fn trun(&self, bits: usize) -> Result<Self> {
+        il::Expression::trun(bits, self.clone())
+    }
+
+    fn zext(&self, bits: usize) -> Result<Self> {
+        il::Expression::zext(bits, self.clone())
+    }
+
+    fn or(&self, other: &Self) -> Result<Self> {
+        il::Expression::or(self.clone(), other.clone())
+    }
+}
