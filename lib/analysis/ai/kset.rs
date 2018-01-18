@@ -369,6 +369,9 @@ impl domain::Value for KSet {
 }
 
 
+impl ai::memory::Value for KSet {}
+
+
 struct KSetDomain<'m> {
     calling_convention: CallingConvention,
     memory: KMemory<'m>

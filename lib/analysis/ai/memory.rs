@@ -12,13 +12,16 @@ use std::cmp::{Ordering, PartialEq, PartialOrd};
 use types::Endian;
 
 
+pub trait Value: memory::value::Value + domain::Value {}
+
+
 /// A memory model for abstract interpretation.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Memory<'m, V: memory::value::Value + domain::Value> {
+pub struct Memory<'m, V: Value> {
     memory: paged::Memory<'m, V>,
 }
 
-impl<'m, V> Memory<'m, V> where V: memory::value::Value + domain::Value {
+impl<'m, V> Memory<'m, V> where V: Value {
     /// Create a new memory model for abstract interpretation.
     pub fn new(endian: Endian) -> Memory<'m, V> {
         Memory {
@@ -121,7 +124,7 @@ impl<'m, V> Memory<'m, V> where V: memory::value::Value + domain::Value {
 }
 
 
-impl<'m, V> PartialOrd for Memory<'m, V> where V: memory::value::Value + domain::Value {
+impl<'m, V> PartialOrd for Memory<'m, V> where V: Value {
     fn partial_cmp(&self, other: &Memory<'m, V>) -> Option<Ordering> {
         let mut ordering = Ordering::Equal;
 
@@ -184,7 +187,7 @@ impl<'m, V> PartialOrd for Memory<'m, V> where V: memory::value::Value + domain:
 }
 
 
-impl<'m, V> PartialEq for Memory<'m, V> where V: memory::value::Value + domain::Value {
+impl<'m, V> PartialEq for Memory<'m, V> where V: Value {
     fn eq(&self, other: &Self) -> bool {
         match self.partial_cmp(other) {
             Some(ordering) => match ordering {
@@ -197,7 +200,7 @@ impl<'m, V> PartialEq for Memory<'m, V> where V: memory::value::Value + domain::
 }
 
 
-impl<'m, V: memory::value::Value + domain::Value + Serialize> domain::Memory<V> for Memory<'m, V> {
+impl<'m, V: Value + Serialize> domain::Memory<V> for Memory<'m, V> {
     fn join(self, other: &Memory<V>) -> Result<Memory<'m, V>> {
         self.join(other)
     }
