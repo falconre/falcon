@@ -16,9 +16,6 @@ pub trait Value: Clone + Debug + PartialEq + PartialOrd {
     /// Return an top abstract value
     fn top(bits: usize) -> Self;
 
-    /// Return an bottom abstract value
-    fn bottom(bits: usize) -> Self;
-
     /// Take an il::Constant, and turn it into an abstract value
     fn constant(constant: il::Constant) -> Self; 
 }

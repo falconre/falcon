@@ -359,10 +359,6 @@ impl domain::Value for KSet {
         self.join(other)
     }
 
-    fn bottom(bits: usize) -> KSet {
-        KSet::Bottom(bits)
-    }
-
     fn top(bits: usize) -> KSet {
         KSet::Top(bits)
     }
