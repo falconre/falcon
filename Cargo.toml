@@ -1,6 +1,6 @@
 [package]
 name = "falcon"
-version = "0.2.2"
+version = "0.2.3"
 authors = [ "Alex Eubanks <endeavor@rainbowsandpwnies.com>" ]
 repository = "https://github.com/falconre/falcon"
 description = "A Binary Analysis Framework in Rust"
