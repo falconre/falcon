@@ -65,6 +65,15 @@ impl Architecture {
             Architecture::X86 => il::scalar("esp", 32)
         }
     }
+
+    /// Get the natural word size of the architecture
+    pub fn word_size(&self) -> usize {
+        match *self {
+            Architecture::Mips |
+            Architecture::Mipsel |
+            Architecture::X86 => 32
+        }
+    }
 }
 
 

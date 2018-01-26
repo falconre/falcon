@@ -165,10 +165,6 @@ impl Value for TestLattice {
         })
     }
 
-    fn bottom(bits: usize) -> TestLattice {
-        TestLattice::Bottom(bits)
-    }
-
     fn top(bits: usize) -> TestLattice {
         TestLattice::Top(bits)
     }
@@ -259,6 +255,9 @@ impl memory::value::Value for TestLattice {
         })
     }
 }
+
+
+impl ai::memory::Value for TestLattice {}
 
 
 impl Into<Expression<TestLattice>> for TestLattice {

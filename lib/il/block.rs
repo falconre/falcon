@@ -7,8 +7,8 @@
 //!
 //! To create a `Block`, call `ControlFlowGraph::new_block`.
 
-use std::fmt;
 use il::*;
+use std::fmt;
 
 
 /// A basic block in Falcon IL.
@@ -45,6 +45,17 @@ impl Block {
 
     fn push(&mut self, instruction: Instruction) {
         self.instructions.push(instruction);
+    }
+
+
+    /// Get the address of the first instruction in this block
+    pub fn address(&self) -> Option<u64> {
+        if let Some(ref instruction) = self.instructions.first() {
+            instruction.address()
+        }
+        else {
+            None
+        }
     }
 
 

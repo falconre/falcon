@@ -159,18 +159,13 @@ impl ElfLinker {
         let ref elf = self.loaded[filename];
         let dynsyms = elf.elf().dynsyms;
         let dynstrtab = elf.elf().dynstrtab;
-        for reloc in elf.elf()
-                        .dynrelas
-                        .iter()
-                        .chain(elf.elf()
-                                  .dynrels
-                                  .iter()
-                                  .chain(elf.elf()
-                                            .pltrelocs
-                                            .iter())) {
+        for reloc in elf.elf().dynrelas.iter().chain(
+            elf.elf().dynrels.iter().chain(
+                elf.elf().pltrelocs.iter())) {
             match reloc.r_type {
                 goblin::elf::reloc::R_386_32 => {
-                    let ref sym = dynsyms[reloc.r_sym];
+                    let ref sym = dynsyms.get(reloc.r_sym)
+                        .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
@@ -185,7 +180,8 @@ impl ElfLinker {
                     bail!("R_386_GOT32");
                 },
                 goblin::elf::reloc::R_386_PLT32 => {
-                    let ref sym = dynsyms[reloc.r_sym];
+                    let ref sym = dynsyms.get(reloc.r_sym)
+                        .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
                     bail!("R_386_PLT32 {:?}:0x{:x}:{}", self.filename, reloc.r_offset, sym_name);
                 },
@@ -193,7 +189,8 @@ impl ElfLinker {
                     bail!("R_386_COPY");
                 },
                 goblin::elf::reloc::R_386_GLOB_DAT => {
-                    let ref sym = dynsyms[reloc.r_sym];
+                    let ref sym = dynsyms.get(reloc.r_sym)
+                        .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
@@ -208,7 +205,8 @@ impl ElfLinker {
                     )?;
                 },
                 goblin::elf::reloc::R_386_JMP_SLOT => {
-                    let ref sym = dynsyms[reloc.r_sym];
+                    let ref sym = dynsyms.get(reloc.r_sym)
+                        .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
@@ -441,7 +439,7 @@ impl Elf {
     fn exported_symbols(&self) -> Vec<ElfSymbol> {
         let mut v = Vec::new();
         let elf = self.elf();
-        for sym in elf.dynsyms {
+        for sym in elf.dynsyms.iter() {
             if sym.st_value == 0 {
                 continue;
             }
