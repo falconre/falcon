@@ -111,11 +111,11 @@ const X86REGISTERS : &'static [X86Register] = &[
     X86Register { name: "bp", capstone_reg: x86_reg::X86_REG_BP, full_reg: x86_reg::X86_REG_EBP, offset: 0, bits: 16 },
     X86Register { name: "ebp", capstone_reg: x86_reg::X86_REG_EBP, full_reg: x86_reg::X86_REG_EBP, offset: 0, bits: 32 },
     X86Register { name: "fs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_FS, offset: 0, bits: 16 },
-    X86Register { name: "gs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_GS, offset: 0, bits: 16 },
-    X86Register { name: "ds", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_DS, offset: 0, bits: 16 },
-    X86Register { name: "es", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_ES, offset: 0, bits: 16 },
-    X86Register { name: "cs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_CS, offset: 0, bits: 16 },
-    X86Register { name: "ss", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_SS, offset: 0, bits: 16 },
+    X86Register { name: "gs", capstone_reg: x86_reg::X86_REG_GS, full_reg: x86_reg::X86_REG_GS, offset: 0, bits: 16 },
+    X86Register { name: "ds", capstone_reg: x86_reg::X86_REG_DS, full_reg: x86_reg::X86_REG_DS, offset: 0, bits: 16 },
+    X86Register { name: "es", capstone_reg: x86_reg::X86_REG_ES, full_reg: x86_reg::X86_REG_ES, offset: 0, bits: 16 },
+    X86Register { name: "cs", capstone_reg: x86_reg::X86_REG_CS, full_reg: x86_reg::X86_REG_CS, offset: 0, bits: 16 },
+    X86Register { name: "ss", capstone_reg: x86_reg::X86_REG_SS, full_reg: x86_reg::X86_REG_SS, offset: 0, bits: 16 },
 ];
 
 
@@ -126,7 +126,7 @@ pub fn get_register(capstone_id: x86_reg) -> Result<&'static X86Register> {
             return Ok(&register);
         }
     }
-    Err("Could not find register".into())
+    Err(format!("Could not find register {:?}", capstone_id).into())
 }
 
 
