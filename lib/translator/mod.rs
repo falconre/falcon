@@ -120,6 +120,27 @@ impl BlockTranslationResult {
     pub fn successors(&self) -> &Vec<(u64, Option<Expression>)> {
         &self.successors
     }
+
+    /// Return a single `ControlFlowGraph` for this block
+    pub fn blockify(&self) -> Result<ControlFlowGraph> {
+        let mut control_flow_graph = ControlFlowGraph::new();
+
+        let block_index = {
+            let block = control_flow_graph.new_block()?;
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        for &(_, ref cfg) in &self.instructions {
+            control_flow_graph.append(&cfg)?;
+        }
+
+        control_flow_graph.merge()?;
+
+        Ok(control_flow_graph)
+    }
 }
 
 
