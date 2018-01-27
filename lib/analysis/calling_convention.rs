@@ -6,6 +6,7 @@ use std::collections::HashSet;
 
 
 /// Available type of calling conventions
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CallingConventionType {
     MipsSystemV,
     MipselSystemV,
@@ -14,6 +15,7 @@ pub enum CallingConventionType {
 
 
 /// The return type for a function.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReturnAddressType {
     /// Functions return by loading an address from a register.
     Register(il::Scalar),
@@ -25,6 +27,7 @@ pub enum ReturnAddressType {
 
 
 /// The type of an argument.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArgumentType {
     /// The argument is held in a register.
     Register(il::Scalar),
@@ -37,6 +40,7 @@ pub enum ArgumentType {
 
 
 /// Represents the calling convention of a particular platform.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallingConvention {
     /// arguments passed in registers.
     argument_registers: Vec<il::Scalar>,
