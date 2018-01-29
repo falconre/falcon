@@ -352,17 +352,23 @@ impl<'m, V> Memory<'m, V> where V: Value {
                     let value = match self.endian {
                         Endian::Little => {
                             let shift_bits = ((address - backref_address) * 8) as usize;
+                            let trun_bits = value.bits() - shift_bits;
                             value.shr(shift_bits)?
-                                 .trun(bits)
+                                 .trun(trun_bits)
                                  .chain_err(||
                                     format!("Shifted {:?} right {} and truncated to {}",
                                         value, shift_bits, bits))?
                         },
                         Endian::Big => {
                             let offset = ((address - backref_address) * 8) as usize;
-                            let shift_bits = value.bits() - bits - offset;
+                            let shift_bits = if bits + offset >= value.bits() {
+                                0
+                            } else {
+                                value.bits() - bits - offset
+                            };
+                            let trun_bits = value.bits() - offset - shift_bits;
                             value.shr(shift_bits)?
-                                 .trun(bits)
+                                 .trun(trun_bits)
                                  .chain_err(||
                                     format!("Shifted {:?} right {} and truncated to {}",
                                         value, shift_bits, bits))?
@@ -477,6 +483,22 @@ mod memory_tests {
             memory.load(0x100, 32).unwrap().unwrap(),
             il::const_(0xaabbffdd, 32)
         );
+
+        /*     
+               \/
+            AA BB CC DD 11 22 33 44
+            0x44AABBCC
+        */
+
+        let mut memory: Memory<il::Constant> = Memory::new(Endian::Big);
+
+        memory.store(0x100, il::const_(0xAABBCCDD, 32)).unwrap();
+        memory.store(0x104, il::const_(0x11223344, 32)).unwrap();
+
+        assert_eq!(
+            memory.load(0x101, 32).unwrap().unwrap(),
+            il::const_(0xBBCCDD11, 32)
+        );
     }
 
     #[test]
@@ -520,6 +542,22 @@ mod memory_tests {
         assert_eq!(
             memory.load(0x100, 32).unwrap().unwrap(),
             il::const_(0xAAFFCCDD, 32)
+        );
+
+        /*     
+               \/
+            DD CC BB AA 44 33 22 11
+            0x44AABBCC
+        */
+
+        let mut memory: Memory<il::Constant> = Memory::new(Endian::Little);
+
+        memory.store(0x100, il::const_(0xAABBCCDD, 32)).unwrap();
+        memory.store(0x104, il::const_(0x11223344, 32)).unwrap();
+
+        assert_eq!(
+            memory.load(0x101, 32).unwrap().unwrap(),
+            il::const_(0x44AABBCC, 32)
         );
     }
 
