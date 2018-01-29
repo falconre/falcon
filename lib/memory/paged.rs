@@ -330,8 +330,16 @@ impl<'m, V> Memory<'m, V> where V: Value {
                     }
                     else {
                         match self.endian {
-                            Endian::Little => value.trun(bits)?,
-                            Endian::Big => value.shr(value.bits() - bits)?.trun(bits)?
+                            Endian::Little =>
+                                value.trun(bits)
+                                     .chain_err(|| format!("Truncating {:?} to {}",
+                                                           value,
+                                                           bits))?,
+                            Endian::Big =>
+                                value.shr(value.bits() - bits)?
+                                     .trun(bits)
+                                     .chain_err(||format!("Shift {:?} right {} truncate {}",
+                                                          value, value.bits() - bits, bits))?
                         }
                     }
                 },
@@ -344,16 +352,27 @@ impl<'m, V> Memory<'m, V> where V: Value {
                     let value = match self.endian {
                         Endian::Little => {
                             let shift_bits = ((address - backref_address) * 8) as usize;
-                            value.shr(shift_bits)?.trun(bits)?
+                            value.shr(shift_bits)?
+                                 .trun(bits)
+                                 .chain_err(||
+                                    format!("Shifted {:?} right {} and truncated to {}",
+                                        value, shift_bits, bits))?
                         },
                         Endian::Big => {
                             let offset = ((address - backref_address) * 8) as usize;
                             let shift_bits = value.bits() - bits - offset;
-                            value.shr(shift_bits)?.trun(bits)?
+                            value.shr(shift_bits)?
+                                 .trun(bits)
+                                 .chain_err(||
+                                    format!("Shifted {:?} right {} and truncated to {}",
+                                        value, shift_bits, bits))?
                         }
                     };
                     if value.bits() > bits {
-                        value.trun(bits)?
+                        value.trun(bits)
+                             .chain_err(|| format!("Error truncating {} bits to {}",
+                                                   value.bits(),
+                                                   bits))?
                     }
                     else {
                         value
