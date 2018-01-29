@@ -220,10 +220,11 @@ impl<'m, V> Memory<'m, V> where V: Value {
         let value_to_write =
             if let Some(cell) = self.load_cell(address_after_write) {
                 if let MemoryCell::Backref(backref_address) = *cell {
-                    let backref_value = self.load_cell(backref_address)
-                                            .unwrap()
-                                            .value()
-                                            .unwrap();
+                    let backref_value =
+                        self.load_cell(backref_address)
+                            .ok_or("Backref cell pointed to null cell")?
+                            .value()
+                            .ok_or("Backref cell pointed to cell without value")?;
                     // furthest most address backref value reaches
                     let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
                     // how many bits are left after our write
@@ -335,10 +336,11 @@ impl<'m, V> Memory<'m, V> where V: Value {
                     }
                 },
                 MemoryCell::Backref(backref_address) => {
-                    let value = self.load_cell(backref_address)
-                                    .unwrap()
-                                    .value()
-                                    .unwrap();
+                    let value =
+                        self.load_cell(backref_address)
+                            .ok_or("Backref cell pointed to null cell")?
+                            .value()
+                            .ok_or("Backref cell pointed to cell without value")?;
                     let value = match self.endian {
                         Endian::Little => {
                             let shift_bits = ((address - backref_address) * 8) as usize;
