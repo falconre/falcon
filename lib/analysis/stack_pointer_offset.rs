@@ -18,7 +18,7 @@ use types::Architecture;
 /// program.
 pub fn stack_pointer_offsets<'f>(
     function: &'f il::Function,
-    architecture: Architecture
+    architecture: &Architecture
 ) -> Result<HashMap<il::RefProgramLocation<'f>, StackPointerOffset>> {
 
     let spoa = StackPointerOffsetAnalysis {
@@ -31,18 +31,9 @@ pub fn stack_pointer_offsets<'f>(
 /// Returns true if there is a valid StackPointerOffset value for every location
 /// in the function.
 pub fn perfect<'f>(
-    function: &'f il::Function,
-    stack_pointer_offsets: HashMap<il::RefProgramLocation<'f>, StackPointerOffset>
+    stack_pointer_offsets: &HashMap<il::RefProgramLocation<'f>, StackPointerOffset>
 ) -> bool {
-    function.locations().into_iter().any(|function_location| {
-        let pl = il::RefProgramLocation::new(function, function_location);
-        if !stack_pointer_offsets[&pl].is_value() {
-            false
-        }
-        else {
-            true
-        }
-    })
+    stack_pointer_offsets.iter().any(|(_, spo)| spo.is_value())
 }
 
 
