@@ -4,7 +4,6 @@ use il;
 use std::collections::{HashMap};
 
 
-#[allow(dead_code)]
 /// Compute reaching definitions for the given function.
 pub fn reaching_definitions<'r>(function: &'r il::Function)
 -> Result<HashMap<il::RefProgramLocation<'r>, LocationSet>> {
