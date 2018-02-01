@@ -50,12 +50,10 @@ impl Block {
 
     /// Get the address of the first instruction in this block
     pub fn address(&self) -> Option<u64> {
-        if let Some(ref instruction) = self.instructions.first() {
-            instruction.address()
-        }
-        else {
-            None
-        }
+        self.instructions
+            .first()
+            .map(|instruction| instruction.address())
+            .unwrap_or(None)
     }
 
 
@@ -63,10 +61,10 @@ impl Block {
     ///
     /// Instruction indices are updated accordingly.
     pub fn append(&mut self, other: &Block) {
-        for instruction in other.instructions().iter() {
-            let instruction = instruction.clone_new_index(self.new_instruction_index());
-            self.instructions.push(instruction);
-        }
+        other.instructions().into_iter().for_each(|instruction| {
+            let index = self.new_instruction_index();
+            self.instructions.push(instruction.clone_new_index(index));
+        })
     }
 
 
@@ -97,43 +95,28 @@ impl Block {
     /// Returns an `Instruction` by index, or `None` if the instruction does not
     /// exist.
     pub fn instruction(&self, index: u64) -> Option<&Instruction> {
-        for instruction in &self.instructions {
-            if instruction.index() == index {
-                return Some(instruction);
-            }
-        }
-        None
+        self.instructions
+            .iter()
+            .find(|instruction| instruction.index() == index)
     }
 
 
     /// Returns a mutable reference to an `Instruction` by index, or `None` if
     /// the `Instruction` does not exist.
     pub fn instruction_mut<>(&mut self, index: u64) -> Option<&mut Instruction> {
-        for i in 0..self.instructions.len() {
-            if self.instructions[i].index() == index {
-                return Some(&mut self.instructions[i]);
-            }
-        }
-        None
+        self.instructions
+            .iter_mut()
+            .find(|instruction| instruction.index() == index)
     }
 
 
     /// Deletes an `Instruction` by its index.
     pub fn remove_instruction(&mut self, index: u64) -> Result<()> {
-        let mut vec_index = None;
-        for i in 0..self.instructions.len() {
-            if self.instructions[i].index() == index {
-                vec_index = Some(i);
-                break;
-            }
-        }
-        match vec_index {
-            Some(index) => {
-                self.instructions.remove(index);
-                Ok(())
-            },
-            None => Err(format!("No instruction with index {} found", index).into()),
-        }
+        self.instructions
+            .iter()
+            .position(|instruction| instruction.index() == index)
+            .map(|index| { self.instructions.remove(index); })
+            .ok_or(format!("No instruction with index {} found", index).into())
     }
 
 
