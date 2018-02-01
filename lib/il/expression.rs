@@ -175,14 +175,14 @@ impl Expression {
         
 
     /// Return a clone of this expression, but with every occurrence of the
-    /// given scalar replaced with the given constant
-    pub fn replace_scalar(&self, scalar: &Scalar, constant: &Constant)
+    /// given scalar replaced with the given expression
+    pub fn replace_scalar(&self, scalar: &Scalar, expression: &Expression)
         -> Result<Expression> {
 
-        self.map_to_expression(|expression| {
-            if let Expression::Scalar(ref expr_scalar) = *expression {
+        self.map_to_expression(|expr| {
+            if let Expression::Scalar(ref expr_scalar) = *expr {
                 if expr_scalar == scalar {
-                    Some(constant.clone().into())
+                    Some(expression.clone())
                 }
                 else {
                     None
@@ -511,4 +511,38 @@ impl fmt::Display for Expression {
                 write!(f, "trun.{}({})", bits, src),
         }
     }
+}
+
+
+
+#[test]
+fn expression_tests() {
+    let expression = Expression::add(
+        expr_scalar("a", 32),
+        Expression::sub(
+            expr_scalar("b", 32),
+            expr_const(0xdeadbeef, 32)
+        ).unwrap()
+    ).unwrap();
+
+    assert!(expression.scalars().contains(&&scalar("a", 32)));
+    assert!(expression.scalars().contains(&&scalar("b", 32)));
+
+    assert!(
+        expression.replace_scalar(&scalar("a", 32), &expr_scalar("c", 32))
+            .unwrap()
+            .scalars()
+            .contains(&&scalar("c", 32))
+    );
+
+    assert!(
+        !expression.replace_scalar(&scalar("a", 32), &expr_scalar("c", 32))
+            .unwrap()
+            .scalars()
+            .contains(&&scalar("a", 32))
+    );
+
+    assert_eq!(expression.bits(), 32);
+
+    assert!(!expression.all_constants());
 }

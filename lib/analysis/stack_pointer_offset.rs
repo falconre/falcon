@@ -125,7 +125,7 @@ impl StackPointerOffsetAnalysis {
                         StackPointerOffset::Top => StackPointerOffset::Top,
                         StackPointerOffset::Value(ref constant) => {
                             let expr = src.replace_scalar(&self.stack_pointer,
-                                                          constant)?;
+                                                          &constant.clone().into())?;
                             if expr.all_constants() {
                                 StackPointerOffset::Value(eval(&expr)?.into())
                             }
