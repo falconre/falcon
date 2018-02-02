@@ -33,7 +33,7 @@ pub fn stack_pointer_offsets<'f>(
 pub fn perfect<'f>(
     stack_pointer_offsets: &HashMap<il::RefProgramLocation<'f>, StackPointerOffset>
 ) -> bool {
-    stack_pointer_offsets.iter().any(|(_, spo)| spo.is_value())
+    stack_pointer_offsets.iter().all(|(_, spo)| spo.is_value())
 }
 
 
