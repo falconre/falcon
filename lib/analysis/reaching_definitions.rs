@@ -26,20 +26,19 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefini
 
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                let mut kill = Vec::new();
                 if let Some(scalar) = instruction.operation().scalar_written() {
-                    for location in state.locations() {
-                        if location.instruction()
-                                   .unwrap()
-                                   .operation()
-                                   .scalar_written()
-                                   .unwrap() == scalar {
-                            kill.push(location.clone());
-                        }
-                    }
-                    for k in kill {
-                        state.remove(&k);
-                    }
+                    let kill: Vec<il::RefProgramLocation<'r>> =
+                        state.locations()
+                             .into_iter()
+                             .filter(|location|
+                                 location.instruction()
+                                         .unwrap()
+                                         .operation()
+                                         .scalar_written()
+                                         .unwrap() == scalar)
+                             .cloned()
+                             .collect();
+                    kill.iter().for_each(|location| state.remove(&location));
                     state.insert(location.clone());
                 }
             },
@@ -54,9 +53,8 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefini
     fn join(&self, mut state0: LocationSet<'r>, state1: &LocationSet<'r>)
         -> Result<LocationSet<'r>> {
 
-        for state in state1.locations() {
-            state0.insert(state.clone());
-        }
+        state1.locations().into_iter().for_each(|location|
+            state0.insert(location.clone()));
         Ok(state0)
     }
 }
