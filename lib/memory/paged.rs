@@ -220,10 +220,11 @@ impl<'m, V> Memory<'m, V> where V: Value {
         let value_to_write =
             if let Some(cell) = self.load_cell(address_after_write) {
                 if let MemoryCell::Backref(backref_address) = *cell {
-                    let backref_value = self.load_cell(backref_address)
-                                            .unwrap()
-                                            .value()
-                                            .unwrap();
+                    let backref_value =
+                        self.load_cell(backref_address)
+                            .ok_or("Backref cell pointed to null cell")?
+                            .value()
+                            .ok_or("Backref cell pointed to cell without value")?;
                     // furthest most address backref value reaches
                     let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
                     // how many bits are left after our write
@@ -329,29 +330,55 @@ impl<'m, V> Memory<'m, V> where V: Value {
                     }
                     else {
                         match self.endian {
-                            Endian::Little => value.trun(bits)?,
-                            Endian::Big => value.shr(value.bits() - bits)?.trun(bits)?
+                            Endian::Little =>
+                                value.trun(bits)
+                                     .chain_err(|| format!("Truncating {:?} to {}",
+                                                           value,
+                                                           bits))?,
+                            Endian::Big =>
+                                value.shr(value.bits() - bits)?
+                                     .trun(bits)
+                                     .chain_err(||format!("Shift {:?} right {} truncate {}",
+                                                          value, value.bits() - bits, bits))?
                         }
                     }
                 },
                 MemoryCell::Backref(backref_address) => {
-                    let value = self.load_cell(backref_address)
-                                    .unwrap()
-                                    .value()
-                                    .unwrap();
+                    let value =
+                        self.load_cell(backref_address)
+                            .ok_or("Backref cell pointed to null cell")?
+                            .value()
+                            .ok_or("Backref cell pointed to cell without value")?;
                     let value = match self.endian {
                         Endian::Little => {
                             let shift_bits = ((address - backref_address) * 8) as usize;
-                            value.shr(shift_bits)?.trun(bits)?
+                            let trun_bits = value.bits() - shift_bits;
+                            value.shr(shift_bits)?
+                                 .trun(trun_bits)
+                                 .chain_err(||
+                                    format!("Shifted {:?} right {} and truncated to {}",
+                                        value, shift_bits, bits))?
                         },
                         Endian::Big => {
                             let offset = ((address - backref_address) * 8) as usize;
-                            let shift_bits = value.bits() - bits - offset;
-                            value.shr(shift_bits)?.trun(bits)?
+                            let shift_bits = if bits + offset >= value.bits() {
+                                0
+                            } else {
+                                value.bits() - bits - offset
+                            };
+                            let trun_bits = value.bits() - offset - shift_bits;
+                            value.shr(shift_bits)?
+                                 .trun(trun_bits)
+                                 .chain_err(||
+                                    format!("Shifted {:?} right {} and truncated to {}",
+                                        value, shift_bits, bits))?
                         }
                     };
                     if value.bits() > bits {
-                        value.trun(bits)?
+                        value.trun(bits)
+                             .chain_err(|| format!("Error truncating {} bits to {}",
+                                                   value.bits(),
+                                                   bits))?
                     }
                     else {
                         value
@@ -456,6 +483,22 @@ mod memory_tests {
             memory.load(0x100, 32).unwrap().unwrap(),
             il::const_(0xaabbffdd, 32)
         );
+
+        /*     
+               \/
+            AA BB CC DD 11 22 33 44
+            0x44AABBCC
+        */
+
+        let mut memory: Memory<il::Constant> = Memory::new(Endian::Big);
+
+        memory.store(0x100, il::const_(0xAABBCCDD, 32)).unwrap();
+        memory.store(0x104, il::const_(0x11223344, 32)).unwrap();
+
+        assert_eq!(
+            memory.load(0x101, 32).unwrap().unwrap(),
+            il::const_(0xBBCCDD11, 32)
+        );
     }
 
     #[test]
@@ -499,6 +542,22 @@ mod memory_tests {
         assert_eq!(
             memory.load(0x100, 32).unwrap().unwrap(),
             il::const_(0xAAFFCCDD, 32)
+        );
+
+        /*     
+               \/
+            DD CC BB AA 44 33 22 11
+            0x44AABBCC
+        */
+
+        let mut memory: Memory<il::Constant> = Memory::new(Endian::Little);
+
+        memory.store(0x100, il::const_(0xAABBCCDD, 32)).unwrap();
+        memory.store(0x104, il::const_(0x11223344, 32)).unwrap();
+
+        assert_eq!(
+            memory.load(0x101, 32).unwrap().unwrap(),
+            il::const_(0x44AABBCC, 32)
         );
     }
 

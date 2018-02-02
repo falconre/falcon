@@ -97,6 +97,131 @@ impl Expression {
         }
     }
 
+
+    /// Takes a closure which modifies an existing `Expression`
+    ///
+    /// The closure takes an expression, and returns an Option<Expression>. If
+    /// the option is Some, that value will replace the sub expression in the
+    /// larger expression. If closure returns None, the original sub
+    /// expression will be used in the larger expression.
+    fn map_to_expression<F>(&self, f: F) -> Result<Expression>
+        where F: Fn(&Expression) -> Option<Expression> {
+
+        struct Map<F> {
+            f: F,
+        }
+
+        impl<F> Map<F> where F: Fn(&Expression) -> Option<Expression> {
+            fn map(&self, expression: &Expression) -> Result<Expression> {
+
+                Ok(if let Some(expression) = (self.f)(expression) {
+                    expression
+                }
+                else {
+                    match *expression {
+                        Expression::Scalar(ref scalar) =>
+                            scalar.clone().into(),
+                        Expression::Constant(ref constant) =>
+                            constant.clone().into(),
+                        Expression::Add(ref lhs, ref rhs) =>
+                            Expression::add(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Sub(ref lhs, ref rhs) =>
+                            Expression::sub(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Mul(ref lhs, ref rhs) =>
+                            Expression::mul(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Divu(ref lhs, ref rhs) =>
+                            Expression::divu(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Modu(ref lhs, ref rhs) =>
+                            Expression::modu(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Divs(ref lhs, ref rhs) =>
+                            Expression::divs(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Mods(ref lhs, ref rhs) =>
+                            Expression::mods(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::And(ref lhs, ref rhs) =>
+                            Expression::and(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Or(ref lhs, ref rhs) =>
+                            Expression::or(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Xor(ref lhs, ref rhs) =>
+                            Expression::xor(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Shl(ref lhs, ref rhs) =>
+                            Expression::shl(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Shr(ref lhs, ref rhs) =>
+                            Expression::shr(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Cmpeq(ref lhs, ref rhs) =>
+                            Expression::cmpeq(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Cmpneq(ref lhs, ref rhs) =>
+                            Expression::cmpneq(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Cmpltu(ref lhs, ref rhs) =>
+                            Expression::cmpltu(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Cmplts(ref lhs, ref rhs) =>
+                            Expression::cmplts(self.map(lhs)?, self.map(rhs)?)?,
+                        Expression::Zext(bits, ref src) =>
+                            Expression::zext(bits, self.map(src)?)?,
+                        Expression::Sext(bits, ref src) =>
+                            Expression::sext(bits, self.map(src)?)?,
+                        Expression::Trun(bits, ref src) =>
+                            Expression::trun(bits, self.map(src)?)?
+                    }
+                })
+            }
+        }
+
+        let map = Map {
+            f: f
+        };
+
+        map.map(self)
+    }
+        
+
+    /// Return a clone of this expression, but with every occurrence of the
+    /// given scalar replaced with the given expression
+    pub fn replace_scalar(&self, scalar: &Scalar, expression: &Expression)
+        -> Result<Expression> {
+
+        self.map_to_expression(|expr| {
+            if let Expression::Scalar(ref expr_scalar) = *expr {
+                if expr_scalar == scalar {
+                    Some(expression.clone())
+                }
+                else {
+                    None
+                }
+            }
+            else {
+                None
+            }
+        })
+    }
+
+    /// Return true if all terminals in this expression are Constant
+    pub fn all_constants(&self) -> bool {
+        match *self {
+            Expression::Scalar(_) => false,
+            Expression::Constant(_) => true,
+            Expression::Add(ref lhs, ref rhs) |
+            Expression::Sub(ref lhs, ref rhs) |
+            Expression::Mul(ref lhs, ref rhs) |
+            Expression::Divu(ref lhs, ref rhs) |
+            Expression::Modu(ref lhs, ref rhs) |
+            Expression::Divs(ref lhs, ref rhs) |
+            Expression::Mods(ref lhs, ref rhs) |
+            Expression::And(ref lhs, ref rhs) |
+            Expression::Or(ref lhs, ref rhs) |
+            Expression::Xor(ref lhs, ref rhs) |
+            Expression::Shl(ref lhs, ref rhs) |
+            Expression::Shr(ref lhs, ref rhs) |
+            Expression::Cmpeq(ref lhs, ref rhs) |
+            Expression::Cmpneq(ref lhs, ref rhs) |
+            Expression::Cmplts(ref lhs, ref rhs) |
+            Expression::Cmpltu(ref lhs, ref rhs) =>
+                lhs.all_constants() && rhs.all_constants(),
+            Expression::Zext(_, ref rhs) |
+            Expression::Sext(_, ref rhs) |
+            Expression::Trun(_, ref rhs) => rhs.all_constants()
+        }
+    }
+
     /// Returns all `Scalars` used in this `Expression`
     pub fn scalars(&self) -> Vec<&Scalar> {
         let mut scalars: Vec<&Scalar> = Vec::new();
@@ -386,4 +511,38 @@ impl fmt::Display for Expression {
                 write!(f, "trun.{}({})", bits, src),
         }
     }
+}
+
+
+
+#[test]
+fn expression_tests() {
+    let expression = Expression::add(
+        expr_scalar("a", 32),
+        Expression::sub(
+            expr_scalar("b", 32),
+            expr_const(0xdeadbeef, 32)
+        ).unwrap()
+    ).unwrap();
+
+    assert!(expression.scalars().contains(&&scalar("a", 32)));
+    assert!(expression.scalars().contains(&&scalar("b", 32)));
+
+    assert!(
+        expression.replace_scalar(&scalar("a", 32), &expr_scalar("c", 32))
+            .unwrap()
+            .scalars()
+            .contains(&&scalar("c", 32))
+    );
+
+    assert!(
+        !expression.replace_scalar(&scalar("a", 32), &expr_scalar("c", 32))
+            .unwrap()
+            .scalars()
+            .contains(&&scalar("a", 32))
+    );
+
+    assert_eq!(expression.bits(), 32);
+
+    assert!(!expression.all_constants());
 }

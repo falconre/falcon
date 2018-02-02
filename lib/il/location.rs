@@ -59,6 +59,21 @@ impl<'p> RefProgramLocation<'p> {
         None
     }
 
+    /// Create a new `RefProgramLocation` in the given `Program` by finding the
+    /// first `Instruction` in the given function.
+    pub fn from_function(function: &Function) -> Option<RefProgramLocation> {
+        function.control_flow_graph().entry().map(|entry|
+            function.block(entry).map(|block|
+                RefProgramLocation::new(
+                    function,
+                    block.instructions().first().map(|instruction|
+                        RefFunctionLocation::Instruction(block, instruction)
+                    ).unwrap_or(RefFunctionLocation::EmptyBlock(block))
+                )
+            )
+        ).unwrap_or(None)
+    }
+
     /// Get the function for this `RefProgramLocation`.
     pub fn function(&self) -> &Function {
         &self.function

@@ -15,37 +15,42 @@ pub fn use_def<'r>(function: &'r il::Function)
     for (location, _) in &rd {
         let defs = match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                let mut defs = LocationSet::new();
-                for scalar_read in instruction.operation().scalars_read() {
-                    for rd in rd[&location].locations() {
-                        if rd.instruction()
-                             .unwrap()
-                             .operation()
-                             .scalar_written()
-                             .unwrap() == scalar_read {
-                            defs.insert(rd.clone());
-                        }
-                    }
-                }
-                defs
+                instruction.operation()
+                           .scalars_read()
+                           .into_iter()
+                           .fold(LocationSet::new(), |mut defs, scalar_read| {
+                            rd[&location].locations().into_iter().for_each(|rd|
+                                if rd.instruction()
+                                     .unwrap()
+                                     .operation()
+                                     .scalar_written()
+                                     .unwrap() == scalar_read {
+                                    defs.insert(rd.clone());
+                                }
+                            );
+                            defs
+                           })
             },
-            il::RefFunctionLocation::Edge(ref edge) => {
-                let mut defs = LocationSet::new();
-                if let Some(ref condition) = *edge.condition() {
-                    for scalar_read in condition.scalars() {
-                        for rd in rd[&location].locations() {
-                            if rd.instruction()
-                                 .unwrap()
-                                 .operation()
-                                 .scalar_written()
-                                 .unwrap() == scalar_read {
-                                defs.insert(rd.clone());
-                            }
-                        }
-                    }
-                }
-                defs
-            },
+            il::RefFunctionLocation::Edge(ref edge) =>
+                edge.condition()
+                    .as_ref()
+                    .map(|ref condition|
+                        condition.scalars()
+                                 .into_iter()
+                                 .fold(LocationSet::new(), |mut defs, scalar| {
+                                    rd[&location].locations().into_iter().for_each(|rd|
+                                        if rd.instruction()
+                                             .unwrap()
+                                             .operation()
+                                             .scalar_written()
+                                             .unwrap() == scalar {
+                                            defs.insert(rd.clone());
+                                        }
+                                    );
+                                    defs
+                                 })
+                        )
+                        .unwrap_or(LocationSet::new()),
             il::RefFunctionLocation::EmptyBlock(_) => LocationSet::new()
         };
         ud.insert(location.clone(), defs);

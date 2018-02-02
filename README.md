@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.org/falconre/falcon.svg?branch=master)](https://travis-ci.org/falconre/falcon)
-[![Coverage Status](https://coveralls.io/repos/github/falconre/falcon/badge.svg)](https://coveralls.io/github/falconre/falcon)
 [![Crates.io Version](https://img.shields.io/crates/v/falcon.svg)](https://crates.io/crates/falcon/)
 [![Documentation](https://docs.rs/falcon/badge.svg)](https://docs.rs/falcon/)
 [![irc.freenode.net#rust-falcon](https://img.shields.io/badge/freenode-%23rust--falcon-blue.svg?style=flat)](irc://irc.freenode.net/#rust-falcon)

@@ -110,12 +110,12 @@ const X86REGISTERS : &'static [X86Register] = &[
     X86Register { name: "esp", capstone_reg: x86_reg::X86_REG_ESP, full_reg: x86_reg::X86_REG_ESP, offset: 0, bits: 32 },
     X86Register { name: "bp", capstone_reg: x86_reg::X86_REG_BP, full_reg: x86_reg::X86_REG_EBP, offset: 0, bits: 16 },
     X86Register { name: "ebp", capstone_reg: x86_reg::X86_REG_EBP, full_reg: x86_reg::X86_REG_EBP, offset: 0, bits: 32 },
-    X86Register { name: "fs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_FS, offset: 0, bits: 16 },
-    X86Register { name: "gs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_GS, offset: 0, bits: 16 },
-    X86Register { name: "ds", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_DS, offset: 0, bits: 16 },
-    X86Register { name: "es", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_ES, offset: 0, bits: 16 },
-    X86Register { name: "cs", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_CS, offset: 0, bits: 16 },
-    X86Register { name: "ss", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_SS, offset: 0, bits: 16 },
+    X86Register { name: "fs_base", capstone_reg: x86_reg::X86_REG_FS, full_reg: x86_reg::X86_REG_FS, offset: 0, bits: 32 },
+    X86Register { name: "gs_base", capstone_reg: x86_reg::X86_REG_GS, full_reg: x86_reg::X86_REG_GS, offset: 0, bits: 32 },
+    X86Register { name: "ds_base", capstone_reg: x86_reg::X86_REG_DS, full_reg: x86_reg::X86_REG_DS, offset: 0, bits: 32 },
+    X86Register { name: "es_base", capstone_reg: x86_reg::X86_REG_ES, full_reg: x86_reg::X86_REG_ES, offset: 0, bits: 32 },
+    X86Register { name: "cs_base", capstone_reg: x86_reg::X86_REG_CS, full_reg: x86_reg::X86_REG_CS, offset: 0, bits: 32 },
+    X86Register { name: "ss_base", capstone_reg: x86_reg::X86_REG_SS, full_reg: x86_reg::X86_REG_SS, offset: 0, bits: 32 },
 ];
 
 
@@ -126,7 +126,7 @@ pub fn get_register(capstone_id: x86_reg) -> Result<&'static X86Register> {
             return Ok(&register);
         }
     }
-    Err("Could not find register".into())
+    Err(format!("Could not find register {:?}", capstone_id).into())
 }
 
 
@@ -167,14 +167,14 @@ pub fn operand_value(operand: &cs_x86_op) -> Result<Expression> {
             let scale = Expr::constant(Constant::new(mem.scale as i64 as u64, 32));
 
             let si = match index {
-                Some(index) => Some(Expr::mul(index, scale).unwrap()),
+                Some(index) => Some(Expr::mul(index, scale)?),
                 None => None
             };
 
             // Handle base and scale/index
             let op : Option<Expression> = if base.is_some() {
                 if si.is_some() {
-                    Some(Expr::add(base.unwrap(), si.unwrap()).unwrap())
+                    Some(Expr::add(base.unwrap(), si.unwrap())?)
                 }
                 else {
                     base

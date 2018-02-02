@@ -115,3 +115,99 @@ pub fn fixed_point_forward<'f, Analysis, State> (
 where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd  {
     fixed_point_forward_options(analysis, function, false)
 }
+
+
+
+/// A backward, work-list data-flow analysis algorithm.
+///
+/// When force is true, the partial order over inputs is forced by joining
+/// states which do not inherently enforce the partial order.
+pub fn fixed_point_backward_options<'f, Analysis, State> (
+    analysis: Analysis,
+    function: &'f il::Function,
+    force: bool
+) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd {
+    let mut states: HashMap<il::RefProgramLocation<'f>, State> = HashMap::new();
+
+    let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
+
+    // Find the entry block to the function.
+    let exit_index = function.control_flow_graph()
+                             .entry()
+                             .ok_or("Function's control flow graph must have entry")?;
+    let exit_block = function.control_flow_graph()
+                             .block(exit_index)
+                             .ok_or(format!("Could not find block for entry {}", exit_index))?;
+
+    match exit_block.instructions().last() {
+        Some(ref instruction) => {
+            let location = il::RefFunctionLocation::Instruction(exit_block, instruction);
+            let location = il::RefProgramLocation::new(function, location);
+            queue.push_back(location.clone());
+        },
+        None => {
+            let location = il::RefFunctionLocation::EmptyBlock(exit_block);
+            let location = il::RefProgramLocation::new(function, location);
+            queue.push_back(location.clone());
+        }
+    }
+
+    while !queue.is_empty() {
+        let location = queue.pop_front().unwrap();
+
+        let location_successors = location.forward()?;
+
+        let state = location_successors.iter().fold(None, |s, p| {
+            match states.get(p) {
+                Some(in_state) => match s {
+                    Some(s) => Some(analysis.join(s, in_state).unwrap()),
+                    None => Some(in_state.clone())
+                },
+                None => s
+            }
+        });
+
+        let mut state = analysis.trans(location.clone(), state)?;
+
+        if let Some(in_state) = states.get(&location) {
+            let ordering = match state.partial_cmp(in_state) {
+                Some (ordering) => match ordering {
+                    ::std::cmp::Ordering::Less => Some("less"),
+                    ::std::cmp::Ordering::Equal => { continue; },
+                    ::std::cmp::Ordering::Greater => None
+                },
+                None => { Some("no relation") }
+            };
+            if force {
+                state = analysis.join(state, in_state)?;
+            }
+            else {
+                if let Some(ordering) = ordering {
+                    bail!("Found a state which was not >= previous state (it was {}) @ {}",
+                        ordering, location);
+                }
+            }
+        }
+
+        states.insert(location.clone(), state);
+
+        for successor in location.backward()? {
+            if !queue.contains(&successor) {
+                queue.push_back(successor);
+            }
+        }
+    }
+
+    Ok(states)
+}
+
+
+/// A guaranteed sound analysis, which enforces the partial order over states.
+pub fn fixed_point_backward<'f, Analysis, State> (
+    analysis: Analysis,
+    function: &'f il::Function
+) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd  {
+    fixed_point_backward_options(analysis, function, false)
+}
