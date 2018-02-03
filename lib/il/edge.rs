@@ -33,13 +33,13 @@ impl Edge {
     }
 
     /// Retrieve the condition for this `Edge`.
-    pub fn condition(&self) -> &Option<Expression> {
-        &self.condition
+    pub fn condition(&self) -> Option<&Expression> {
+        self.condition.as_ref()
     }
 
     /// Retrieve a mutable reference to the condition for this `Edge`
-    pub fn condition_mut(&mut self) -> &mut Option<Expression> {
-        &mut self.condition
+    pub fn condition_mut(&mut self) -> Option<&mut Expression> {
+        self.condition.as_mut()
     }
 
     /// Retrieve the index of the head `Vertex` for this `Edge`.

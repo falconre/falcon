@@ -164,8 +164,8 @@ impl Instruction {
     }
 
     /// Get the optional comment for this `Instruction`
-    pub fn comment(&self) -> &Option<String> {
-        &self.comment
+    pub fn comment(&self) -> Option<&str> {
+        self.comment.as_ref().map(|s| s.as_str())
     }
 
     /// Set the optional comment for this `Instruction`

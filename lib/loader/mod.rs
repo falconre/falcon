@@ -55,8 +55,8 @@ impl FunctionEntry {
     }
 
     /// Get the name for this `FunctionEntry`.
-    pub fn name(&self) -> &Option<String> {
-        &self.name
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|s| s.as_str())
     }
 }
 
@@ -109,7 +109,7 @@ pub trait Loader: Clone {
                      .map_or(false, |p|
                         p.contains(memory::MemoryPermissions::EXECUTE)) {
                 let mut function = translator.translate_function(&memory, address)?;
-                function.set_name(function_entry.name().clone());
+                function.set_name(function_entry.name().map(|n| n.to_string()));
                 program.add_function(function);
             }
         }

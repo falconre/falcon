@@ -250,7 +250,7 @@ impl ControlFlowGraph {
                     let head = merge_index;
                     let tail = edge.tail();
                     let condition = edge.condition().clone();
-                    let edge = Edge::new(head, tail, condition);
+                    let edge = Edge::new(head, tail, condition.cloned());
                     new_edges.push(edge);
                 }
                 for edge in new_edges {
@@ -300,7 +300,7 @@ impl ControlFlowGraph {
         for edge in other.graph().edges() {
             let new_head: u64 = block_map[&edge.head()];
             let new_tail: u64 = block_map[&edge.tail()];
-            let new_edge = Edge::new(new_head, new_tail, edge.condition().clone());
+            let new_edge = Edge::new(new_head, new_tail, edge.condition().cloned());
             self.graph.insert_edge(new_edge)?;
         }
 
@@ -370,7 +370,7 @@ impl ControlFlowGraph {
         for edge in other.graph().edges() {
             let new_head: u64 = block_map[&edge.head()];
             let new_tail: u64 = block_map[&edge.tail()];
-            let new_edge = Edge::new(new_head, new_tail, edge.condition().clone());
+            let new_edge = Edge::new(new_head, new_tail, edge.condition().cloned());
             self.graph.insert_edge(new_edge)?;
         }
 
