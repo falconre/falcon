@@ -12,7 +12,7 @@ use std::cmp::{Ordering, PartialEq, PartialOrd};
 use types::Endian;
 
 
-pub trait Value: memory::value::Value + domain::Value {}
+pub trait Value: memory::Value + domain::Value {}
 
 
 /// A memory model for abstract interpretation.

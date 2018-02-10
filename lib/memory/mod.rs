@@ -15,7 +15,9 @@
 
 pub mod backing;
 pub mod paged;
-pub mod value;
+mod value;
+
+pub use self::value::Value;
 
 
 bitflags! {

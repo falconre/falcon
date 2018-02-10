@@ -314,7 +314,7 @@ impl Into<domain::Expression<KSet>> for KSet {
 }
 
 
-impl memory::value::Value for KSet {
+impl memory::Value for KSet {
     fn constant(constant: il::Constant) -> KSet {
         KSet::constant(constant)
     }

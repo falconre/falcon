@@ -175,7 +175,7 @@ impl Value for TestLattice {
 }
 
 
-impl memory::value::Value for TestLattice {
+impl memory::Value for TestLattice {
     fn constant(constant: il::Constant) -> TestLattice {
         TestLattice::Constant(constant)
     }
