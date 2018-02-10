@@ -1,8 +1,7 @@
 //! A `Constant` holds a single value.
 
-use std::fmt;
 use il::*;
-
+use std::fmt;
 
 /// A constant value for Falcon IL
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]

@@ -2,6 +2,7 @@
 
 pub mod ai;
 pub mod calling_convention;
+pub mod constants;
 mod def_use;
 pub mod fixed_point;
 mod location_set;
