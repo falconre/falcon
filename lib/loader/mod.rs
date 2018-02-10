@@ -26,9 +26,11 @@ use types::Architecture;
 
 mod elf;
 mod json;
+mod pe;
 
 pub use self::elf::*;
 pub use self::json::*;
+pub use self::pe::*;
 
 /// A declared entry point for a function.
 #[derive(Clone, Debug, PartialEq)]
