@@ -495,13 +495,96 @@ pub fn rep_prefix(
                 control_flow_graph.conditional_edge(
                     loop_index,
                     head_index,
-                    Expr::cmpneq(expr_scalar("ZF", 1), expr_const(0, 1))?
+                    Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1))?
                 )?;
                 // loop -> terminating
                 control_flow_graph.conditional_edge(
                     loop_index,
                     terminating_index,
-                    Expr::cmpneq(expr_scalar("ZF", 1), expr_const(1, 1))?
+                    Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?
+                )?;
+            },
+            capstone::x86_insn::X86_INS_STOSB |
+            capstone::x86_insn::X86_INS_STOSW |
+            capstone::x86_insn::X86_INS_STOSD |
+            capstone::x86_insn::X86_INS_MOVSB |
+            capstone::x86_insn::X86_INS_MOVSW |
+            capstone::x86_insn::X86_INS_MOVSD => {
+                // loop -> head
+                control_flow_graph.unconditional_edge(loop_index, head_index)?;
+            },
+            _ => bail!("unsupported instruction for rep prefix, 0x{:x}", instruction.address)
+        }
+    }
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(terminating_index)?;
+
+    Ok(())
+}
+
+
+/// Wraps the given instruction graph with the rep prefix inplace
+pub fn repne_prefix(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr
+) -> Result<()> {
+
+    if control_flow_graph.entry().is_none() || control_flow_graph.exit().is_none() {
+        bail!("control_flow_graph entry/exit was none");
+    }
+
+    let head_index = control_flow_graph.new_block()?.index();
+
+    let loop_index = {
+        let loop_block = control_flow_graph.new_block()?;
+        loop_block.assign(
+            scalar("ecx", 32),
+            Expr::sub(expr_scalar("ecx", 32), expr_const(1, 32))?
+        );
+        loop_block.index()
+    };
+
+    let terminating_index = control_flow_graph.new_block()?.index();
+
+    let entry = control_flow_graph.entry().clone().unwrap();
+    let exit = control_flow_graph.exit().clone().unwrap();
+
+    // head -> entry
+    // head -> terminating
+    control_flow_graph.conditional_edge(
+        head_index,
+        entry,
+        Expr::cmpneq(expr_scalar("ecx", 32), expr_const(0, 32))?
+    )?;
+    control_flow_graph.conditional_edge(
+        head_index,
+        terminating_index,
+        Expr::cmpeq(expr_scalar("ecx", 32), expr_const(0, 32))?
+    )?;
+
+    // exit -> loop
+    control_flow_graph.unconditional_edge(exit, loop_index)?;
+
+    if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+        match instruction_id {
+            capstone::x86_insn::X86_INS_CMPSB |
+            capstone::x86_insn::X86_INS_CMPSW |
+            capstone::x86_insn::X86_INS_CMPSD |
+            capstone::x86_insn::X86_INS_SCASB |
+            capstone::x86_insn::X86_INS_SCASW |
+            capstone::x86_insn::X86_INS_SCASD => {
+                // loop -> head
+                control_flow_graph.conditional_edge(
+                    loop_index,
+                    head_index,
+                    Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?
+                )?;
+                // loop -> terminating
+                control_flow_graph.conditional_edge(
+                    loop_index,
+                    terminating_index,
+                    Expr::cmpeq(expr_scalar("ZF", 1), expr_const(1, 1))?
                 )?;
             },
             capstone::x86_insn::X86_INS_STOSB |
@@ -2468,6 +2551,35 @@ pub fn ror(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
+pub fn sahf(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+    let block_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        let ax = get_register(x86_reg::X86_REG_AX)?.get()?;
+
+        let cf = Expr::trun(1, ax.clone())?;
+        // let pf = Expr::trun(1, Expr::shr(2, ax.clone())?)?;
+        // let af = Expr::trun(1, Expr::shr(4, ax.clone())?)?;
+        let zf = Expr::trun(1, Expr::shr(expr_const(6, 16), ax.clone())?)?;
+        let sf = Expr::trun(1, Expr::shr(expr_const(7, 16), ax.clone())?)?;
+
+        block.assign(scalar("CF", 1), cf);
+        // block.assign(scalar("PF", 1), pf);
+        // block.assign(scalar("AF", 1), af);
+        block.assign(scalar("ZF", 1), zf);
+        block.assign(scalar("SF", 1), sf);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn sar(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = try!(details(instruction));
 
@@ -2597,6 +2709,77 @@ pub fn scasb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
         block.assign(
             scalar("edi", 32),
             Expr::sub(expr_scalar("edi", 32), expr_const(1, 32))?
+        );
+
+        block.index()
+    };
+
+    let tail_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        inc_index,
+        Expr::cmpeq(expr_scalar("DF", 1), expr_const(0, 1))?
+    )?;
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        dec_index,
+        Expr::cmpeq(expr_scalar("DF", 1), expr_const(1, 1))?
+    )?;
+
+    control_flow_graph.unconditional_edge(inc_index, tail_index)?;
+    control_flow_graph.unconditional_edge(dec_index, tail_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(tail_index)?;
+
+
+    Ok(())
+}
+
+
+
+pub fn scasw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = try!(details(instruction));
+
+    let head_index = {
+        let mut block = control_flow_graph.new_block()?;
+
+        // get operands
+        let lhs = operand_load(&mut block, &detail.operands[0])?; // ax
+        let rhs = operand_load(&mut block, &detail.operands[1])?; // word [edi]
+
+        let expr = Expr::sub(lhs.clone(), rhs.clone())?;
+
+        // calculate flags
+        set_zf(&mut block, expr.clone())?;
+        set_sf(&mut block, expr.clone())?;
+        set_of(&mut block, expr.clone(), lhs.clone(), rhs.clone())?;
+        set_cf(&mut block, expr.clone(), lhs.clone())?;
+
+        block.index()
+    };
+
+    let inc_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(
+            scalar("edi", 32),
+            Expr::add(expr_scalar("edi", 32), expr_const(2, 32))?
+        );
+
+        block.index()
+    };
+
+    let dec_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(
+            scalar("edi", 32),
+            Expr::sub(expr_scalar("edi", 32), expr_const(2, 32))?
         );
 
         block.index()

@@ -126,31 +126,47 @@ impl Translator for X86 {
                     capstone::x86_insn::X86_INS_DEC    => semantics::dec(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_DIV    => semantics::div(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_FABS   => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FADD   => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FADDP  => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_F2XM1  => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FCHS   => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FCOMP  => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FCOMPP => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FDIV   => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FDIVR  => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FDIVRP => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FFREE  => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FILD   => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FINCSTP => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FISTP  => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FLDCW  => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FLD    => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FLD1   => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FLDENV => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FLDL2E => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FLDLN2 => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FLDZ   => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FDIVP  => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FMUL   => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FMULP  => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FNCLEX => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FNSTENV => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FNSTCW => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FNSTSW => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FRNDINT => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FSCALE => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FST    => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FSTP   => raise_fp(&mut instruction_graph),
-                    capstone::x86_insn::X86_INS_FSUBR  => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FSUB   => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FSUBP  => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FSUBR  => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FSUBRP => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FTST   => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FUCOMI => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FUCOMPI => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FXAM   => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_FXCH   => raise_fp(&mut instruction_graph),
+                    capstone::x86_insn::X86_INS_FYL2X  => raise_fp(&mut instruction_graph),
                     capstone::x86_insn::X86_INS_HLT    => semantics::nop(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_IDIV   => semantics::idiv(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_IMUL   => semantics::imul(&mut instruction_graph, &instruction),
@@ -197,14 +213,17 @@ impl Translator for X86 {
                     capstone::x86_insn::X86_INS_NOT  => semantics::not(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_OR   => semantics::or(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_POP  => semantics::pop(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_PAUSE => semantics::nop(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_PUSH => semantics::push(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_RDTSC => semantics::nop(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_RET  => semantics::ret(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_ROL  => semantics::rol(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_ROR  => semantics::ror(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SAHF => semantics::sahf(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SAR  => semantics::sar(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SBB  => semantics::sbb(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SCASB => semantics::scasb(&mut instruction_graph, &instruction),
+                    capstone::x86_insn::X86_INS_SCASW => semantics::scasw(&mut instruction_graph, &instruction),
                     capstone::x86_insn::X86_INS_SETAE |
                     capstone::x86_insn::X86_INS_SETA  |
                     capstone::x86_insn::X86_INS_SETBE |
@@ -248,6 +267,9 @@ impl Translator for X86 {
                 let detail = semantics::details(&instruction)?;
                 if detail.prefix.contains(&(capstone_sys::x86_prefix::X86_PREFIX_REP as u8)) {
                     semantics::rep_prefix(&mut instruction_graph, &instruction)?;
+                }
+                if detail.prefix.contains(&(capstone_sys::x86_prefix::X86_PREFIX_REPNE as u8)) {
+                    semantics::repne_prefix(&mut instruction_graph, &instruction)?;
                 }
 
                 instruction_graph.set_address(Some(instruction.address));
