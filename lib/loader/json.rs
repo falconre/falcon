@@ -13,7 +13,7 @@ use std::path::Path;
 /// Experimental loader which takes a program specification in Json form.
 ///
 /// See the binary ninja script for an example use.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Json {
     function_entries: Vec<FunctionEntry>,
     memory: Memory,

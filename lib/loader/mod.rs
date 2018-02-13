@@ -76,7 +76,7 @@ impl fmt::Display for FunctionEntry {
 
 
 /// Generic trait for all loaders
-pub trait Loader: Clone {
+pub trait Loader: fmt::Debug + Send + Sync {
     /// Get a model of the memory contained in the binary
     fn memory(&self) -> Result<memory::backing::Memory>;
 
