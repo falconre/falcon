@@ -371,6 +371,13 @@ impl<'f> RefFunctionLocation<'f> {
             _ => None
         }
     }
+
+    /// Quickly turn this into a `RefProgramLocation`
+    pub fn program_location(self, function: &'f Function)
+        -> RefProgramLocation<'f> {
+            
+        RefProgramLocation::new(function, self)
+    }
 }
 
 
