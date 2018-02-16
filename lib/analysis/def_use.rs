@@ -30,7 +30,7 @@ pub fn def_use<'r>(function: &'r il::Function)
                                .insert(location.clone());
                          })),
             il::RefFunctionLocation::Edge(ref edge) => {
-                edge.condition().as_ref().map(|ref condition|
+                edge.condition().map(|condition|
                     condition.scalars().into_iter().for_each(|scalar_read|
                         rd[&location].locations().into_iter().for_each(|rd|
                             if rd.instruction()

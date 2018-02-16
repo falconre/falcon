@@ -146,9 +146,9 @@ pub trait Loader: fmt::Debug + Send + Sync {
 
         loop {
             let function_addresses =
-                program.functions_map()
+                program.functions()
                     .into_iter()
-                    .map(|(_, function)| function.address())
+                    .map(|function| function.address())
                     .collect::<Vec<u64>>();
 
             let addresses = {
@@ -162,7 +162,6 @@ pub trait Loader: fmt::Debug + Send + Sync {
                     .for_each(|function| {
                         processed.insert(function.address());
                     });
-
 
                 let addresses =
                     functions.into_iter()
