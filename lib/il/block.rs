@@ -52,8 +52,7 @@ impl Block {
     pub fn address(&self) -> Option<u64> {
         self.instructions
             .first()
-            .map(|instruction| instruction.address())
-            .unwrap_or(None)
+            .and_then(|instruction| instruction.address())
     }
 
 

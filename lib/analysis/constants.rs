@@ -21,7 +21,7 @@ pub fn constants<'r>(function: &'r il::Function)
     let constants = fixed_point::fixed_point_forward(ConstantsAnalysis{}, function)?;
 
     // we're now going to remap constants, so each position holds the values of
-    // constants immediately preceeding it.
+    // constants immediately preceeding its execution.
 
     let mut result = HashMap::new();
 
@@ -159,8 +159,7 @@ impl Constants {
     pub fn scalar(&self, scalar: &il::Scalar) -> Option<&il::Constant> {
         self.constants
             .get(scalar)
-            .map(|constant| constant.get())
-            .unwrap_or(None)
+            .and_then(|constant| constant.get())
     }
 
     fn set_scalar(&mut self, scalar: il::Scalar, constant: Constant) {
@@ -179,11 +178,11 @@ impl Constants {
             expression_scalars
                 .into_iter()
                 .fold(Some(expression.clone()), |expression, scalar| 
-                    self.scalar(scalar).map(|constant|
+                    self.scalar(scalar).and_then(|constant|
                         expression.map(|expr|
                             expr.replace_scalar(scalar, &constant.clone().into())
                                 .unwrap())
-                    ).unwrap_or(None)
+                    )
                 )?;
         
         eval(&expression).ok()
