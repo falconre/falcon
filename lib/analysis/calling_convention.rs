@@ -1,7 +1,6 @@
 //! Information about varying calling conventions.
 
 use il;
-use types::PartialBoolean;
 use std::collections::HashSet;
 
 
@@ -213,28 +212,28 @@ impl CallingConvention {
     }
 
     /// Is the given register preserved.
-    pub fn is_preserved(&self, scalar: &il::Scalar) -> PartialBoolean {
+    pub fn is_preserved(&self, scalar: &il::Scalar) -> Option<bool> {
         if self.preserved_registers.contains(scalar) {
-            PartialBoolean::True
+            Some(true)
         }
         else if self.trashed_registers.contains(scalar) {
-            PartialBoolean::False
+            Some(false)
         }
         else {
-            PartialBoolean::Unknown
+            None
         }
     }
 
     /// Is the given register trashed.
-    pub fn is_trashed(&self, scalar: &il::Scalar) -> PartialBoolean {
+    pub fn is_trashed(&self, scalar: &il::Scalar) -> Option<bool> {
         if self.trashed_registers.contains(scalar) {
-            PartialBoolean::True
+            Some(true)
         }
         else if self.preserved_registers.contains(scalar) {
-            PartialBoolean::False
+            Some(false)
         }
         else {
-            PartialBoolean::Unknown
+            None
         }
     }
 }

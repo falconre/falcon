@@ -1,11 +1,11 @@
 //! A driver concretely executes a Falcon IL programs.
 
+use architecture::Architecture;
 use error::*;
 use executor::State;
 use executor::successor::*;
 use il;
 use RC;
-use types::Architecture;
 
 /// A driver for a concrete executor over Falcon IL.
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub struct Driver<'d> {
     program: RC<il::Program>,
     location: il::ProgramLocation,
     state: State<'d>,
-    architecture: Architecture,
+    architecture: RC<Architecture>,
 }
 
 
@@ -23,7 +23,7 @@ impl<'d> Driver<'d> {
         program: RC<il::Program>,
         location: il::ProgramLocation,
         state: State<'d>,
-        architecture: Architecture,
+        architecture: RC<Architecture>,
     ) -> Driver {
         Driver {
             program: program,

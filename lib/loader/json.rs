@@ -1,5 +1,6 @@
 //! Experimental loader which takes a program specification in Json form.
 
+use architecture::*;
 use base64;
 use loader::*;
 use memory::backing::*;
@@ -13,11 +14,11 @@ use std::path::Path;
 /// Experimental loader which takes a program specification in Json form.
 ///
 /// See the binary ninja script for an example use.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Json {
     function_entries: Vec<FunctionEntry>,
     memory: Memory,
-    architecture: Architecture,
+    architecture: Box<Architecture>,
     entry: u64
 }
 
@@ -34,7 +35,7 @@ impl Json {
         let architecture = match root["arch"] {
             Value::String(ref architecture) => {
                 if architecture == "x86" {
-                    Architecture::X86
+                    Box::new(X86::new())
                 }
                 else {
                     bail!("unsupported architecture {}", root["arch"])
@@ -121,7 +122,7 @@ impl Loader for Json {
     }
 
 
-    fn architecture(&self) -> Result<Architecture> {
-        Ok(self.architecture.clone())
+    fn architecture(&self) -> &Architecture {
+        self.architecture.as_ref()
     }
 }

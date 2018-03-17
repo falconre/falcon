@@ -1,7 +1,7 @@
 //! ELF Linker/Loader
 
+use architecture::*;
 use goblin;
-use goblin::Hint;
 use loader::*;
 use memory::backing::Memory;
 use memory::MemoryPermissions;
@@ -9,19 +9,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use types::Endian;
-
-// http://stackoverflow.com/questions/37678698/function-to-build-a-fixed-sized-array-from-slice/37679019#37679019
-use std::convert::AsMut;
-
-fn clone_into_array<A, T>(slice: &[T]) -> A
-    where A: Sized + Default + AsMut<[T]>,
-          T: Clone
-{
-    let mut a = Default::default();
-    <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
-    a
-}
 
 
 /// The address where the first library will be loaded
@@ -31,7 +18,7 @@ const LIB_BASE_STEP: u64    = 0x0400_0000;
 
 
 /// Loader which links together multiple Elf files. Currently only X86 supported.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ElfLinker {
     /// The filename (path included) of the file we're loading.
     filename: PathBuf,
@@ -283,7 +270,7 @@ impl Loader for ElfLinker {
         self.loaded[filename].program_entry()
     }
 
-    fn architecture(&self) -> Result<Architecture> {
+    fn architecture(&self) -> &Architecture {
         let filename = self.filename
                            .as_path()
                            .file_name()
@@ -324,11 +311,12 @@ impl ElfSymbol {
 
 
 /// Loader for a single ELf file.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Elf {
     base_address: u64,
     bytes: Vec<u8>,
-    user_function_entries: Vec<u64>
+    user_function_entries: Vec<u64>,
+    architecture: Box<Architecture>
 }
 
 
@@ -336,19 +324,35 @@ impl Elf {
     /// Create a new Elf from the given bytes. This Elf will be rebased to the given
     /// base address.
     pub fn new(bytes: Vec<u8>, base_address: u64) -> Result<Elf> {
-        let peek_bytes: [u8; 16] = clone_into_array(&bytes[0..16]);
-        // Load this Elf
+        let architecture = {
+            let elf = goblin::elf::Elf::parse(&bytes)
+                .map_err(|_| "Not a valid elf")?;
 
-        let elf = match goblin::peek_bytes(&peek_bytes)? {
-            Hint::Elf(_) => Elf {
-                base_address: base_address,
-                bytes: bytes,
-                user_function_entries: Vec::new()
-            },
-            _ => return Err("Not a valid elf".into())
+            let architecture = 
+                if elf.header.e_machine == goblin::elf::header::EM_386 {
+                    Box::new(X86::new())
+                }
+                else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
+                    match elf.header.endianness()? {
+                        goblin::container::Endian::Big =>
+                            Box::new(Mips::new()) as Box<Architecture>,
+                        goblin::container::Endian::Little =>
+                            Box::new(Mipsel::new()) as Box<Architecture>,
+                    }
+                }
+                else {
+                    bail!("Unsupported Architecture");
+                };
+
+            architecture
         };
 
-        Ok(elf)
+        Ok(Elf {
+            base_address: base_address,
+            bytes: bytes,
+            user_function_entries: Vec::new(),
+            architecture: architecture
+        })
     }
 
     /// Get the base address of this Elf where it has been loaded into loader
@@ -458,7 +462,7 @@ impl Elf {
 impl Loader for Elf {
     fn memory(&self) -> Result<Memory> {
         let elf = self.elf();
-        let mut memory = Memory::new(self.architecture()?.endian());
+        let mut memory = Memory::new(self.architecture().endian());
 
         for ph in elf.program_headers {
             if ph.p_type == goblin::elf::program_header::PT_LOAD {
@@ -552,20 +556,7 @@ impl Loader for Elf {
     }
 
 
-    fn architecture(&self) -> Result<Architecture> {
-        let elf = self.elf();
-
-        if elf.header.e_machine == goblin::elf::header::EM_386 {
-            Ok(Architecture::X86)
-        }
-        else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
-            match elf.header.endianness()? {
-                goblin::container::Endian::Big => Ok(Architecture::Mips),
-                goblin::container::Endian::Little => Ok(Architecture::Mipsel),
-            }
-        }
-        else {
-            Err("Unsupported Arcthiecture".into())
-        }
+    fn architecture(&self) -> &Architecture {
+        self.architecture.as_ref()
     }
 }

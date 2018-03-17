@@ -7,7 +7,7 @@ use executor;
 use il;
 use memory;
 use std::cmp::{Ordering, PartialOrd};
-use types::Endian;
+use architecture::Endian;
 
 pub type TestLatticeMemory<'m> = ai::memory::Memory<'m, TestLattice>;
 pub type TestLatticeState<'m> = State<TestLatticeMemory<'m>, TestLattice>;

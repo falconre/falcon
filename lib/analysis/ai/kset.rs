@@ -11,7 +11,7 @@
 //! // Load an elf for analysis
 //! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
 //! // Get the endianness of the architecture for this elf
-//! let architecture = elf.architecture()?;
+//! let architecture = elf.architecture();
 //! // Get the underlying memory of this Elf as a memory backing
 //! let backing = elf.memory()?;
 //! // Lift one function from the Elf at address 0x804849b

@@ -1,7 +1,7 @@
 //! ELF Linker/Loader
 
+use architecture::X86;
 use goblin;
-use goblin::Hint;
 use loader::*;
 use memory::backing::Memory;
 use memory::MemoryPermissions;
@@ -9,23 +9,12 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-// http://stackoverflow.com/questions/37678698/function-to-build-a-fixed-sized-array-from-slice/37679019#37679019
-use std::convert::AsMut;
-
-fn clone_into_array<A, T>(slice: &[T]) -> A
-    where A: Sized + Default + AsMut<[T]>,
-          T: Clone
-{
-    let mut a = Default::default();
-    <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
-    a
-}
-
 
 /// Loader for a single ELf file.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Pe {
-    bytes: Vec<u8>
+    bytes: Vec<u8>,
+    architecture: Box<Architecture>
 }
 
 
@@ -33,16 +22,24 @@ impl Pe {
     /// Create a new Elf from the given bytes. This Elf will be rebased to the given
     /// base address.
     pub fn new(bytes: Vec<u8>) -> Result<Pe> {
-        let peek_bytes: [u8; 16] = clone_into_array(&bytes[0..16]);
-        
-        let pe = match goblin::peek_bytes(&peek_bytes)? {
-            Hint::PE => Pe {
-                bytes: bytes
-            },
-            _ => return Err("Not a valid PE".into())
+        let architecture = {
+            let pe = goblin::pe::PE::parse(&bytes).map_err(|_| "Not a valid PE")?;
+
+            let architecture =
+                if pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_X86 {
+                    Box::new(X86::new())
+                }
+                else {
+                    bail!("Unsupported Architecture");
+                };
+
+            architecture
         };
 
-        Ok(pe)
+        Ok(Pe {
+            bytes: bytes,
+            architecture: architecture
+        })
     }
 
     /// Load an elf from a file and use the base address of 0.
@@ -69,7 +66,7 @@ impl Pe {
 
 impl Loader for Pe {
     fn memory(&self) -> Result<Memory> {
-        let mut memory = Memory::new(self.architecture()?.endian());
+        let mut memory = Memory::new(self.architecture().endian());
 
         let pe = self.pe();
         for section in pe.sections {
@@ -131,14 +128,7 @@ impl Loader for Pe {
     }
 
 
-    fn architecture(&self) -> Result<Architecture> {
-        let pe = self.pe();
-
-        if pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_X86 {
-            Ok(Architecture::X86)
-        }
-        else {
-            Err("Unsupported Architecture".into())
-        }
+    fn architecture(&self) -> &Architecture {
+        self.architecture.as_ref()
     }
 }

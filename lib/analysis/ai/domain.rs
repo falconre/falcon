@@ -350,7 +350,7 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
 fn symbolize() {
     use analysis::ai::test_lattice::*;
     use analysis::ai;
-    use types::Endian;
+    use architecture::Endian;
 
     let memory = ai::memory::Memory::new(Endian::Big);
     let mut state: TestLatticeState = State::new(memory);
@@ -374,7 +374,7 @@ mod test_lattice {
     use analysis::ai::test_lattice::*;
     use il;
     use std::cmp::{Ordering, PartialOrd};
-    use types::Endian;
+    use architecture::Endian;
 
     type TestMemory<'m> = memory::Memory<'m, TestLattice>;
     type TestState<'m> = domain::State<TestMemory<'m>, TestLattice>;

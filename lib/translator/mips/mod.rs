@@ -1,10 +1,10 @@
 //! Capstone-based translator for MIPS.
 
+use architecture::Endian;
 use falcon_capstone::capstone;
 use error::*;
 use il::*;
 use translator::{Translator, BlockTranslationResult};
-use types::Endian;
 
 
 #[cfg(test)] mod test;

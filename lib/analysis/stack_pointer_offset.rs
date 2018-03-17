@@ -6,13 +6,13 @@
 //! This analysis works off a very simple lattice, Top/Value/Bottom, where Value
 //! is a single il::Constant.
 
+use architecture::Architecture;
 use analysis::fixed_point;
 use error::*;
 use executor::eval;
 use il;
 use std::collections::HashMap;
 use std::cmp::{Ordering, PartialOrd};
-use types::Architecture;
 
 /// Determine offset of stack pointer from program entry at each place in the
 /// program.

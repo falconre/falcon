@@ -51,13 +51,13 @@ extern crate serde_json;
 
 
 pub mod analysis;
+pub mod architecture;
 pub mod executor;
 pub mod graph;
 pub mod il;
 pub mod loader;
 pub mod memory;
 pub mod translator;
-pub mod types;
 
 
 

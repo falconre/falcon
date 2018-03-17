@@ -18,13 +18,13 @@
 //! # }
 //! ```
 
+use architecture::Architecture;
 use error::*;
 use executor::eval;
 use il;
 use memory;
 use std::collections::HashSet;
 use std::fmt;
-use types::Architecture;
 
 mod elf;
 mod json;
@@ -87,11 +87,11 @@ pub trait Loader: fmt::Debug + Send + Sync {
     fn program_entry(&self) -> u64;
 
     /// Get the architecture of the binary
-    fn architecture(&self) -> Result<Architecture>;
+    fn architecture(&self) -> &Architecture;
 
     /// Lift just one function from the executable
     fn function(&self, address: u64) -> Result<il::Function> {
-        let translator = self.architecture()?.translator();
+        let translator = self.architecture().translator();
         let memory = self.memory()?;
         Ok(translator.translate_function(&memory, address)?)
     }
@@ -99,7 +99,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     /// Lift executable into an il::Program
     fn program(&self) -> Result<il::Program> {
         // Get out architecture-specific translator
-        let translator = self.architecture()?.translator();
+        let translator = self.architecture().translator();
 
         // Create a mapping of the file memory
         let memory = self.memory()?;

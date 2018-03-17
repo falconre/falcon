@@ -3,7 +3,8 @@ use memory;
 use il::*;
 use RC;
 use translator::mips::*;
-use types::{Architecture, Endian};
+use architecture;
+use architecture::Endian;
 
 
 #[macro_use]
@@ -51,7 +52,12 @@ fn init_driver_block<'d>(
         state.set_scalar(scalar.0, scalar.1);
     }
 
-    Driver::new(RC::new(program), location, state, Architecture::Mips)
+    Driver::new(
+        RC::new(program),
+        location,
+        state,
+        RC::new(architecture::Mips::new())
+    )
 }
 
 
@@ -74,7 +80,12 @@ fn init_driver_function<'d>(
         state.set_scalar(scalar.0, scalar.1);
     }
 
-    Driver::new(RC::new(program), location, state, Architecture::Mips)
+    Driver::new(
+        RC::new(program),
+        location,
+        state,
+        RC::new(architecture::Mips::new())
+    )
 }
 
 
