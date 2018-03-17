@@ -5,6 +5,7 @@
 //! 
 //! * **analysis** - A fixed-point engine and methods for abstract interpretation
 //! over Falcon IL. Example, usable analyses are given.
+//! * **architecture** - Information on Falcon's supported architectures.
 //! * **executor** - A concrete execution engine over Falcon IL.
 //! * **graph** - A simple directed graph library.
 //! * **il** - Falcon's Intermediate Language.

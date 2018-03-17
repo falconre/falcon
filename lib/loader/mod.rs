@@ -1,4 +1,4 @@
-//! Loading executable binaries into Falcon
+//! Loading executable binaries into Falcon.
 //!
 //! ```
 //! # use falcon::error::*;

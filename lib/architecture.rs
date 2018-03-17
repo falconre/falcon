@@ -1,3 +1,5 @@
+//! Information and types for Falcon's supported architectures.
+
 use analysis::calling_convention::{CallingConvention, CallingConventionType};
 use il;
 use std::fmt::Debug;
@@ -5,7 +7,7 @@ use translator;
 
 
 
-/// The underlying endianness of this memory model.
+/// An architecture's endanness.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Endian {
     Big,
@@ -13,16 +15,23 @@ pub enum Endian {
 }
 
 
-/// Supported architectures
+/// Necessary functions for analysis over architectures.
 pub trait Architecture: Debug + Send + Sync {
+    /// Get the endianness of this architecture.
     fn endian(&self) -> Endian;
+    /// Get this architecture's translator.
     fn translator(&self) -> Box<translator::Translator>;
+    /// Get the _default_ calling convention for this architecture.
     fn calling_convention(&self) -> CallingConvention;
+    /// Get the scalar used to represent the stack pointer by this
+    /// architecture's translator.
     fn stack_pointer(&self) -> il::Scalar;
+    /// Get the size of a natural word for this architecture in bits.
     fn word_size(&self) -> usize;
 }
 
 
+/// The 32-bit X86 Architecture.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct X86 {}
 
@@ -43,6 +52,7 @@ impl Architecture for X86 {
 }
 
 
+/// The 32-bit Mips Architecture.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Mips {}
 
@@ -63,6 +73,7 @@ impl Architecture for Mips {
 }
 
 
+/// The 32-bit Mipsel Architecture.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Mipsel {}
 
