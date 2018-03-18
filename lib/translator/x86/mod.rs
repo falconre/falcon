@@ -1,3 +1,5 @@
+//! Capstone-based translator for 32/64-bit x86.
+
 use error::*;
 use translator::{Translator, BlockTranslationResult};
 
