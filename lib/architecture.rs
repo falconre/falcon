@@ -31,24 +31,24 @@ pub trait Architecture: Debug + Send + Sync {
 }
 
 
-/// The 32-bit X86 Architecture.
+/// The 64-bit X86 Architecture.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct X86 {}
+pub struct Amd64 {}
 
-impl X86 {
-    pub fn new() -> X86 { X86 {} }
+impl Amd64 {
+    pub fn new() -> Amd64 { Amd64 {} }
 }
 
-impl Architecture for X86 {
+impl Architecture for Amd64 {
     fn endian(&self) -> Endian { Endian::Little }
     fn translator(&self) -> Box<translator::Translator> {
-        Box::new(translator::x86::X86::new())
+        Box::new(translator::x86::Amd64::new())
     }
     fn calling_convention(&self) -> CallingConvention {
-        CallingConvention::new(CallingConventionType::Cdecl)
+        CallingConvention::new(CallingConventionType::Amd64SystemV)
     }
-    fn stack_pointer(&self) -> il::Scalar { il::scalar("esp", 32) }
-    fn word_size(&self) -> usize { 32 }
+    fn stack_pointer(&self) -> il::Scalar { il::scalar("rsp", 64) }
+    fn word_size(&self) -> usize { 64 }
 }
 
 
@@ -90,5 +90,26 @@ impl Architecture for Mipsel {
         CallingConvention::new(CallingConventionType::MipsSystemV)
     }
     fn stack_pointer(&self) -> il::Scalar { il::scalar("$sp", 32) }
+    fn word_size(&self) -> usize { 32 }
+}
+
+
+/// The 32-bit X86 Architecture.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct X86 {}
+
+impl X86 {
+    pub fn new() -> X86 { X86 {} }
+}
+
+impl Architecture for X86 {
+    fn endian(&self) -> Endian { Endian::Little }
+    fn translator(&self) -> Box<translator::Translator> {
+        Box::new(translator::x86::X86::new())
+    }
+    fn calling_convention(&self) -> CallingConvention {
+        CallingConvention::new(CallingConventionType::Cdecl)
+    }
+    fn stack_pointer(&self) -> il::Scalar { il::scalar("esp", 32) }
     fn word_size(&self) -> usize { 32 }
 }

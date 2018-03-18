@@ -82,6 +82,7 @@ pub mod error {
 
         foreign_links {
             Base64(::base64::DecodeError);
+            Capstone(::falcon_capstone::capstone::CsErr);
             Goblin(::goblin::error::Error);
             Io(::std::io::Error);
             Json(::serde_json::Error);

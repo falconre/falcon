@@ -7,9 +7,10 @@ use std::collections::HashSet;
 /// Available type of calling conventions
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CallingConventionType {
+    Amd64SystemV,
+    Cdecl,
     MipsSystemV,
-    MipselSystemV,
-    Cdecl
+    MipselSystemV
 }
 
 
@@ -79,6 +80,69 @@ impl CallingConvention {
     /// `CallingConventionType`.
     pub fn new(typ: CallingConventionType) -> CallingConvention {
         match typ {
+            CallingConventionType::Amd64SystemV => {
+                let argument_registers = vec![
+                    il::scalar("rdi", 64), il::scalar("rsi", 64),
+                    il::scalar("rdx", 64), il::scalar("rcx", 64),
+                    il::scalar("r8", 64),  il::scalar("r9", 64)
+                ];
+                let mut preserved_registers = HashSet::new();
+                preserved_registers.insert(il::scalar("rbx", 64));
+                preserved_registers.insert(il::scalar("r12", 64));
+                preserved_registers.insert(il::scalar("r13", 64));
+                preserved_registers.insert(il::scalar("r14", 64));
+                preserved_registers.insert(il::scalar("r15", 64));
+                preserved_registers.insert(il::scalar("rbp", 64));
+                preserved_registers.insert(il::scalar("rsp", 64));
+
+                let mut trashed_registers = HashSet::new();
+                trashed_registers.insert(il::scalar("rax", 64));
+                trashed_registers.insert(il::scalar("rcx", 64));
+                trashed_registers.insert(il::scalar("rdx", 64));
+                trashed_registers.insert(il::scalar("rdi", 64));
+                trashed_registers.insert(il::scalar("rsi", 64));
+                trashed_registers.insert(il::scalar("r8", 64));
+                trashed_registers.insert(il::scalar("r9", 64));
+                trashed_registers.insert(il::scalar("r10", 64));
+                trashed_registers.insert(il::scalar("r11", 64));
+
+                let return_type = ReturnAddressType::Stack(0);
+
+                CallingConvention {
+                    argument_registers: argument_registers,
+                    preserved_registers: preserved_registers,
+                    trashed_registers: trashed_registers,
+                    stack_argument_offset: 8,
+                    stack_argument_length: 8,
+                    return_address_type: return_type,
+                    return_register: il::scalar("rax", 64)
+                }
+            },
+            CallingConventionType::Cdecl => {
+                let mut preserved_registers = HashSet::new();
+                preserved_registers.insert(il::scalar("ebx", 32));
+                preserved_registers.insert(il::scalar("edi", 32));
+                preserved_registers.insert(il::scalar("esi", 32));
+                preserved_registers.insert(il::scalar("ebp", 32));
+                preserved_registers.insert(il::scalar("esp", 32));
+
+                let mut trashed_registers = HashSet::new();
+                trashed_registers.insert(il::scalar("eax", 32));
+                trashed_registers.insert(il::scalar("ecx", 32));
+                trashed_registers.insert(il::scalar("edx", 32));
+
+                let return_type = ReturnAddressType::Stack(0);
+
+                CallingConvention {
+                    argument_registers: Vec::new(),
+                    preserved_registers: preserved_registers,
+                    trashed_registers: trashed_registers,
+                    stack_argument_offset: 4,
+                    stack_argument_length: 4,
+                    return_address_type: return_type,
+                    return_register: il::scalar("eax", 32)
+                }
+            },
             CallingConventionType::MipsSystemV |
             CallingConventionType::MipselSystemV => {
                 let argument_registers = vec![
@@ -129,32 +193,7 @@ impl CallingConvention {
                     return_address_type: return_type,
                     return_register: il::scalar("$v0", 32)
                 }
-            },
-            CallingConventionType::Cdecl => {
-                let mut preserved_registers = HashSet::new();
-                preserved_registers.insert(il::scalar("ebx", 32));
-                preserved_registers.insert(il::scalar("edi", 32));
-                preserved_registers.insert(il::scalar("esi", 32));
-                preserved_registers.insert(il::scalar("ebp", 32));
-                preserved_registers.insert(il::scalar("esp", 32));
-
-                let mut trashed_registers = HashSet::new();
-                trashed_registers.insert(il::scalar("eax", 32));
-                trashed_registers.insert(il::scalar("ecx", 32));
-                trashed_registers.insert(il::scalar("edx", 32));
-
-                let return_type = ReturnAddressType::Register(il::scalar("esp", 32));
-
-                CallingConvention {
-                    argument_registers: Vec::new(),
-                    preserved_registers: preserved_registers,
-                    trashed_registers: trashed_registers,
-                    stack_argument_offset: 4,
-                    stack_argument_length: 4,
-                    return_address_type: return_type,
-                    return_register: il::scalar("eax", 32)
-                }
-            },
+            }
         }
     }
 
