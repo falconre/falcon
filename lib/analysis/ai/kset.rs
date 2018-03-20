@@ -387,7 +387,9 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
         match *index {
             KSet::Value(ref kindex) => {
                 for i in kindex {
-                    memory.store_weak(i.value(), &value)?
+                    memory.store_weak(i.value_u64()
+                                       .ok_or(ErrorKind::TooManyAddressBits)?,
+                                      &value)?
                 }
             },
             _ => {}
@@ -400,7 +402,9 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
             KSet::Value(ref kindex) => {
                 let mut b = KSet::empty(bits);
                 for i in kindex {
-                    b = b.join(&memory.load(i.value(), bits)?)?;
+                    b = b.join(&memory.load(i.value_u64()
+                                             .ok_or(ErrorKind::TooManyAddressBits)?,
+                                            bits)?)?;
                 }
                 Ok(b)
             },

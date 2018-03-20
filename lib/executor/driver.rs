@@ -58,7 +58,7 @@ impl<'d> Driver<'d> {
                                 if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
                                     if successor.state()
                                                 .symbolize_and_eval(&edge.condition().clone().unwrap())?
-                                                .value() == 1 {
+                                                .is_one() {
                                         return Ok(Driver::new(
                                             self.program.clone(),
                                             location.clone().into(),
@@ -129,7 +129,7 @@ impl<'d> Driver<'d> {
                         if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
                             if self.state
                                    .symbolize_and_eval(&edge.condition().clone().unwrap())?
-                                   .value() == 1 {
+                                   .is_one() {
                                 return Ok(Driver::new(
                                     self.program.clone(),
                                     location.clone().into(),

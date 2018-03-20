@@ -39,12 +39,15 @@
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
+extern crate byteorder;
 #[macro_use]
 extern crate error_chain;
 extern crate falcon_capstone;
 extern crate goblin;
+extern crate num_traits;
 #[macro_use]
 extern crate log;
+extern crate num_bigint;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -90,10 +93,6 @@ pub mod error {
         }
 
         errors {
-            Sort {
-                description("Sort error, invalid bitness between expressions")
-                display("Sort error, invalid bitness between expressions")
-            }
             Arithmetic(m: String) {
                 description("Error in evaluation of arithmetic expression")
                 display("Arithmetic expression evaluation error: {}", m)
@@ -102,13 +101,21 @@ pub mod error {
                 description("Attempt to access unmapped memory")
                 display("Attempt to access unmapped memory at address 0x{:x}", address)
             }
+            ExecutorScalar(name: String) {
+                description("Executor can only execute over constant values")
+                display("A scalar \"{}\" was found while executor was evaluating expression", name)
+            }
             ProgramLocationMigration(reason: String) {
                 description("Error migrating ProgramLocation between Program")
                 display("Failed to migrate ProgramLocation between Program: {}", reason)
             }
-            ExecutorScalar(name: String) {
-                description("Executor can only execute over constant values")
-                display("A scalar \"{}\" was found while executor was evaluating expression", name)
+            Sort {
+                description("Sort error, invalid bitness between expressions")
+                display("Sort error, invalid bitness between expressions")
+            }
+            TooManyAddressBits {
+                description("A constant with >64 bits was used as an address")
+                display("A constant with >64 bits was used as an address")
             }
         }
     }

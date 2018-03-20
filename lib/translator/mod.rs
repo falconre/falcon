@@ -9,13 +9,13 @@
 //! these graphs to form a single block. A single instruction may lift to not
 //! only multiple Falcon IL instructions, but also multiple IL blocks.
 //!
-//! Direct branches in Falcon IL are omitted in the IL, and instead edges with
-//! conditional guards are emitted. The Brc operation is only emitted for
-//! indirect branches, and instructions which are typically used to call other
-//! procedures.
+//! Instructions for direct branches in Falcon IL are omitted in the IL, and
+//! instead edges with conditional guards are emitted. The Brc operation is only
+//! emitted for indirect branches, and instructions which are typically used to
+//! call other functions.
 //!
-//! If you are lifting directly from an Elf binary, you do not need to pay
-//! attention to the translators. The correct translator will be chosen
+//! If you are lifting directly from loader (Elf/PE/other), you do not need to
+//! pay attention to the translators. The correct translator will be chosen
 //! automatically.
 
 use error::*;

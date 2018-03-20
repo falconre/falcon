@@ -162,7 +162,7 @@ fn add() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 
 
     let result = get_raise(
@@ -206,7 +206,7 @@ fn addi() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1235);
+    assert_eq!(result.value_u64().unwrap(), 0x1235);
 
 
     let result = get_raise(
@@ -235,7 +235,7 @@ fn addiu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1235);
+    assert_eq!(result.value_u64().unwrap(), 0x1235);
 
     let result = get_scalar(
         instruction_bytes,
@@ -243,7 +243,7 @@ fn addiu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x80001233);
+    assert_eq!(result.value_u64().unwrap(), 0x80001233);
 }
 
 
@@ -260,7 +260,7 @@ fn addu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 
 
     let result = get_scalar(
@@ -270,7 +270,7 @@ fn addu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x80000000);
+    assert_eq!(result.value_u64().unwrap(), 0x80000000);
 
 
     let result = get_scalar(
@@ -280,7 +280,7 @@ fn addu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 }
 
 
@@ -297,7 +297,7 @@ fn and() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1234);
+    assert_eq!(result.value_u64().unwrap(), 0x1234);
 }
 
 
@@ -313,7 +313,7 @@ fn andi() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1234);
+    assert_eq!(result.value_u64().unwrap(), 0x1234);
 }
 
 
@@ -347,7 +347,9 @@ fn b() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x2);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(),
+               0x2);
 }
 
 
@@ -381,8 +383,10 @@ fn bal() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1234);
-    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x1234);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap()
+                     .value_u64().unwrap(), 0xc);
 }
 
 
@@ -415,7 +419,8 @@ fn beq() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x10);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x10);
 
     /*
     addiu $a0, $zero, 0x10
@@ -443,7 +448,8 @@ fn beq() {
 
     let driver = step_to(driver, 0x14);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1244);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x1244);
 }
 
 
@@ -473,7 +479,8 @@ fn beqz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x0);
 
     /*
     addiu $a1, $zero, 0x10
@@ -499,7 +506,8 @@ fn beqz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1235);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x1235);
 }
 
 
@@ -530,7 +538,8 @@ fn bgez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -556,7 +565,8 @@ fn bgez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -582,7 +592,8 @@ fn bgez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0xffffffff);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0xffffffff);
 }
 
 
@@ -612,8 +623,10 @@ fn bgezal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
-    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap()
+                     .value_u64().unwrap(), 0xc);
 
     /*
     ori $a0, 0x0000
@@ -639,8 +652,10 @@ fn bgezal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
-    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap()
+                     .value_u64().unwrap(), 0xc);
 
     /*
     ori $a0, 0x0000
@@ -666,7 +681,8 @@ fn bgezal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 }
 
 
@@ -696,7 +712,8 @@ fn bgtz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -722,7 +739,8 @@ fn bgtz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -748,7 +766,8 @@ fn bgtz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 }
 
 
@@ -778,7 +797,8 @@ fn blez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -804,7 +824,8 @@ fn blez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -830,7 +851,8 @@ fn blez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
 }
 
 
@@ -860,7 +882,8 @@ fn bltz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -886,7 +909,8 @@ fn bltz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -912,7 +936,8 @@ fn bltz() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
 }
 
 
@@ -942,7 +967,8 @@ fn bltzal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -968,7 +994,8 @@ fn bltzal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -994,8 +1021,10 @@ fn bltzal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
-    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap()
+                     .value_u64().unwrap(), 0xc);
 }
 
 
@@ -1025,7 +1054,8 @@ fn bne() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1051,7 +1081,8 @@ fn bne() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
 
     /*
     ori $a0, 0x0000
@@ -1077,7 +1108,8 @@ fn bne() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 }
 
 
@@ -1107,7 +1139,8 @@ fn bnez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x1);
 
     /*
     ori $a0, 0x0000
@@ -1133,7 +1166,8 @@ fn bnez() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a1").unwrap().value(), 0x0);
+    assert_eq!(driver.state().get_scalar("$a1").unwrap()
+                     .value_u64().unwrap(), 0x0);
 }
 
 
@@ -1166,7 +1200,7 @@ fn clo () {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 8);
+    assert_eq!(result.value_u64().unwrap(), 8);
 }
 
 
@@ -1182,7 +1216,7 @@ fn clz () {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 4);
+    assert_eq!(result.value_u64().unwrap(), 4);
 }
 
 
@@ -1198,7 +1232,7 @@ fn div () {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 4);
+    assert_eq!(result.value_u64().unwrap(), 4);
 
     /*
     div $a0, $a1
@@ -1210,7 +1244,7 @@ fn div () {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 3);
+    assert_eq!(result.value_u64().unwrap(), 3);
 
     /*
     div $a0, $a1
@@ -1222,7 +1256,7 @@ fn div () {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 0xfffffffb);
+    assert_eq!(result.value_u64().unwrap(), 0xfffffffb);
 }
 
 
@@ -1238,7 +1272,7 @@ fn divu () {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 4);
+    assert_eq!(result.value_u64().unwrap(), 4);
 
     /*
     divu $a0, $a1
@@ -1250,7 +1284,7 @@ fn divu () {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 3);
+    assert_eq!(result.value_u64().unwrap(), 3);
 
     /*
     divu $a0, $a1
@@ -1262,7 +1296,7 @@ fn divu () {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 0x3ffffffb);
+    assert_eq!(result.value_u64().unwrap(), 0x3ffffffb);
 }
 
 
@@ -1292,7 +1326,8 @@ fn j() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x1);
 }
 
 
@@ -1322,7 +1357,8 @@ fn jr() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x10);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x10);
 }
 
 
@@ -1352,8 +1388,10 @@ fn jal() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x1);
-    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x1);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap()
+                     .value_u64().unwrap(), 0xc);
 }
 
 
@@ -1383,8 +1421,10 @@ fn jalr() {
 
     let driver = step_to(driver, 0x10);
 
-    assert_eq!(driver.state().get_scalar("$a0").unwrap().value(), 0x10);
-    assert_eq!(driver.state().get_scalar("$ra").unwrap().value(), 0xc);
+    assert_eq!(driver.state().get_scalar("$a0").unwrap()
+                     .value_u64().unwrap(), 0x10);
+    assert_eq!(driver.state().get_scalar("$ra").unwrap()
+                     .value_u64().unwrap(), 0xc);
 }
 
 
@@ -1399,7 +1439,7 @@ fn lb() {
         memory,
         "$a0"
     );
-    assert_eq!(result.value(), 0xffffffde);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffde);
 }
 
 
@@ -1414,7 +1454,7 @@ fn lbu() {
         memory,
         "$a0"
     );
-    assert_eq!(result.value(), 0xad);
+    assert_eq!(result.value_u64().unwrap(), 0xad);
 }
 
 
@@ -1429,7 +1469,7 @@ fn lh() {
         memory,
         "$a0"
     );
-    assert_eq!(result.value(), 0xffffdead);
+    assert_eq!(result.value_u64().unwrap(), 0xffffdead);
 }
 
 
@@ -1444,7 +1484,7 @@ fn lhu() {
         memory,
         "$a0"
     );
-    assert_eq!(result.value(), 0xdead);
+    assert_eq!(result.value_u64().unwrap(), 0xdead);
 }
 
 
@@ -1456,7 +1496,7 @@ fn lui() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x12340000);
+    assert_eq!(result.value_u64().unwrap(), 0x12340000);
 }
 
 
@@ -1471,7 +1511,7 @@ fn lw() {
         memory,
         "$a0"
     );
-    assert_eq!(result.value(), 0xdeadbeef);
+    assert_eq!(result.value_u64().unwrap(), 0xdeadbeef);
 }
 
 
@@ -1486,7 +1526,7 @@ fn madd() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 51);
+    assert_eq!(result.value_u64().unwrap(), 51);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
@@ -1497,7 +1537,7 @@ fn madd() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
@@ -1508,7 +1548,7 @@ fn madd() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 4);
+    assert_eq!(result.value_u64().unwrap(), 4);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
@@ -1519,7 +1559,7 @@ fn madd() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 0xffffffd8);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffd8);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
@@ -1530,7 +1570,7 @@ fn madd() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0xffffffff);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffff);
 }
 
 
@@ -1545,7 +1585,7 @@ fn maddu() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 51);
+    assert_eq!(result.value_u64().unwrap(), 51);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
@@ -1556,7 +1596,7 @@ fn maddu() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
@@ -1567,7 +1607,7 @@ fn maddu() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 4);
+    assert_eq!(result.value_u64().unwrap(), 4);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
@@ -1578,7 +1618,7 @@ fn maddu() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 0xfffffff0);
+    assert_eq!(result.value_u64().unwrap(), 0xfffffff0);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x01],
@@ -1589,7 +1629,7 @@ fn maddu() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 3);
+    assert_eq!(result.value_u64().unwrap(), 3);
 }
 
 
@@ -1601,7 +1641,7 @@ fn mfhi() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 }
 
 
@@ -1613,7 +1653,7 @@ fn mflo() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 }
 
 
@@ -1625,7 +1665,7 @@ fn move_() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1234);
+    assert_eq!(result.value_u64().unwrap(), 1234);
 
 
     let result = get_scalar(
@@ -1634,7 +1674,7 @@ fn move_() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 }
 
 
@@ -1648,7 +1688,7 @@ fn movn() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 
 
     let result = get_scalar(
@@ -1659,7 +1699,7 @@ fn movn() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
 }
 
 
@@ -1673,7 +1713,7 @@ fn movz() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
 
 
     let result = get_scalar(
@@ -1684,7 +1724,7 @@ fn movz() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 2);
+    assert_eq!(result.value_u64().unwrap(), 2);
 }
 
 
@@ -1699,7 +1739,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 49);
+    assert_eq!(result.value_u64().unwrap(), 49);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1710,7 +1750,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0xfffffffe);
+    assert_eq!(result.value_u64().unwrap(), 0xfffffffe);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1721,7 +1761,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1732,7 +1772,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 0xffffffd8);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffd8);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1743,7 +1783,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0xffffffff);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffff);
 }
 
 
@@ -1758,7 +1798,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 49);
+    assert_eq!(result.value_u64().unwrap(), 49);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1769,7 +1809,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0xfffffffe);
+    assert_eq!(result.value_u64().unwrap(), 0xfffffffe);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1780,7 +1820,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1791,7 +1831,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 0xffffffd8);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffd8);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1802,7 +1842,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0x9);
+    assert_eq!(result.value_u64().unwrap(), 0x9);
 }
 
 
@@ -1814,7 +1854,7 @@ fn mthi() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0xdeadbeef);
+    assert_eq!(result.value_u64().unwrap(), 0xdeadbeef);
 }
 
 
@@ -1826,7 +1866,7 @@ fn mtlo() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 0xdeadbeef);
+    assert_eq!(result.value_u64().unwrap(), 0xdeadbeef);
 }
 
 
@@ -1841,7 +1881,7 @@ fn mul() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 77);
+    assert_eq!(result.value_u64().unwrap(), 77);
 }
 
 
@@ -1855,7 +1895,7 @@ fn mult() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 77);
+    assert_eq!(result.value_u64().unwrap(), 77);
 
     /* mult $a0, $a1 */
     let result = get_scalar(
@@ -1865,7 +1905,7 @@ fn mult() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 0xffffffff);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffff);
 }
 
 
@@ -1879,7 +1919,7 @@ fn multu() {
         Memory::new(Endian::Big),
         "$lo"
     );
-    assert_eq!(result.value(), 77);
+    assert_eq!(result.value_u64().unwrap(), 77);
 
     /* mult $a0, $a1 */
     let result = get_scalar(
@@ -1889,7 +1929,7 @@ fn multu() {
         Memory::new(Endian::Big),
         "$hi"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
 }
 
 
@@ -1902,7 +1942,7 @@ fn negu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0xff0100);
+    assert_eq!(result.value_u64().unwrap(), 0xff0100);
 }
 
 
@@ -1931,7 +1971,7 @@ fn nor() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x00ff00ff);
+    assert_eq!(result.value_u64().unwrap(), 0x00ff00ff);
 }
 
 
@@ -1945,7 +1985,7 @@ fn or() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0xff00ff00);
+    assert_eq!(result.value_u64().unwrap(), 0xff00ff00);
 }
 
 
@@ -1958,7 +1998,7 @@ fn ori() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x00ff1234);
+    assert_eq!(result.value_u64().unwrap(), 0x00ff1234);
 }
 
 
@@ -1984,7 +2024,7 @@ fn sb() {
     let driver = step_to(driver, 0x4);
 
     fn memval(memory: &Memory, address: u64) -> u16 {
-        memory.load(address, 8).unwrap().unwrap().value() as u16
+        memory.load(address, 8).unwrap().unwrap().value_u64().unwrap() as u16
     }
 
     assert_eq!(memval(driver.state().memory(), 0xdeadbeef), 0x41);
@@ -2013,7 +2053,7 @@ fn sh() {
     let driver = step_to(driver, 0x4);
 
     fn memval(memory: &Memory, address: u64) -> u16 {
-        memory.load(address, 16).unwrap().unwrap().value() as u16
+        memory.load(address, 16).unwrap().unwrap().value_u64().unwrap() as u16
     }
 
     assert_eq!(memval(driver.state().memory(), 0xdeadbeef), 0xbeef);
@@ -2029,7 +2069,7 @@ fn sll() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x12340000);
+    assert_eq!(result.value_u64().unwrap(), 0x12340000);
 }
 
 
@@ -2043,7 +2083,7 @@ fn sllv() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x12340000);
+    assert_eq!(result.value_u64().unwrap(), 0x12340000);
 }
 
 
@@ -2057,7 +2097,7 @@ fn slt() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
     /* slt $a0, $a1, $a2 */
     let result = get_scalar(
@@ -2067,7 +2107,7 @@ fn slt() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
 
     /* slt $a0, $a1, $a2 */
     let result = get_scalar(
@@ -2077,7 +2117,7 @@ fn slt() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
     /* slt $a0, $a1, $a2 */
     let result = get_scalar(
@@ -2087,7 +2127,7 @@ fn slt() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
 }
 
 
@@ -2100,7 +2140,7 @@ fn slti() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
     /* slti $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x28, 0xa4, 0x10, 0x00],
@@ -2108,7 +2148,7 @@ fn slti() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
     /* slti $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x28, 0xa4, 0x10, 0x00],
@@ -2116,7 +2156,7 @@ fn slti() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
     /* slti $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x28, 0xa4, 0x10, 0x00],
@@ -2124,7 +2164,7 @@ fn slti() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
 }
 
 
@@ -2137,7 +2177,7 @@ fn sltiu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
     /* sltiu $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x2c, 0xa4, 0x10, 0x00],
@@ -2145,7 +2185,7 @@ fn sltiu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
     /* sltiu $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x2c, 0xa4, 0x10, 0x00],
@@ -2153,7 +2193,7 @@ fn sltiu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
     /* sltiu $a0, $a1, 0x1234 */
     let result = get_scalar(
         &[0x2c, 0xa4, 0x10, 0x00],
@@ -2161,7 +2201,7 @@ fn sltiu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 }
 
 
@@ -2175,7 +2215,7 @@ fn sltu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
     /* sltu $a0, $a1, $a2 */
     let result = get_scalar(
@@ -2185,7 +2225,7 @@ fn sltu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 1);
+    assert_eq!(result.value_u64().unwrap(), 1);
 
     /* sltu $a0, $a1, $a2 */
     let result = get_scalar(
@@ -2195,7 +2235,7 @@ fn sltu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
     /* sltu $a0, $a1, $a2 */
     let result = get_scalar(
@@ -2205,7 +2245,7 @@ fn sltu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 }
 
 
@@ -2218,7 +2258,7 @@ fn sra() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1234);
+    assert_eq!(result.value_u64().unwrap(), 0x1234);
 
     /* sra $a0, $a1, 0x10 */
     let result = get_scalar(
@@ -2227,7 +2267,7 @@ fn sra() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0xffff8000);
+    assert_eq!(result.value_u64().unwrap(), 0xffff8000);
 }
 
 
@@ -2241,7 +2281,7 @@ fn srav() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1234);
+    assert_eq!(result.value_u64().unwrap(), 0x1234);
 
     /* srav $a0, $a1, 0x10 */
     let result = get_scalar(
@@ -2251,7 +2291,7 @@ fn srav() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0xffff8000);
+    assert_eq!(result.value_u64().unwrap(), 0xffff8000);
 }
 
 
@@ -2264,7 +2304,7 @@ fn srl() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1234);
+    assert_eq!(result.value_u64().unwrap(), 0x1234);
 
     /* srl $a0, $a1, 0x10 */
     let result = get_scalar(
@@ -2273,7 +2313,7 @@ fn srl() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x00008000);
+    assert_eq!(result.value_u64().unwrap(), 0x00008000);
 }
 
 
@@ -2287,7 +2327,7 @@ fn srlv() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x1234);
+    assert_eq!(result.value_u64().unwrap(), 0x1234);
 
     /* srlv $a0, $a1, $a2 */
     let result = get_scalar(
@@ -2297,7 +2337,7 @@ fn srlv() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x00008000);
+    assert_eq!(result.value_u64().unwrap(), 0x00008000);
 }
 
 
@@ -2314,7 +2354,7 @@ fn sub() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
 
     let result = get_raise(
@@ -2359,7 +2399,7 @@ fn subu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0);
 
 
     let result = get_scalar(
@@ -2369,7 +2409,7 @@ fn subu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0xffffffff);
+    assert_eq!(result.value_u64().unwrap(), 0xffffffff);
 
 
     let result = get_scalar(
@@ -2379,7 +2419,7 @@ fn subu() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0x7fffffff);
+    assert_eq!(result.value_u64().unwrap(), 0x7fffffff);
 }
 
 
@@ -2407,7 +2447,7 @@ fn sw() {
     let driver = step_to(driver, 0x8);
 
     fn memval(memory: &Memory, address: u64) -> u32 {
-        memory.load(address, 32).unwrap().unwrap().value() as u32
+        memory.load(address, 32).unwrap().unwrap().value_u64().unwrap() as u32
     }
 
     assert_eq!(memval(driver.state().memory(), 0xdeadbee0), 0xdeadbeef);
@@ -2443,7 +2483,7 @@ fn xor() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0xf00ff00f);
+    assert_eq!(result.value_u64().unwrap(), 0xf00ff00f);
 }
 
 
@@ -2460,5 +2500,5 @@ fn xori() {
         Memory::new(Endian::Big),
         "$a0"
     );
-    assert_eq!(result.value(), 0xff00f00f);
+    assert_eq!(result.value_u64().unwrap(), 0xff00f00f);
 }

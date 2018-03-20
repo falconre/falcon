@@ -131,7 +131,8 @@ pub trait Loader: fmt::Debug + Send + Sync {
                         match *instruction.operation() {
                             il::Operation::Branch { ref target } => {
                                 eval(target).ok().map(|constant|
-                                    call_targets.push(constant.value()));
+                                    call_targets.push(constant.value_u64()
+                                                              .unwrap()));
                             }
                             _ => {}
                         });

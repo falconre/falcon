@@ -107,7 +107,7 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
              value: TestLattice) -> Result<()> {
 
         if let Some(ref constant) = index.constant() {
-            memory.store_weak(constant.value(), &value)
+            memory.store_weak(constant.value_u64().unwrap(), &value)
         }
         else {
             Ok(())
@@ -120,7 +120,7 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
             bits: usize) -> Result<TestLattice> {
 
         if let Some(ref constant) = index.constant() {
-            memory.load(constant.value(), bits)
+            memory.load(constant.value_u64().unwrap(), bits)
         }
         else {
             Ok(TestLattice::Bottom(bits))
@@ -193,7 +193,7 @@ impl memory::Value for TestLattice {
             TestLattice::Top(_) |
             TestLattice::Bottom(_) => self.clone(),
             TestLattice::Constant(ref constant) => {
-                let value = constant.value() << bits;
+                let value = constant.value_u64().unwrap() << bits;
                 let constant = il::const_(value, constant.bits());
                 TestLattice::Constant(constant)
             }
@@ -205,7 +205,7 @@ impl memory::Value for TestLattice {
             TestLattice::Top(_) |
             TestLattice::Bottom(_) => self.clone(),
             TestLattice::Constant(ref constant) => {
-                let value = constant.value() >> bits;
+                let value = constant.value_u64().unwrap() >> bits;
                 let constant = il::const_(value, constant.bits());
                 TestLattice::Constant(constant)
             }
@@ -217,7 +217,7 @@ impl memory::Value for TestLattice {
             TestLattice::Top(_) => TestLattice::Top(bits),
             TestLattice::Bottom(_) => TestLattice::Bottom(bits),
             TestLattice::Constant(ref constant) => {
-                let constant = il::const_(constant.value(), bits);
+                let constant = il::const_(constant.value_u64().unwrap(), bits);
                 TestLattice::Constant(constant)
             }
         })
@@ -228,7 +228,7 @@ impl memory::Value for TestLattice {
             TestLattice::Top(_) => TestLattice::Top(bits),
             TestLattice::Bottom(_) => TestLattice::Bottom(bits),
             TestLattice::Constant(ref constant) => {
-                let constant = il::const_(constant.value(), bits);
+                let constant = il::const_(constant.value_u64().unwrap(), bits);
                 TestLattice::Constant(constant)
             }
         })
@@ -247,7 +247,10 @@ impl memory::Value for TestLattice {
                     TestLattice::Top(bits) => TestLattice::Top(bits),
                     TestLattice::Bottom(bits) => TestLattice::Bottom(bits),
                     TestLattice::Constant(ref rhs) => {
-                        let constant = il::const_(lhs.value() | rhs.value(), lhs.bits());
+                        let constant = il::const_(
+                            lhs.value_u64().unwrap() | rhs.value_u64().unwrap(),
+                            lhs.bits()
+                        );
                         TestLattice::Constant(constant)
                     }
                 }

@@ -139,25 +139,31 @@ impl<'e> State<'e> {
             il::Operation::Store { ref index, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
                 let index = self.symbolize_and_eval(index)?;
-                self.memory.store(index.value(), src)?;
+                self.memory.store(index.value_u64()
+                                       .ok_or(ErrorKind::TooManyAddressBits)?,
+                                  src)?;
                 Successor::new(self, SuccessorType::FallThrough)
             },
             il::Operation::Load { ref dst, ref index } => {
                 let index = self.symbolize_and_eval(index)?;
-                let value = self.memory.load(index.value(), dst.bits())?;
+                let value = self.memory.load(
+                    index.value_u64().ok_or(ErrorKind::TooManyAddressBits)?,
+                    dst.bits()
+                )?;
                 match value {
                     Some(v) => {
                         self.set_scalar(dst.name(), v.into());
                         Successor::new(self, SuccessorType::FallThrough)
                     },
                     None => {
-                        bail!("Got invalid concretized address {}", index.value());
+                        bail!("Got invalid concretized address {}", index);
                     }
                 }
             },
             il::Operation::Branch { ref target } => {
                 let target = self.symbolize_and_eval(target)?;
-                Successor::new(self, SuccessorType::Branch(target.value()))
+                Successor::new(self, SuccessorType::Branch(
+                    target.value_u64().ok_or(ErrorKind::TooManyAddressBits)?))
             },
             il::Operation::Raise { ref expr } => {
                 Successor::new(self, SuccessorType::Raise(expr.clone()))

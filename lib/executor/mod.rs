@@ -23,7 +23,7 @@ use translator;
 impl<'m> translator::TranslationMemory for Memory<'m> {
     fn get_u8(&self, address: u64) -> Option<u8> {
         match self.load(address, 8).unwrap() {
-            Some(constant) => Some(constant.value() as u8),
+            Some(constant) => Some(constant.value_u64().unwrap() as u8),
             None => None
         }
     }
