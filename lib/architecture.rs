@@ -28,6 +28,8 @@ pub trait Architecture: Debug + Send + Sync {
     fn stack_pointer(&self) -> il::Scalar;
     /// Get the size of a natural word for this architecture in bits.
     fn word_size(&self) -> usize;
+    /// Clone into a boxed `Architecture`
+    fn box_clone(&self) -> Box<Architecture>;
 }
 
 
@@ -49,6 +51,7 @@ impl Architecture for Amd64 {
     }
     fn stack_pointer(&self) -> il::Scalar { il::scalar("rsp", 64) }
     fn word_size(&self) -> usize { 64 }
+    fn box_clone(&self) -> Box<Architecture> { Box::new(self.clone()) }
 }
 
 
@@ -70,6 +73,7 @@ impl Architecture for Mips {
     }
     fn stack_pointer(&self) -> il::Scalar { il::scalar("$sp", 32) }
     fn word_size(&self) -> usize { 32 }
+    fn box_clone(&self) -> Box<Architecture> { Box::new(self.clone()) }
 }
 
 
@@ -91,6 +95,7 @@ impl Architecture for Mipsel {
     }
     fn stack_pointer(&self) -> il::Scalar { il::scalar("$sp", 32) }
     fn word_size(&self) -> usize { 32 }
+    fn box_clone(&self) -> Box<Architecture> { Box::new(self.clone()) }
 }
 
 
@@ -112,4 +117,5 @@ impl Architecture for X86 {
     }
     fn stack_pointer(&self) -> il::Scalar { il::scalar("esp", 32) }
     fn word_size(&self) -> usize { 32 }
+    fn box_clone(&self) -> Box<Architecture> { Box::new(self.clone()) }
 }
