@@ -49,6 +49,25 @@ impl Constant {
         }
     }
 
+    /// Crates a constant from a decimal string of the value
+    pub fn from_decimal_string(s: &String, bits: usize) -> Result<Constant> {
+        Ok(if bits <= 64 {
+            Constant::U64(s.parse()?, bits)
+        }
+        else {
+            let constant = Constant::new_big(s.parse()?);
+            if constant.bits() < bits {
+                constant.zext(bits)?
+            }
+            else if constant.bits() > bits {
+                constant.trun(bits)?
+            }
+            else {
+                constant
+            }
+        })
+    }
+
     /// Create a new `Constant` with the given bits and a value of zero
     pub fn new_zero(bits: usize) -> Result<Constant> {
         if bits <= 64 {

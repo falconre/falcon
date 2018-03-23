@@ -1,3 +1,5 @@
+#![recursion_limit="128"]
+
 //! Falcon: A Binary Analysis Framework in Rust.
 //! 
 //! Falcon is a framework in rust for implementing formal analyses over binary
@@ -44,10 +46,10 @@ extern crate byteorder;
 extern crate error_chain;
 extern crate falcon_capstone;
 extern crate goblin;
-extern crate num_traits;
 #[macro_use]
 extern crate log;
 extern crate num_bigint;
+extern crate num_traits;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -89,6 +91,8 @@ pub mod error {
             Goblin(::goblin::error::Error);
             Io(::std::io::Error);
             Json(::serde_json::Error);
+            ParseBigIntError(::num_bigint::ParseBigIntError);
+            ParseIntError(::std::num::ParseIntError);
             Utf8(::std::string::FromUtf8Error);
         }
 
