@@ -30,6 +30,10 @@ impl<'r> LocationSet<'r> {
         self.locations.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.locations.is_empty()
+    }
+
     pub fn locations(&self) -> &HashSet<il::RefProgramLocation<'r>> {
         &self.locations
     }

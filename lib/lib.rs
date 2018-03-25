@@ -1,3 +1,5 @@
+#![recursion_limit="128"]
+
 //! Falcon: A Binary Analysis Framework in Rust.
 //! 
 //! Falcon is a framework in rust for implementing formal analyses over binary
@@ -5,6 +7,7 @@
 //! 
 //! * **analysis** - A fixed-point engine and methods for abstract interpretation
 //! over Falcon IL. Example, usable analyses are given.
+//! * **architecture** - Information on Falcon's supported architectures.
 //! * **executor** - A concrete execution engine over Falcon IL.
 //! * **graph** - A simple directed graph library.
 //! * **il** - Falcon's Intermediate Language.
@@ -38,12 +41,15 @@
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
+extern crate byteorder;
 #[macro_use]
 extern crate error_chain;
 extern crate falcon_capstone;
 extern crate goblin;
 #[macro_use]
 extern crate log;
+extern crate num_bigint;
+extern crate num_traits;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -51,13 +57,13 @@ extern crate serde_json;
 
 
 pub mod analysis;
+pub mod architecture;
 pub mod executor;
 pub mod graph;
 pub mod il;
 pub mod loader;
 pub mod memory;
 pub mod translator;
-pub mod types;
 
 
 
@@ -81,17 +87,16 @@ pub mod error {
 
         foreign_links {
             Base64(::base64::DecodeError);
+            Capstone(::falcon_capstone::capstone::CsErr);
             Goblin(::goblin::error::Error);
             Io(::std::io::Error);
             Json(::serde_json::Error);
+            ParseBigIntError(::num_bigint::ParseBigIntError);
+            ParseIntError(::std::num::ParseIntError);
             Utf8(::std::string::FromUtf8Error);
         }
 
         errors {
-            Sort {
-                description("Sort error, invalid bitness between expressions")
-                display("Sort error, invalid bitness between expressions")
-            }
             Arithmetic(m: String) {
                 description("Error in evaluation of arithmetic expression")
                 display("Arithmetic expression evaluation error: {}", m)
@@ -100,13 +105,21 @@ pub mod error {
                 description("Attempt to access unmapped memory")
                 display("Attempt to access unmapped memory at address 0x{:x}", address)
             }
+            ExecutorScalar(name: String) {
+                description("Executor can only execute over constant values")
+                display("A scalar \"{}\" was found while executor was evaluating expression", name)
+            }
             ProgramLocationMigration(reason: String) {
                 description("Error migrating ProgramLocation between Program")
                 display("Failed to migrate ProgramLocation between Program: {}", reason)
             }
-            ExecutorScalar(name: String) {
-                description("Executor can only execute over constant values")
-                display("A scalar \"{}\" was found while executor was evaluating expression", name)
+            Sort {
+                description("Sort error, invalid bitness between expressions")
+                display("Sort error, invalid bitness between expressions")
+            }
+            TooManyAddressBits {
+                description("A constant with >64 bits was used as an address")
+                display("A constant with >64 bits was used as an address")
             }
         }
     }

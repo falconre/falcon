@@ -4,12 +4,12 @@
 //! This memory model implements the `TranslationMemory` trait, allowing lifters
 //! to use it to lift instructions.
 
+use architecture::Endian;
 use error::*;
 use memory::MemoryPermissions;
 use std::collections::Bound::Included;
 use std::collections::BTreeMap;
 use translator::TranslationMemory;
-use types::Endian;
 
 
 /// A section of backed memory. Essentially a vector of type `u8` with

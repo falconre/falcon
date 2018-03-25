@@ -5,12 +5,15 @@
 
 # Welcome to Falcon
 
-Falcon is a formal binary analysis framework in Rust. Falcon provides a platform for implementing data-flow analysis and abstract interpretation over binary executables.
+Falcon is a formal binary analysis framework in Rust.
 
-* Expression-based IL with strong influences from [Binary Ninja](https://binary.ninja)'s' LLIL and RREIL.
-* Semantically-equivalent binary translation.
-* Fixed-point engine for data-flow analysis and abstract interpretation. Basic analyses provided.
-* Lifters for Binary formats (initially Elf) via [goblin](https://github.com/m4b/goblin).
+* Expression-based IL with strong influences from RREIL and [Binary Ninja](https://binary.ninja)'s LLIL.
+* Semantically-equivalent binary translators for 32/64-bit x86, Mips, and Mipsel.
+* Lifters for ELF and PE via [goblin](https://github.com/m4b/goblin).
+* Fixed-point engine for data-flow analysis and abstract interpretation.
+* Performant memory models for analysis.
+* A concrete executor over Falcon IL.
+* [Gluon](https://github.com/gluon-lang/gluon) scripting bindings provided with [Osprey](https://github.com/falconre/osprey).
 
 # Questions / Support
 

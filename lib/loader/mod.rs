@@ -1,4 +1,4 @@
-//! Loading executable binaries into Falcon
+//! Loading executable binaries into Falcon.
 //!
 //! ```
 //! # use falcon::error::*;
@@ -18,17 +18,21 @@
 //! # }
 //! ```
 
+use architecture::Architecture;
 use error::*;
+use executor::eval;
 use il;
 use memory;
+use std::collections::HashSet;
 use std::fmt;
-use types::Architecture;
 
 mod elf;
 mod json;
+mod pe;
 
 pub use self::elf::*;
 pub use self::json::*;
+pub use self::pe::*;
 
 /// A declared entry point for a function.
 #[derive(Clone, Debug, PartialEq)]
@@ -64,15 +68,15 @@ impl FunctionEntry {
 impl fmt::Display for FunctionEntry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.name {
-            Some(ref name) => write!(f, "{} -> {:X}", name, self.address),
-            None => write!(f, "{:X}", self.address)
+            Some(ref name) => write!(f, "FunctionEntry({} -> 0x{:X})", name, self.address),
+            None => write!(f, "FunctionEntry(0x{:X})", self.address)
         }
     }
 }
 
 
 /// Generic trait for all loaders
-pub trait Loader: Clone {
+pub trait Loader: fmt::Debug + Send + Sync {
     /// Get a model of the memory contained in the binary
     fn memory(&self) -> Result<memory::backing::Memory>;
 
@@ -83,11 +87,11 @@ pub trait Loader: Clone {
     fn program_entry(&self) -> u64;
 
     /// Get the architecture of the binary
-    fn architecture(&self) -> Result<Architecture>;
+    fn architecture(&self) -> &Architecture;
 
     /// Lift just one function from the executable
     fn function(&self, address: u64) -> Result<il::Function> {
-        let translator = self.architecture()?.translator();
+        let translator = self.architecture().translator();
         let memory = self.memory()?;
         Ok(translator.translate_function(&memory, address)?)
     }
@@ -95,7 +99,7 @@ pub trait Loader: Clone {
     /// Lift executable into an il::Program
     fn program(&self) -> Result<il::Program> {
         // Get out architecture-specific translator
-        let translator = self.architecture()?.translator();
+        let translator = self.architecture().translator();
 
         // Create a mapping of the file memory
         let memory = self.memory()?;
@@ -111,6 +115,79 @@ pub trait Loader: Clone {
                 let mut function = translator.translate_function(&memory, address)?;
                 function.set_name(function_entry.name().map(|n| n.to_string()));
                 program.add_function(function);
+            }
+        }
+
+        Ok(program)
+    }
+
+    /// Lift executable into an `il::Program`, while recursively resolving branch
+    /// targets into functions.
+    fn program_recursive(&self) -> Result<il::Program> {
+        fn call_targets(function: &il::Function) -> Result<Vec<u64>> {
+            let call_targets =
+                function.blocks().iter().fold(Vec::new(), |mut call_targets, block| {
+                    block.instructions().iter().for_each(|instruction|
+                        match *instruction.operation() {
+                            il::Operation::Branch { ref target } => {
+                                eval(target).ok().map(|constant|
+                                    call_targets.push(constant.value_u64()
+                                                              .unwrap()));
+                            }
+                            _ => {}
+                        });
+                    call_targets
+                });
+            Ok(call_targets)
+        }
+
+        let mut program = self.program()?;
+
+        let mut processed = HashSet::new();
+
+        loop {
+            let function_addresses =
+                program.functions()
+                    .into_iter()
+                    .map(|function| function.address())
+                    .collect::<Vec<u64>>();
+
+            let addresses = {
+                let functions =
+                    program.functions()
+                        .into_iter()
+                        .filter(|function| !processed.contains(&function.address()))
+                        .collect::<Vec<&il::Function>>();
+
+                functions.iter()
+                    .for_each(|function| {
+                        processed.insert(function.address());
+                    });
+
+                let addresses =
+                    functions.into_iter()
+                        .fold(HashSet::new(), |mut targets, function| {
+                            call_targets(function).unwrap()
+                                .into_iter()
+                                .for_each(|target| {
+                                    targets.insert(target);
+                                });
+                            targets
+                        })
+                        .into_iter()
+                        .filter(|address|
+                            !function_addresses.contains(address))
+                        .collect::<Vec<u64>>();
+
+                if addresses.is_empty() {
+                    break;
+                }
+
+                addresses
+            };
+
+            for address in addresses {
+                program.add_function(self.function(address)?);
             }
         }
 

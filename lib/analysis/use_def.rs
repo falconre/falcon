@@ -33,8 +33,7 @@ pub fn use_def<'r>(function: &'r il::Function)
             },
             il::RefFunctionLocation::Edge(ref edge) =>
                 edge.condition()
-                    .as_ref()
-                    .map(|ref condition|
+                    .map(|condition|
                         condition.scalars()
                                  .into_iter()
                                  .fold(LocationSet::new(), |mut defs, scalar| {

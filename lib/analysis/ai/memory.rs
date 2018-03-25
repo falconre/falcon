@@ -3,13 +3,13 @@
 //! This memory model wraps falcon::memory::paged::Memory and adds a `join`
 //! method which operates over abstract values.
 
+use architecture::Endian;
 use analysis::ai::domain;
 use error::*;
 use memory::paged;
 use memory;
 use serde::Serialize;
 use std::cmp::{Ordering, PartialEq, PartialOrd};
-use types::Endian;
 
 
 pub trait Value: memory::Value + domain::Value {}
@@ -216,7 +216,7 @@ mod memory_tests {
     use analysis::ai::kset::KSet;
     use analysis::ai::memory::Memory;
     use il;
-    use types::Endian;
+    use architecture::Endian;
 
     #[test]
     fn ai_memory_big_endian() {

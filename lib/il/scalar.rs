@@ -3,6 +3,7 @@
 use std::fmt;
 use il::*;
 
+/// A `Scalar` is a variable which holds a single value.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Scalar {
     name: String,

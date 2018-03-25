@@ -1,11 +1,11 @@
 //! A driver concretely executes a Falcon IL programs.
 
+use architecture::Architecture;
 use error::*;
 use executor::State;
 use executor::successor::*;
 use il;
 use RC;
-use types::Architecture;
 
 /// A driver for a concrete executor over Falcon IL.
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub struct Driver<'d> {
     program: RC<il::Program>,
     location: il::ProgramLocation,
     state: State<'d>,
-    architecture: Architecture,
+    architecture: RC<Architecture>,
 }
 
 
@@ -23,7 +23,7 @@ impl<'d> Driver<'d> {
         program: RC<il::Program>,
         location: il::ProgramLocation,
         state: State<'d>,
-        architecture: Architecture,
+        architecture: RC<Architecture>,
     ) -> Driver {
         Driver {
             program: program,
@@ -58,7 +58,7 @@ impl<'d> Driver<'d> {
                                 if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
                                     if successor.state()
                                                 .symbolize_and_eval(&edge.condition().clone().unwrap())?
-                                                .value() == 1 {
+                                                .is_one() {
                                         return Ok(Driver::new(
                                             self.program.clone(),
                                             location.clone().into(),
@@ -129,7 +129,7 @@ impl<'d> Driver<'d> {
                         if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
                             if self.state
                                    .symbolize_and_eval(&edge.condition().clone().unwrap())?
-                                   .value() == 1 {
+                                   .is_one() {
                                 return Ok(Driver::new(
                                     self.program.clone(),
                                     location.clone().into(),

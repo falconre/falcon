@@ -74,6 +74,11 @@ impl Function {
         self.control_flow_graph.block(index)
     }
 
+    /// Return a mutable reference to a `Block` in this `Function`
+    pub fn block_mut(&mut self, index: u64) -> Option<&mut Block> {
+        self.control_flow_graph.block_mut(index)
+    }
+
     /// Return a Vec of all `Block` in this `Function`
     pub fn blocks(&self) -> Vec<&Block> {
         self.control_flow_graph.blocks()

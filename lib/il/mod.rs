@@ -5,13 +5,13 @@
 //! Falcon IL is a simple, expression-based, well-defined, semantically-accurate
 //! intermediate language for the analysis of Binary Programs.
 //!
-//! * **Simple** - Falcon IL has 21 expression types (including terminals), and 5
-//! operation types, minimizing the work required to implement analyses.
-//! * **Expression-based** - Falcon IL operates over expression, as opposed to a
-//! [three-address form](https://en.wikipedia.org/wiki/Three-address_code) like
-//! REIL/RREIL.
-//! * **Well-defined** - Falcon IL is specified with rust's enumerated types, leaving
-//! no ambiguity in the IL.
+//! * **Simple** - Falcon IL has 21 expression types (including terminals), and
+//! 5 operation types, minimizing the work required to implement analyses.
+//! * **Expression-based** - Falcon IL operates over expressions, as opposed to
+//! a [three-address form](https://en.wikipedia.org/wiki/Three-address_code)
+//! like REIL/RREIL.
+//! * **Well-defined** - Falcon IL is specified with rust's enumerated types,
+//! leaving no ambiguity in the IL.
 //! * **Semantically accurate** - Falcon IL accurately captures the semantics of
 //! underlying architectures. This is mainly a function of the lifters.  A
 //! divergence in the lifted semantics and the target architecture is a bug.

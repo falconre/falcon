@@ -3,10 +3,10 @@
 //!
 //! This memory model operates over types which implement the `Value` trait.
 
+use architecture::Endian;
 use error::*;
 use il;
 use RC;
-use types::Endian;
 use std::collections::HashMap;
 
 use memory::backing;
@@ -439,7 +439,7 @@ mod memory_tests {
 
     use memory::MemoryPermissions;
     use memory::paged::Memory;
-    use types::Endian;
+    use architecture::Endian;
 
     #[test]
     fn big_endian() {
