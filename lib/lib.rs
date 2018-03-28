@@ -41,7 +41,6 @@
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
-extern crate byteorder;
 #[macro_use]
 extern crate error_chain;
 extern crate falcon_capstone;
@@ -104,6 +103,10 @@ pub mod error {
             AccessUnmappedMemory(address: u64) {
                 description("Attempt to access unmapped memory")
                 display("Attempt to access unmapped memory at address 0x{:x}", address)
+            }
+            DivideByZero {
+                description("Division by zero")
+                display("Division by zero")
             }
             ExecutorScalar(name: String) {
                 description("Executor can only execute over constant values")
