@@ -8,6 +8,7 @@ use analysis::ai::domain;
 use error::*;
 use memory::paged;
 use memory;
+use RC;
 use serde::Serialize;
 use std::cmp::{Ordering, PartialEq, PartialOrd};
 
@@ -17,13 +18,13 @@ pub trait Value: memory::Value + domain::Value {}
 
 /// A memory model for abstract interpretation.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Memory<'m, V: Value> {
-    memory: paged::Memory<'m, V>,
+pub struct Memory<V: Value> {
+    memory: paged::Memory<V>,
 }
 
-impl<'m, V> Memory<'m, V> where V: Value {
+impl<V> Memory<V> where V: Value {
     /// Create a new memory model for abstract interpretation.
-    pub fn new(endian: Endian) -> Memory<'m, V> {
+    pub fn new(endian: Endian) -> Memory<V> {
         Memory {
             memory: paged::Memory::new(endian),
         }
@@ -38,8 +39,10 @@ impl<'m, V> Memory<'m, V> where V: Value {
 
     /// Create a new memory model for abstract interpretation with the given
     /// memory backing.
-    pub fn new_with_backing(endian: Endian, backing: &'m memory::backing::Memory)
-        -> Memory<'m, V> {
+    pub fn new_with_backing(
+        endian: Endian,
+        backing: RC<memory::backing::Memory>
+    ) -> Memory<V> {
 
         Memory {
             memory: paged::Memory::new_with_backing(endian, backing),
@@ -82,7 +85,7 @@ impl<'m, V> Memory<'m, V> where V: Value {
 
 
     /// Join this abstract memory model with another.
-    pub fn join(mut self, other: &Memory<V>) -> Result<Memory<'m, V>> {
+    pub fn join(mut self, other: &Memory<V>) -> Result<Memory<V>> {
         // for every page in the other memory
         for other_page in &other.memory.pages {
             let page = other_page.1;
@@ -124,8 +127,8 @@ impl<'m, V> Memory<'m, V> where V: Value {
 }
 
 
-impl<'m, V> PartialOrd for Memory<'m, V> where V: Value {
-    fn partial_cmp(&self, other: &Memory<'m, V>) -> Option<Ordering> {
+impl<'m, V> PartialOrd for Memory<V> where V: Value {
+    fn partial_cmp(&self, other: &Memory<V>) -> Option<Ordering> {
         let mut ordering = Ordering::Equal;
 
         for self_page in &self.memory.pages {
@@ -187,7 +190,7 @@ impl<'m, V> PartialOrd for Memory<'m, V> where V: Value {
 }
 
 
-impl<'m, V> PartialEq for Memory<'m, V> where V: Value {
+impl<'m, V> PartialEq for Memory<V> where V: Value {
     fn eq(&self, other: &Self) -> bool {
         match self.partial_cmp(other) {
             Some(ordering) => match ordering {
@@ -200,8 +203,8 @@ impl<'m, V> PartialEq for Memory<'m, V> where V: Value {
 }
 
 
-impl<'m, V: Value + Serialize> domain::Memory<V> for Memory<'m, V> {
-    fn join(self, other: &Memory<V>) -> Result<Memory<'m, V>> {
+impl<'m, V: Value + Serialize> domain::Memory<V> for Memory<V> {
+    fn join(self, other: &Memory<V>) -> Result<Memory<V>> {
         self.join(other)
     }
 

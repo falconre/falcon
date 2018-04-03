@@ -16,14 +16,14 @@ pub enum SuccessorType {
 
 /// The result of executing an `il::Operation` over a `State`.
 #[derive(Clone)]
-pub struct Successor<'s> {
-    state: State<'s>,
+pub struct Successor {
+    state: State,
     type_: SuccessorType
 }
 
 
-impl<'s> Successor<'s> {
-    pub(crate) fn new(state: State<'s>, type_: SuccessorType) -> Successor<'s> {
+impl Successor {
+    pub(crate) fn new(state: State, type_: SuccessorType) -> Successor {
         Successor {
             state: state,
             type_: type_
@@ -44,8 +44,8 @@ impl<'s> Successor<'s> {
 
 
 /// Turn this `Successor` into its `State`, discarding the `SuccessorType`.
-impl<'e> Into<State<'e>> for Successor<'e> {
-    fn into(self) -> State<'e> {
+impl Into<State> for Successor {
+    fn into(self) -> State {
         self.state
     }
 }

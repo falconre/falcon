@@ -376,8 +376,8 @@ mod test_lattice {
     use std::cmp::{Ordering, PartialOrd};
     use architecture::Endian;
 
-    type TestMemory<'m> = memory::Memory<'m, TestLattice>;
-    type TestState<'m> = domain::State<TestMemory<'m>, TestLattice>;
+    type TestMemory = memory::Memory<TestLattice>;
+    type TestState = domain::State<TestMemory, TestLattice>;
 
     #[test]
     fn ordering() {

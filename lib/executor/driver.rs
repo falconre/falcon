@@ -9,20 +9,20 @@ use RC;
 
 /// A driver for a concrete executor over Falcon IL.
 #[derive(Debug, Clone)]
-pub struct Driver<'d> {
+pub struct Driver {
     program: RC<il::Program>,
     location: il::ProgramLocation,
-    state: State<'d>,
+    state: State,
     architecture: RC<Architecture>,
 }
 
 
-impl<'d> Driver<'d> {
+impl Driver {
     /// Create a new driver for concrete execution over Falcon IL.
     pub fn new(
         program: RC<il::Program>,
         location: il::ProgramLocation,
-        state: State<'d>,
+        state: State,
         architecture: RC<Architecture>,
     ) -> Driver {
         Driver {
@@ -34,7 +34,7 @@ impl<'d> Driver<'d> {
     }
 
     /// Step forward over Falcon IL.
-    pub fn step(self) -> Result<Driver<'d>> {
+    pub fn step(self) -> Result<Driver> {
         let location = self.location.apply(&self.program).unwrap();
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, instruction) => {

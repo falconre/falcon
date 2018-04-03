@@ -5,6 +5,7 @@
 //! use falcon::analysis::ai::kset;
 //! use falcon::loader::Elf;
 //! use falcon::loader::Loader;
+//! use falcon::RC;
 //! use std::path::Path;
 //!
 //! # fn example () -> Result<()> {
@@ -18,7 +19,7 @@
 //! let function = elf.function(0x804849b)?;
 //! // Set up a memory model for this analysis
 //! let memory: kset::KMemory =
-//!     kset::KMemory::new_with_backing(architecture.endian(), &backing);
+//!     kset::KMemory::new_with_backing(architecture.endian(), RC::new(backing));
 //! // Run the ksets analysis
 //! let ksets = kset::kset(&function, architecture.calling_convention(), memory)?;
 //! # Ok(())
@@ -44,17 +45,17 @@ pub const MAX_CARDINALITY: usize = 4;
 
 
 /// A `falcon::memory::paged::Memory` set up for ksets analysis.
-pub type KMemory<'m> = ai::memory::Memory<'m, KSet>;
+pub type KMemory = ai::memory::Memory<KSet>;
 
 /// A `falcon::analysis::ai::domain::State` set up for ksets analysis.
-pub type KState<'m> = domain::State<KMemory<'m>, KSet>;
+pub type KState = domain::State<KMemory, KSet>;
 
 /// Run ksets analysis on the given function
-pub fn kset<'k>(
-    function: &'k il::Function,
+pub fn kset(
+    function: &il::Function,
     calling_convention: CallingConvention,
-    initial_memory: KMemory<'k>
-) -> Result<HashMap<il::RefProgramLocation<'k>, KState<'k>>> {
+    initial_memory: KMemory
+) -> Result<HashMap<il::RefProgramLocation, KState>> {
     let domain = KSetDomain { 
         calling_convention: calling_convention,
         memory: initial_memory
@@ -372,13 +373,13 @@ impl domain::Value for KSet {
 impl ai::memory::Value for KSet {}
 
 
-struct KSetDomain<'m> {
+struct KSetDomain {
     calling_convention: CallingConvention,
-    memory: KMemory<'m>
+    memory: KMemory
 }
 
 
-impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
+impl domain::Domain<KMemory, KSet> for KSetDomain {
     fn eval(&self, expr: &domain::Expression<KSet>) -> Result<KSet> {
         KSet::eval(expr)
     }
@@ -413,18 +414,18 @@ impl<'m> domain::Domain<KMemory<'m>, KSet> for KSetDomain<'m> {
         }
     }
 
-    fn brc(&self, _: &KSet, mut state: KState<'m>) -> Result<KState<'m>> {
+    fn brc(&self, _: &KSet, mut state: KState) -> Result<KState> {
         for trashed_register in self.calling_convention.trashed_registers() {
             state.remove_variable(trashed_register);
         }
         Ok(state)
     }
 
-    fn raise(&self, _: &KSet, state: KState<'m>) -> Result<KState<'m>> {
+    fn raise(&self, _: &KSet, state: KState) -> Result<KState> {
         Ok(state)
     }
 
-    fn new_state(&self) -> KState<'m> {
+    fn new_state(&self) -> KState {
         KState::new(self.memory.clone())
     }
 }
@@ -452,7 +453,7 @@ impl fmt::Debug for KSet {
 }
 
 
-impl<'m> Into<HashMap<il::Scalar, KSet>> for KState<'m> {
+impl<'m> Into<HashMap<il::Scalar, KSet>> for KState {
     fn into(self) -> HashMap<il::Scalar, KSet> {
         self.variables
     }

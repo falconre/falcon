@@ -62,10 +62,17 @@ impl<V> Page<V> where V: Value {
 }
 
 
-impl<'m, V: Value> PartialEq for Memory<'m, V> {
+impl<V: Value> PartialEq for Memory<V> {
     fn eq(&self, other: &Self) -> bool {
         if self.pages == other.pages && self.endian == other.endian {
-            true
+            self.backing().and_then(|self_backing|
+                other.backing().map(|other_backing|
+                    if RC::ptr_eq(&self_backing, &other_backing) {
+                        true
+                    }
+                    else {
+                        self_backing == other_backing
+                    })).unwrap_or(false)
         }
         else {
             false
@@ -76,17 +83,17 @@ impl<'m, V: Value> PartialEq for Memory<'m, V> {
 
 /// A copy-on-write paged memory model.
 #[derive(Clone, Debug, Deserialize, Eq, Serialize)]
-pub struct Memory<'m, V: Value> {
+pub struct Memory<V: Value> {
     #[serde(skip)]
-    backing: Option<&'m backing::Memory>,
+    backing: Option<RC<backing::Memory>>,
     endian: Endian,
     pub(crate) pages: HashMap<u64, RC<Page<V>>>
 }
 
 
-impl<'m, V> Memory<'m, V> where V: Value {
+impl<V> Memory<V> where V: Value {
     /// Create a new paged memory model with the given endianness.
-    pub fn new(endian: Endian) -> Memory<'m, V> {
+    pub fn new(endian: Endian) -> Memory<V> {
         Memory {
             backing: None,
             endian: endian,
@@ -104,7 +111,9 @@ impl<'m, V> Memory<'m, V> where V: Value {
     ///
     /// Paged memory will use the given backing when asked to load values which
     /// it does not have.
-    pub fn new_with_backing(endian: Endian, backing: &'m backing::Memory) -> Memory<'m, V> {
+    pub fn new_with_backing(endian: Endian, backing: RC<backing::Memory>)
+        -> Memory<V> {
+
         Memory {
             backing: Some(backing),
             endian: endian,
@@ -114,19 +123,16 @@ impl<'m, V> Memory<'m, V> where V: Value {
 
     /// Get the permissions for the given address.
     pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
-        match self.backing {
-            Some(backing) => backing.permissions(address),
-            None => None
-        }
+        self.backing().and_then(|backing| backing.permissions(address))
     }
 
     /// Get a reference to the memory backing, if there is one
-    pub fn backing(&self) -> Option<&backing::Memory> {
+    pub fn backing(&self) -> Option<RC<backing::Memory>> {
         self.backing.clone()
     }
 
     /// Set the memory backing
-    pub fn set_backing(&mut self, backing: Option<&'m backing::Memory>) {
+    pub fn set_backing(&mut self, backing: Option<RC<backing::Memory>>) {
         self.backing = backing;
     }
 
@@ -156,15 +162,9 @@ impl<'m, V> Memory<'m, V> where V: Value {
 
 
     fn load_backing(&self, address: u64) -> Option<V> {
-        if let Some(backing) = self.backing {
-            match backing.get8(address) {
-                Some(v) => Some(V::constant(il::const_(v as u64, 8))),
-                None => None
-            }
-        }
-        else {
-            None
-        }
+        self.backing().and_then(|backing|
+            backing.get8(address).map(|v|
+                V::constant(il::const_(v as u64, 8))))
     }
 
 
@@ -434,12 +434,12 @@ impl<'m, V> Memory<'m, V> where V: Value {
 
 #[cfg(test)]
 mod memory_tests {
+    use architecture::Endian;
     use il;
     use memory;
-
     use memory::MemoryPermissions;
     use memory::paged::Memory;
-    use architecture::Endian;
+    use RC;
 
     #[test]
     fn big_endian() {
@@ -573,7 +573,7 @@ mod memory_tests {
         );
 
         let mut memory: Memory<il::Constant> =
-            Memory::new_with_backing(Endian::Big, &backing);
+            Memory::new_with_backing(Endian::Big, RC::new(backing));
 
         let value = il::const_(0xAABBCCDD, 32);
 

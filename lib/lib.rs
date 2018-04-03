@@ -69,12 +69,12 @@ pub mod translator;
 #[cfg(not(feature = "thread_safe"))]
 use std::rc::Rc;
 #[cfg(not(feature = "thread_safe"))]
-type RC<T> = Rc<T>;
+pub type RC<T> = Rc<T>;
 
 #[cfg(feature = "thread_safe")]
 use std::sync::Arc;
 #[cfg(feature = "thread_safe")]
-type RC<T> = Arc<T>;
+pub type RC<T> = Arc<T>;
 
 
 /// Falcon Error types.

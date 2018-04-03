@@ -6,15 +6,15 @@ use std::collections::BTreeMap;
 
 /// A concrete `State`.
 #[derive(Debug, Clone)]
-pub struct State<'e> {
+pub struct State {
     scalars: BTreeMap<String, il::Constant>,
-    memory: Memory<'e>,
+    memory: Memory,
 }
 
 
-impl<'e> State<'e> {
+impl State {
     /// Create a new `State` from the given memory model.
-    pub fn new(memory: Memory<'e>) -> State<'e> {
+    pub fn new(memory: Memory) -> State {
         State {
             scalars: BTreeMap::new(),
             memory: memory
@@ -30,7 +30,7 @@ impl<'e> State<'e> {
 
     /// Retrieve a mutable reference to the `Memory` associated with this
     /// `State`.
-    pub fn memory_mut(&'e mut self) -> &'e mut Memory {
+    pub fn memory_mut(&mut self) -> &mut Memory {
         &mut self.memory
     }
 
@@ -129,7 +129,7 @@ impl<'e> State<'e> {
 
 
     /// Execute an `il::Operation`, returning the post-execution `State`.
-    pub fn execute(mut self, operation: &il::Operation) -> Result<Successor<'e>> {
+    pub fn execute(mut self, operation: &il::Operation) -> Result<Successor> {
         Ok(match *operation {
             il::Operation::Assign { ref dst, ref src } => {
                 let src = self.symbolize_and_eval(src)?;

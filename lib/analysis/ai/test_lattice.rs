@@ -9,8 +9,8 @@ use memory;
 use std::cmp::{Ordering, PartialOrd};
 use architecture::Endian;
 
-pub type TestLatticeMemory<'m> = ai::memory::Memory<'m, TestLattice>;
-pub type TestLatticeState<'m> = State<TestLatticeMemory<'m>, TestLattice>;
+pub type TestLatticeMemory = ai::memory::Memory<TestLattice>;
+pub type TestLatticeState = State<TestLatticeMemory, TestLattice>;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum TestLattice {
@@ -96,7 +96,7 @@ impl PartialOrd for TestLattice {
 pub struct TestLatticeDomain {}
 
 
-impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
+impl Domain<TestLatticeMemory, TestLattice> for TestLatticeDomain {
     fn eval(&self, expr: &Expression<TestLattice>) -> Result<TestLattice> {
         TestLattice::eval(expr)
     }
@@ -127,19 +127,19 @@ impl<'d> Domain<TestLatticeMemory<'d>, TestLattice> for TestLatticeDomain {
         }
     }
 
-    fn brc(&self, _: &TestLattice, state: TestLatticeState<'d>)
-        -> Result<TestLatticeState<'d>> {
+    fn brc(&self, _: &TestLattice, state: TestLatticeState)
+        -> Result<TestLatticeState> {
 
         Ok(state)
     }
 
-    fn raise(&self, _: &TestLattice, state: TestLatticeState<'d>)
-        -> Result<TestLatticeState<'d>> {
+    fn raise(&self, _: &TestLattice, state: TestLatticeState)
+        -> Result<TestLatticeState> {
 
         Ok(state)
     }
 
-    fn new_state(&self) -> TestLatticeState<'d> {
+    fn new_state(&self) -> TestLatticeState {
         State::new(TestLatticeMemory::new(Endian::Big))
     }
 }

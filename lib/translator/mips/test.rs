@@ -23,8 +23,8 @@ macro_rules! backing {
 fn init_driver_block<'d>(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Constant)>,
-    memory_: Memory<'d>
-) -> Driver<'d> {
+    memory_: Memory
+) -> Driver {
     let mut bytes = instruction_bytes.to_vec();
     // ori $a0, $a0, $a0
     bytes.append(&mut vec![0x00, 0x84, 0x20, 0x25]);
@@ -61,12 +61,12 @@ fn init_driver_block<'d>(
 }
 
 
-fn init_driver_function<'d>(
-    backing: &'d memory::backing::Memory,
+fn init_driver_function(
+    backing: memory::backing::Memory,
     scalars: Vec<(&str, Constant)>
-) -> Driver<'d> {
+) -> Driver {
 
-    let memory = Memory::new_with_backing(Endian::Big, backing);
+    let memory = Memory::new_with_backing(Endian::Big, RC::new(backing));
 
     let function = Mips::new().translate_function(&memory, 0).unwrap();
     let mut program = Program::new();
@@ -341,7 +341,7 @@ fn b() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -377,7 +377,7 @@ fn bal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -413,7 +413,7 @@ fn beq() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -442,7 +442,7 @@ fn beq() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -473,7 +473,7 @@ fn beqz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -500,7 +500,7 @@ fn beqz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32))]
     );
 
@@ -532,7 +532,7 @@ fn bgez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -559,7 +559,7 @@ fn bgez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0x1, 32))]
     );
 
@@ -586,7 +586,7 @@ fn bgez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xfffffffe, 32))]
     );
 
@@ -617,7 +617,7 @@ fn bgezal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -646,7 +646,7 @@ fn bgezal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -675,7 +675,7 @@ fn bgezal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -706,7 +706,7 @@ fn bgtz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -733,7 +733,7 @@ fn bgtz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -760,7 +760,7 @@ fn bgtz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -791,7 +791,7 @@ fn blez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -818,7 +818,7 @@ fn blez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -845,7 +845,7 @@ fn blez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -876,7 +876,7 @@ fn bltz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -903,7 +903,7 @@ fn bltz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -930,7 +930,7 @@ fn bltz() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -961,7 +961,7 @@ fn bltzal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -988,7 +988,7 @@ fn bltzal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -1015,7 +1015,7 @@ fn bltzal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xffffffff, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -1048,7 +1048,7 @@ fn bne() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -1075,7 +1075,7 @@ fn bne() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -1102,7 +1102,7 @@ fn bne() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(1, 32))]
     );
 
@@ -1133,7 +1133,7 @@ fn bnez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -1160,7 +1160,7 @@ fn bnez() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))]
     );
 
@@ -1320,7 +1320,7 @@ fn j() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -1351,7 +1351,7 @@ fn jr() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xf, 32))]
     );
 
@@ -1382,7 +1382,7 @@ fn jal() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0, 32))]
     );
 
@@ -1415,7 +1415,7 @@ fn jalr() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xf, 32))]
     );
 
@@ -2016,7 +2016,7 @@ fn sb() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0x41, 32)),
              ("$a1", const_(0xdeadbe00, 32))]
     );
@@ -2045,7 +2045,7 @@ fn sh() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xbeef, 32)),
              ("$a1", const_(0xdeadbe00, 32))]
     );
@@ -2439,7 +2439,7 @@ fn sw() {
     ]);
 
     let driver = init_driver_function(
-        &instruction_bytes,
+        instruction_bytes,
         vec![("$a0", const_(0xdeadbeef, 32)),
              ("$a1", const_(0xdeadbe00, 32))]
     );
