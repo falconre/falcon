@@ -18,24 +18,29 @@ use memory::value::Value;
 pub const PAGE_SIZE: usize = 1024;
 
 
+/// A memory cell.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) enum MemoryCell<V: Value> {
+pub enum MemoryCell<V: Value> {
     Value(V),
     Backref(u64)
 }
 
 impl<V> MemoryCell<V> where V: Value {
-    pub(crate) fn value(&self) -> Option<&V> {
-        match self {
-            &MemoryCell::Value(ref v) => Some(v),
-            &MemoryCell::Backref(_) => None
+    pub fn value(&self) -> Option<&V> {
+        match *self {
+            MemoryCell::Value(ref v) => Some(v),
+            MemoryCell::Backref(_) => None
         }
     }
 }
 
 
+/// A memory page.
+///
+/// These pages do not line up 1-to-1 with pages of the target architecture.
+/// They are used for performance reasons in the copy-on-write memory model.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) struct Page<V: Value> {
+pub struct Page<V: Value> {
     pub(crate) cells: Vec<Option<MemoryCell<V>>>
 }
 
@@ -58,6 +63,10 @@ impl<V> Page<V> where V: Value {
 
     fn load(&self, offset: usize) -> Option<&MemoryCell<V>> {
         self.cells[offset].as_ref().clone()
+    }
+
+    pub fn cells(&self) -> &[Option<MemoryCell<V>>] {
+        &self.cells
     }
 }
 
