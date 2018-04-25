@@ -114,6 +114,10 @@ impl State {
                 il::Expression::sext(bits, self.symbolize_expression(src)?)?,
             il::Expression::Trun(bits, ref src) => 
                 il::Expression::trun(bits, self.symbolize_expression(src)?)?,
+            il::Expression::Ite(ref cond, ref then, ref else_) =>
+                il::Expression::ite(self.symbolize_expression(cond)?,
+                                    self.symbolize_expression(then)?,
+                                    self.symbolize_expression(else_)?)?
         })
     }
 

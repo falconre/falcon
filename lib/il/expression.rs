@@ -52,6 +52,8 @@ pub enum Expression {
     Zext(usize, Box<Expression>),
     Sext(usize, Box<Expression>),
     Trun(usize, Box<Expression>),
+
+    Ite(Box<Expression>, Box<Expression>, Box<Expression>)
 }
 
 
@@ -79,7 +81,8 @@ impl Expression {
             Expression::Cmpltu(_, _) => 1,
             Expression::Zext(bits, _) |
             Expression::Sext(bits, _) |
-            Expression::Trun(bits, _) => bits
+            Expression::Trun(bits, _) => bits,
+            Expression::Ite(_, ref lhs, _) => lhs.bits()
         }
     }
 
@@ -160,7 +163,11 @@ impl Expression {
                         Expression::Sext(bits, ref src) =>
                             Expression::sext(bits, self.map(src)?)?,
                         Expression::Trun(bits, ref src) =>
-                            Expression::trun(bits, self.map(src)?)?
+                            Expression::trun(bits, self.map(src)?)?,
+                        Expression::Ite(ref cond, ref then, ref else_) =>
+                            Expression::ite(self.map(cond)?,
+                                            self.map(then)?,
+                                            self.map(else_)?)?
                     }
                 })
             }
@@ -218,7 +225,11 @@ impl Expression {
                 lhs.all_constants() && rhs.all_constants(),
             Expression::Zext(_, ref rhs) |
             Expression::Sext(_, ref rhs) |
-            Expression::Trun(_, ref rhs) => rhs.all_constants()
+            Expression::Trun(_, ref rhs) => rhs.all_constants(),
+            Expression::Ite(ref cond, ref then, ref else_) =>
+                cond.all_constants() &&
+                then.all_constants() &&
+                else_.all_constants()
         }
     }
 
@@ -253,6 +264,11 @@ impl Expression {
             Expression::Sext(_, ref rhs) |
             Expression::Trun(_, ref rhs) => {
                 scalars.append(&mut rhs.scalars());
+            },
+            Expression::Ite(ref cond, ref then, ref else_) => {
+                scalars.append(&mut cond.scalars());
+                scalars.append(&mut then.scalars());
+                scalars.append(&mut else_.scalars());
             }
         }
         scalars
@@ -289,6 +305,11 @@ impl Expression {
             Expression::Sext(_, ref mut rhs) |
             Expression::Trun(_, ref mut rhs) => {
                 scalars.append(&mut rhs.scalars_mut());
+            },
+            Expression::Ite(ref mut cond, ref mut then, ref mut else_) => {
+                scalars.append(&mut cond.scalars_mut());
+                scalars.append(&mut then.scalars_mut());
+                scalars.append(&mut else_.scalars_mut());
             }
         }
         scalars
@@ -463,6 +484,18 @@ impl Expression {
         }
         Ok(Expression::Trun(bits, Box::new(src)))
     }
+
+    /// Create an if-than-else expression
+    /// # Error
+    /// condition is not 1-bit, or bitness of then and else_ do not match.
+    pub fn ite(cond: Expression, then: Expression, else_: Expression)
+        -> Result<Expression> {
+
+        if cond.bits() != 1 || (then.bits() != else_.bits()) {
+            return Err(ErrorKind::Sort.into());
+        }
+        Ok(Expression::Ite(Box::new(cond), Box::new(then), Box::new(else_)))
+    }
 }
 
 
@@ -509,6 +542,8 @@ impl fmt::Display for Expression {
                 write!(f, "sext.{}({})", bits, src),
             Expression::Trun(ref bits, ref src) =>
                 write!(f, "trun.{}({})", bits, src),
+            Expression::Ite(ref cond, ref then, ref else_) =>
+                write!(f, "ite({}, {}, {})", cond, then, else_)
         }
     }
 }

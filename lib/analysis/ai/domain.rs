@@ -80,6 +80,7 @@ pub enum Expression<V: Clone> {
     Zext(usize, Box<Expression<V>>),
     Sext(usize, Box<Expression<V>>),
     Trun(usize, Box<Expression<V>>),
+    Ite(Box<Expression<V>>, Box<Expression<V>>, Box<Expression<V>>)
 }
 
 
@@ -126,6 +127,11 @@ impl<V> Expression<V> where V: Clone {
     expression_extop!(Expression::Zext, zext);
     expression_extop!(Expression::Sext, sext);
     expression_extop!(Expression::Trun, trun);
+    pub fn ite(cond: Expression<V>, then: Expression<V>, else_: Expression<V>)
+        -> Expression<V> {
+        Expression::Ite(Box::new(cond), Box::new(then), Box::new(else_))
+    }
+
     pub fn into_<W>(self) -> Expression<W> where V: Into<W>, W: Clone {
         match self {
             Expression::Value(v) => Expression::Value(v.into()),
@@ -148,6 +154,8 @@ impl<V> Expression<V> where V: Clone {
             Expression::Zext(bits, rhs) => Expression::zext(bits, rhs.into_()),
             Expression::Sext(bits, rhs) => Expression::sext(bits, rhs.into_()),
             Expression::Trun(bits, rhs) => Expression::trun(bits, rhs.into_()),
+            Expression::Ite(cond, then, else_) =>
+                Expression::ite(cond.into_(), then.into_(), else_.into_())
         }
     }
 }
@@ -340,7 +348,11 @@ impl<M, V> State<M, V> where M: Memory<V>, V: Value {
             il::Expression::Sext(bits, ref rhs) =>
                 Expression::sext(bits, self.symbolize(rhs)),
             il::Expression::Trun(bits, ref rhs) =>
-                Expression::trun(bits, self.symbolize(rhs))
+                Expression::trun(bits, self.symbolize(rhs)),
+            il::Expression::Ite(ref cond, ref then, ref else_) =>
+                Expression::ite(self.symbolize(cond),
+                                self.symbolize(then),
+                                self.symbolize(else_))
         }
     }
 }

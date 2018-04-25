@@ -247,7 +247,24 @@ impl KSet {
             domain::Expression::Trun(bits, ref v) => 
                 KSet::ext(bits, &KSet::eval(v)?, |bits, v| {
                     eval(&il::Expression::trun(bits, v.clone().into())?)
-                })
+                }),
+            domain::Expression::Ite(ref cond, ref then, ref else_) =>
+                if let Some(ref value) = KSet::eval(cond)?.value() {
+                    if value.len() == 1 {
+                        if value.into_iter().next().unwrap().is_one() {
+                            KSet::eval(then)
+                        }
+                        else {
+                            KSet::eval(else_)
+                        }
+                    }
+                    else {
+                        KSet::eval(then)?.join(&KSet::eval(else_)?)
+                    }
+                }
+                else {
+                    KSet::eval(then)?.join(&KSet::eval(else_)?)
+                }
         }
     }
 

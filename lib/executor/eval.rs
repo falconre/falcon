@@ -29,7 +29,9 @@ pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
         il::Expression::Cmpltu(ref lhs, ref rhs) => eval(lhs)?.cmpltu(&eval(rhs)?)?,
         il::Expression::Zext(bits, ref rhs) => eval(rhs)?.zext(bits)?,
         il::Expression::Trun(bits, ref rhs) => eval(rhs)?.trun(bits)?,
-        il::Expression::Sext(bits, ref rhs) => eval(rhs)?.sext(bits)?
+        il::Expression::Sext(bits, ref rhs) => eval(rhs)?.sext(bits)?,
+        il::Expression::Ite(ref cond, ref then, ref else_) =>
+            if eval(cond)?.is_one() { eval(then)? } else { eval(else_)? }
     })
 }
 
