@@ -145,6 +145,11 @@ impl<V> Memory<V> where V: Value {
         self.backing = backing;
     }
 
+    /// Get the pages which store the data for this memory model
+    pub fn pages(&self) -> &HashMap<u64, RC<Page<V>>> {
+        &self.pages
+    }
+
 
     fn store_cell(&mut self, address: u64, cell: MemoryCell<V>) {
         let page_address = address & !(PAGE_SIZE as u64 - 1);
