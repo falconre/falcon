@@ -12,7 +12,7 @@ base64 = "0.9"
 bitflags = "1.0"
 falcon_capstone = "0.2.1"
 error-chain = "0.11"
-goblin = "0.0.14"
+goblin = "0.0.15"
 log = "0.4"
 num-bigint = {git="https://github.com/rust-num/num-bigint", rev="007da2add906db1f1d0b184601d1fc5046cf2c61", features = ["serde"]}
 num-traits = "0.2.1"
