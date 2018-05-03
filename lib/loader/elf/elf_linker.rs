@@ -125,7 +125,6 @@ impl ElfLinker {
         // Ensure all shared objects we rely on are loaded
         for so_name in self.loaded[&filename].dt_needed()?.clone() {
             if self.loaded.get(&so_name).is_none() {
-                println!("Loading {}", so_name);
                 self.next_lib_address += LIB_BASE_STEP;
                 let next_lib_address = self.next_lib_address;
                 self.load_elf(Path::new(&so_name), next_lib_address)?;
