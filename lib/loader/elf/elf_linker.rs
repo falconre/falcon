@@ -1,20 +1,17 @@
-//! ELF Linker/Loader
-
 use architecture::*;
 use goblin;
 use loader::*;
 use memory::backing::Memory;
-use memory::MemoryPermissions;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
 
 /// The address where the first library will be loaded
-const DEFAULT_LIB_BASE: u64 = 0x8000_0000;
+const DEFAULT_LIB_BASE: u64 = 0x4000_0000;
 /// The step in address between where we will load libraries.
-const LIB_BASE_STEP: u64    = 0x0400_0000;
+const LIB_BASE_STEP: u64    = 0x0200_0000;
 
 
 /// Loader which links together multiple Elf files. Currently only X86 supported.
@@ -42,6 +39,8 @@ impl ElfLinker {
         let mut file = File::open(filename)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
+
+        // get the endianness of this elf for the memory model
         let mut endian = Endian::Big;
         if let goblin::Object::Elf(elf_peek) = goblin::Object::parse(&buf)? {
             if elf_peek.header.endianness()?.is_little() {
@@ -126,6 +125,7 @@ impl ElfLinker {
         // Ensure all shared objects we rely on are loaded
         for so_name in self.loaded[&filename].dt_needed()?.clone() {
             if self.loaded.get(&so_name).is_none() {
+                println!("Loading {}", so_name);
                 self.next_lib_address += LIB_BASE_STEP;
                 let next_lib_address = self.next_lib_address;
                 self.load_elf(Path::new(&so_name), next_lib_address)?;
@@ -134,14 +134,15 @@ impl ElfLinker {
 
         match self.loaded[&filename].elf().header.e_machine {
             goblin::elf::header::EM_386 => self.relocations_x86(&filename)?,
+            goblin::elf::header::EM_MIPS => self.relocations_mips(&filename)?,
             _ => bail!("relocations unsupported for target architecture")
         }
 
         Ok(())
     }
 
-    fn relocations_x86(&mut self, filename: &str) -> Result<()> {
 
+    fn relocations_x86(&mut self, filename: &str) -> Result<()> {
         // Process relocations
         let ref elf = self.loaded[filename];
         let dynsyms = elf.elf().dynsyms;
@@ -170,7 +171,10 @@ impl ElfLinker {
                     let ref sym = dynsyms.get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
-                    bail!("R_386_PLT32 {:?}:0x{:x}:{}", self.filename, reloc.r_offset, sym_name);
+                    bail!("R_386_PLT32 {:?}:0x{:x}:{}",
+                          self.filename,
+                          reloc.r_offset,
+                          sym_name);
                 },
                 goblin::elf::reloc::R_386_COPY => {
                     bail!("R_386_COPY");
@@ -221,13 +225,87 @@ impl ElfLinker {
                     warn!("Ignoring R_386_TLS_TPOFF Relocation");
                 },
                 goblin::elf::reloc::R_386_IRELATIVE => {
-                    warn!("R_386_IRELATIVE {:?}:0x{:x} going unprocessed", self.filename, reloc.r_offset);
+                    warn!("R_386_IRELATIVE {:?}:0x{:x} going unprocessed",
+                          self.filename,
+                          reloc.r_offset);
                 }
                 _ => bail!("unhandled relocation type {}", reloc.r_type)
             }
         }
         Ok(())
     }
+
+
+    fn relocations_mips(&mut self, filename: &str) -> Result<()> {
+        let elf = &self.loaded[filename];
+
+        fn get_dynamic(elf: &Elf, tag: u64) -> Option<u64> {
+            elf.elf().dynamic.and_then(|dynamic|
+                dynamic.dyns
+                    .iter()
+                    .find(|dyn| dyn.d_tag == tag)
+                    .map(|dyn| dyn.d_val))
+        }
+
+        // The number of local GOT entries. Also an index into the GOT
+        // for the first external GOT entry.
+        let local_gotno =
+            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_LOCAL_GOTNO)
+            .ok_or("Could not get DT_MIPS_LOCAL_GOTNO")?;
+
+        // Index of the first dynamic symbol table entry that corresponds
+        // to an entry in the GOT.
+        let gotsym =
+            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_GOTSYM)
+            .ok_or("Could not get DT_MIPS_GOTSYM")?;
+
+        // The number of entries in the dynamic symbol table
+        let symtabno =
+            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_SYMTABNO)
+            .ok_or("Could not get DT_MIPS_SYMTABNO")?;
+
+        // The address of the GOT section
+        let pltgot =
+            get_dynamic(elf, goblin::elf::dyn::DT_PLTGOT)
+            .ok_or("Could not get DT_PLTGOT")?;
+
+        // Start by adding the base address to all entries in the GOT
+        for i in 0..(local_gotno + (symtabno - gotsym)) {
+            let address = elf.base_address() + (i * 4) + pltgot;
+            let value = self.memory.get32(address)
+                .ok_or(format!("Could not get memory at address 0x{:x} for adding base address",
+                    address))?;
+            self.memory.set32(address, value.wrapping_add(elf.base_address() as u32))?;
+        }
+
+
+        let dynstrtab = elf.elf().dynstrtab;
+        let dynsyms = elf.elf().dynsyms;
+        let mut address = pltgot + elf.base_address() + (local_gotno * 4);
+        for i in gotsym..(symtabno) {
+            let sym = dynsyms.get(i as usize)
+                .ok_or(format!("Could not get symbol {}", i))?;
+            let symbol_name = dynstrtab.get(sym.st_name)
+                .ok_or(format!("Could not get symbol name for {}", i))??;
+            // println!("0x{:08x} symbol {} 0x{:08x} {:02} {}",
+            //     address, i, sym.st_value, sym.st_shndx, symbol_name);
+            // Internal entries have already been relocated, so we only need to
+            // relocate external entries
+            if sym.st_shndx == 0 {
+                if let Some(value) = self.symbols.get(symbol_name) {
+                    self.memory.set32(address, *value as u32)?;
+                }
+                else {
+                    format!("Could not get symbol with name: \"{}\"",
+                        symbol_name);
+                }
+            }
+            address += 4;
+        }
+
+        Ok(())
+    }
+
 
     /// Inform the linker of a function at the given address.
     ///
@@ -278,285 +356,5 @@ impl Loader for ElfLinker {
                            .to_str()
                            .unwrap();
         self.loaded[filename].architecture()
-    }
-}
-
-
-
-#[derive(Clone, Debug)]
-struct ElfSymbol {
-    name: String,
-    address: u64
-}
-
-
-impl ElfSymbol {
-    fn new<S: Into<String>>(name: S, address: u64) -> ElfSymbol {
-        ElfSymbol {
-            name: name.into(),
-            address: address
-        }
-    }
-
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-
-    fn address(&self) -> u64 {
-        self.address
-    }
-}
-
-
-/// Loader for a single ELf file.
-#[derive(Debug)]
-pub struct Elf {
-    base_address: u64,
-    bytes: Vec<u8>,
-    user_function_entries: Vec<u64>,
-    architecture: Box<Architecture>
-}
-
-
-impl Elf {
-    /// Create a new Elf from the given bytes. This Elf will be rebased to the given
-    /// base address.
-    pub fn new(bytes: Vec<u8>, base_address: u64) -> Result<Elf> {
-        let architecture = {
-            let elf = goblin::elf::Elf::parse(&bytes)
-                .map_err(|_| "Not a valid elf")?;
-
-            let architecture = 
-                if elf.header.e_machine == goblin::elf::header::EM_386 {
-                    Box::new(X86::new())
-                }
-                else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
-                    match elf.header.endianness()? {
-                        goblin::container::Endian::Big =>
-                            Box::new(Mips::new()) as Box<Architecture>,
-                        goblin::container::Endian::Little =>
-                            Box::new(Mipsel::new()) as Box<Architecture>,
-                    }
-                }
-                else {
-                    bail!("Unsupported Architecture");
-                };
-
-            architecture
-        };
-
-        Ok(Elf {
-            base_address: base_address,
-            bytes: bytes,
-            user_function_entries: Vec::new(),
-            architecture: architecture
-        })
-    }
-
-    /// Get the base address of this Elf where it has been loaded into loader
-    /// memory.
-    pub fn base_address(&self) -> u64 {
-        self.base_address
-    }
-
-
-    /// Load an Elf from a file and use the given base address.
-    pub fn from_file_with_base_address(filename: &Path, base_address: u64)
-        -> Result<Elf> {
-        let mut file = match File::open(filename) {
-            Ok(file) => file,
-            Err(e) => return Err(format!(
-                "Error opening {}: {}",
-                filename.to_str().unwrap(),
-                e).into())
-        };
-        let mut buf = Vec::new();
-        file.read_to_end(&mut buf)?;
-        Elf::new(buf, base_address)
-    }
-
-    /// Load an elf from a file and use the base address of 0.
-    pub fn from_file(filename: &Path) -> Result<Elf> {
-        Elf::from_file_with_base_address(filename, 0)
-    }
-
-    /// Allow the user to manually specify a function entry
-    pub fn add_user_function(&mut self, address: u64) {
-        self.user_function_entries.push(address);
-    }
-
-    /// Return the strings from the DT_NEEDED entries.
-    pub fn dt_needed(&self) -> Result<Vec<String>> {
-        let mut v = Vec::new();
-
-        let elf = self.elf();
-        if let Some(dynamic) = elf.dynamic {
-            // We need that strtab, and we have to do this one manually.
-            // Get the strtab address
-            let mut strtab_address = None;
-            for dyn in &dynamic.dyns {
-                if dyn.d_tag == goblin::elf::dyn::DT_STRTAB {
-                    strtab_address = Some(dyn.d_val);
-                    break;
-                }
-            }
-            if strtab_address.is_none() {
-                return Ok(v);
-            }
-            let strtab_address = strtab_address.unwrap();
-            // We're going to make a pretty safe assumption that strtab is all
-            // in one section
-            for section_header in &elf.section_headers {
-                if    section_header.sh_addr > 0 
-                   && section_header.sh_addr <= strtab_address
-                   && section_header.sh_addr + section_header.sh_size > strtab_address {
-                    let start = section_header.sh_offset + (strtab_address - section_header.sh_addr);
-                    let size = section_header.sh_size - (start - section_header.sh_offset);
-                    let start = start as usize;
-                    let size = size as usize;
-                    let strtab_bytes = self.bytes.get(start..(start + size)).unwrap();
-                    let strtab = goblin::strtab::Strtab::new(&strtab_bytes, 0);
-                    for dyn in dynamic.dyns {
-                        if dyn.d_tag == goblin::elf::dyn::DT_NEEDED {
-                            let so_name = &strtab[dyn.d_val as usize];
-                            v.push(so_name.to_string());
-                        }
-                    }
-                    return Ok(v);
-                }
-            }
-            // if we got here, we didn't return a vector (I think ;))
-            panic!("Failed to get Dynamic strtab");
-        }
-
-        Ok(v)
-    }
-
-    /// Return the goblin::elf::Elf for this elf.
-    fn elf(&self) -> goblin::elf::Elf {
-        goblin::elf::Elf::parse(&self.bytes).unwrap()
-    }
-
-    /// Return all symbols exported from this Elf
-    fn exported_symbols(&self) -> Vec<ElfSymbol> {
-        let mut v = Vec::new();
-        let elf = self.elf();
-        for sym in elf.dynsyms.iter() {
-            if sym.st_value == 0 {
-                continue;
-            }
-            if    sym.st_bind() == goblin::elf::sym::STB_GLOBAL
-               || sym.st_bind() == goblin::elf::sym::STB_WEAK {
-                v.push(ElfSymbol::new(&elf.dynstrtab[sym.st_name], sym.st_value));
-            }
-        }
-
-        v
-    }
-}
-
-
-
-impl Loader for Elf {
-    fn memory(&self) -> Result<Memory> {
-        let elf = self.elf();
-        let mut memory = Memory::new(self.architecture().endian());
-
-        for ph in elf.program_headers {
-            if ph.p_type == goblin::elf::program_header::PT_LOAD {
-                let file_range = (ph.p_offset as usize)..((ph.p_offset + ph.p_filesz) as usize);
-                let mut bytes = self.bytes
-                                    .get(file_range)
-                                    .ok_or("Malformed Elf")?
-                                    .to_vec();
-
-                if bytes.len() != ph.p_memsz as usize {
-                    bytes.append(&mut vec![0; (ph.p_memsz - ph.p_filesz) as usize]);
-                }
-
-                let mut permissions = memory::MemoryPermissions::NONE;
-                if ph.p_flags & goblin::elf::program_header::PF_R != 0 {
-                    permissions |= MemoryPermissions::READ;
-                }
-                if ph.p_flags & goblin::elf::program_header::PF_W != 0 {
-                    permissions |= MemoryPermissions::WRITE;
-                }
-                if ph.p_flags & goblin::elf::program_header::PF_X != 0 {
-                    permissions |= MemoryPermissions::EXECUTE;
-                }
-
-                memory.set_memory(ph.p_vaddr + self.base_address,
-                                  bytes,
-                                  permissions);
-            }
-        }
-
-        Ok(memory)
-    }
-
-
-    fn function_entries(&self) -> Result<Vec<FunctionEntry>> {
-        let elf = self.elf();
-
-        let mut function_entries = Vec::new();
-
-        let mut functions_added: BTreeSet<u64> = BTreeSet::new();
-
-        // dynamic symbols
-        for sym in &elf.dynsyms {
-            if sym.is_function() && sym.st_value != 0 {
-                let name = &elf.dynstrtab[sym.st_name];
-                function_entries.push(FunctionEntry::new(
-                    sym.st_value + self.base_address,
-                    Some(name.to_string())
-                ));
-                functions_added.insert(sym.st_value);
-            }
-        }
-
-        // normal symbols
-        for sym in &elf.syms {
-            if sym.is_function() && sym.st_value != 0 {
-                let name = &elf.strtab[sym.st_name];
-                function_entries.push(FunctionEntry::new(
-                    sym.st_value + self.base_address,
-                    Some(name.to_string()))
-                );
-                functions_added.insert(sym.st_value);
-            }
-        }
-
-
-        if !functions_added.contains(&elf.header.e_entry) {
-            function_entries.push(FunctionEntry::new(
-                elf.header.e_entry + self.base_address,
-                None
-            ));
-        }
-
-        for user_function_entry in &self.user_function_entries {
-            if functions_added.get(&(user_function_entry + self.base_address)).is_some() {
-                continue;
-            }
-
-            function_entries.push(FunctionEntry::new(
-                user_function_entry + self.base_address,
-                Some(format!("user_function_{:x}", user_function_entry))
-            ));
-        }
-
-        Ok(function_entries)
-    }
-
-
-    fn program_entry(&self) -> u64 {
-        self.elf().header.e_entry
-    }
-
-
-    fn architecture(&self) -> &Architecture {
-        self.architecture.as_ref()
     }
 }
