@@ -63,6 +63,15 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                     il::Operation::Raise { ref expr } => {
                         let expr = self.domain.eval(&state.symbolize(expr))?;
                         self.domain.raise(&expr, state)?
+                    },
+                    il::Operation::Intrinsic { ref intrinsic } => {
+                        intrinsic.scalars_written()
+                            .into_iter()
+                            .for_each(|scalar|
+                                state.set_variable(
+                                    scalar.clone(),
+                                    V::top(scalar.bits())));
+                        state
                     }
                 }
             },

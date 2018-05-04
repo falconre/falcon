@@ -26,21 +26,26 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefini
 
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                if let Some(scalar) = instruction.operation().scalar_written() {
-                    let kill: Vec<il::RefProgramLocation<'r>> =
-                        state.locations()
-                             .into_iter()
-                             .filter(|location|
-                                 location.instruction()
-                                         .unwrap()
-                                         .operation()
-                                         .scalar_written()
-                                         .unwrap() == scalar)
-                             .cloned()
-                             .collect();
-                    kill.iter().for_each(|location| state.remove(&location));
-                    state.insert(location.clone());
-                }
+                instruction.operation()
+                    .scalars_written()
+                    .into_iter()
+                    .for_each(|scalar_written| {
+                        let kill: Vec<il::RefProgramLocation<'r>> =
+                            state.locations()
+                                .into_iter()
+                                .filter(|location|
+                                    location.instruction()
+                                        .unwrap()
+                                        .operation()
+                                        .scalars_written()
+                                        .into_iter()
+                                        .any(|scalar| scalar == scalar_written))
+                                .cloned()
+                                .collect();
+                        kill.iter()
+                            .for_each(|location| state.remove(&location));
+                        state.insert(location.clone());
+                    });
             },
             il::RefFunctionLocation::EmptyBlock(_) |
             il::RefFunctionLocation::Edge(_) => {}

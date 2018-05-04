@@ -20,13 +20,15 @@ pub fn use_def<'r>(function: &'r il::Function)
                            .into_iter()
                            .fold(LocationSet::new(), |mut defs, scalar_read| {
                             rd[&location].locations().into_iter().for_each(|rd|
-                                if rd.instruction()
-                                     .unwrap()
-                                     .operation()
-                                     .scalar_written()
-                                     .unwrap() == scalar_read {
-                                    defs.insert(rd.clone());
-                                }
+                                rd.instruction()
+                                  .unwrap()
+                                  .operation()
+                                  .scalars_written()
+                                  .into_iter()
+                                  .for_each(|scalar_written|
+                                    if scalar_written == scalar_read {
+                                        defs.insert(rd.clone());
+                                    })
                             );
                             defs
                            })
@@ -36,15 +38,17 @@ pub fn use_def<'r>(function: &'r il::Function)
                     .map(|condition|
                         condition.scalars()
                                  .into_iter()
-                                 .fold(LocationSet::new(), |mut defs, scalar| {
+                                 .fold(LocationSet::new(), |mut defs, scalar_read| {
                                     rd[&location].locations().into_iter().for_each(|rd|
-                                        if rd.instruction()
-                                             .unwrap()
-                                             .operation()
-                                             .scalar_written()
-                                             .unwrap() == scalar {
-                                            defs.insert(rd.clone());
-                                        }
+                                        rd.instruction()
+                                          .unwrap()
+                                          .operation()
+                                          .scalars_written()
+                                          .into_iter()
+                                          .for_each(|scalar_written|
+                                            if scalar_written == scalar_read {
+                                                defs.insert(rd.clone());
+                                            })
                                     );
                                     defs
                                  })

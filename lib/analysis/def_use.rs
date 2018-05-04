@@ -20,28 +20,32 @@ pub fn def_use<'r>(function: &'r il::Function)
             il::RefFunctionLocation::Instruction(_, ref instruction) =>
                 instruction.operation().scalars_read().into_iter().for_each(|scalar_read|
                     rd[&location].locations().into_iter().for_each(|rd|
-                    if rd.instruction()
-                         .unwrap()
-                         .operation()
-                         .scalar_written()
-                         .unwrap() == scalar_read {
-                             du.entry(rd.clone())
-                               .or_insert(LocationSet::new())
-                               .insert(location.clone());
-                         })),
+                        rd.instruction()
+                          .unwrap()
+                          .operation()
+                          .scalars_written()
+                          .into_iter()
+                          .for_each(|scalar_written|
+                            if scalar_written == scalar_read {
+                                du.entry(rd.clone())
+                                    .or_insert(LocationSet::new())
+                                    .insert(location.clone());
+                            }))),
             il::RefFunctionLocation::Edge(ref edge) => {
                 edge.condition().map(|condition|
                     condition.scalars().into_iter().for_each(|scalar_read|
                         rd[&location].locations().into_iter().for_each(|rd|
-                            if rd.instruction()
-                                 .unwrap()
-                                 .operation()
-                                 .scalar_written()
-                                 .unwrap() == scalar_read {
-                                     du.entry(rd.clone())
-                                       .or_insert(LocationSet::new())
-                                       .insert(location.clone());
-                                 })));
+                            rd.instruction()
+                              .unwrap()
+                              .operation()
+                              .scalars_written()
+                              .into_iter()
+                              .for_each(|scalar_written|
+                                if scalar_written == scalar_read {
+                                    du.entry(rd.clone())
+                                        .or_insert(LocationSet::new())
+                                        .insert(location.clone());
+                                }))));
             },
             il::RefFunctionLocation::EmptyBlock(_) => {}
         }

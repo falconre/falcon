@@ -29,6 +29,10 @@ pub enum Operation {
     /// Raise operation for handling things such as system calls.
     Raise {
         expr: Expression,
+    },
+    /// Holds an Intrinsic for unmodellable instructions
+    Intrinsic {
+        intrinsic: Intrinsic
     }
 }
 
@@ -62,6 +66,11 @@ impl Operation {
         Operation::Raise { expr: expr }
     }
 
+    /// Create a new `Operation::Intrinsic`.
+    pub fn intrinsic(intrinsic: Intrinsic) -> Operation {
+        Operation::Intrinsic { intrinsic: intrinsic }
+    }
+
     /// Get each `Scalar` read by this `Operation`.
     pub fn scalars_read(&self) -> Vec<&Scalar> {
         let mut read: Vec<&Scalar> = Vec::new();
@@ -81,6 +90,9 @@ impl Operation {
             },
             Operation::Raise { ref expr } => {
                 read.append(&mut expr.scalars());
+            },
+            Operation::Intrinsic { ref intrinsic } => {
+                read.append(&mut intrinsic.scalars_read());
             }
         }
         read
@@ -105,33 +117,39 @@ impl Operation {
             },
             Operation::Raise { ref mut expr } => {
                 read.append(&mut expr.scalars_mut());
+            },
+            Operation::Intrinsic { ref mut intrinsic } => {
+                read.append(&mut intrinsic.scalars_read_mut());
             }
         }
 
         read
     }
 
-    /// Get a reference to the `Scalar` written by this `Operation`, or `None`
-    /// if no `Scalar` is written.
-    pub fn scalar_written(&self) -> Option<&Scalar> {
+    /// Get a Vec of the `Scalar`s written by this `Operation`
+    pub fn scalars_written(&self) -> Vec<&Scalar> {
         match *self {
             Operation::Assign { ref dst, .. } |
-            Operation::Load   { ref dst, .. } => Some(dst),
+            Operation::Load   { ref dst, .. } => vec![dst],
             Operation::Store  { .. } |
             Operation::Branch { .. } |
-            Operation::Raise  { .. } => None
+            Operation::Raise  { .. } => Vec::new(),
+            Operation::Intrinsic { ref intrinsic } =>
+                intrinsic.scalars_written()
         }
     }
 
-    /// Get a mutable reference to the `Scalar` written by this `Operation`, or `None`,
-    /// if no `Scalar` is written.
-    pub fn scalar_written_mut(&mut self) -> Option<&mut Scalar> {
+    /// Get a Vec of mutable referencer to the `Scalar`s written by this
+    /// `Operation`
+    pub fn scalars_written_mut(&mut self) -> Vec<&mut Scalar> {
         match *self {
             Operation::Assign { ref mut dst, .. } |
-            Operation::Load   { ref mut dst, .. } => Some(dst),
+            Operation::Load   { ref mut dst, .. } => vec![dst],
             Operation::Store  { .. } |
             Operation::Branch { .. } |
-            Operation::Raise  { .. } => None
+            Operation::Raise  { .. } => Vec::new(),
+            Operation::Intrinsic { ref mut intrinsic } =>
+                intrinsic.scalars_written_mut()
         }
     }
 }
@@ -149,7 +167,9 @@ impl fmt::Display for Operation {
             Operation::Branch { ref target } =>
                 write!(f, "branch {}", target),
             Operation::Raise { ref expr } => 
-                write!(f, "raise {}", expr)
+                write!(f, "raise {}", expr),
+            Operation::Intrinsic { ref intrinsic } =>
+                write!(f, "intrinsic {}", intrinsic)
         }
     }
 }

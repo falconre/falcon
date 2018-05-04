@@ -170,13 +170,22 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 capstone::mips_insn::MIPS_INS_SUB    => semantics::sub(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SUBU   => semantics::subu(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SW     => semantics::sw(&mut instruction_graph, &instruction),
+                capstone::mips_insn::MIPS_INS_SYNC   => semantics::nop(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SYSCALL => semantics::syscall(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_XOR    => semantics::xor(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_XORI   => semantics::xori(&mut instruction_graph, &instruction),
-                _ => return Err(format!("Unhandled instruction {} at 0x{:x}",
+                _ => {
+                    let bytes =
+                        (0..4).map(|i| disassembly_bytes[i])
+                            .map(|byte| format!("{:02x}", byte))
+                            .collect::<Vec<String>>()
+                            .join("");
+                    return Err(format!("Unhandled instruction {} {} {} at 0x{:x}",
+                    bytes,
                     instruction.mnemonic,
-                    instruction.address
-                ).into())
+                    instruction.op_str,
+                    instruction.address).into())
+                }
             }?;
 
             match instruction_id {
