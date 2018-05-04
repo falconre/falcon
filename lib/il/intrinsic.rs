@@ -15,9 +15,9 @@ pub struct Intrinsic {
 
 
 impl Intrinsic {
-    pub fn new<S: Into<String>>(
+    pub fn new<S: Into<String>, SS: Into<String>>(
         mnemonic: S,
-        instruction_str: S,
+        instruction_str: SS,
         written_expressions: Option<Vec<Expression>>,
         read_expressions: Option<Vec<Expression>>,
         bytes: Vec<u8>

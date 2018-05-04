@@ -163,6 +163,11 @@ impl Block {
         let index = self.new_instruction_index();
         self.push(Instruction::raise(index, expr));
     }
+
+    pub fn intrinsic(&mut self, intrinsic: Intrinsic) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::intrinsic(index, intrinsic));
+    }
 }
 
 

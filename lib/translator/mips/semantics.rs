@@ -1442,6 +1442,32 @@ pub fn ori(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
+pub fn rdhwr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    let rt = get_register(detail.operands[0].reg())?.expression();
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+        let intrinsic = Intrinsic::new(
+            "rdhwr",
+            format!("{} {}", instruction.mnemonic, instruction.op_str),
+            Some(vec![rt]),
+            None,
+            instruction.bytes.clone()
+        );
+        block.intrinsic(intrinsic);
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index);
+    control_flow_graph.set_exit(block_index);
+
+    Ok(())
+}
+
+
+
 pub fn sb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = details(instruction)?;
 

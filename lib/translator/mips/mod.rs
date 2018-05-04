@@ -155,6 +155,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 capstone::mips_insn::MIPS_INS_NOR    => semantics::nor(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_OR     => semantics::or(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_ORI    => semantics::ori(&mut instruction_graph, &instruction),
+                capstone::mips_insn::MIPS_INS_RDHWR  => semantics::rdhwr(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SB     => semantics::sb(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SH     => semantics::sh(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SLL    => semantics::sll(&mut instruction_graph, &instruction),
