@@ -53,6 +53,28 @@ enum TranslateBranchDelay {
 }
 
 
+// Direct branches are omitted, and we emit edges in the control flow graph
+// instead. However, this can mess up some analyses where we expect an
+// instruction at that address, such as branching to a return address. We emit
+// a NOP instruction in these cases.
+fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
+    let mut cfg = ControlFlowGraph::new();
+
+    let block_index = {
+        let block = cfg.new_block()?;
+        block.assign(scalar("nop", 1), expr_scalar("nop", 1));
+        block.index()
+    };
+
+    cfg.set_entry(block_index)?;
+    cfg.set_exit(block_index)?;
+
+    cfg.set_address(Some(address));
+
+    Ok(cfg)
+}
+
+
 fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTranslationResult> {
     let mode = match endian {
         Endian::Big => capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN,
@@ -134,6 +156,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 capstone::mips_insn::MIPS_INS_LBU    => semantics::lbu(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_LH     => semantics::lh(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_LHU    => semantics::lhu(&mut instruction_graph, &instruction),
+                capstone::mips_insn::MIPS_INS_LL     => semantics::ll(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_LUI    => semantics::lui(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_LW     => semantics::lw(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_MADD   => semantics::madd(&mut instruction_graph, &instruction),
@@ -157,6 +180,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 capstone::mips_insn::MIPS_INS_ORI    => semantics::ori(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_RDHWR  => semantics::rdhwr(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SB     => semantics::sb(&mut instruction_graph, &instruction),
+                capstone::mips_insn::MIPS_INS_SC     => semantics::sc(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SH     => semantics::sh(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SLL    => semantics::sll(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SLLV   => semantics::sllv(&mut instruction_graph, &instruction),
@@ -173,6 +197,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 capstone::mips_insn::MIPS_INS_SW     => semantics::sw(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SYNC   => semantics::nop(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_SYSCALL => semantics::syscall(&mut instruction_graph, &instruction),
+                capstone::mips_insn::MIPS_INS_TEQ    => semantics::teq(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_XOR    => semantics::xor(&mut instruction_graph, &instruction),
                 capstone::mips_insn::MIPS_INS_XORI   => semantics::xori(&mut instruction_graph, &instruction),
                 _ => {
@@ -319,6 +344,8 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                         successors.push((address + offset as u64, None));
                         break;
                     }
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     TranslateBranchDelay::DelaySlot(instruction.address, instruction_graph)
                 },
                 TranslateBranchDelay::DelaySlot(address, cfg) => {
@@ -335,6 +362,8 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                         successors.push((address + offset as u64, None));
                         break;
                     }
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     TranslateBranchDelay::DelaySlotFallThrough(instruction.address, instruction_graph)
                 },
                 TranslateBranchDelay::DelaySlotFallThrough(address, cfg) => {
