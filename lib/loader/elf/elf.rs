@@ -143,7 +143,7 @@ impl Elf {
         let mut v = Vec::new();
         let elf = self.elf();
         for sym in elf.dynsyms.iter() {
-            if sym.st_value == 0 {
+            if sym.st_value == 0 || sym.st_shndx == 0 {
                 continue;
             }
             if    sym.st_bind() == goblin::elf::sym::STB_GLOBAL
