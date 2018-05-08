@@ -315,6 +315,22 @@ impl Expression {
         scalars
     }
 
+    /// If this expression is a scalar, return the scalar
+    pub fn get_scalar(&self) -> Option<&Scalar> {
+        match *self {
+            Expression::Scalar(ref scalar) => Some(scalar),
+            _ => None
+        }
+    }
+
+    /// If this expression is a constant, return the constant
+    pub fn get_constant(&self) -> Option<&Constant> {
+        match *self {
+            Expression::Constant(ref constant) => Some(constant),
+            _ => None
+        }
+    }
+
     /// Create a new `Expression` from a `Scalar`.
     pub fn scalar(scalar: Scalar) -> Expression {
         Expression::Scalar(scalar)

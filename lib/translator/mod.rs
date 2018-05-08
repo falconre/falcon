@@ -34,7 +34,7 @@ const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
 ///
 /// Anything that implements this trait can be used as a memory backing for lifting.
 pub trait TranslationMemory {
-    fn permissions(&self, address:u64) -> Option<MemoryPermissions>;
+    fn permissions(&self, address: u64) -> Option<MemoryPermissions>;
 
     fn get_u8(&self, address: u64) -> Option<u8>;
 
