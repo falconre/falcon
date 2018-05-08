@@ -8,6 +8,7 @@ use std::fmt;
 pub struct Intrinsic {
     mnemonic: String,
     instruction_str: String,
+    arguments: Vec<Expression>,
     written_expressions: Option<Vec<Expression>>,
     read_expressions: Option<Vec<Expression>>,
     bytes: Vec<u8>
@@ -18,6 +19,7 @@ impl Intrinsic {
     pub fn new<S: Into<String>, SS: Into<String>>(
         mnemonic: S,
         instruction_str: SS,
+        arguments: Vec<Expression>,
         written_expressions: Option<Vec<Expression>>,
         read_expressions: Option<Vec<Expression>>,
         bytes: Vec<u8>
@@ -25,6 +27,7 @@ impl Intrinsic {
         Intrinsic {
             mnemonic: mnemonic.into(),
             instruction_str: instruction_str.into(),
+            arguments: arguments,
             written_expressions: written_expressions,
             read_expressions: read_expressions,
             bytes: bytes.clone()
@@ -37,6 +40,10 @@ impl Intrinsic {
 
     pub fn instruction_str(&self) -> &str {
         &self.instruction_str
+    }
+
+    pub fn arguments(&self) -> &[Expression] {
+        &self.arguments
     }
 
     pub fn written_expressions(&self) -> Option<&[Expression]> {
