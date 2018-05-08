@@ -134,12 +134,12 @@ impl Elf {
     }
 
     /// Return the goblin::elf::Elf for this elf.
-    pub(crate) fn elf(&self) -> goblin::elf::Elf {
+    pub fn elf(&self) -> goblin::elf::Elf {
         goblin::elf::Elf::parse(&self.bytes).unwrap()
     }
 
     /// Return all symbols exported from this Elf
-    pub(crate) fn exported_symbols(&self) -> Vec<Symbol> {
+    pub fn exported_symbols(&self) -> Vec<Symbol> {
         let mut v = Vec::new();
         let elf = self.elf();
         for sym in elf.dynsyms.iter() {

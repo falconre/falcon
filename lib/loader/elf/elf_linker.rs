@@ -66,6 +66,18 @@ impl ElfLinker {
     }
 
 
+    /// Get the ELFs loaded and linked in this loader
+    pub fn loaded(&self) -> &BTreeMap<String, Elf> {
+        &self.loaded
+    }
+
+
+    /// Get the filename of the ELF we're loading
+    pub fn filename(&self) -> &Path {
+        &self.filename
+    }
+
+
     /// Takes the path to an Elf, and a base address the Elf should be loaded
     /// at. Loads the Elf, all it's dependencies (DT_NEEDED), and then handles
     /// the supported relocations.
@@ -286,13 +298,17 @@ impl ElfLinker {
                 .ok_or(format!("Could not get symbol {}", i))?;
             let symbol_name = dynstrtab.get(sym.st_name)
                 .ok_or(format!("Could not get symbol name for {}", i))??;
-            // println!("0x{:08x} symbol {} 0x{:08x} {:02} {}",
-            //     address, i, sym.st_value, sym.st_shndx, symbol_name);
             // Internal entries have already been relocated, so we only need to
             // relocate external entries
             if sym.st_shndx == 0 {
                 if let Some(value) = self.symbols.get(symbol_name) {
                     self.memory.set32(address, *value as u32)?;
+
+                    if symbol_name == "_rtld_global" {
+                        println!("0x{:08x} symbol {} 0x{:08x} {:02} {} 0x{:x}",
+                            address, i, sym.st_value, sym.st_shndx, symbol_name,
+                            value);
+                    }
                 }
                 else {
                     format!("Could not get symbol with name: \"{}\"",
@@ -300,6 +316,21 @@ impl ElfLinker {
                 }
             }
             address += 4;
+        }
+
+        // handle all relocation entries
+        for dynrel in elf.elf().dynrels {
+            if dynrel.r_type == goblin::elf::reloc::R_MIPS_REL32 {
+                let value =
+                    self.memory
+                        .get32(dynrel.r_offset + elf.base_address())
+                        .ok_or(format!("Could not load R_MIPS_REL32 at 0x{:x}",
+                            dynrel.r_offset + elf.base_address()))?;
+                self.memory.set32(
+                    dynrel.r_offset + elf.base_address(),
+                    value + (elf.base_address() as u32)
+                )?;
+            }
         }
 
         Ok(())
