@@ -62,7 +62,7 @@ fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
 
     let block_index = {
         let block = cfg.new_block()?;
-        block.assign(scalar("nop", 1), expr_scalar("nop", 1));
+        block.assign(scalar("nop", 1), expr_const(0, 1));
         block.index()
     };
 
@@ -325,10 +325,14 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 capstone::mips_insn::MIPS_INS_JR => {
                     branch_delay = TranslateBranchDelay::Branch;
                 },
-                _ => {}
+                _ => {
+                    // We only set an address for this function is there isn't
+                    // a branch. Branch instruction addresses are set in a
+                    // nop instruction emitted before the delay slot
+                    // instruction.
+                    instruction_graph.set_address(Some(instruction.address));
+                }
             }
-
-            instruction_graph.set_address(Some(instruction.address));
 
             branch_delay = match branch_delay {
                 TranslateBranchDelay::None => {
@@ -336,6 +340,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     TranslateBranchDelay::None
                 },
                 TranslateBranchDelay::Branch => {
+                    instruction_graph.set_address(Some(instruction.address + 1));
                     // If we don't have enough bytes left to disassemble the
                     // next instruction, add this instruction as a successor
                     // and return
@@ -350,10 +355,13 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 },
                 TranslateBranchDelay::DelaySlot(address, cfg) => {
                     block_graphs.push((instruction.address, instruction_graph));
-                    block_graphs.push((address, cfg));
+                    // this +1 is a hack to make parsing BlockTranslationResult
+                    // blocks work correctly
+                    block_graphs.push((address + 1, cfg));
                     break;
                 },
                 TranslateBranchDelay::BranchFallThrough => {
+                    instruction_graph.set_address(Some(instruction.address + 1));
                     // If we don't have enough bytes left to disassemble the
                     // next instruction, add this instruction as a successor
                     // and return
@@ -368,7 +376,9 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 },
                 TranslateBranchDelay::DelaySlotFallThrough(address, cfg) => {
                     block_graphs.push((instruction.address, instruction_graph));
-                    block_graphs.push((address, cfg));
+                    // this +1 is a hack to make parsing BlockTranslationResult
+                    // blocks work correctly
+                    block_graphs.push((address + 1, cfg));
                     TranslateBranchDelay::None
                 }
             };

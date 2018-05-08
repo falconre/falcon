@@ -389,13 +389,14 @@ pub fn bgezal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
     let target = expr_const(detail.operands[1].imm() as u64, 32);
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
+        block.index()
     };
 
     let true_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
         block.branch(target);
 
         block.index()
@@ -437,13 +438,14 @@ pub fn bltzal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
     let target = expr_const(detail.operands[1].imm() as u64, 32);
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
+        block.index()
     };
 
     let true_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
         block.branch(target);
 
         block.index()
@@ -1471,15 +1473,17 @@ pub fn rdhwr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
     let detail = details(instruction)?;
 
     let rt = get_register(detail.operands[0].reg())?.expression();
+    let rd = get_register(detail.operands[1].reg())?.expression();
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
         let intrinsic = Intrinsic::new(
             "rdhwr",
             format!("{} {}", instruction.mnemonic, instruction.op_str),
+            vec![rt.clone(), rd.clone()],
             Some(vec![rt]),
             None,
-            instruction.bytes.clone()
+            instruction.bytes.get(0..4).unwrap().to_vec()
         );
         block.intrinsic(intrinsic);
         block.index()
