@@ -14,7 +14,9 @@ const DEFAULT_LIB_BASE: u64 = 0x4000_0000;
 const LIB_BASE_STEP: u64    = 0x0200_0000;
 
 
-/// Loader which links together multiple Elf files. Currently only X86 supported.
+/// Loader which links together multiple Elf files.
+///
+/// Can do some rudimentary linking of binaries.
 #[derive(Debug)]
 pub struct ElfLinker {
     /// The filename (path included) of the file we're loading.
@@ -28,14 +30,16 @@ pub struct ElfLinker {
     /// The address we will place the next library at.
     next_lib_address: u64,
     /// Functions as specified by the user
-    user_functions: Vec<u64>
+    user_functions: Vec<u64>,
+    /// If set, we will do relocations as we link
+    do_relocations: bool
 }
 
 
 impl ElfLinker {
     /// Takes a path to an Elf and loads the Elf, its dependencies, and links
     /// them together.
-    pub fn new(filename: &Path) -> Result<ElfLinker> {
+    pub fn new(filename: &Path, do_relocations: bool) -> Result<ElfLinker> {
         let mut file = File::open(filename)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
@@ -58,6 +62,7 @@ impl ElfLinker {
             symbols: BTreeMap::new(),
             next_lib_address: DEFAULT_LIB_BASE,
             user_functions: Vec::new(),
+            do_relocations
         };
 
         elf_linker.load_elf(filename, 0)?;
@@ -143,10 +148,14 @@ impl ElfLinker {
             }
         }
 
-        match self.loaded[&filename].elf().header.e_machine {
-            goblin::elf::header::EM_386 => self.relocations_x86(&filename)?,
-            goblin::elf::header::EM_MIPS => self.relocations_mips(&filename)?,
-            _ => bail!("relocations unsupported for target architecture")
+        if self.do_relocations {
+            match self.loaded[&filename].elf().header.e_machine {
+                goblin::elf::header::EM_386 =>
+                    self.relocations_x86(&filename)?,
+                goblin::elf::header::EM_MIPS =>
+                    self.relocations_mips(&filename)?,
+                _ => bail!("relocations unsupported for target architecture")
+            }
         }
 
         Ok(())
