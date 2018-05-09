@@ -272,6 +272,8 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
             // This temporary will always be called, "Branching condition"
             match instruction_id {
                 capstone::mips_insn::MIPS_INS_B => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     let operand = semantics::details(&instruction)?.operands[0];
                     successors.push((operand.imm() as u64, None));
                     branch_delay = TranslateBranchDelay::Branch;
