@@ -75,6 +75,29 @@ fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
 }
 
 
+// If a branch has a delay slot, we need to calculate the condition for the
+// branch before we execute the delay slow. We create a graph which sets a
+// scalar "branching" condition, and execute this prior to the delay slot.
+fn conditional_graph(address: u64, branching_condition: Expression)
+    -> Result<ControlFlowGraph> {
+
+    let mut cfg = ControlFlowGraph::new();
+
+    let block_index = {
+        let block = cfg.new_block()?;
+        block.assign(scalar("branching_condition", 1), branching_condition);
+        block.index()
+    };
+
+    cfg.set_entry(block_index)?;
+    cfg.set_exit(block_index)?;
+
+    cfg.set_address(Some(address));
+
+    Ok(cfg)
+}
+
+
 fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTranslationResult> {
     let mode = match endian {
         Endian::Big => capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN,
@@ -218,6 +241,35 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 }
             }?;
 
+            fn conditional_direct_branch(
+                block_graphs: &mut Vec<(u64, ControlFlowGraph)>,
+                successors: &mut Vec<(u64, Option<Expression>)>,
+                address: u64,
+                true_target: u64,
+                false_target: u64,
+                branch_condition: Expression
+            ) -> Result<()> {
+
+                block_graphs.push((
+                    address,
+                    conditional_graph(address, branch_condition.clone())?
+                ));
+                
+                let branch_condition = expr_scalar("branching_condition", 1);
+
+                successors.push((true_target, Some(branch_condition.clone())));
+                successors.push((
+                    false_target,
+                    Some(Expression::cmpeq(branch_condition, expr_const(0, 1))?)
+                ));
+
+                Ok(())
+            }
+
+            // We need to make the conditional branch comparison, save it to a
+            // temporary, and branch based on the temporary.
+            //
+            // This temporary will always be called, "Branching condition"
             match instruction_id {
                 capstone::mips_insn::MIPS_INS_B => {
                     let operand = semantics::details(&instruction)?.operands[0];
@@ -229,8 +281,15 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let rhs = semantics::get_register(detail.operands[1].reg())?.expression();
                     let target = detail.operands[2].imm() as u64;
-                    successors.push((target, Some(Expression::cmpeq(lhs.clone(), rhs.clone())?)));
-                    successors.push((instruction.address + 8, Some(Expression::cmpneq(lhs.clone(), rhs.clone())?)));
+                    let condition = Expression::cmpeq(lhs, rhs)?;
+
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+                    
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_BEQZ => {
@@ -238,8 +297,15 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let rhs = expr_const(0, 32);
                     let target = detail.operands[1].imm() as u64;
-                    successors.push((target, Some(Expression::cmpeq(lhs.clone(), rhs.clone())?)));
-                    successors.push((instruction.address + 8, Some(Expression::cmpneq(lhs.clone(), rhs.clone())?)));
+                    let condition = Expression::cmpeq(lhs, rhs)?;
+
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_BGEZ => {
@@ -247,10 +313,19 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let zero = expr_const(0, 32);
                     let target = detail.operands[1].imm() as u64;
-                    let false_condition = Expression::cmplts(lhs, zero)?;
-                    let true_condition = Expression::cmpeq(false_condition.clone(), expr_const(0, 1))?;
-                    successors.push((target, Some(true_condition)));
-                    successors.push((instruction.address + 8, Some(false_condition)));
+                    let condition =
+                        Expression::cmpeq(
+                            Expression::cmplts(lhs, zero)?,
+                            expr_const(0, 1)
+                        )?;
+
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_BGTZ => {
@@ -258,13 +333,15 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let zero = expr_const(0, 32);
                     let target = detail.operands[1].imm() as u64;
-                    let false_condition = Expression::or(
-                        Expression::cmplts(lhs.clone(), zero.clone())?,
-                        Expression::cmpeq(zero, lhs)?
-                    )?;
-                    let true_condition = Expression::cmpeq(false_condition.clone(), expr_const(0, 1))?;
-                    successors.push((target, Some(true_condition)));
-                    successors.push((instruction.address + 8, Some(false_condition)));
+                    let condition = Expression::cmplts(zero, lhs)?;
+
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_BLEZ => {
@@ -272,13 +349,18 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let zero = expr_const(0, 32);
                     let target = detail.operands[1].imm() as u64;
-                    let true_condition = Expression::or(
+                    let condition = Expression::or(
                         Expression::cmplts(lhs.clone(), zero.clone())?,
                         Expression::cmpeq(lhs, zero)?
                     )?;
-                    let false_condition = Expression::cmpeq(true_condition.clone(), expr_const(0, 1))?;
-                    successors.push((target, Some(true_condition)));
-                    successors.push((instruction.address + 8, Some(false_condition)));
+
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_BLTZ => {
@@ -286,10 +368,15 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let zero = expr_const(0, 32);
                     let target = detail.operands[1].imm() as u64;
-                    let true_condition = Expression::cmplts(lhs, zero)?;
-                    let false_condition = Expression::cmpeq(true_condition.clone(), expr_const(0, 1))?;
-                    successors.push((target, Some(true_condition)));
-                    successors.push((instruction.address + 8, Some(false_condition)));
+                    let condition = Expression::cmplts(lhs, zero)?;
+                    
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_BNE => {
@@ -297,10 +384,15 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let rhs = semantics::get_register(detail.operands[1].reg())?.expression();
                     let target = detail.operands[2].imm() as u64;
-                    let true_condition = Expression::cmpneq(lhs.clone(), rhs.clone())?;
-                    let false_condition = Expression::cmpeq(lhs, rhs)?;
-                    successors.push((target, Some(true_condition)));
-                    successors.push((instruction.address + 8, Some(false_condition)));
+                    let condition = Expression::cmpneq(lhs.clone(), rhs.clone())?;
+
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_BNEZ => {
@@ -308,13 +400,20 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     let lhs = semantics::get_register(detail.operands[0].reg())?.expression();
                     let rhs = expr_const(0, 32);
                     let target = detail.operands[1].imm() as u64;
-                    let true_condition = Expression::cmpneq(lhs.clone(), rhs.clone())?;
-                    let false_condition = Expression::cmpeq(lhs, rhs)?;
-                    successors.push((target, Some(true_condition)));
-                    successors.push((instruction.address + 8, Some(false_condition)));
+                    let condition = Expression::cmpneq(lhs.clone(), rhs.clone())?;
+
+                    conditional_direct_branch(&mut block_graphs,
+                                              &mut successors,
+                                              instruction.address,
+                                              target,
+                                              instruction.address + 8,
+                                              condition)?;
+
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 capstone::mips_insn::MIPS_INS_J => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     let operand = semantics::details(&instruction)?.operands[0];
                     successors.push((operand.imm() as u64, None));
                     branch_delay = TranslateBranchDelay::Branch;
@@ -324,9 +423,13 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 capstone::mips_insn::MIPS_INS_BLTZAL |
                 capstone::mips_insn::MIPS_INS_JAL |
                 capstone::mips_insn::MIPS_INS_JALR => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     branch_delay = TranslateBranchDelay::BranchFallThrough;
                 },
                 capstone::mips_insn::MIPS_INS_JR => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     branch_delay = TranslateBranchDelay::Branch;
                 },
                 _ => {
@@ -353,8 +456,6 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                         successors.push((address + offset as u64, None));
                         break;
                     }
-                    block_graphs.push(
-                        (instruction.address, nop_graph(instruction.address)?));
                     TranslateBranchDelay::DelaySlot(instruction.address, instruction_graph)
                 },
                 TranslateBranchDelay::DelaySlot(address, cfg) => {
@@ -374,8 +475,6 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                         successors.push((address + offset as u64, None));
                         break;
                     }
-                    block_graphs.push(
-                        (instruction.address, nop_graph(instruction.address)?));
                     TranslateBranchDelay::DelaySlotFallThrough(instruction.address, instruction_graph)
                 },
                 TranslateBranchDelay::DelaySlotFallThrough(address, cfg) => {

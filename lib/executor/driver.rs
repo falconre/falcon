@@ -150,6 +150,12 @@ impl Driver {
         &self.program
     }
 
+    /// If this driver is sitting on an instruction with an address, return
+    /// that address.
+    pub fn address(&self) -> Option<u64> {
+        self.location.apply(&self.program).unwrap().address()
+    }
+
     /// Retrieve the `il::ProgramLocation` associated with this driver.
     pub fn location(&self) -> &il::ProgramLocation {
         &self.location
