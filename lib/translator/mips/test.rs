@@ -1516,6 +1516,55 @@ fn lw() {
 
 
 #[test]
+fn lwl() {
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbe00, const_(0x11223344, 32)).unwrap();
+    memory.store(0xdeadbe04, const_(0x55667788, 32)).unwrap();
+
+    let result = get_scalar(
+        &[0x88, 0xa4, 0x00, 0x00], // lwl $a0, 0(a1)
+        vec![
+            ("$a0", const_(0xaaaaaaaa, 32)),
+            ("$a1", const_(0xdeadbe02, 32))
+        ],
+        memory.clone(),
+        "$a0"
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x3344aaaa);
+
+    let result = get_scalar(
+        &[0x88, 0xa4, 0x00, 0x00], // lwl $a0, 0(a1)
+        vec![
+            ("$a0", const_(0xaaaaaaaa, 32)),
+            ("$a1", const_(0xdeadbe01, 32))
+        ],
+        memory.clone(),
+        "$a0"
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x223344aa);
+}
+
+
+#[test]
+fn lwr() {
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbe00, const_(0x11223344, 32)).unwrap();
+    memory.store(0xdeadbe04, const_(0x55667788, 32)).unwrap();
+
+    let result = get_scalar(
+        &[0x98, 0xa4, 0x00, 0x00], // lwl $a0, 0(a1)
+        vec![
+            ("$a0", const_(0xaaaaaaaa, 32)),
+            ("$a1", const_(0xdeadbe05, 32))
+        ],
+        memory,
+        "$a0"
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xaaaa5566);
+}
+
+
+#[test]
 fn madd() {
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x00],
@@ -2451,6 +2500,86 @@ fn sw() {
     }
 
     assert_eq!(memval(driver.state().memory(), 0xdeadbee0), 0xdeadbeef);
+}
+
+
+#[test]
+fn swl() {
+    /*
+    ori $a0, $a0, 0
+    swl $a0, 0($a1)
+    jr $ra
+    nop
+    */
+    let instruction_bytes = backing!([
+        0x34, 0x84, 0x00, 0x00,
+        0xa8, 0xa4, 0x00, 0x00,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00,
+        0x11, 0x22, 0x33, 0x44,
+        0x55, 0x66, 0x77, 0x88
+    ]);
+
+    let driver = init_driver_function(
+        instruction_bytes.clone(),
+        vec![("$a0", const_(0xaabbccdd, 32)),
+             ("$a1", const_(0x12, 32))]
+    );
+
+    let driver = step_to(driver, 0x8);
+
+    fn memval(memory: &Memory, address: u64, bits: usize) -> u64 {
+        memory.load(address, bits).unwrap().unwrap().value_u64().unwrap()
+    }
+
+    assert_eq!(memval(driver.state().memory(), 0x10, 32), 0x1122aabb);
+    assert_eq!(memval(driver.state().memory(), 0x14, 32), 0x55667788);
+
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", const_(0xaabbccdd, 32)),
+             ("$a1", const_(0x11, 32))]
+    );
+
+    let driver = step_to(driver, 0x8);
+
+    assert_eq!(memval(driver.state().memory(), 0x10, 32), 0x11aabbcc);
+    assert_eq!(memval(driver.state().memory(), 0x14, 32), 0x55667788);
+}
+
+
+#[test]
+fn swr() {
+    /*
+    ori $a0, $a0, 0
+    swl $a0, 0($a1)
+    jr $ra
+    nop
+    */
+    let instruction_bytes = backing!([
+        0x34, 0x84, 0x00, 0x00,
+        0xb8, 0xa4, 0x00, 0x00,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00,
+        0x11, 0x22, 0x33, 0x44,
+        0x55, 0x66, 0x77, 0x88
+    ]);
+
+    let driver = init_driver_function(
+        instruction_bytes.clone(),
+        vec![("$a0", const_(0xaabbccdd, 32)),
+             ("$a1", const_(0x15, 32))]
+    );
+
+    let driver = step_to(driver, 0x8);
+
+    fn memval(memory: &Memory, address: u64, bits: usize) -> u64 {
+        memory.load(address, bits).unwrap().unwrap().value_u64().unwrap()
+    }
+
+    assert_eq!(memval(driver.state().memory(), 0x10, 32), 0x11223344);
+    assert_eq!(memval(driver.state().memory(), 0x14, 32), 0xccdd7788);
 }
 
 
