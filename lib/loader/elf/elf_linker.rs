@@ -162,6 +162,45 @@ impl ElfLinker {
     }
 
 
+    /// Get the `Elf` for the primary elf loaded.
+    pub fn get_elf(&self) -> Result<&Elf> {
+        let loaded = self.loaded();
+        let filename = self.filename()
+            .file_name()
+            .and_then(|filename| filename.to_str())
+            .ok_or("Could not get filename for ElfLinker's primary program")?;
+
+        let elf = loaded.get(filename)
+              .ok_or(format!("Could not get {} from ElfLinker", filename))?;
+
+        Ok(elf)
+    }
+
+
+    /// If the primary `Elf` we're loading has an interpreter designated in its
+    /// dynamic sectino, get the `Elf` for the interpreter.
+    pub fn get_interpreter(&self) -> Result<Option<&Elf>> {
+        let elf = self.get_elf()?;
+
+        let interpreter_elf = match elf.elf().interpreter {
+            Some(interpreter_filename) => {
+                let interpreter_filename =
+                    Path::new(interpreter_filename)
+                        .file_name()
+                        .and_then(|filename| filename.to_str())
+                        .ok_or(format!("Failed to get filename portion of interpreter filename"))?;
+                Some(self.loaded().get(interpreter_filename)
+                    .ok_or(format!("Could not find interpreter {}",
+                                    interpreter_filename))?)
+            }
+            None => None
+        };
+
+        Ok(interpreter_elf)
+    }
+
+
+    /// Perform x86-specific relocations
     fn relocations_x86(&mut self, filename: &str) -> Result<()> {
         // Process relocations
         let ref elf = self.loaded[filename];
@@ -256,6 +295,7 @@ impl ElfLinker {
     }
 
 
+    /// Perform MIPS-specific relocations
     fn relocations_mips(&mut self, filename: &str) -> Result<()> {
         let elf = &self.loaded[filename];
 
