@@ -470,11 +470,21 @@ pub fn bltzal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
 
 
 
-pub fn break_(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn break_(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("break", 1));
+        let intrinsic =
+            Intrinsic::new(
+                "break",
+                "break",
+                Vec::new(),
+                Some(Vec::new()),
+                Some(Vec::new()),
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            );
+
+        block.intrinsic(intrinsic);
 
         block.index()
     };
@@ -2324,11 +2334,21 @@ pub fn swr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
-pub fn syscall(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn syscall(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("syscall", 1));
+        let intrinsic =
+            Intrinsic::new(
+                "syscall",
+                "syscall",
+                Vec::new(),
+                Some(Vec::new()),
+                Some(Vec::new()),
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            );
+
+        block.intrinsic(intrinsic);
 
         block.index()
     };
@@ -2359,7 +2379,16 @@ pub fn teq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let trap_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("trap", 1));
+        let intrinsic =
+            Intrinsic::new(
+                "trap",
+                "trap",
+                Vec::new(),
+                Some(Vec::new()),
+                Some(Vec::new()),
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            );
+        block.intrinsic(intrinsic);
 
         block.index()
     };
