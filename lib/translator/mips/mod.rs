@@ -4,7 +4,7 @@ use architecture::Endian;
 use falcon_capstone::capstone;
 use error::*;
 use il::*;
-use translator::{Translator, BlockTranslationResult};
+use translator::{DEFAULT_TRANSLATION_BLOCK_BYTES, Translator, BlockTranslationResult};
 
 
 #[cfg(test)] mod test;
@@ -126,6 +126,10 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
     let mut branch_delay = TranslateBranchDelay::None;
 
     loop {
+        // if we read in the maximum number of bytes possible (meaning there are
+        // likely more bytes), and we don't have enough bytes to handle a delay
+        // slot, return. We always want to have enough bytes to handle a delay
+        // slot.
         if offset >= bytes.len() {
             successors.push((address + offset as u64, None));
             break;
@@ -265,6 +269,34 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 ));
 
                 Ok(())
+            }
+
+            // Before we even attempt to handle an instruction with a delay
+            // slot, make sure we have enough bytes left over to handle the
+            // delay slot
+            match instruction_id {
+                capstone::mips_insn::MIPS_INS_B |
+                capstone::mips_insn::MIPS_INS_BEQ |
+                capstone::mips_insn::MIPS_INS_BEQZ |
+                capstone::mips_insn::MIPS_INS_BGEZ |
+                capstone::mips_insn::MIPS_INS_BGTZ |
+                capstone::mips_insn::MIPS_INS_BLTZ |
+                capstone::mips_insn::MIPS_INS_BNE |
+                capstone::mips_insn::MIPS_INS_BNEZ |
+                capstone::mips_insn::MIPS_INS_J |
+                capstone::mips_insn::MIPS_INS_BAL |
+                capstone::mips_insn::MIPS_INS_BGEZAL |
+                capstone::mips_insn::MIPS_INS_BLTZAL |
+                capstone::mips_insn::MIPS_INS_JAL |
+                capstone::mips_insn::MIPS_INS_JALR |
+                capstone::mips_insn::MIPS_INS_JR => {
+                    if    bytes.len() == DEFAULT_TRANSLATION_BLOCK_BYTES
+                       && offset + 8 >= bytes.len() {
+                        successors.push((address + offset as u64, None));
+                        break;
+                    }
+                }
+                _ => {}
             }
 
             // We need to make the conditional branch comparison, save it to a
@@ -451,14 +483,6 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 },
                 TranslateBranchDelay::Branch => {
                     instruction_graph.set_address(Some(instruction.address + 1));
-                    // If we don't have enough bytes left to disassemble the
-                    // next instruction, add this instruction as a successor
-                    // and return
-                    if bytes.len() - offset < 8 {
-                        successors.clear();
-                        successors.push((address + offset as u64, None));
-                        break;
-                    }
                     TranslateBranchDelay::DelaySlot(instruction.address, instruction_graph)
                 },
                 TranslateBranchDelay::DelaySlot(address, cfg) => {
@@ -470,14 +494,6 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 },
                 TranslateBranchDelay::BranchFallThrough => {
                     instruction_graph.set_address(Some(instruction.address + 1));
-                    // If we don't have enough bytes left to disassemble the
-                    // next instruction, add this instruction as a successor
-                    // and return
-                    if bytes.len() - offset < 8 {
-                        successors.clear();
-                        successors.push((address + offset as u64, None));
-                        break;
-                    }
                     TranslateBranchDelay::DelaySlotFallThrough(instruction.address, instruction_graph)
                 },
                 TranslateBranchDelay::DelaySlotFallThrough(address, cfg) => {
