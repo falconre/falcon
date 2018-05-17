@@ -1173,17 +1173,18 @@ fn bnez() {
 
 #[test]
 fn break_ () {
-    let result = get_raise(
-        &[0x00, 0x00, 0x00, 0x0d],
-        vec![("$a1", const_(0x7fffffff, 32)),
-             ("$a2", const_(1, 32))],
-        Memory::new(Endian::Big)
-    );
-    if let Expression::Scalar(ref scalar) = result {
-        assert_eq!(scalar.name(), "break");
-    }
-    else {
-        panic!("Did not hit break");
+    let mut backing = memory::backing::Memory::new(Endian::Big);
+    backing.set_memory(0, vec![0x00, 0x00, 0x00, 0x0d],
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ);
+    let function = Mips::new().translate_function(&backing, 0).unwrap();
+
+    let block = function.block(0).unwrap();
+    let instruction = block.instruction(0).unwrap();
+    match instruction.operation() {
+        Operation::Intrinsic { ref intrinsic } => {
+            assert_eq!(intrinsic.mnemonic(), "break");
+        },
+        _ => { panic!("Did not find break intrinsic") }
     }
 }
 
@@ -2585,16 +2586,18 @@ fn swr() {
 
 #[test]
 fn syscall () {
-    let result = get_raise(
-        &[0x00, 0x00, 0x00, 0x0c],
-        vec![],
-        Memory::new(Endian::Big)
-    );
-    if let Expression::Scalar(ref scalar) = result {
-        assert_eq!(scalar.name(), "syscall");
-    }
-    else {
-        panic!("Did not hit break");
+    let mut backing = memory::backing::Memory::new(Endian::Big);
+    backing.set_memory(0, vec![0x00, 0x00, 0x00, 0x0c],
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ);
+    let function = Mips::new().translate_function(&backing, 0).unwrap();
+
+    let block = function.block(0).unwrap();
+    let instruction = block.instruction(0).unwrap();
+    match instruction.operation() {
+        Operation::Intrinsic { ref intrinsic } => {
+            assert_eq!(intrinsic.mnemonic(), "syscall");
+        },
+        _ => { panic!("Did not find break intrinsic") }
     }
 }
 
