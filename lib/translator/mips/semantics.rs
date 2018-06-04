@@ -389,13 +389,14 @@ pub fn bgezal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
     let target = expr_const(detail.operands[1].imm() as u64, 32);
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
+        block.index()
     };
 
     let true_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
         block.branch(target);
 
         block.index()
@@ -437,13 +438,14 @@ pub fn bltzal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
     let target = expr_const(detail.operands[1].imm() as u64, 32);
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
+        block.index()
     };
 
     let true_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("$ra", 32), expr_const(instruction.address + 8, 32));
         block.branch(target);
 
         block.index()
@@ -468,11 +470,21 @@ pub fn bltzal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone:
 
 
 
-pub fn break_(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn break_(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("break", 1));
+        let intrinsic =
+            Intrinsic::new(
+                "break",
+                "break",
+                Vec::new(),
+                Some(Vec::new()),
+                Some(Vec::new()),
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            );
+
+        block.intrinsic(intrinsic);
 
         block.index()
     };
@@ -845,6 +857,31 @@ pub fn lhu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
+// This is identical to lw
+pub fn ll(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let dst = get_register(detail.operands[0].reg())?.scalar();
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.load(dst, Expr::add(base, offset)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn lui(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = details(instruction)?;
 
@@ -880,6 +917,106 @@ pub fn lw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
         let block = control_flow_graph.new_block()?;
 
         block.load(dst, Expr::add(base, offset)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn lwl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let dst = get_register(detail.operands[0].reg())?.scalar();
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let address = Expr::add(base, offset)?;
+
+        // get the number of bits to clear
+        let bytes_to_clear =
+            Expr::sub(
+                expr_const(4, 32),
+                Expr::and(expr_const(3, 32), address.clone())?
+            )?;
+        let bits_to_clear = Expr::shl(bytes_to_clear, expr_const(3, 32))?;
+        
+        // get the number of bytes to shift the result
+        let bytes_to_shift = Expr::and(expr_const(3, 32), address.clone())?;
+        let bits_to_shift = Expr::shl(bytes_to_shift, expr_const(3, 32))?;
+
+        let tmp = block.temp(32);
+        block.load(tmp.clone(), address);
+
+        // clear the dst register by shifting left then right
+        let dst_expr =
+            Expr::shl(dst.clone().into(), bits_to_clear.clone())?;
+        let dst_expr = Expr::shr(dst_expr, bits_to_clear)?;
+
+        // zero out the right bits in the loaded word
+        let tmp = Expr::shl(
+            Expr::shr(tmp.clone().into(), bits_to_shift.clone())?,
+            bits_to_shift.clone()
+        )?;
+
+        // or together
+        let dst_expr = Expr::or(dst_expr, tmp)?;
+
+        block.assign(dst, dst_expr);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn lwr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let dst = get_register(detail.operands[0].reg())?.scalar();
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let address = Expr::sub(Expr::add(base, offset)?, expr_const(3, 32))?;
+
+        // create a bit mask for dst and the loaded result
+        let mask_bytes = Expr::and(address.clone(), expr_const(3, 32))?;
+        let mask_bits = Expr::shl(mask_bytes, expr_const(3, 32))?;
+        let mask_bit = Expr::shl(expr_const(1, 32), mask_bits)?;
+        let mask = Expr::sub(mask_bit, expr_const(1, 32))?;
+
+        // load our word from memory
+        let tmp = block.temp(32);
+        block.load(tmp.clone(), address);
+
+        // we want to and this word with our mask to remove the high bits
+        let temp = Expr::and(tmp.clone().into(), mask.clone())?;
+
+        // and out the bits we're about to set in dst
+        let dst_expr = Expr::and(dst.clone().into(),
+            Expr::sub(expr_const(0xffffffff, 32), mask)?)?;
+
+        let dst_expr = Expr::or(dst_expr, temp)?;
+
+        block.assign(dst, dst_expr);
 
         block.index()
     };
@@ -1442,6 +1579,34 @@ pub fn ori(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
 
 
+pub fn rdhwr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    let rt = get_register(detail.operands[0].reg())?.expression();
+    let rd = get_register(detail.operands[1].reg())?.expression();
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+        let intrinsic = Intrinsic::new(
+            "rdhwr",
+            format!("{} {}", instruction.mnemonic, instruction.op_str),
+            vec![rt.clone(), rd.clone()],
+            Some(vec![rt]),
+            None,
+            instruction.bytes.get(0..4).unwrap().to_vec()
+        );
+        block.intrinsic(intrinsic);
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
 pub fn sb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
     let detail = details(instruction)?;
 
@@ -1454,6 +1619,33 @@ pub fn sb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
         let block = control_flow_graph.new_block()?;
 
         block.store(Expr::add(base, offset)?, Expr::trun(8, rt)?);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+// This is identical to sw
+pub fn sc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.expression();
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
+
+    let addr_expr = Expr::add(base, offset)?;
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.store(addr_expr, rt);
 
         block.index()
     };
@@ -2034,17 +2226,189 @@ pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 
 
 
-pub fn syscall(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn swl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.expression();
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
+
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("syscall", 1));
+        let address = Expr::add(base, offset)?;
+
+        // load the value currently in memory
+        let tmp = block.temp(32);
+        block.load(tmp.clone(),
+                   Expr::and(expr_const(0xffff_fffc, 32), address.clone())?);
+
+        // create a mask for our value
+        let mask_bytes = Expr::and(address.clone(), expr_const(3, 32))?;
+        let mask_bits = Expr::shl(mask_bytes, expr_const(3, 32))?;
+
+        let mask = Expr::sub(
+            Expr::shl(expr_const(1, 32), mask_bits)?,
+            expr_const(1, 32)
+        )?;
+
+        // and the loaded value with our mask
+        let tmp = Expr::and(
+            Expr::sub(
+                expr_const(0xffff_ffff, 32),
+                mask.clone()
+            )?,
+            tmp.into()
+        )?;
+
+        // figure out how many bits we should shift our value right
+        let shift_bytes = Expr::and(address.clone(), expr_const(3, 32))?;
+        let shift_bits = Expr::shl(shift_bytes, expr_const(3, 32))?;
+
+        // shift the value right
+        let rt = Expr::shr(rt, shift_bits)?;
+
+        // or them together
+        let expr = Expr::or(tmp, rt)?;
+
+        // store it back in memory
+        block.store(Expr::and(expr_const(0xffff_fffc, 32), address.clone())?,
+                    expr);
 
         block.index()
     };
 
     control_flow_graph.set_entry(block_index)?;
     control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn swr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rt = get_register(detail.operands[0].reg())?.expression();
+    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let offset = expr_const(detail.operands[1].mem().disp as u64, 32);
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let address = Expr::sub(Expr::add(base, offset)?, expr_const(3, 32))?;
+
+        // create a bit mask for dst and the loaded result
+        let mask_bytes = Expr::and(address.clone(), expr_const(3, 32))?;
+        let mask_bits = Expr::shl(mask_bytes, expr_const(3, 32))?;
+        let mask_bit = Expr::shl(expr_const(1, 32), mask_bits)?;
+        let mask = Expr::sub(mask_bit, expr_const(1, 32))?;
+
+        // load our word from memory
+        let tmp = block.temp(32);
+        block.load(tmp.clone(), address.clone());
+
+        // zero out the words we're about to set in dst
+        let dst_expr = Expr::and(tmp.clone().into(), 
+            Expr::sub(expr_const(0xffff_ffff, 32), mask.clone())?)?;
+
+        // zero out the bits we're not setting in rt
+        let rt = Expr::and(rt, mask)?;
+
+        // or the two together
+        let dst_expr = Expr::or(dst_expr, rt)?;
+
+        // store it back in memory
+        block.store(address, dst_expr);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn syscall(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let intrinsic =
+            Intrinsic::new(
+                "syscall",
+                "syscall",
+                Vec::new(),
+                Some(Vec::new()),
+                Some(Vec::new()),
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            );
+
+        block.intrinsic(intrinsic);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+
+pub fn teq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let rs = get_register(detail.operands[0].reg())?.expression();
+    let rt = get_register(detail.operands[1].reg())?.expression();
+
+    let head_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let tail_index = {
+        control_flow_graph.new_block()?.index()
+    };
+
+    let trap_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let intrinsic =
+            Intrinsic::new(
+                "trap",
+                "trap",
+                Vec::new(),
+                Some(Vec::new()),
+                Some(Vec::new()),
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            );
+        block.intrinsic(intrinsic);
+
+        block.index()
+    };
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        trap_index,
+        Expr::cmpeq(rs.clone(), rt.clone())?
+    )?;
+
+    control_flow_graph.conditional_edge(
+        head_index,
+        tail_index,
+        Expr::cmpneq(rs, rt)?
+    )?;
+
+    control_flow_graph.unconditional_edge(trap_index, tail_index)?;
+
+    control_flow_graph.set_entry(head_index)?;
+    control_flow_graph.set_exit(tail_index)?;
 
     Ok(())
 }

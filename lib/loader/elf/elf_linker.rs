@@ -14,7 +14,15 @@ const DEFAULT_LIB_BASE: u64 = 0x4000_0000;
 const LIB_BASE_STEP: u64    = 0x0200_0000;
 
 
-/// Loader which links together multiple Elf files. Currently only X86 supported.
+// Some MIPS-specific DT entries. This will eventually land in Goblin.
+const DT_MIPS_LOCAL_GOTNO: u64 = 0x7000000a;
+const DT_MIPS_GOTSYM: u64      = 0x70000013;
+const DT_MIPS_SYMTABNO: u64    = 0x70000011;
+
+
+/// Loader which links together multiple Elf files.
+///
+/// Can do some rudimentary linking of binaries.
 #[derive(Debug)]
 pub struct ElfLinker {
     /// The filename (path included) of the file we're loading.
@@ -28,14 +36,16 @@ pub struct ElfLinker {
     /// The address we will place the next library at.
     next_lib_address: u64,
     /// Functions as specified by the user
-    user_functions: Vec<u64>
+    user_functions: Vec<u64>,
+    /// If set, we will do relocations as we link
+    do_relocations: bool
 }
 
 
 impl ElfLinker {
     /// Takes a path to an Elf and loads the Elf, its dependencies, and links
     /// them together.
-    pub fn new(filename: &Path) -> Result<ElfLinker> {
+    pub fn new(filename: &Path, do_relocations: bool) -> Result<ElfLinker> {
         let mut file = File::open(filename)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
@@ -58,11 +68,24 @@ impl ElfLinker {
             symbols: BTreeMap::new(),
             next_lib_address: DEFAULT_LIB_BASE,
             user_functions: Vec::new(),
+            do_relocations
         };
 
         elf_linker.load_elf(filename, 0)?;
 
         Ok(elf_linker)
+    }
+
+
+    /// Get the ELFs loaded and linked in this loader
+    pub fn loaded(&self) -> &BTreeMap<String, Elf> {
+        &self.loaded
+    }
+
+
+    /// Get the filename of the ELF we're loading
+    pub fn filename(&self) -> &Path {
+        &self.filename
     }
 
 
@@ -125,23 +148,65 @@ impl ElfLinker {
         // Ensure all shared objects we rely on are loaded
         for so_name in self.loaded[&filename].dt_needed()?.clone() {
             if self.loaded.get(&so_name).is_none() {
-                println!("Loading {}", so_name);
                 self.next_lib_address += LIB_BASE_STEP;
                 let next_lib_address = self.next_lib_address;
                 self.load_elf(Path::new(&so_name), next_lib_address)?;
             }
         }
 
-        match self.loaded[&filename].elf().header.e_machine {
-            goblin::elf::header::EM_386 => self.relocations_x86(&filename)?,
-            goblin::elf::header::EM_MIPS => self.relocations_mips(&filename)?,
-            _ => bail!("relocations unsupported for target architecture")
+        if self.do_relocations {
+            match self.loaded[&filename].elf().header.e_machine {
+                goblin::elf::header::EM_386 =>
+                    self.relocations_x86(&filename)?,
+                goblin::elf::header::EM_MIPS =>
+                    self.relocations_mips(&filename)?,
+                _ => bail!("relocations unsupported for target architecture")
+            }
         }
 
         Ok(())
     }
 
 
+    /// Get the `Elf` for the primary elf loaded.
+    pub fn get_elf(&self) -> Result<&Elf> {
+        let loaded = self.loaded();
+        let filename = self.filename()
+            .file_name()
+            .and_then(|filename| filename.to_str())
+            .ok_or("Could not get filename for ElfLinker's primary program")?;
+
+        let elf = loaded.get(filename)
+              .ok_or(format!("Could not get {} from ElfLinker", filename))?;
+
+        Ok(elf)
+    }
+
+
+    /// If the primary `Elf` we're loading has an interpreter designated in its
+    /// dynamic sectino, get the `Elf` for the interpreter.
+    pub fn get_interpreter(&self) -> Result<Option<&Elf>> {
+        let elf = self.get_elf()?;
+
+        let interpreter_elf = match elf.elf().interpreter {
+            Some(interpreter_filename) => {
+                let interpreter_filename =
+                    Path::new(interpreter_filename)
+                        .file_name()
+                        .and_then(|filename| filename.to_str())
+                        .ok_or(format!("Failed to get filename portion of interpreter filename"))?;
+                Some(self.loaded().get(interpreter_filename)
+                    .ok_or(format!("Could not find interpreter {}",
+                                    interpreter_filename))?)
+            }
+            None => None
+        };
+
+        Ok(interpreter_elf)
+    }
+
+
+    /// Perform x86-specific relocations
     fn relocations_x86(&mut self, filename: &str) -> Result<()> {
         // Process relocations
         let ref elf = self.loaded[filename];
@@ -236,6 +301,7 @@ impl ElfLinker {
     }
 
 
+    /// Perform MIPS-specific relocations
     fn relocations_mips(&mut self, filename: &str) -> Result<()> {
         let elf = &self.loaded[filename];
 
@@ -249,19 +315,16 @@ impl ElfLinker {
 
         // The number of local GOT entries. Also an index into the GOT
         // for the first external GOT entry.
-        let local_gotno =
-            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_LOCAL_GOTNO)
+        let local_gotno = get_dynamic(elf, DT_MIPS_LOCAL_GOTNO)
             .ok_or("Could not get DT_MIPS_LOCAL_GOTNO")?;
 
         // Index of the first dynamic symbol table entry that corresponds
         // to an entry in the GOT.
-        let gotsym =
-            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_GOTSYM)
+        let gotsym = get_dynamic(elf, DT_MIPS_GOTSYM)
             .ok_or("Could not get DT_MIPS_GOTSYM")?;
 
         // The number of entries in the dynamic symbol table
-        let symtabno =
-            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_SYMTABNO)
+        let symtabno = get_dynamic(elf, DT_MIPS_SYMTABNO)
             .ok_or("Could not get DT_MIPS_SYMTABNO")?;
 
         // The address of the GOT section
@@ -287,13 +350,17 @@ impl ElfLinker {
                 .ok_or(format!("Could not get symbol {}", i))?;
             let symbol_name = dynstrtab.get(sym.st_name)
                 .ok_or(format!("Could not get symbol name for {}", i))??;
-            // println!("0x{:08x} symbol {} 0x{:08x} {:02} {}",
-            //     address, i, sym.st_value, sym.st_shndx, symbol_name);
             // Internal entries have already been relocated, so we only need to
             // relocate external entries
             if sym.st_shndx == 0 {
                 if let Some(value) = self.symbols.get(symbol_name) {
                     self.memory.set32(address, *value as u32)?;
+
+                    if symbol_name == "_rtld_global" {
+                        println!("0x{:08x} symbol {} 0x{:08x} {:02} {} 0x{:x}",
+                            address, i, sym.st_value, sym.st_shndx, symbol_name,
+                            value);
+                    }
                 }
                 else {
                     format!("Could not get symbol with name: \"{}\"",
@@ -301,6 +368,21 @@ impl ElfLinker {
                 }
             }
             address += 4;
+        }
+
+        // handle all relocation entries
+        for dynrel in elf.elf().dynrels {
+            if dynrel.r_type == goblin::elf::reloc::R_MIPS_REL32 {
+                let value =
+                    self.memory
+                        .get32(dynrel.r_offset + elf.base_address())
+                        .ok_or(format!("Could not load R_MIPS_REL32 at 0x{:x}",
+                            dynrel.r_offset + elf.base_address()))?;
+                self.memory.set32(
+                    dynrel.r_offset + elf.base_address(),
+                    value + (elf.base_address() as u32)
+                )?;
+            }
         }
 
         Ok(())

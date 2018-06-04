@@ -124,6 +124,10 @@ pub mod error {
                 description("A constant with >64 bits was used as an address")
                 display("A constant with >64 bits was used as an address")
             }
+            UnhandledIntrinsic(intrinsic_str: String) {
+                description("An unhandled intrinsic was encountered during evaluation")
+                display("Encountered unhandled intrinsic {}", intrinsic_str)
+            }
         }
     }
 }

@@ -35,7 +35,10 @@ impl Driver {
 
     /// Step forward over Falcon IL.
     pub fn step(self) -> Result<Driver> {
-        let location = self.location.apply(&self.program).unwrap();
+        let location =
+            self.location
+                .apply(&self.program)
+                .ok_or("Failed to apply program location")?;
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, instruction) => {
                 let successor = self.state.execute(instruction.operation())?;
@@ -57,7 +60,9 @@ impl Driver {
                             for location in locations {
                                 if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
                                     if successor.state()
-                                                .symbolize_and_eval(&edge.condition().clone().unwrap())?
+                                                .symbolize_and_eval(
+                                                    edge.condition()
+                                                        .ok_or("Failed to get edge condition")?)?
                                                 .is_one() {
                                         return Ok(Driver::new(
                                             self.program.clone(),
@@ -87,13 +92,14 @@ impl Driver {
                                                    .expect(&format!("Failed to lift function at 0x{:x}", address));
                                 let mut program = self.program.clone();
                                 RC::make_mut(&mut program).add_function(function);
-                                let location = il::RefProgramLocation::from_address(
-                                    &program,
-                                    address
-                                );
+                                let location: il::ProgramLocation =
+                                    il::RefProgramLocation::from_address(&program,
+                                                                         address)
+                                        .ok_or("Failed to get location for newly lifted function")?
+                                        .into();
                                 return Ok(Driver::new(
                                     program.clone(),
-                                    location.unwrap().into(),
+                                    location,
                                     state,
                                     self.architecture
                                 ));
@@ -128,7 +134,9 @@ impl Driver {
                     for location in locations {
                         if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
                             if self.state
-                                   .symbolize_and_eval(&edge.condition().clone().unwrap())?
+                                   .symbolize_and_eval(
+                                        edge.condition()
+                                            .ok_or("Failed to get edge condition")?)?
                                    .is_one() {
                                 return Ok(Driver::new(
                                     self.program.clone(),
@@ -148,6 +156,15 @@ impl Driver {
     /// Retrieve the Falcon IL program associated with this driver.
     pub fn program(&self) -> &il::Program {
         &self.program
+    }
+
+    /// If this driver is sitting on an instruction with an address, return
+    /// that address.
+    pub fn address(&self) -> Option<u64> {
+        self.location
+            .apply(&self.program)
+            .expect("Failed to apply program location")
+            .address()
     }
 
     /// Retrieve the `il::ProgramLocation` associated with this driver.

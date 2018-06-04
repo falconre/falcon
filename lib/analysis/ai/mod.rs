@@ -14,8 +14,8 @@
 //! a memory model over abstract domains which supports the join operation.
 
 pub mod domain;
-pub mod kset;
 pub mod interpreter;
+pub mod kset;
 pub mod memory;
 
 #[cfg(test)] mod test_lattice;

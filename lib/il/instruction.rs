@@ -94,6 +94,16 @@ impl Instruction {
     }
 
 
+    /// Create a new `Intrinsic` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `intrinsic` method on `il::Block` instead.
+    pub fn intrinsic(index: u64, intrinsic: Intrinsic) -> Instruction {
+        Instruction::new(index, Operation::Intrinsic { intrinsic: intrinsic })
+    }
+
+
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Assign`
     pub fn is_assign(&self) -> bool {
         if let Operation::Assign{..} = self.operation {
@@ -199,14 +209,14 @@ impl Instruction {
     }
 
     /// Get the `Scalar` which will be written by this `Instruction`.
-    pub fn scalar_written(&self) -> Option<&Scalar> {
-        self.operation.scalar_written()
+    pub fn scalars_written(&self) -> Vec<&Scalar> {
+        self.operation.scalars_written()
     }
 
     /// Get a mutable reference to the `Scalar` which will be written by this
     /// `Instruction`.
-    pub fn scalar_written_mut(&mut self) -> Option<&mut Scalar> {
-        self.operation.scalar_written_mut()
+    pub fn scalar_written_mut(&mut self) -> Vec<&mut Scalar> {
+        self.operation.scalars_written_mut()
     }
 
     /// Get a Vec of each `Scalar` read by this `Instruction`.

@@ -236,6 +236,11 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
                 il::Operation::Raise { .. } => {
                     state.top();
                     state
+                },
+                il::Operation::Intrinsic { ref intrinsic } => {
+                    intrinsic.scalars_written().into_iter().for_each(|scalar|
+                        state.set_scalar(scalar.clone(), Constant::Top));
+                    state
                 }
             },
             None => state
