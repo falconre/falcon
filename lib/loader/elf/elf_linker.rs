@@ -14,6 +14,12 @@ const DEFAULT_LIB_BASE: u64 = 0x4000_0000;
 const LIB_BASE_STEP: u64    = 0x0200_0000;
 
 
+// Some MIPS-specific DT entries. This will eventually land in Goblin.
+const DT_MIPS_LOCAL_GOTNO: u64 = 0x7000000a;
+const DT_MIPS_GOTSYM: u64      = 0x70000013;
+const DT_MIPS_SYMTABNO: u64    = 0x70000011;
+
+
 /// Loader which links together multiple Elf files.
 ///
 /// Can do some rudimentary linking of binaries.
@@ -309,19 +315,16 @@ impl ElfLinker {
 
         // The number of local GOT entries. Also an index into the GOT
         // for the first external GOT entry.
-        let local_gotno =
-            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_LOCAL_GOTNO)
+        let local_gotno = get_dynamic(elf, DT_MIPS_LOCAL_GOTNO)
             .ok_or("Could not get DT_MIPS_LOCAL_GOTNO")?;
 
         // Index of the first dynamic symbol table entry that corresponds
         // to an entry in the GOT.
-        let gotsym =
-            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_GOTSYM)
+        let gotsym = get_dynamic(elf, DT_MIPS_GOTSYM)
             .ok_or("Could not get DT_MIPS_GOTSYM")?;
 
         // The number of entries in the dynamic symbol table
-        let symtabno =
-            get_dynamic(elf, goblin::elf::dyn::DT_MIPS_SYMTABNO)
+        let symtabno = get_dynamic(elf, DT_MIPS_SYMTABNO)
             .ok_or("Could not get DT_MIPS_SYMTABNO")?;
 
         // The address of the GOT section

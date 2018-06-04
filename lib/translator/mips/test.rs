@@ -1218,6 +1218,16 @@ fn clz () {
         "$a0"
     );
     assert_eq!(result.value_u64().unwrap(), 4);
+
+
+    let result = get_scalar(
+        &[0x70, 0xa4, 0x20, 0x20],
+        vec![("$a0", const_(1, 32)),
+             ("$a1", const_(0x000fffff, 32))],
+        Memory::new(Endian::Big),
+        "$a0"
+    );
+    assert_eq!(result.value_u64().unwrap(), 12);
 }
 
 
