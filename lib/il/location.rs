@@ -43,36 +43,39 @@ impl<'p> RefProgramLocation<'p> {
     pub fn from_address(program: &'p Program, address: u64)
     -> Option<RefProgramLocation<'p>> {
 
-        // We do two passes. In the first pass, we observe that if the address
-        // of the first instruction in the block is greater than the address we
-        // are looking for, or it is < 1024 bytes before the address we are
-        // looking for, we can probably skip that block. 
+        // We do this in passes
 
-        for function in program.functions() {
+        // Start by finding the function with the closest address to the target
+        // address
+        let mut function = None;
+        for f in program.functions() {
+            if f.address() > address {
+                continue;
+            }
+
+            if function == None {
+                function = Some(f);
+                continue;
+            }
+
+            let ff = function.unwrap();
+            if f.address() > ff.address() {
+                function = Some(f);
+            } 
+        }
+
+        if let Some(function) = function {
             for block in function.blocks() {
-                let block_address = match block.address() {
-                    Some(address) => address,
-                    None => continue
-                };
-
-                if    block_address > address
-                   || (address > 1024 && block_address < address - 1024) {
-                    continue;
-                }
-
                 for instruction in block.instructions() {
-                    if let Some(iaddress) = instruction.address() {
-                        if iaddress == address {
-                            return Some(RefProgramLocation::new(&function,
-                                RefFunctionLocation::Instruction(block, instruction)));
-                        }
+                    if instruction.address().map(|a| a == address).unwrap_or(false) {
+                        return Some(RefProgramLocation::new(&function,
+                            RefFunctionLocation::Instruction(block, instruction)));
                     }
                 }
             }
         }
 
-        // In the second pass, we exhaustively search all blocks
-
+        // Exhaustive search
         for function in program.functions() {
             for block in function.blocks() {
                 for instruction in block.instructions() {
