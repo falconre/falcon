@@ -1156,14 +1156,7 @@ pub fn move_(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let src = get_register(detail.operands[1].reg())?.scalar();
-
-    let src = if src.name() == "$zero" {
-        expr_const(0, 32)
-    }
-    else {
-        src.into()
-    };
+    let src = get_register(detail.operands[1].reg())?.expression();
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -1186,8 +1179,8 @@ pub fn movn(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
     // get operands
     let rd = get_register(detail.operands[0].reg())?.scalar();
-    let rs = get_register(detail.operands[1].reg())?.scalar();
-    let rt = get_register(detail.operands[2].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
         control_flow_graph.new_block()?.index()
@@ -1196,7 +1189,7 @@ pub fn movn(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let op_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(rd, rs.into());
+        block.assign(rd, rs);
 
         block.index()
     };
@@ -1208,13 +1201,13 @@ pub fn movn(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     control_flow_graph.conditional_edge(
         head_index,
         op_index,
-        Expr::cmpneq(rt.clone().into(), expr_const(0, 32))?
+        Expr::cmpneq(rt.clone(), expr_const(0, 32))?
     )?;
 
     control_flow_graph.conditional_edge(
         head_index,
         terminating_index,
-        Expr::cmpeq(rt.clone().into(), expr_const(0, 32))?
+        Expr::cmpeq(rt, expr_const(0, 32))?
     )?;
 
     control_flow_graph.unconditional_edge(op_index, terminating_index)?;
@@ -1232,8 +1225,8 @@ pub fn movz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
     // get operands
     let rd = get_register(detail.operands[0].reg())?.scalar();
-    let rs = get_register(detail.operands[1].reg())?.scalar();
-    let rt = get_register(detail.operands[2].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let rt = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
         control_flow_graph.new_block()?.index()
@@ -1242,7 +1235,7 @@ pub fn movz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let op_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(rd, rs.into());
+        block.assign(rd, rs);
 
         block.index()
     };
@@ -1254,13 +1247,13 @@ pub fn movz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     control_flow_graph.conditional_edge(
         head_index,
         op_index,
-        Expr::cmpeq(rt.clone().into(), expr_const(0, 32))?
+        Expr::cmpeq(rt.clone(), expr_const(0, 32))?
     )?;
 
     control_flow_graph.conditional_edge(
         head_index,
         terminating_index,
-        Expr::cmpneq(rt.clone().into(), expr_const(0, 32))?
+        Expr::cmpneq(rt, expr_const(0, 32))?
     )?;
 
     control_flow_graph.unconditional_edge(op_index, terminating_index)?;
