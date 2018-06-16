@@ -229,6 +229,15 @@ impl Instruction {
     pub fn scalars_read_mut(&mut self) -> Vec<&mut Scalar> {
         self.operation.scalars_read_mut()
     }
+
+    /// Get all the scalars used in this instruction
+    pub fn scalars(&self) -> Vec<&Scalar> {
+        let mut scalars = self.scalars_written();
+        scalars.append(&mut self.scalars_read());
+        scalars.sort();
+        scalars.dedup();
+        scalars
+    }
 }
 
 
