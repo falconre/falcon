@@ -190,10 +190,19 @@ impl ControlFlowGraph {
     /// When a `Block` as only one successor, and that successor has only one predecessor, we
     /// merge both into one `Block`. 
     pub fn merge(&mut self) -> Result<()> {
+        use std::collections::HashSet;
+
         loop {
-            let mut merge_index = None;
-            let mut successor_index = None;
+
+            let mut blocks_being_merged: HashSet<u64> = HashSet::new();
+            let mut merges: Vec<(u64, u64)> = Vec::new();
+
             for block in self.blocks() {
+                // If we are already merging this block this iteration, skip it
+                if blocks_being_merged.contains(&block.index()) {
+                    continue;
+                }
+
                 // check to see how many successors we have
                 let successors = self.graph.edges_out(block.index()).unwrap();
 
@@ -213,6 +222,11 @@ impl ControlFlowGraph {
                     None => bail!("successor not found")
                 };
 
+                // If this successor is already being merged, skip it
+                if blocks_being_merged.contains(&successor) {
+                    continue;
+                }
+
                 // get all predecessors for this successor
                 let predecessors = self.graph.edges_in(successor).unwrap();
 
@@ -222,18 +236,17 @@ impl ControlFlowGraph {
                     continue;
                 }
 
-                successor_index = Some(successor);
-                merge_index = Some(block.index());
+                blocks_being_merged.insert(block.index());
+                blocks_being_merged.insert(successor);
+
+                merges.push((block.index(), successor));
+            }
+
+            if merges.is_empty() {
                 break;
             }
 
-            // we have a block to merge
-            if let Some(merge_index) = merge_index {
-                let successor_index = match successor_index {
-                    Some(successor_index) => successor_index,
-                    None => bail!("merge_index set, but not successor_index")
-                };
-
+            for (merge_index, successor_index) in merges {
                 // merge the blocks
                 let successor_block = self.graph
                                           .vertex(successor_index)
@@ -259,8 +272,6 @@ impl ControlFlowGraph {
 
                 // remove the block we just merged
                 self.graph.remove_vertex(successor_index)?;
-            } else {
-                break;
             }
         }
         Ok(())
