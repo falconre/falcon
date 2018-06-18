@@ -1489,7 +1489,11 @@ pub fn negu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
 pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
     let block_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     control_flow_graph.set_entry(block_index)?;
