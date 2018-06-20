@@ -2017,7 +2017,16 @@ fn nop() {
     let function = Mips::new().translate_function(&backing, 0).unwrap();
     let control_flow_graph = function.control_flow_graph();
 
-    assert_eq!(control_flow_graph.block(0).unwrap().instructions().len(), 0);
+    assert_eq!(control_flow_graph.block(0).unwrap().instructions().len(), 1);
+
+    /* negu nop */
+    let result = get_scalar(
+        &[0x00, 0x00, 0x00, 0x00],
+        vec![],
+        Memory::new(Endian::Big),
+        "nop"
+    );
+    assert_eq!(result.value_u64().unwrap(), 1);
 }
 
 
