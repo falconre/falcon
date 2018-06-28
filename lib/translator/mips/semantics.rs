@@ -1659,6 +1659,9 @@ pub fn sc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
         let block = control_flow_graph.new_block()?;
 
         block.store(addr_expr, rt);
+        // a 1 is written to rt on success
+        block.assign(get_register(detail.operands[0].reg())?.scalar(),
+                     expr_const(1, 32));
 
         block.index()
     };
@@ -2279,6 +2282,8 @@ pub fn swl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
         // create a mask for our value
         let mask_bytes = Expr::and(address.clone(), expr_const(3, 32))?;
+        // we want the opposite of the number of bytes we are storing
+        let mask_bytes = Expr::sub(expr_const(4, 32), mask_bytes)?;
         let mask_bits = Expr::shl(mask_bytes, expr_const(3, 32))?;
 
         let mask = Expr::sub(
@@ -2287,6 +2292,7 @@ pub fn swl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         )?;
 
         // and the loaded value with our mask
+        // this operation inverts the mask
         let tmp = Expr::and(
             Expr::sub(
                 expr_const(0xffff_ffff, 32),

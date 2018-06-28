@@ -176,4 +176,9 @@ impl Driver {
     pub fn state(&self) -> &State {
         &self.state
     }
+
+    /// Retrieve a mutable reference to the `State` associated with this driver.
+    pub fn state_mut(&mut self) -> &mut State {
+        &mut self.state
+    }
 }

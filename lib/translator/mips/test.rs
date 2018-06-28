@@ -2234,6 +2234,15 @@ fn slti() {
         "$a0"
     );
     assert_eq!(result.value_u64().unwrap(), 1);
+
+    /* slti $t2, $a2, 0x8 */
+    let result = get_scalar(
+        &[0x28, 0xca, 0x00, 0x08],
+        vec![("$a2", const_(0xe, 32))],
+        Memory::new(Endian::Big),
+        "$t2"
+    );
+    assert_eq!(result.value_u64().unwrap(), 0);
 }
 
 
@@ -2566,6 +2575,33 @@ fn swl() {
 
     assert_eq!(memval(driver.state().memory(), 0x10, 32), 0x11aabbcc);
     assert_eq!(memval(driver.state().memory(), 0x14, 32), 0x55667788);
+
+
+    /*
+    swl $t8, ($a0)
+    */
+    let instruction_bytes = backing!([
+        0xa8, 0x98, 0x00, 0x00,
+        0x03, 0xe0, 0x00, 0x08,
+        0x00, 0x00, 0x00, 0x00,
+        0x11, 0x22, 0x33, 0x44,
+        0x55, 0x66, 0x77, 0x88
+    ]);
+    let mut driver = init_driver_function(
+        instruction_bytes,
+        vec![("$a0", const_(0x6800069f, 32)),
+             ("$t8", const_(0x6c000000, 32))]
+    );
+
+    driver.state_mut()
+        .memory_mut()
+        .store(0x6800069c, const_(0x6c650000, 32))
+        .unwrap();
+
+    let driver = step_to(driver, 0x8);
+
+    assert_eq!(memval(driver.state().memory(), 0x6800069d, 8), 0x65)
+
 }
 
 
