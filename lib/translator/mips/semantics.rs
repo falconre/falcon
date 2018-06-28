@@ -109,7 +109,11 @@ pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let rhs = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let raise_index = {
@@ -186,7 +190,11 @@ pub fn addi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     };
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let raise_index = {
@@ -1183,7 +1191,11 @@ pub fn movn(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let rt = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let op_index = {
@@ -1229,7 +1241,11 @@ pub fn movz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let rt = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let op_index = {
@@ -1736,7 +1752,11 @@ pub fn slt(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let rt = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let true_index = {
@@ -1789,7 +1809,11 @@ pub fn slti(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let imm = expr_const(detail.operands[2].imm() as u64, 32);
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let true_index = {
@@ -1842,7 +1866,11 @@ pub fn sltiu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
     let imm = expr_const(detail.operands[2].imm() as u64, 32);
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let true_index = {
@@ -1895,7 +1923,11 @@ pub fn sltu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let rt = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let true_index = {
@@ -2076,7 +2108,11 @@ pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let rt = get_register(detail.operands[2].reg())?.expression();
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let raise_index = {
@@ -2366,7 +2402,11 @@ pub fn teq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let rt = get_register(detail.operands[1].reg())?.expression();
 
     let head_index = {
-        control_flow_graph.new_block()?.index()
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(scalar("nop", 1), expr_const(1, 1));
+
+        block.index()
     };
 
     let tail_index = {
