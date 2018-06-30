@@ -111,11 +111,11 @@ fn get_scalar(
 }
 
 
-fn get_raise(
+fn get_intrinsic(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Constant)>,
     memory: Memory
-) -> Expression {
+) -> Intrinsic {
 
     let mut driver = init_driver_block(instruction_bytes, scalars, memory);
 
@@ -123,8 +123,8 @@ fn get_raise(
         {
             let location = driver.location().apply(driver.program()).unwrap();
             if let Some(instruction) = location.instruction() {
-                if let Operation::Raise { ref expr } = *instruction.operation() {
-                    return expr.clone();
+                if let Operation::Intrinsic { ref intrinsic } = *instruction.operation() {
+                    return intrinsic.clone();
                 }
             }
         }
@@ -165,32 +165,21 @@ fn add() {
     assert_eq!(result.value_u64().unwrap(), 2);
 
 
-    let result = get_raise(
+    let intrinsic = get_intrinsic(
         instruction_bytes,
         vec![("$a1", const_(0x7fffffff, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
     );
-    if let Expression::Scalar(ref scalar) = result {
-        assert_eq!(scalar.name(), "IntegerOverflow");
-    }
-    else {
-        panic!("Did not hit overflow");
-    }
+    assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
 
-
-    let result = get_raise(
+    let intrinsic = get_intrinsic(
         instruction_bytes,
         vec![("$a1", const_(0xffffffff, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
     );
-    if let Expression::Scalar(ref scalar) = result {
-        assert_eq!(scalar.name(), "IntegerOverflow");
-    }
-    else {
-        panic!("Did not hit overflow");
-    }
+    assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
 }
 
 
@@ -209,17 +198,12 @@ fn addi() {
     assert_eq!(result.value_u64().unwrap(), 0x1235);
 
 
-    let result = get_raise(
+    let intrinsic = get_intrinsic(
         instruction_bytes,
         vec![("$a1", const_(0x7fffffff, 32))],
         Memory::new(Endian::Big)
     );
-    if let Expression::Scalar(ref scalar) = result {
-        assert_eq!(scalar.name(), "IntegerOverflow");
-    }
-    else {
-        panic!("Did not hit overflow");
-    }
+    assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
 }
 
 
@@ -2435,32 +2419,22 @@ fn sub() {
     assert_eq!(result.value_u64().unwrap(), 0);
 
 
-    let result = get_raise(
+    let intrinsic = get_intrinsic(
         instruction_bytes,
         vec![("$a1", const_(0, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
     );
-    if let Expression::Scalar(ref scalar) = result {
-        assert_eq!(scalar.name(), "IntegerOverflow");
-    }
-    else {
-        panic!("Did not hit overflow");
-    }
+    assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
 
 
-    let result = get_raise(
+    let intrinsic = get_intrinsic(
         instruction_bytes,
         vec![("$a1", const_(0x80000000, 32)),
              ("$a2", const_(1, 32))],
         Memory::new(Endian::Big)
     );
-    if let Expression::Scalar(ref scalar) = result {
-        assert_eq!(scalar.name(), "IntegerOverflow");
-    }
-    else {
-        panic!("Did not hit overflow");
-    }
+    assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
 }
 
 

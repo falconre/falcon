@@ -169,9 +169,6 @@ impl State {
                 Successor::new(self, SuccessorType::Branch(
                     target.value_u64().ok_or(ErrorKind::TooManyAddressBits)?))
             },
-            il::Operation::Raise { ref expr } => {
-                Successor::new(self, SuccessorType::Raise(expr.clone()))
-            },
             il::Operation::Intrinsic { ref intrinsic } => {
                 return Err(
                     ErrorKind::UnhandledIntrinsic(format!("{}", intrinsic))

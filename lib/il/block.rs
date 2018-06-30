@@ -158,12 +158,6 @@ impl Block {
         self.push(Instruction::branch(index, dst));
     }
 
-    /// Adds a raise operation to the end of this block.
-    pub fn raise(&mut self, expr: Expression) {
-        let index = self.new_instruction_index();
-        self.push(Instruction::raise(index, expr));
-    }
-
     pub fn intrinsic(&mut self, intrinsic: Intrinsic) {
         let index = self.new_instruction_index();
         self.push(Instruction::intrinsic(index, intrinsic));

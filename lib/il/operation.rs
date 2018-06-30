@@ -26,10 +26,6 @@ pub enum Operation {
     Branch {
         target: Expression
     },
-    /// Raise operation for handling things such as system calls.
-    Raise {
-        expr: Expression,
-    },
     /// Holds an Intrinsic for unmodellable instructions
     Intrinsic {
         intrinsic: Intrinsic
@@ -61,11 +57,6 @@ impl Operation {
         Operation::Branch { target: target }
     }
 
-    /// Create a new `Operation::Raise`.
-    pub fn raise(expr: Expression) -> Operation {
-        Operation::Raise { expr: expr }
-    }
-
     /// Create a new `Operation::Intrinsic`.
     pub fn intrinsic(intrinsic: Intrinsic) -> Operation {
         Operation::Intrinsic { intrinsic: intrinsic }
@@ -87,9 +78,6 @@ impl Operation {
             },
             Operation::Branch { ref target } => {
                 read.append(&mut target.scalars());
-            },
-            Operation::Raise { ref expr } => {
-                read.append(&mut expr.scalars());
             },
             Operation::Intrinsic { ref intrinsic } => {
                 read.append(&mut intrinsic.scalars_read());
@@ -115,9 +103,6 @@ impl Operation {
             Operation::Branch { ref mut target } => {
                 read.append(&mut target.scalars_mut());
             },
-            Operation::Raise { ref mut expr } => {
-                read.append(&mut expr.scalars_mut());
-            },
             Operation::Intrinsic { ref mut intrinsic } => {
                 read.append(&mut intrinsic.scalars_read_mut());
             }
@@ -132,8 +117,7 @@ impl Operation {
             Operation::Assign { ref dst, .. } |
             Operation::Load   { ref dst, .. } => vec![dst],
             Operation::Store  { .. } |
-            Operation::Branch { .. } |
-            Operation::Raise  { .. } => Vec::new(),
+            Operation::Branch { .. } => Vec::new(),
             Operation::Intrinsic { ref intrinsic } =>
                 intrinsic.scalars_written()
         }
@@ -146,8 +130,7 @@ impl Operation {
             Operation::Assign { ref mut dst, .. } |
             Operation::Load   { ref mut dst, .. } => vec![dst],
             Operation::Store  { .. } |
-            Operation::Branch { .. } |
-            Operation::Raise  { .. } => Vec::new(),
+            Operation::Branch { .. } => Vec::new(),
             Operation::Intrinsic { ref mut intrinsic } =>
                 intrinsic.scalars_written_mut()
         }
@@ -166,8 +149,6 @@ impl fmt::Display for Operation {
                 write!(f, "{} = [{}]", dst, index),
             Operation::Branch { ref target } =>
                 write!(f, "branch {}", target),
-            Operation::Raise { ref expr } => 
-                write!(f, "raise {}", expr),
             Operation::Intrinsic { ref intrinsic } =>
                 write!(f, "intrinsic {}", intrinsic)
         }

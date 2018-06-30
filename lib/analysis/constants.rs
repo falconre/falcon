@@ -232,8 +232,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
                     state
                 },
                 il::Operation::Store { .. } |
-                il::Operation::Branch { .. } |
-                il::Operation::Raise { .. } => {
+                il::Operation::Branch { .. } => {
                     state.top();
                     state
                 },

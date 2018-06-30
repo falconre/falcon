@@ -46,7 +46,7 @@ pub fn dead_code_elimination(function: &il::Function)
         for instruction in block.instructions() {
             match *instruction.operation() {
                 il::Operation::Branch { .. } |
-                il::Operation::Raise { .. } => {
+                il::Operation::Intrinsic { .. } => {
                     let rpl = il::RefProgramLocation::new(function,
                         il::RefFunctionLocation::Instruction(block, instruction));
                     rd[&rpl].locations()

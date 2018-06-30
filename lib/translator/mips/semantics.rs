@@ -119,7 +119,15 @@ pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let raise_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("IntegerOverflow", 1));
+        block.intrinsic(
+            Intrinsic::new(
+                "IntegerOverflow",
+                "IntegerOverflow",
+                Vec::new(),
+                None,
+                None,
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            ));
 
         block.index()
     };
@@ -200,7 +208,15 @@ pub fn addi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let raise_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("IntegerOverflow", 1));
+        block.intrinsic(
+            Intrinsic::new(
+                "IntegerOverflow",
+                "IntegerOverflow",
+                Vec::new(),
+                None,
+                None,
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            ));
 
         block.index()
     };
@@ -2121,7 +2137,15 @@ pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let raise_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.raise(expr_scalar("IntegerOverflow", 1));
+        block.intrinsic(
+            Intrinsic::new(
+                "IntegerOverflow",
+                "IntegerOverflow",
+                Vec::new(),
+                None,
+                None,
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            ));
 
         block.index()
     };

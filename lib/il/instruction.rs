@@ -84,16 +84,6 @@ impl Instruction {
     }
 
 
-    /// Create a new `Raise` instruction.
-    ///
-    /// # Warning
-    /// You almost never want to call this function. You should use the
-    /// `raise` method on `il::Block` instead.
-    pub fn raise(index: u64, expr: Expression) -> Instruction {
-        Instruction::new(index, Operation::Raise { expr: expr })
-    }
-
-
     /// Create a new `Intrinsic` instruction.
     ///
     /// # Warning
@@ -137,16 +127,6 @@ impl Instruction {
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Brc`
     pub fn is_branch(&self) -> bool {
         if let Operation::Branch{..} = self.operation {
-            true
-        }
-        else {
-            false
-        }
-    }
-
-    /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Raise`
-    pub fn is_raise(&self) -> bool {
-        if let Operation::Raise{..} = self.operation {
             true
         }
         else {

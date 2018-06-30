@@ -2046,7 +2046,15 @@ impl Semantics {
 
             let expr = self.operand_load(&mut block, &detail.operands[0])?;
 
-            block.raise(expr);
+            block.intrinsic(
+                Intrinsic::new(
+                    "int",
+                    format!("int {}", expr),
+                    vec![expr],
+                    None,
+                    None,
+                    instruction.bytes.get(0..4).unwrap().to_vec()
+                ));
 
             block.index()
         };
@@ -3570,15 +3578,22 @@ impl Semantics {
     pub fn syscall(
         &self,
         control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        instruction: &capstone::Instr
     ) -> Result<()> {
 
         // create a block for this instruction
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
-            // get operands
-            block.raise(expr_scalar("syscall", 1));
+            block.intrinsic(
+            Intrinsic::new(
+                "syscall",
+                "syscall",
+                Vec::new(),
+                None,
+                None,
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            ));
 
             block.index()
         };
@@ -3593,15 +3608,22 @@ impl Semantics {
     pub fn sysenter(
         &self,
         control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        instruction: &capstone::Instr
     ) -> Result<()> {
 
         // create a block for this instruction
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
-            // get operands
-            block.raise(expr_scalar("sysenter", 1));
+            block.intrinsic(
+            Intrinsic::new(
+                "sysenter",
+                "sysenter",
+                Vec::new(),
+                None,
+                None,
+                instruction.bytes.get(0..4).unwrap().to_vec()
+            ));
 
             block.index()
         };
