@@ -20,6 +20,64 @@ const DT_MIPS_GOTSYM: u64      = 0x70000013;
 const DT_MIPS_SYMTABNO: u64    = 0x70000011;
 
 
+/// A helper to build an ElfLinker using the builder pattern.
+#[derive(Clone, Debug)]
+pub struct ElfLinkerBuilder {
+    filename: PathBuf,
+    do_relocations: bool,
+    just_interpreter: bool,
+    ld_paths: Option<Vec<PathBuf>>
+}
+
+
+impl ElfLinkerBuilder {
+    /// Create a new ElfLinker
+    pub fn new(filename: PathBuf) -> ElfLinkerBuilder {
+        ElfLinkerBuilder {
+            filename: filename,
+            do_relocations: true,
+            just_interpreter: false,
+            ld_paths: None
+        }
+    }
+
+    /// This ElfLinker should perform relocations (default true)
+    pub fn do_relocations(mut self, do_relocations: bool) -> Self {
+        self.do_relocations = do_relocations;
+        self
+    }
+
+    /// This ElfLinker should only link in the program interpreter, specified
+    /// by DT_INTERPRETER (default false)
+    pub fn just_interpreter(mut self, just_interpreter: bool) -> Self {
+        self.just_interpreter = just_interpreter;
+        self
+    }
+
+    /// Set the paths where the ElfLinker should look for shared objects and
+    /// depenedncies
+    pub fn ld_paths<P: Into<PathBuf>>(mut self, ld_paths: Option<Vec<P>>)
+        -> Self {
+
+        self.ld_paths =
+            ld_paths.map(|v|
+                v.into_iter()
+                 .map(|p| p.into())
+                 .collect::<Vec<PathBuf>>()
+            );
+        self
+    }
+
+    /// Get the ElfLinker for this ElfLinkerBuilder
+    pub fn link(self) -> Result<ElfLinker> {
+        ElfLinker::new(self.filename,
+                       self.do_relocations,
+                       self.just_interpreter,
+                       self.ld_paths)
+    }
+}
+
+
 /// Loader which links together multiple Elf files.
 ///
 /// Can do some rudimentary linking of binaries.
@@ -38,15 +96,27 @@ pub struct ElfLinker {
     /// Functions as specified by the user
     user_functions: Vec<u64>,
     /// If set, we will do relocations as we link
-    do_relocations: bool
+    do_relocations: bool,
+    /// If set, we will only bring in the DT_INTERPRETER entry, as would happen
+    /// if a process was loaded normally.
+    just_interpreter: bool,
+    /// The paths where ElfLinker will look for dependencies
+    ld_paths: Option<Vec<PathBuf>>
 }
 
 
 impl ElfLinker {
-    /// Takes a path to an Elf and loads the Elf, its dependencies, and links
-    /// them together.
-    pub fn new(filename: &Path, do_relocations: bool) -> Result<ElfLinker> {
-        let mut file = File::open(filename)?;
+    /// Create a new ElfLinker.
+    ///
+    /// It is recommended you use ElfLinkerBuilder to build an ElfLinker.
+    pub fn new(
+        filename: PathBuf,
+        do_relocations: bool,
+        just_interpreter: bool,
+        ld_paths: Option<Vec<PathBuf>>
+    ) -> Result<ElfLinker> {
+
+        let mut file = File::open(&filename)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
 
@@ -62,16 +132,18 @@ impl ElfLinker {
         }
 
         let mut elf_linker = ElfLinker {
-            filename: filename.to_owned(),
+            filename: filename.clone(),
             loaded: BTreeMap::new(),
             memory: Memory::new(endian),
             symbols: BTreeMap::new(),
             next_lib_address: DEFAULT_LIB_BASE,
             user_functions: Vec::new(),
-            do_relocations
+            do_relocations: do_relocations,
+            just_interpreter: just_interpreter,
+            ld_paths: ld_paths
         };
 
-        elf_linker.load_elf(filename, 0)?;
+        elf_linker.load_elf(&filename, 0)?;
 
         Ok(elf_linker)
     }
@@ -95,24 +167,26 @@ impl ElfLinker {
     pub fn load_elf(&mut self, filename: &Path, base_address: u64)
         -> Result<()> {
 
-        // Does this file exist in the same directory as the original file?
-        let mut base_path = match self.filename.as_path().parent() {
-            Some(base_path) => base_path.to_path_buf(),
-            None => PathBuf::new()
-        };
-        base_path.push(filename);
+        let path =
+            self.ld_paths
+                .as_ref()
+                .map(|ld_paths|
+                    ld_paths.iter()
+                    .map(|ld_path| {
+                        let filename = if filename.starts_with("/") {
+                            let filename = filename.to_str().unwrap();
+                            Path::new(filename.split_at(1).1)
+                        }
+                        else {
+                            filename
+                        };
+                        ld_path.to_path_buf().join(filename)
+                    })
+                    .find(|path| path.exists())
+                    .unwrap_or(filename.to_path_buf()))
+                .unwrap_or(filename.to_path_buf());
 
-        let filename = if base_path.exists() {
-            &base_path
-        }
-        else {
-            filename
-        };
-        
-        info!("Loading {} with base_address 0x{:x}",
-            filename.to_str().unwrap(),
-            base_address);
-        let elf = Elf::from_file_with_base_address(filename, base_address)?;
+        let elf = Elf::from_file_with_base_address(&path, base_address)?;
 
 
         // Update our memory map based on what's in the Elf
@@ -145,12 +219,21 @@ impl ElfLinker {
             }
         }
 
-        // Ensure all shared objects we rely on are loaded
-        for so_name in self.loaded[&filename].dt_needed()?.clone() {
-            if self.loaded.get(&so_name).is_none() {
-                self.next_lib_address += LIB_BASE_STEP;
-                let next_lib_address = self.next_lib_address;
-                self.load_elf(Path::new(&so_name), next_lib_address)?;
+        if self.just_interpreter {
+            let interpreter_filename =
+                self.loaded[&filename].elf().interpreter.map(|s| s.to_string());
+            if let Some(interpreter_filename) = interpreter_filename {
+                self.load_elf(Path::new(&interpreter_filename), DEFAULT_LIB_BASE)?;
+            }
+        }
+        else {
+            // Ensure all shared objects we rely on are loaded
+            for so_name in self.loaded[&filename].dt_needed()?.clone() {
+                if self.loaded.get(&so_name).is_none() {
+                    self.next_lib_address += LIB_BASE_STEP;
+                    let next_lib_address = self.next_lib_address;
+                    self.load_elf(Path::new(&so_name), next_lib_address)?;
+                }
             }
         }
 
