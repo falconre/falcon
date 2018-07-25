@@ -16,7 +16,7 @@ pub struct Function {
     // The name of the function
     name: Option<String>,
     // Functions which belong to Programs have indices
-    index: Option<u64>
+    index: Option<usize>
 }
 
 
@@ -70,12 +70,12 @@ impl Function {
     }
 
     /// Return a `Block` from this `Function`'s `ControlFlowGraph` by index.
-    pub fn block(&self, index: u64) -> Option<&Block> {
+    pub fn block(&self, index: usize) -> Option<&Block> {
         self.control_flow_graph.block(index)
     }
 
     /// Return a mutable reference to a `Block` in this `Function`
-    pub fn block_mut(&mut self, index: u64) -> Option<&mut Block> {
+    pub fn block_mut(&mut self, index: usize) -> Option<&mut Block> {
         self.control_flow_graph.block_mut(index)
     }
 
@@ -90,7 +90,7 @@ impl Function {
     }
 
     /// Return an `Edge` from this `Function`'s `ControlFlowGraph` by index.
-    pub fn edge(&self, head: u64, tail: u64) -> Option<&Edge> {
+    pub fn edge(&self, head: usize, tail: usize) -> Option<&Edge> {
         self.control_flow_graph.edge(head, tail)
     }
 
@@ -124,12 +124,12 @@ impl Function {
 
     /// Return the index of this `Function`. A `Function` will have an index if
     /// it is added to a `Program`.
-    pub fn index(&self) -> Option<u64> {
+    pub fn index(&self) -> Option<usize> {
         self.index
     }
 
 
-    pub fn set_index(&mut self, index: Option<u64>) {
+    pub fn set_index(&mut self, index: Option<usize>) {
         self.index = index;
     }
 }

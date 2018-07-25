@@ -8,7 +8,7 @@ use error::*;
 
 pub trait Vertex: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
     // The index of this vertex.
-    fn index(&self) -> u64;
+    fn index(&self) -> usize;
     // A string to display in dot graphviz format.
     fn dot_label(&self) -> String;
 }
@@ -16,9 +16,9 @@ pub trait Vertex: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
 
 pub trait Edge: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
     /// The index of the head vertex.
-    fn head(&self) -> u64;
+    fn head(&self) -> usize;
     /// The index of the tail vertex.
-    fn tail(&self) -> u64;
+    fn tail(&self) -> usize;
     /// A string to display in dot graphviz format.
     fn dot_label(&self) -> String;
 }
@@ -27,12 +27,12 @@ pub trait Edge: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
 /// An empty vertex for creating structures when data is not required
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct NullVertex {
-    index: u64
+    index: usize
 }
 
 
 impl NullVertex {
-    pub fn new(index: u64) -> NullVertex {
+    pub fn new(index: usize) -> NullVertex {
         NullVertex {
             index: index
         }
@@ -41,7 +41,7 @@ impl NullVertex {
 
 
 impl Vertex for NullVertex {
-    fn index(&self) -> u64 { self.index }
+    fn index(&self) -> usize { self.index }
     fn dot_label(&self) -> String { format!("{}", self.index) }
 }
 
@@ -49,13 +49,13 @@ impl Vertex for NullVertex {
 /// An empty edge for creating structures when data is not required
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct NullEdge {
-    head: u64,
-    tail: u64
+    head: usize,
+    tail: usize
 }
 
 
 impl NullEdge {
-    pub fn new(head: u64, tail: u64) -> NullEdge {
+    pub fn new(head: usize, tail: usize) -> NullEdge {
         NullEdge {
             head: head,
             tail: tail
@@ -65,8 +65,8 @@ impl NullEdge {
 
 
 impl Edge for NullEdge {
-    fn head(&self) -> u64 { self.head }
-    fn tail(&self) -> u64 { self.tail }
+    fn head(&self) -> usize { self.head }
+    fn tail(&self) -> usize { self.tail }
     fn dot_label(&self) -> String { format!("{} -> {}", self.head, self.tail) }
 }
 
@@ -75,11 +75,11 @@ impl Edge for NullEdge {
 /// A directed graph.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Graph<V, E> {
-    head: Option<u64>,
-    vertices: BTreeMap<u64, V>,
-    edges: BTreeMap<(u64, u64), E>,
-    edges_out: BTreeMap<u64, Vec<E>>,
-    edges_in: BTreeMap<u64, Vec<E>>
+    head: Option<usize>,
+    vertices: BTreeMap<usize, V>,
+    edges: BTreeMap<(usize, usize), E>,
+    edges_out: BTreeMap<usize, Vec<E>>,
+    edges_in: BTreeMap<usize, Vec<E>>
 }
 
 
@@ -101,13 +101,13 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Returns true if the vertex with the given index exists in this graph
-    pub fn has_vertex(&self, index: u64) -> bool {
+    pub fn has_vertex(&self, index: usize) -> bool {
         self.vertices.contains_key(&index)
     }
 
 
     /// Sets the head of this graph.
-    pub fn set_head(&mut self, index: u64) -> Result<()> {
+    pub fn set_head(&mut self, index: usize) -> Result<()> {
         if !self.vertices.contains_key(&index) {
             return Err("Cannot set head for index that does not exist".into());
         }
@@ -117,13 +117,13 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Returns the head of this graph.
-    pub fn head(&self) -> Option<u64> {
+    pub fn head(&self) -> Option<usize> {
         self.head
     }
 
 
     /// Removes a vertex, and all edges associated with that vertex.
-    pub fn remove_vertex(&mut self, index: u64) -> Result<()> {
+    pub fn remove_vertex(&mut self, index: usize) -> Result<()> {
         // TODO there's a lot of duplicated work in removing edges. Makes
         // debugging easier, but could be made much more efficient.
         if !self.has_vertex(index) {
@@ -159,7 +159,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Removes an edge
-    pub fn remove_edge(&mut self, head: u64, tail: u64) -> Result<()> {
+    pub fn remove_edge(&mut self, head: usize, tail: usize) -> Result<()> {
         if !self.edges.contains_key(&(head, tail)) {
             bail!("edge does not exist");
         }
@@ -227,7 +227,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Returns all immediate successors of a vertex from the graph.
-    pub fn successors(&self, index: u64) -> Result<Vec<&V>> {
+    pub fn successors(&self, index: usize) -> Result<Vec<&V>> {
         if !self.vertices.contains_key(&index) {
             bail!("Vertex {} does not exist and therefor has no successors", index);
         }
@@ -244,7 +244,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Returns all immediate predecessors of a vertex from the graph.
-    pub fn predecessors(&self, index: u64) -> Result<Vec<&V>> {
+    pub fn predecessors(&self, index: usize) -> Result<Vec<&V>> {
         if !self.vertices.contains_key(&index) {
             bail!("Vertex {} does not exist and therefor has no predecessors", index);
         }
@@ -264,9 +264,9 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
     ///
     /// # Warning
     /// Unsure of correctness of this implementation
-    pub fn compute_dominance_frontiers(&self, start_index: u64)
-    -> Result<BTreeMap<u64, BTreeSet<u64>>> {
-        let mut df: BTreeMap<u64, BTreeSet<u64>> = BTreeMap::new();
+    pub fn compute_dominance_frontiers(&self, start_index: usize)
+    -> Result<BTreeMap<usize, BTreeSet<usize>>> {
+        let mut df: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
 
         for vertex in &self.vertices {
             df.insert(*vertex.0, BTreeSet::new());
@@ -275,7 +275,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
         let idoms = self.compute_immediate_dominators(start_index)?;
 
         for vertex in &self.vertices {
-            let vertex_index: u64 = *vertex.0;
+            let vertex_index: usize = *vertex.0;
 
             if self.edges_in[&vertex_index].len() >= 2 {
                 for edge in &self.edges_in[&vertex_index] {
@@ -295,14 +295,14 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
     }
 
 
-    pub fn compute_immediate_dominators(&self, start_index: u64)
-    -> Result<BTreeMap<u64, u64>> {
-        let mut idoms: BTreeMap<u64, u64> = BTreeMap::new();
+    pub fn compute_immediate_dominators(&self, start_index: usize)
+    -> Result<BTreeMap<usize, usize>> {
+        let mut idoms: BTreeMap<usize, usize> = BTreeMap::new();
 
         let dominators = self.compute_dominators(start_index)?;
 
         for vertex in &self.vertices {
-            let vertex_index: u64 = *vertex.0;
+            let vertex_index: usize = *vertex.0;
 
             let mut sdoms = dominators[&vertex_index].clone();
             sdoms.remove(&vertex_index);
@@ -333,14 +333,14 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Computes dominators for all vertices in the graph
-    pub fn compute_dominators(&self, start_index: u64)
-        -> Result<BTreeMap<u64, BTreeSet<u64>>> {
+    pub fn compute_dominators(&self, start_index: usize)
+        -> Result<BTreeMap<usize, BTreeSet<usize>>> {
             
         if !self.vertices.contains_key(&start_index) {
             bail!("vertex {} not in graph", start_index);
         }
 
-        let mut dominators: BTreeMap<u64, BTreeSet<u64>> = BTreeMap::new();
+        let mut dominators: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
 
         // add our start vertex to our dominator set
         {
@@ -359,7 +359,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
         let predecessors = dag.compute_predecessors()?;
 
         while !queue.is_empty() {
-            let vertex_index: u64 = queue.pop_front().unwrap();
+            let vertex_index: usize = queue.pop_front().unwrap();
 
             // are dominators for all predecessors of this block already set?
             let mut predecessors_set = true;
@@ -379,7 +379,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
             // this vertex's dominators are the intersection of all
             // immediate predecessors' dominators, plus itself
-            let mut doms: BTreeSet<u64> = match dag.edges_in(vertex_index)
+            let mut doms: BTreeSet<usize> = match dag.edges_in(vertex_index)
                                                    .unwrap()
                                                    .first() {
                 Some(predecessor_edge) => dominators[&predecessor_edge.head()].clone(),
@@ -414,9 +414,9 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
     /// graph, not just immediate predecessors.
     ///
     /// Given A -> B -> C, both A and B will be in the set for C.
-    pub fn compute_predecessors(&self) -> Result<BTreeMap<u64, BTreeSet<u64>>> {
-        let mut predecessors: BTreeMap<u64, BTreeSet<u64>> = BTreeMap::new();
-        let mut queue: VecDeque<u64> = VecDeque::new();
+    pub fn compute_predecessors(&self) -> Result<BTreeMap<usize, BTreeSet<usize>>> {
+        let mut predecessors: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
+        let mut queue: VecDeque<usize> = VecDeque::new();
 
         // initial population
         for vertex in &self.vertices {
@@ -433,7 +433,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
             let vertex_index = queue.pop_front().unwrap();
 
             // for each predecessor of this vertex
-            let mut to_add: Vec<u64> = Vec::new();
+            let mut to_add: Vec<usize> = Vec::new();
             {
                 let this_predecessors = &predecessors[&vertex_index];
                 for predecessor in &predecessors[&vertex_index] {
@@ -464,7 +464,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Creates an acyclic graph with NullVertex and NullEdge
-    pub fn compute_acyclic(&self, start_index: u64) -> Result<Graph<NullVertex, NullEdge>> {
+    pub fn compute_acyclic(&self, start_index: usize) -> Result<Graph<NullVertex, NullEdge>> {
         let mut graph = Graph::new();
         for vertex in &self.vertices {
             graph.insert_vertex(NullVertex::new(*vertex.0))?;
@@ -517,23 +517,23 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Fetches an index from the graph by index.
-    pub fn vertex(&self, index: u64) -> Option<&V> {
+    pub fn vertex(&self, index: usize) -> Option<&V> {
         self.vertices.get(&index)
     }
 
 
     // Fetches a mutable instance of a vertex.
-    pub fn vertex_mut(&mut self, index: u64) -> Option<&mut V> {
+    pub fn vertex_mut(&mut self, index: usize) -> Option<&mut V> {
         self.vertices.get_mut(&index)
     }
 
 
-    pub fn edge(&self, head: u64, tail: u64) -> Option<&E> {
+    pub fn edge(&self, head: usize, tail: usize) -> Option<&E> {
         self.edges.get(&(head, tail))
     }
 
 
-    pub fn edge_mut(&mut self, head: u64, tail: u64) -> Option<&mut E> {
+    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Option<&mut E> {
         self.edges.get_mut(&(head, tail))
     }
 
@@ -555,13 +555,13 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     /// Return all edges out for a vertex
-    pub fn edges_out(&self, index: u64) -> Option<&Vec<E>> {
+    pub fn edges_out(&self, index: usize) -> Option<&Vec<E>> {
         self.edges_out.get(&index)
     }
 
 
     /// Return all edges in for a vertex
-    pub fn edges_in(&self, index: u64) -> Option<&Vec<E>> {
+    pub fn edges_in(&self, index: usize) -> Option<&Vec<E>> {
         self.edges_in.get(&index)
     }
 

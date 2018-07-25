@@ -431,7 +431,7 @@ impl<'f> fmt::Display for RefFunctionLocation<'f> {
 /// A location independent of any specific instance of `Program`.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct ProgramLocation {
-    function_index: Option<u64>,
+    function_index: Option<usize>,
     function_location: FunctionLocation
 }
 
@@ -439,7 +439,7 @@ pub struct ProgramLocation {
 impl ProgramLocation {
     /// Create a new `ProgramLocation` from a function index and `FunctionLocation`
     pub fn new(
-        function_index: Option<u64>,
+        function_index: Option<usize>,
         function_location: FunctionLocation
     ) -> ProgramLocation {
 
@@ -476,14 +476,14 @@ impl ProgramLocation {
 
     /// If this `ProgramLocation` has a valid `Block` target, return the index
     /// of that `Block`.
-    pub fn block_index(&self) -> Option<u64> {
+    pub fn block_index(&self) -> Option<usize> {
         self.function_location.block_index()
     }
 
 
     /// If this `ProgramLocation` has a valid `Instruction` target, return the
     /// index of that `Instruction`
-    pub fn instruction_index(&self) -> Option<u64> {
+    pub fn instruction_index(&self) -> Option<usize> {
         self.function_location.instruction_index()
     }
 }
@@ -512,9 +512,9 @@ impl fmt::Display for ProgramLocation {
 /// A location indepdent of any specific instance of `Function`.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum FunctionLocation {
-    Instruction(u64, u64),
-    Edge(u64, u64),
-    EmptyBlock(u64)
+    Instruction(usize, usize),
+    Edge(usize, usize),
+    EmptyBlock(usize)
 }
 
 
@@ -554,7 +554,7 @@ impl FunctionLocation {
 
     /// If this `FunctionLocation` has a valid `Block` target, return the index
     /// of that `Instruction`.
-    pub fn block_index(&self) -> Option<u64> {
+    pub fn block_index(&self) -> Option<usize> {
         match *self {
             FunctionLocation::Instruction(block_index, _) => Some(block_index),
             FunctionLocation::EmptyBlock(block_index) => Some(block_index),
@@ -565,7 +565,7 @@ impl FunctionLocation {
 
     /// If this `FunctionLocation` has a valid `Instruction` target, return the
     /// index of that `Instruction`.
-    pub fn instruction_index(&self) -> Option<u64> {
+    pub fn instruction_index(&self) -> Option<usize> {
         match *self {
             FunctionLocation::Instruction(_, instruction_index) => Some(instruction_index),
             _ => None

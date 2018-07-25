@@ -9,9 +9,9 @@ use RC;
 #[derive(Clone, Debug, Deserialize, Hash, Serialize)]
 pub struct Program {
     // Mapping of function indices (not addresses) to `Function`.
-    functions: BTreeMap<u64, RC<Function>>,
+    functions: BTreeMap<usize, RC<Function>>,
     // The next index to assign to a function when added to the program.
-    next_index: u64
+    next_index: usize
 }
 
 
@@ -47,11 +47,11 @@ impl Program {
 
 
     /// Get the underlying BTreeMap holding all `Function` for this `Program`.
-    pub fn functions_map(&self) -> BTreeMap<u64, &Function> {
+    pub fn functions_map(&self) -> BTreeMap<usize, &Function> {
         self.functions
             .iter()
             .map(|(index, function)| (*index, function.as_ref()))
-            .collect::<BTreeMap<u64, &Function>>()
+            .collect::<BTreeMap<usize, &Function>>()
     }
 
 
@@ -59,7 +59,7 @@ impl Program {
     ///
     /// A `Function` index is assigned by `Program` and is not the address where the `Function`
     /// was discovered.
-    pub fn function(&self, index: u64) -> Option<&Function> {
+    pub fn function(&self, index: usize) -> Option<&Function> {
         match self.functions.get(&index) {
             Some(f) => Some(f),
             None => None

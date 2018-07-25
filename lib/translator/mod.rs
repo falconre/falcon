@@ -207,10 +207,11 @@ pub trait Translator: {
         // keeping track of their new entry and exit indices.
 
         // A mapping of instruction address to entry/exit vertex indices
-        let mut instruction_indices: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
+        let mut instruction_indices: BTreeMap<u64, (usize, usize)>
+            = BTreeMap::new();
 
         // A mapping of block address to entry/exit vertex indices;
-        let mut block_indices: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
+        let mut block_indices: BTreeMap<u64, (usize, usize)> = BTreeMap::new();
 
         let mut control_flow_graph = ControlFlowGraph::new();
         for result in &translation_results {

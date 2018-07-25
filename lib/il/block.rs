@@ -15,18 +15,18 @@ use std::fmt;
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Block {
     /// The index of the block.
-    index: u64,
+    index: usize,
     /// an internal counter for the next block-unique instruction.
-    next_instruction_index: u64,
+    next_instruction_index: usize,
     /// An internal counter for the next block-unique temporary variable.
-    next_temp_index: u64,
+    next_temp_index: usize,
     /// The instructions for this block.
     instructions: Vec<Instruction>,
 }
 
 
 impl Block {
-    pub(crate) fn new(index: u64) -> Block {
+    pub(crate) fn new(index: usize) -> Block {
         Block {
             index: index,
             next_instruction_index: 0,
@@ -36,7 +36,7 @@ impl Block {
     }
 
 
-    fn new_instruction_index(&mut self) -> u64 {
+    fn new_instruction_index(&mut self) -> usize {
         let instruction_index = self.next_instruction_index;
         self.next_instruction_index = instruction_index + 1;
         instruction_index
@@ -68,7 +68,7 @@ impl Block {
 
 
     /// Returns the index of this `Block`
-    pub fn index(&self) -> u64 {
+    pub fn index(&self) -> usize {
         self.index
     }
 
@@ -93,7 +93,7 @@ impl Block {
 
     /// Returns an `Instruction` by index, or `None` if the instruction does not
     /// exist.
-    pub fn instruction(&self, index: u64) -> Option<&Instruction> {
+    pub fn instruction(&self, index: usize) -> Option<&Instruction> {
         self.instructions
             .iter()
             .find(|instruction| instruction.index() == index)
@@ -102,7 +102,7 @@ impl Block {
 
     /// Returns a mutable reference to an `Instruction` by index, or `None` if
     /// the `Instruction` does not exist.
-    pub fn instruction_mut<>(&mut self, index: u64) -> Option<&mut Instruction> {
+    pub fn instruction_mut<>(&mut self, index: usize) -> Option<&mut Instruction> {
         self.instructions
             .iter_mut()
             .find(|instruction| instruction.index() == index)
@@ -110,7 +110,7 @@ impl Block {
 
 
     /// Deletes an `Instruction` by its index.
-    pub fn remove_instruction(&mut self, index: u64) -> Result<()> {
+    pub fn remove_instruction(&mut self, index: usize) -> Result<()> {
         self.instructions
             .iter()
             .position(|instruction| instruction.index() == index)
@@ -120,7 +120,7 @@ impl Block {
 
 
     /// Clone this block and set a new index.
-    pub(crate) fn clone_new_index(&self, index: u64) -> Block {
+    pub(crate) fn clone_new_index(&self, index: usize) -> Block {
         let mut clone = self.clone();
         clone.index = index;
         clone
@@ -166,7 +166,7 @@ impl Block {
 
 
 impl graph::Vertex for Block {
-    fn index (&self) -> u64 { self.index }
+    fn index (&self) -> usize { self.index }
     fn dot_label(&self) -> String { format!("{}", self) }
 }
 

@@ -16,7 +16,7 @@ use std::fmt;
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Instruction {
     operation: Operation,
-    index: u64,
+    index: usize,
     comment: Option<String>,
     address: Option<u64>
 }
@@ -29,7 +29,7 @@ impl Instruction {
     /// You almost never want to call this function. You should use the methods
     /// on `il::Block` which correspond to the operation you wish to append to
     /// that block.
-    pub fn new(index: u64, operation: Operation) -> Instruction {
+    pub fn new(index: usize, operation: Operation) -> Instruction {
         Instruction {
             operation: operation,
             index: index,
@@ -44,7 +44,7 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `assign` method on `il::Block` instead.
-    pub fn assign(index: u64, dst: Scalar, src: Expression) -> Instruction {
+    pub fn assign(index: usize, dst: Scalar, src: Expression) -> Instruction {
         Instruction::new(index, Operation::assign(dst, src))
     }
 
@@ -54,7 +54,7 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `store` method on `il::Block` instead.
-    pub fn store(instruction_index: u64, index: Expression, src: Expression)
+    pub fn store(instruction_index: usize, index: Expression, src: Expression)
         -> Instruction {
 
         Instruction::new(instruction_index, Operation::store(index, src))
@@ -66,7 +66,7 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `load` method on `il::Block` instead.
-    pub fn load(instruction_index: u64, dst: Scalar, index: Expression)
+    pub fn load(instruction_index: usize, dst: Scalar, index: Expression)
         -> Instruction {
 
         Instruction::new(instruction_index, Operation::load(dst, index))
@@ -78,7 +78,7 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `brc` method on `il::Block` instead.
-    pub fn branch(index: u64, target: Expression) -> Instruction {
+    pub fn branch(index: usize, target: Expression) -> Instruction {
 
         Instruction::new(index, Operation::branch(target))
     }
@@ -89,7 +89,7 @@ impl Instruction {
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `intrinsic` method on `il::Block` instead.
-    pub fn intrinsic(index: u64, intrinsic: Intrinsic) -> Instruction {
+    pub fn intrinsic(index: usize, intrinsic: Intrinsic) -> Instruction {
         Instruction::new(index, Operation::Intrinsic { intrinsic: intrinsic })
     }
 
@@ -149,7 +149,7 @@ impl Instruction {
     /// An `Instruction` index is assigned by its parent `Block` and uniquely identifies the
     /// `Instruction` within the `Block`. `Instruction` indices need not be continuous, nor
     /// in order.
-    pub fn index(&self) -> u64 {
+    pub fn index(&self) -> usize {
         self.index
     }
 
@@ -179,7 +179,7 @@ impl Instruction {
     }
 
     /// Clone this instruction with a new index.
-    pub(crate) fn clone_new_index(&self, index: u64) -> Instruction {
+    pub(crate) fn clone_new_index(&self, index: usize) -> Instruction {
         Instruction {
             operation: self.operation.clone(),
             index: index,

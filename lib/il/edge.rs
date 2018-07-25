@@ -15,15 +15,17 @@ use std::fmt;
 /// Edge between IL blocks
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Edge {
-    head: u64,
-    tail: u64,
+    head: usize,
+    tail: usize,
     condition: Option<Expression>,
     comment: Option<String>
 }
 
 
 impl Edge {
-    pub(crate) fn new(head: u64, tail: u64, condition: Option<Expression>) -> Edge {
+    pub(crate) fn new(head: usize, tail: usize, condition: Option<Expression>)
+        -> Edge {
+            
         Edge {
             head: head,
             tail: tail,
@@ -43,10 +45,10 @@ impl Edge {
     }
 
     /// Retrieve the index of the head `Vertex` for this `Edge`.
-    pub fn head(&self) -> u64 { self.head }
+    pub fn head(&self) -> usize { self.head }
 
     /// Retrieve the index of the tail `Vertex` for this `Edge`.
-    pub fn tail(&self) -> u64 { self.tail }
+    pub fn tail(&self) -> usize { self.tail }
 
     /// Set the comment for this `Edge`.
     pub fn set_comment(&mut self, comment: Option<String>) {
@@ -83,8 +85,8 @@ impl fmt::Display for Edge {
 
 
 impl graph::Edge for Edge {
-    fn head(&self) -> u64 { self.head }
-    fn tail(&self) -> u64 { self.tail }
+    fn head(&self) -> usize { self.head }
+    fn tail(&self) -> usize { self.tail }
     fn dot_label(&self) -> String { 
         match self.condition {
             Some(ref condition) => format!("{}", condition),
