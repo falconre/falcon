@@ -96,6 +96,10 @@ pub mod error {
         }
 
         errors {
+            Analysis(m: String) {
+                description("An error in the analysis")
+                display("Analysis error: {}", m)
+            }
             Arithmetic(m: String) {
                 description("Error in evaluation of arithmetic expression")
                 display("Arithmetic expression evaluation error: {}", m)

@@ -4,7 +4,7 @@
 //! as an offset from the stack pointer's value at function entry.
 //!
 //! This analysis works off a very simple lattice, Top/Value/Bottom, where Value
-//! is a single il::Constant.
+//! is an isize.
 
 use architecture::Architecture;
 use analysis::fixed_point;
@@ -24,7 +24,7 @@ pub fn stack_pointer_offsets<'f>(
     let spoa = StackPointerOffsetAnalysis {
         stack_pointer: architecture.stack_pointer()
     };
-    fixed_point::fixed_point_forward(spoa, function)
+    transform(fixed_point::fixed_point_forward(spoa, function)?)
 }
 
 
@@ -37,68 +37,99 @@ pub fn perfect<'f>(
 }
 
 
-/// A constant value representing the value of the stack pointer at some point
-/// in the function.
+/// The offset of the stack pointer from the beginning of the function.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum StackPointerOffset {
     Top,
-    Value(il::Constant),
+    Value(isize),
     Bottom
 }
 
 
 impl StackPointerOffset {
     pub fn is_top(&self) -> bool {
-        match *self {
+        match self {
             StackPointerOffset::Top => true,
             _ => false
         }
     }
 
     pub fn is_value(&self) -> bool {
-        match *self {
-            StackPointerOffset::Value(_) => true,
-            _ => false
-        }
+        self.value().is_some()
     }
 
-    pub fn value(&self) -> Option<&il::Constant> {
-        if let StackPointerOffset::Value(ref constant) = *self {
-            Some(constant)
-        }
-        else {
-            None
-        }
-    }
-
-    pub fn is_bottom(&self) -> bool {
-        match *self {
+    pub fn is_bototm(&self) -> bool {
+        match self {
             StackPointerOffset::Bottom => true,
             _ => false
         }
     }
+
+    pub fn value(&self) -> Option<isize> {
+        match self {
+            StackPointerOffset::Value(value) => Some(*value),
+            _ => None
+        }
+    }
+
+    fn from_intermediate(intermediate: &IntermediateOffset)
+        -> Result<StackPointerOffset> {
+
+        Ok(match intermediate {
+            IntermediateOffset::Top =>
+                StackPointerOffset::Top,
+            IntermediateOffset::Bottom =>
+                StackPointerOffset::Bottom,
+            IntermediateOffset::Value(value) =>
+                StackPointerOffset::Value(
+                    value.value_u64()
+                        .ok_or(ErrorKind::Analysis(
+                            "Stack pointer was not u64".to_string()))?
+                        as isize)
+        })
+    }
 }
 
 
-impl PartialOrd for StackPointerOffset {
-    fn partial_cmp(&self, other: &StackPointerOffset) -> Option<Ordering> {
+fn transform(states: HashMap<il::RefProgramLocation, IntermediateOffset>)
+    -> Result<HashMap<il::RefProgramLocation, StackPointerOffset>> {
+
+    states.into_iter()
+        .try_fold(HashMap::new(), |mut t, (rpl, ispo)| {
+            t.insert(rpl, StackPointerOffset::from_intermediate(&ispo)?);
+            Ok(t)
+        })
+}
+
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+enum IntermediateOffset {
+    Top,
+    Value(il::Constant),
+    Bottom
+}
+
+
+impl PartialOrd for IntermediateOffset {
+    fn partial_cmp(&self, other: &IntermediateOffset) -> Option<Ordering> {
         match *self {
-            StackPointerOffset::Top => match *other {
-                StackPointerOffset::Top => Some(Ordering::Equal),
-                StackPointerOffset::Value(_) |
-                StackPointerOffset::Bottom => Some(Ordering::Greater)
+            IntermediateOffset::Top => match *other {
+                IntermediateOffset::Top => Some(Ordering::Equal),
+                IntermediateOffset::Value(_) |
+                IntermediateOffset::Bottom => Some(Ordering::Greater)
             },
-            StackPointerOffset::Value(ref lhs) => match *other {
-                StackPointerOffset::Top => Some(Ordering::Less),
-                StackPointerOffset::Value(ref rhs) =>
+            IntermediateOffset::Value(ref lhs) => match *other {
+                IntermediateOffset::Top => Some(Ordering::Less),
+                IntermediateOffset::Value(ref rhs) =>
                     if lhs == rhs { Some(Ordering::Equal) }
                     else { None},
-                StackPointerOffset::Bottom => Some(Ordering::Greater)
+                IntermediateOffset::Bottom => Some(Ordering::Greater)
             },
-            StackPointerOffset::Bottom => match *other {
-                StackPointerOffset::Top |
-                StackPointerOffset::Value(_) => Some(Ordering::Less),
-                StackPointerOffset::Bottom => Some(Ordering::Equal)
+            IntermediateOffset::Bottom => match *other {
+                IntermediateOffset::Top |
+                IntermediateOffset::Value(_) => Some(Ordering::Less),
+                IntermediateOffset::Bottom => Some(Ordering::Equal)
             }
         }
     }
@@ -111,29 +142,29 @@ struct StackPointerOffsetAnalysis {
 
 
 impl StackPointerOffsetAnalysis {
-    /// Handle an operation for stack pointer offset analysis
+    // Handle an operation for stack pointer offset analysis
     fn handle_operation(
         &self,
         operation: &il::Operation,
-        stack_pointer_offset: StackPointerOffset
-    ) -> Result<StackPointerOffset> {
+        stack_pointer_offset: IntermediateOffset
+    ) -> Result<IntermediateOffset> {
         Ok(match *operation {
             // If we're assigning, operate off current stack pointer value
             il::Operation::Assign { ref dst, ref src } => {
                 if *dst == self.stack_pointer {
                     match stack_pointer_offset {
-                        StackPointerOffset::Top => StackPointerOffset::Top,
-                        StackPointerOffset::Value(ref constant) => {
+                        IntermediateOffset::Top => IntermediateOffset::Top,
+                        IntermediateOffset::Value(ref constant) => {
                             let expr = src.replace_scalar(&self.stack_pointer,
                                                           &constant.clone().into())?;
                             if expr.all_constants() {
-                                StackPointerOffset::Value(eval(&expr)?.into())
+                                IntermediateOffset::Value(eval(&expr)?.into())
                             }
                             else {
-                                StackPointerOffset::Top
+                                IntermediateOffset::Top
                             }
                         },
-                        StackPointerOffset::Bottom => StackPointerOffset::Bottom
+                        IntermediateOffset::Bottom => IntermediateOffset::Bottom
                     }
                 }
                 else {
@@ -143,7 +174,7 @@ impl StackPointerOffsetAnalysis {
             // If we are loading stack pointer, set it to top
             il::Operation::Load { ref dst, .. } => {
                 if *dst == self.stack_pointer {
-                    StackPointerOffset::Top
+                    IntermediateOffset::Top
                 }
                 else {
                     stack_pointer_offset
@@ -156,12 +187,12 @@ impl StackPointerOffsetAnalysis {
 
 
 /// Track the offset for the stack pointer at any point in the program
-impl<'f> fixed_point::FixedPointAnalysis<'f, StackPointerOffset> for StackPointerOffsetAnalysis {
+impl<'f> fixed_point::FixedPointAnalysis<'f, IntermediateOffset> for StackPointerOffsetAnalysis {
     fn trans(
         &self,
         location: il::RefProgramLocation<'f>,
-        state: Option<StackPointerOffset>
-    ) -> Result<StackPointerOffset> {
+        state: Option<IntermediateOffset>
+    ) -> Result<IntermediateOffset> {
 
         // If we are the function entry, we set the value of the stack pointer
         // to 0.
@@ -174,10 +205,10 @@ impl<'f> fixed_point::FixedPointAnalysis<'f, StackPointerOffset> for StackPointe
                         .ok_or("Unable to get function entry")?;
 
                 if location == function_entry {
-                    StackPointerOffset::Value(il::const_(0, 32))
+                    IntermediateOffset::Value(il::const_(0, 32))
                 }
                 else {
-                    StackPointerOffset::Top
+                    IntermediateOffset::Top
                 }
             }
         };
@@ -190,31 +221,31 @@ impl<'f> fixed_point::FixedPointAnalysis<'f, StackPointerOffset> for StackPointe
         })
     }
 
-    fn join(&self, state0: StackPointerOffset, state1: &StackPointerOffset)
-        -> Result<StackPointerOffset> {
+    fn join(&self, state0: IntermediateOffset, state1: &IntermediateOffset)
+        -> Result<IntermediateOffset> {
 
         Ok(match state0 {
-            StackPointerOffset::Top => StackPointerOffset::Top,
-            StackPointerOffset::Value(v0) => {
+            IntermediateOffset::Top => IntermediateOffset::Top,
+            IntermediateOffset::Value(v0) => {
                 match *state1 {
-                    StackPointerOffset::Top => StackPointerOffset::Top,
-                    StackPointerOffset::Value(ref v1) => {
+                    IntermediateOffset::Top => IntermediateOffset::Top,
+                    IntermediateOffset::Value(ref v1) => {
                         if v0 == *v1 {
-                            StackPointerOffset::Value(v0)
+                            IntermediateOffset::Value(v0)
                         }
                         else {
-                            StackPointerOffset::Top
+                            IntermediateOffset::Top
                         }
                     },
-                    StackPointerOffset::Bottom => StackPointerOffset::Value(v0)
+                    IntermediateOffset::Bottom => IntermediateOffset::Value(v0)
                 }
             },
-            StackPointerOffset::Bottom => {
+            IntermediateOffset::Bottom => {
                 match *state1 {
-                    StackPointerOffset::Top => StackPointerOffset::Top,
-                    StackPointerOffset::Value(ref v1) =>
-                        StackPointerOffset::Value(v1.clone()),
-                    StackPointerOffset::Bottom => StackPointerOffset::Bottom
+                    IntermediateOffset::Top => IntermediateOffset::Top,
+                    IntermediateOffset::Value(ref v1) =>
+                        IntermediateOffset::Value(v1.clone()),
+                    IntermediateOffset::Bottom => IntermediateOffset::Bottom
                 }
             }
         })
