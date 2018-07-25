@@ -78,7 +78,14 @@ impl Memory {
     /// Get the permissions at the given address.
     pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
         match self.section_address(address) {
-            Some(section_address) => Some(self.sections[&section_address].permissions()),
+            Some(section_address) =>
+                Some(self.sections
+                        .get(&section_address)
+                        .expect(&format!(
+                            "Failed to get section at 0x{:x} in \
+                             backing::Memory::permissions()",
+                            section_address))
+                        .permissions()),
             None => None
         }
     }
@@ -87,7 +94,18 @@ impl Memory {
     pub fn get8(&self, address: u64) -> Option<u8> {
         match self.section_address_offset(address) {
             Some((address, offset)) =>
-                Some(self.sections[&address].data()[offset]),
+                Some(*self.sections
+                        .get(&address)
+                        .expect(&format!(
+                            "Failed to get section at 0x{:x} in \
+                             backing::Memory::permissions()",
+                            address))
+                        .data()
+                        .get(offset)
+                        .expect(&format!(
+                            "Failed to get offset 0x{:x} from 0x{:x} in \
+                             backing::Memory::permissions()",
+                            offset, address))),
             None => None
         }
     }
@@ -179,16 +197,33 @@ impl Memory {
             if a < address && a + l > address {
                 if a + l <= address + data.len() as u64 {
                     let new_length = (address - a) as usize;
-                    self.sections.get_mut(&a).unwrap().truncate(new_length);
+                    self.sections
+                        .get_mut(&a)
+                        .expect(&format!(
+                            "Failed to get section 0x{:x} in \
+                            backing::Memory::set_memory(). This should never \
+                            happen.", a))
+                        .truncate(new_length);
                 }
                 else {
                     let offset = address + data.len() as u64 - a;
-                    let split = self.sections
-                                    .get_mut(&a)
-                                    .unwrap()
-                                    .data
-                                    .split_off(offset as usize);
-                    let permissions = self.sections[&a].permissions();
+                    let split = 
+                        self.sections
+                            .get_mut(&a)
+                            .expect(&format!(
+                                "Failed to get section 0x{:x} in \
+                                backing::Memory::set_memory(). This should \
+                                never happen.", a))
+                            .data
+                            .split_off(offset as usize);
+                    let permissions =
+                        self.sections
+                            .get(&a)
+                            .expect(&format!(
+                                "Failed to get section 0x{:x} in \
+                                 backing::Memory::set_memory(). This should \
+                                 never happen.", a))
+                            .permissions();
                     self.sections.insert(
                         address + data.len() as u64,
                         Section::new(split, permissions)
@@ -199,16 +234,38 @@ impl Memory {
                 } 
             }
             else if a >= address && a + l <= address + data.len() as u64 {
+                if self.sections.get(&a).is_none() {
+                    panic!("About to remove 0x{:x} from sections in \
+                            backing::Memory::set_memory, but address does not
+                            exist");
+                }
                 self.sections.remove(&a);
             }
-            else if a >= address && a + l > address + data.len() as u64 {
+            else if a >= address &&
+                    a < address + data.len() as u64 &&
+                    a + l > address + data.len() as u64 {
                 let offset = address + data.len() as u64 - a;
+                let data_len = self.sections
+                                .get(&a)
+                                .unwrap()
+                                .data
+                                .len() as u64;
+                if offset > data_len {
+                    panic!("offset 0x{:x} is > data.len() 0x{:x}", offset, data_len);
+                }
                 let split = self.sections
                                 .get_mut(&a)
                                 .unwrap()
                                 .data
                                 .split_off(offset as usize);
-                let permissions = self.sections[&a].permissions();
+                let permissions =
+                    self.sections
+                        .get(&a)
+                        .expect(&format!(
+                            "Failed to get section for 0x{:x} while updating \
+                             permissions in backing::Memory::set_memory(). \
+                             This should never happen.", a))
+                        .permissions();
                 self.sections.remove(&a);
                 self.sections.insert(
                         address + data.len() as u64,
