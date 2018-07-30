@@ -8,7 +8,7 @@ mod def_use;
 pub mod fixed_point;
 mod location_set;
 mod reaching_definitions;
-pub mod stack_pointer_offset;
+pub mod stack_pointer_offsets;
 mod use_def;
 
 pub use self::dead_code_elimination::dead_code_elimination;
