@@ -6,7 +6,7 @@ use std::fmt;
 use RC;
 
 /// A representation of a program by `il::Function`
-#[derive(Clone, Debug, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Program {
     // Mapping of function indices (not addresses) to `Function`.
     functions: BTreeMap<usize, RC<Function>>,
@@ -74,6 +74,14 @@ impl Program {
         function.set_index(Some(self.next_index));
         self.functions.insert(self.next_index, RC::new(function));
         self.next_index += 1;
+    }
+
+    /// Get a `Function` by its name.
+    pub fn function_by_name(&self, name: &str) -> Option<&Function> {
+        self.functions
+            .iter()
+            .find(|(_, function)| function.name() == name)
+            .map(|(_, function)| function.as_ref())
     }
 }
 

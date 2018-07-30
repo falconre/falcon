@@ -153,8 +153,8 @@ pub trait Translator: {
     fn translate_function(
         &self,
         memory: &TranslationMemory,
-        function_address: u64)
-    -> Result<Function> {
+        function_address: u64
+    ) -> Result<Function> {
 
         // Addresses of blocks pending translation
         let mut translation_queue: VecDeque<u64> = VecDeque::new();

@@ -16,7 +16,7 @@ use std::fmt;
 /// an instruction as its own `ControlFlowGraph`. `rep scasb` is a great example of when this
 /// pattern is helpful. Instructions in a `Block` will have one entry, and one exit. Explicitly
 /// declaring these makes merging `ControlFlowGraph`s easier.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Eq, PartialEq, Serialize)]
 pub struct ControlFlowGraph {
     // The internal graph used to store our blocks.
     graph: graph::Graph<Block, Edge>,

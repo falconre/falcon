@@ -89,6 +89,19 @@ impl Constant {
         self.value.to_u64()
     }
 
+    /// Sign-extend the constant out to 64-bits, and return it as an `i64`
+    pub fn value_i64(&self) -> Option<i64> {
+        if self.bits() > 64 {
+            None
+        }
+        else if self.bits() == 64 {
+            self.value.to_u64().map(|v| v as i64)
+        }
+        else {
+            self.sext(64).ok()?.value.to_u64().map(|v| v as i64)
+        }
+    }
+
     /// Get the value of this `Constant` if it is a `BigUint`.
     pub fn value(&self) -> &BigUint {
         &self.value

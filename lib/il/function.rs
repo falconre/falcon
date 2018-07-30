@@ -7,7 +7,7 @@ use il::*;
 
 /// A function for Falcon IL. Provides location and context in a `Program` to a
 /// `ControlFlowGraph`.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Eq, PartialEq, Serialize)]
 pub struct Function {
     // The address where this function was found
     address: u64,

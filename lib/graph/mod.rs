@@ -1,12 +1,13 @@
 //! Implements a directed graph.
 
-use std::collections::{BTreeSet, BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fmt::Debug;
+use std::hash::Hash;
 
 use error::*;
 
 
-pub trait Vertex: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
+pub trait Vertex: Clone + Debug + Eq + Hash + PartialEq + Sync {
     // The index of this vertex.
     fn index(&self) -> usize;
     // A string to display in dot graphviz format.
@@ -14,7 +15,7 @@ pub trait Vertex: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
 }
 
 
-pub trait Edge: Clone + Debug + Eq + Ord + PartialEq + PartialOrd + Sync {
+pub trait Edge: Clone + Debug + Eq + Hash + PartialEq + Sync {
     /// The index of the head vertex.
     fn head(&self) -> usize;
     /// The index of the tail vertex.
@@ -73,8 +74,8 @@ impl Edge for NullEdge {
 
 
 /// A directed graph.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Graph<V, E> {
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct Graph<V: Vertex, E: Edge> {
     head: Option<usize>,
     vertices: BTreeMap<usize, V>,
     edges: BTreeMap<(usize, usize), E>,
@@ -83,7 +84,7 @@ pub struct Graph<V, E> {
 }
 
 
-impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
+impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
     pub fn new() -> Graph<V, E> {
         Graph {
             head: None,
@@ -265,11 +266,11 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
     /// # Warning
     /// Unsure of correctness of this implementation
     pub fn compute_dominance_frontiers(&self, start_index: usize)
-    -> Result<BTreeMap<usize, BTreeSet<usize>>> {
-        let mut df: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
+    -> Result<HashMap<usize, HashSet<usize>>> {
+        let mut df: HashMap<usize, HashSet<usize>> = HashMap::new();
 
         for vertex in &self.vertices {
-            df.insert(*vertex.0, BTreeSet::new());
+            df.insert(*vertex.0, HashSet::new());
         }
 
         let idoms = self.compute_immediate_dominators(start_index)?;
@@ -296,8 +297,8 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
 
     pub fn compute_immediate_dominators(&self, start_index: usize)
-    -> Result<BTreeMap<usize, usize>> {
-        let mut idoms: BTreeMap<usize, usize> = BTreeMap::new();
+    -> Result<HashMap<usize, usize>> {
+        let mut idoms: HashMap<usize, usize> = HashMap::new();
 
         let dominators = self.compute_dominators(start_index)?;
 
@@ -334,17 +335,17 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
     /// Computes dominators for all vertices in the graph
     pub fn compute_dominators(&self, start_index: usize)
-        -> Result<BTreeMap<usize, BTreeSet<usize>>> {
+        -> Result<HashMap<usize, HashSet<usize>>> {
             
         if !self.vertices.contains_key(&start_index) {
             bail!("vertex {} not in graph", start_index);
         }
 
-        let mut dominators: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
+        let mut dominators: HashMap<usize, HashSet<usize>> = HashMap::new();
 
         // add our start vertex to our dominator set
         {
-            let mut set = BTreeSet::new();
+            let mut set = HashSet::new();
             set.insert(start_index);
             dominators.insert(start_index, set);
         }
@@ -379,11 +380,11 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
             // this vertex's dominators are the intersection of all
             // immediate predecessors' dominators, plus itself
-            let mut doms: BTreeSet<usize> = match dag.edges_in(vertex_index)
+            let mut doms: HashSet<usize> = match dag.edges_in(vertex_index)
                                                    .unwrap()
                                                    .first() {
                 Some(predecessor_edge) => dominators[&predecessor_edge.head()].clone(),
-                None => BTreeSet::new()
+                None => HashSet::new()
             };
 
             for edge in &self.edges_in[&vertex_index] {
@@ -414,13 +415,13 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
     /// graph, not just immediate predecessors.
     ///
     /// Given A -> B -> C, both A and B will be in the set for C.
-    pub fn compute_predecessors(&self) -> Result<BTreeMap<usize, BTreeSet<usize>>> {
-        let mut predecessors: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
+    pub fn compute_predecessors(&self) -> Result<HashMap<usize, HashSet<usize>>> {
+        let mut predecessors: HashMap<usize, HashSet<usize>> = HashMap::new();
         let mut queue: VecDeque<usize> = VecDeque::new();
 
         // initial population
         for vertex in &self.vertices {
-            let mut preds = BTreeSet::new();
+            let mut preds = HashSet::new();
             for edge in self.edges_in(*vertex.0).unwrap() {
                 preds.insert(edge.head());
             }
@@ -472,7 +473,7 @@ impl<V, E> Graph<V, E> where V: Sync + Vertex, E: Edge + Sync {
 
         let predecessors = self.compute_predecessors()?;
 
-        let mut visited = BTreeSet::new();
+        let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         queue.push_back(start_index);
 
