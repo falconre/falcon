@@ -39,6 +39,9 @@ impl Elf {
                             Box::new(Mipsel::new()) as Box<Architecture>,
                     }
                 }
+                else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
+                    Box::new(Amd64::new())
+                }
                 else {
                     bail!("Unsupported Architecture");
                 };

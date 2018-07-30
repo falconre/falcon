@@ -39,9 +39,24 @@ impl Mode {
     }
 
 
+    pub(crate) fn get_register_expression(
+        &self,
+        register: capstone::x86_reg,
+        instruction: &capstone::Instr
+    ) -> Result<Expression> {
+        Ok(match register {
+            x86_reg::X86_REG_RIP => expr_const(instruction.address, 64),
+            _ => get_register(self, register)?.get()?
+        })
+    }
+
+
     /// Gets the value of an operand as an IL expression
-    pub(crate) fn operand_value(&self, operand: &cs_x86_op)
-        -> Result<Expression> {
+    pub(crate) fn operand_value(
+        &self,
+        operand: &cs_x86_op,
+        instruction: &capstone::Instr
+    ) -> Result<Expression> {
 
         match operand.type_ {
             x86_op_type::X86_OP_INVALID => Err("Invalid operand".into()),
@@ -56,12 +71,12 @@ impl Mode {
 
                 let base = match base_capstone_reg {
                     x86_reg::X86_REG_INVALID => None,
-                    reg => Some(get_register(self, reg)?.get()?)
+                    reg => Some(self.get_register_expression(reg, instruction)?)
                 };
 
                 let index = match index_capstone_reg {
                     x86_reg::X86_REG_INVALID => None,
-                    reg => Some(get_register(self, reg)?.get()?)
+                    reg => Some(self.get_register_expression(reg, instruction)?)
                 };
 
                 let scale = Expr::constant(
@@ -132,10 +147,14 @@ impl Mode {
 
 
     /// Gets the value of an operand as an IL expression, performing any required loads as needed.
-    pub fn operand_load(&self, block: &mut Block, operand: &cs_x86_op)
-        -> Result<Expression> {
+    pub fn operand_load(
+        &self,
+        block: &mut Block,
+        operand: &cs_x86_op,
+        instruction: &capstone::Instr
+    ) -> Result<Expression> {
 
-        let op = self.operand_value(operand)?;
+        let op = self.operand_value(operand, instruction)?;
 
         if operand.type_ == x86_op_type::X86_OP_MEM {
             let temp = block.temp(operand.size as usize * 8);
@@ -151,7 +170,8 @@ impl Mode {
         &self,
         mut block: &mut Block,
         operand: &cs_x86_op,
-        value: Expression
+        value: Expression,
+        instruction: &capstone::Instr
     ) -> Result<()> {
 
         match operand.type_ {
@@ -164,7 +184,7 @@ impl Mode {
                 dst_register.set(&mut block, value)
             },
             x86_op_type::X86_OP_MEM => {
-                let address = self.operand_value(operand)?;
+                let address = self.operand_value(operand, instruction)?;
                 block.store(address, value);
                 Ok(())
             },
@@ -184,7 +204,7 @@ impl Mode {
         block.load(temp.clone(), self.sp().into());
         block.assign(
             self.sp(),
-            Expr::add(self.sp().into(), expr_const((bits / 8) as u64, 32))?
+            Expr::add(self.sp().into(), expr_const((bits / 8) as u64, self.bits()))?
         );
 
         Ok(temp.into())
@@ -198,7 +218,7 @@ impl Mode {
         block.assign(
             self.sp(),
             Expr::sub(self.sp().into(),
-                      expr_const((value.bits() / 8) as u64, 32))?
+                      expr_const((value.bits() / 8) as u64, self.bits()))?
         );
         block.store(self.sp().into(), value);
         Ok(())

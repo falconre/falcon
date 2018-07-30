@@ -8,15 +8,21 @@ use translator::x86::x86register::*;
 use translator::x86::Mode;
 
 
-pub(crate) struct Semantics {
-    mode: Mode
+pub(crate) struct Semantics<'s> {
+    mode: &'s Mode,
+    instruction: &'s capstone::Instr
 }
 
-impl Semantics {
-    pub fn new(mode: Mode) -> Semantics {
+impl<'s> Semantics<'s> {
+    pub fn new(mode: &'s Mode, instruction: &'s capstone::Instr) -> Semantics<'s> {
         Semantics {
-            mode: mode
+            mode: mode,
+            instruction: instruction
         }
+    }
+
+    pub fn instruction(&self) -> &capstone::Instr {
+        &self.instruction
     }
 
 
@@ -26,10 +32,10 @@ impl Semantics {
 
 
     /// Returns the details section of an x86 capstone instruction.
-    pub fn details(&self, instruction: &capstone::Instr)
-        -> Result<capstone::cs_x86> {
+    pub fn details(&self) -> Result<capstone::cs_x86> {
 
-        let detail = instruction.detail.as_ref().unwrap();
+        let detail = self.instruction().detail.as_ref().unwrap();
+
         match detail.arch {
             capstone::DetailsArch::X86(x) => Ok(x),
             _ => Err("Could not get instruction details".into())
@@ -40,7 +46,7 @@ impl Semantics {
     pub fn operand_load(&self, mut block: &mut Block, operand: &cs_x86_op)
         -> Result<Expression> {
         
-        self.mode.operand_load(&mut block, operand)
+        self.mode.operand_load(&mut block, operand, self.instruction())
     }
 
 
@@ -51,7 +57,7 @@ impl Semantics {
         value: Expression
     ) -> Result<()> {
 
-        self.mode.operand_store(&mut block, operand, value)
+        self.mode.operand_store(&mut block, operand, value, self.instruction())
     }
 
     pub fn get_register(&self, capstone_id: x86_reg)
@@ -111,11 +117,8 @@ impl Semantics {
 
     /// Returns a condition which is true if a conditional instruction should be
     /// executed. Used for setcc, jcc and cmovcc.
-    pub fn cc_condition(
-        &self,
-        instruction: &capstone::Instr
-    ) -> Result<Expression> {
-        if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+    pub fn cc_condition(&self) -> Result<Expression> {
+        if let capstone::InstrIdArch::X86(instruction_id) = self.instruction().id {
             match instruction_id {
                 capstone::x86_insn::X86_INS_CMOVA |
                 capstone::x86_insn::X86_INS_JA |
@@ -219,12 +222,11 @@ impl Semantics {
 
 
     /// Returns a condition which is true if a loop should be taken
-    pub fn loop_condition(&self, instruction: &capstone::Instr)
-        -> Result<Expression> {
+    pub fn loop_condition(&self)-> Result<Expression> {
 
         let cx = self.get_register(x86_reg::X86_REG_ECX)?.get_full()?;
 
-        if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+        if let capstone::InstrIdArch::X86(instruction_id) = self.instruction().id {
             match instruction_id {
                 capstone::x86_insn::X86_INS_LOOP =>
                     Expr::cmpneq(cx.get()?, expr_const(0, cx.bits())),
@@ -252,8 +254,7 @@ impl Semantics {
     /// Wraps the given instruction graph with the rep prefix inplace
     pub fn rep_prefix(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         if    control_flow_graph.entry().is_none()
@@ -293,7 +294,7 @@ impl Semantics {
         // exit -> loop
         control_flow_graph.unconditional_edge(exit, loop_index)?;
 
-        if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+        if let capstone::InstrIdArch::X86(instruction_id) = self.instruction().id {
             match instruction_id {
                 capstone::x86_insn::X86_INS_CMPSB |
                 capstone::x86_insn::X86_INS_CMPSW |
@@ -325,7 +326,7 @@ impl Semantics {
                                                           head_index)?;
                 },
                 _ => bail!("unsupported instruction for rep prefix, 0x{:x}",
-                           instruction.address)
+                           self.instruction().address)
             }
         }
 
@@ -339,8 +340,7 @@ impl Semantics {
     /// Wraps the given instruction graph with the rep prefix inplace
     pub fn repne_prefix(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         if    control_flow_graph.entry().is_none()
@@ -380,7 +380,7 @@ impl Semantics {
         // exit -> loop
         control_flow_graph.unconditional_edge(exit, loop_index)?;
 
-        if let capstone::InstrIdArch::X86(instruction_id) = instruction.id {
+        if let capstone::InstrIdArch::X86(instruction_id) = self.instruction().id {
             match instruction_id {
                 capstone::x86_insn::X86_INS_CMPSB |
                 capstone::x86_insn::X86_INS_CMPSW |
@@ -412,7 +412,7 @@ impl Semantics {
                                                           head_index)?;
                 },
                 _ => bail!("unsupported instruction for rep prefix, 0x{:x}",
-                           instruction.address)
+                           self.instruction().address)
             }
         }
 
@@ -424,13 +424,9 @@ impl Semantics {
 
 
 
-    pub fn adc(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn adc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         // create a block for this instruction
         let block_index = {
@@ -470,13 +466,9 @@ impl Semantics {
 
 
 
-    pub fn add(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn add(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -513,12 +505,8 @@ impl Semantics {
 
 
 
-    pub fn and(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn and(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -561,12 +549,8 @@ impl Semantics {
         is set and the destination register is loaded with the bit index of the
         first set bit.
     */
-    pub fn bsf(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn bsf(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         // create our head block
         let (head_index, rhs, counter) = {
@@ -680,12 +664,8 @@ impl Semantics {
         with the bit index of the first set bit found when scanning in the reverse
         direction.
     */
-    pub fn bsr(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn bsr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let (head_index, rhs, counter) = {
             let (head_index, rhs) = {
@@ -807,12 +787,8 @@ impl Semantics {
         0F BA /4 ib BT r/m16,imm8 3/6 Save bit in carry flag
         0F BA /4 ib BT r/m32,imm8 3/6 Save bit in carry flag
     */
-    pub fn bt(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr)
-    -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn bt(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         // create our head block
         let block_index = {
@@ -857,12 +833,8 @@ impl Semantics {
         0F BA /7 ib BTC r/m16,imm8 6/8 Save bit in carry flag and complement
         0F BA /7 ib BTC r/m32,imm8 6/8 Save bit in carry flag and complement
     */
-    pub fn btc(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn btc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         // create our head block
         let block_index = {
@@ -915,12 +887,8 @@ impl Semantics {
         0F BA /6 ib BTR r/m16,imm8 6/8 Save bit in carry flag and reset
         0F BA /6 ib BTR r/m32,imm8 6/8 Save bit in carry flag and reset
     */
-    pub fn btr(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn btr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         // create our head block
         let block_index = {
@@ -977,12 +945,8 @@ impl Semantics {
         0F BA /5 ib BTS r/m16,imm8 6/8 Save bit in carry flag and set
         0F BA /5 ib BTS r/m32,imm8 6/8 Save bit in carry flag and set
     */
-    pub fn bts(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn bts(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         // create our head block
         let block_index = {
@@ -1025,10 +989,9 @@ impl Semantics {
 
     pub fn bswap(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1124,10 +1087,9 @@ impl Semantics {
 
     pub fn call(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1135,7 +1097,8 @@ impl Semantics {
             // get started
             let dst = self.operand_load(&mut block, &detail.operands[0])?;
 
-            let ret_addr = instruction.address + instruction.size as u64;
+            let ret_addr =
+                self.instruction().address + self.instruction().size as u64;
 
             self.mode().push_value(&mut block,
                                    expr_const(ret_addr, self.mode().bits()))?;
@@ -1153,11 +1116,7 @@ impl Semantics {
 
 
 
-    pub fn cbw(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
-    ) -> Result<()> {
+    pub fn cbw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
@@ -1176,11 +1135,7 @@ impl Semantics {
     }
 
 
-    pub fn cdq(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
-    ) -> Result<()> {
+    pub fn cdq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
@@ -1206,8 +1161,7 @@ impl Semantics {
 
     pub fn cdqe(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1227,11 +1181,7 @@ impl Semantics {
     }
 
 
-    pub fn clc(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
-    ) -> Result<()> {
+    pub fn clc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1247,11 +1197,7 @@ impl Semantics {
     }
 
 
-    pub fn cld(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
-    ) -> Result<()> {
+    pub fn cld(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1270,8 +1216,7 @@ impl Semantics {
 
     pub fn cli(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
@@ -1289,11 +1234,7 @@ impl Semantics {
 
 
 
-    pub fn cmc(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
-    ) -> Result<()> {
+    pub fn cmc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1313,10 +1254,9 @@ impl Semantics {
 
     pub fn cmovcc(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let head_index = {
             let block = control_flow_graph.new_block()?;
@@ -1340,7 +1280,7 @@ impl Semantics {
             block.index()
         };
 
-        let condition = self.cc_condition(&instruction)?;
+        let condition = self.cc_condition()?;
 
         control_flow_graph.conditional_edge(head_index,
                                             block_index,
@@ -1360,12 +1300,8 @@ impl Semantics {
 
 
 
-    pub fn cmp(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn cmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1397,10 +1333,9 @@ impl Semantics {
 
     pub fn cmpsb(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let si = match *self.mode() {
             Mode::X86 => self.get_register(x86_reg::X86_REG_ESI)?,
@@ -1480,10 +1415,9 @@ impl Semantics {
 
     pub fn cmpxchg(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let (head_index, dest, lhs, rhs) = {
             let mut block = control_flow_graph.new_block()?;
@@ -1551,11 +1485,7 @@ impl Semantics {
     }
 
 
-    pub fn cwd(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
-    ) -> Result<()> {
+    pub fn cwd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let ax = self.get_register(x86_reg::X86_REG_AX)?;
         let dx = self.get_register(x86_reg::X86_REG_DX)?;
 
@@ -1581,8 +1511,7 @@ impl Semantics {
 
     pub fn cwde(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         let ax = self.get_register(x86_reg::X86_REG_AX)?;
@@ -1606,10 +1535,9 @@ impl Semantics {
 
     pub fn dec(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1641,10 +1569,9 @@ impl Semantics {
 
     pub fn div(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1753,10 +1680,9 @@ impl Semantics {
     // reversed.
     pub fn idiv(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1866,10 +1792,9 @@ impl Semantics {
     // If we have three operands, sign-extend rhs if required, go in 0 operand
     pub fn imul(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -1887,7 +1812,7 @@ impl Semantics {
                 3 => self.operand_load(&mut block, &detail.operands[1])?,
                 _ => bail!("invalid number of operands for imul {} at 0x{:x}",
                         detail.op_count,
-                        instruction.address)
+                        self.instruction().address)
             };
 
             // Get multiplier
@@ -1999,12 +1924,8 @@ impl Semantics {
 
 
 
-    pub fn inc(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn inc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2034,12 +1955,8 @@ impl Semantics {
     }
 
 
-    pub fn int(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn int(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2053,7 +1970,7 @@ impl Semantics {
                     vec![expr],
                     None,
                     None,
-                    instruction.bytes.get(0..4).unwrap().to_vec()
+                    self.instruction().bytes.get(0..4).unwrap().to_vec()
                 ));
 
             block.index()
@@ -2068,10 +1985,9 @@ impl Semantics {
 
     pub fn jcc(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
             bail!("jcc instruction with non-immediate operand (this should never happen");
@@ -2086,12 +2002,8 @@ impl Semantics {
     }
 
 
-    pub fn jmp(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn jmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2113,17 +2025,15 @@ impl Semantics {
     }
 
 
-    pub fn lea(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn lea(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
-            let src = self.mode().operand_value(&detail.operands[1])?;
+            let src =
+                self.mode().operand_value(&detail.operands[1],
+                                          self.instruction())?;
 
             self.operand_store(&mut block, &detail.operands[0], src)?;
 
@@ -2139,8 +2049,7 @@ impl Semantics {
 
     pub fn leave(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2164,11 +2073,10 @@ impl Semantics {
 
     pub fn lodsb(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let si = self.get_register(x86_reg::X86_REG_ESI)?.get_full()?;
 
@@ -2229,8 +2137,7 @@ impl Semantics {
 
     pub fn loop_(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2249,12 +2156,8 @@ impl Semantics {
     }
 
 
-    pub fn mov(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn mov(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2275,11 +2178,10 @@ impl Semantics {
 
     pub fn movs(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let bits_size = detail.operands[1].size as usize * 8;
 
@@ -2370,10 +2272,9 @@ impl Semantics {
 
     pub fn movsx(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2396,10 +2297,9 @@ impl Semantics {
 
     pub fn movzx(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2421,12 +2321,8 @@ impl Semantics {
 
 
 
-    pub fn mul(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn mul(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2504,13 +2400,9 @@ impl Semantics {
     }
 
 
-    pub fn neg(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn neg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2547,11 +2439,7 @@ impl Semantics {
     }
 
 
-    pub fn nop(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
-    ) -> Result<()> {
+    pub fn nop(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
         let block_index = {
             control_flow_graph.new_block()?.index()
@@ -2564,12 +2452,8 @@ impl Semantics {
     }
 
 
-    pub fn not(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-        let detail = self.details(instruction)?;
+    pub fn not(&self, control_flow_graph: &mut ControlFlowGraph,) -> Result<()> {
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2590,13 +2474,9 @@ impl Semantics {
     }
 
 
-    pub fn or(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn or(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2633,13 +2513,9 @@ impl Semantics {
     }
 
 
-    pub fn pop(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn pop(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         // create a block for this instruction
         let block_index = {
@@ -2672,11 +2548,10 @@ impl Semantics {
 
     pub fn push(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2695,13 +2570,9 @@ impl Semantics {
     }
 
 
-    pub fn ret(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn ret(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2726,13 +2597,9 @@ impl Semantics {
     }
 
 
-    pub fn rol(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn rol(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2794,13 +2661,9 @@ impl Semantics {
     }
 
 
-    pub fn ror(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn ror(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2865,8 +2728,7 @@ impl Semantics {
 
     pub fn sahf(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         let block_index = {
@@ -2897,13 +2759,9 @@ impl Semantics {
 
 
 
-    pub fn sar(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn sar(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2954,13 +2812,9 @@ impl Semantics {
     }
 
 
-    pub fn sbb(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn sbb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -2998,8 +2852,7 @@ impl Semantics {
 
     pub fn scasb(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         let al = self.get_register(x86_reg::X86_REG_AL)?;
@@ -3072,8 +2925,7 @@ impl Semantics {
 
     pub fn scasw(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         let ax = self.get_register(x86_reg::X86_REG_AX)?;
@@ -3146,16 +2998,15 @@ impl Semantics {
 
     pub fn setcc(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
-            let expr = self.cc_condition(instruction)?;
+            let expr = self.cc_condition()?;
 
             self.operand_store(&mut block,
                                &detail.operands[0],
@@ -3171,13 +3022,9 @@ impl Semantics {
     }
 
 
-    pub fn shl(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn shl(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -3237,13 +3084,9 @@ impl Semantics {
     }
 
 
-    pub fn shr(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn shr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -3299,11 +3142,10 @@ impl Semantics {
 
     pub fn shld(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -3355,11 +3197,10 @@ impl Semantics {
 
     pub fn shrd(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -3410,8 +3251,7 @@ impl Semantics {
 
     pub fn stc(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         let block_index = {
@@ -3429,8 +3269,7 @@ impl Semantics {
 
     pub fn std(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         let block_index = {
@@ -3448,8 +3287,7 @@ impl Semantics {
 
     pub fn sti(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        _: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         let block_index = {
@@ -3467,11 +3305,10 @@ impl Semantics {
 
     pub fn stos(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let di = self.get_register(x86_reg::X86_REG_DI)?.get_full()?;
 
@@ -3530,13 +3367,9 @@ impl Semantics {
     }
 
 
-    pub fn sub(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
+    pub fn sub(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         // create a block for this instruction
         let block_index = {
@@ -3577,8 +3410,7 @@ impl Semantics {
 
     pub fn syscall(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         // create a block for this instruction
@@ -3592,7 +3424,7 @@ impl Semantics {
                 Vec::new(),
                 None,
                 None,
-                instruction.bytes.get(0..4).unwrap().to_vec()
+                self.instruction().bytes.get(0..4).unwrap().to_vec()
             ));
 
             block.index()
@@ -3607,8 +3439,7 @@ impl Semantics {
 
     pub fn sysenter(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
         // create a block for this instruction
@@ -3622,7 +3453,7 @@ impl Semantics {
                 Vec::new(),
                 None,
                 None,
-                instruction.bytes.get(0..4).unwrap().to_vec()
+                self.instruction().bytes.get(0..4).unwrap().to_vec()
             ));
 
             block.index()
@@ -3637,11 +3468,10 @@ impl Semantics {
 
     pub fn test(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -3670,11 +3500,10 @@ impl Semantics {
 
     pub fn xadd(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -3713,11 +3542,10 @@ impl Semantics {
 
     pub fn xchg(
         &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
+        control_flow_graph: &mut ControlFlowGraph
     ) -> Result<()> {
 
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
@@ -3742,14 +3570,9 @@ impl Semantics {
     }
 
 
+    pub fn xor(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
-    pub fn xor(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph,
-        instruction: &capstone::Instr
-    ) -> Result<()> {
-
-        let detail = self.details(instruction)?;
+        let detail = self.details()?;
 
         // create a block for this instruction
         let block_index = {
