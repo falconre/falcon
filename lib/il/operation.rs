@@ -1,5 +1,4 @@
-//! An `Operation` applies semantics to `Array` and `Scalar` with `Expression`, or emits
-//! `Raise`.
+//! An `Operation` captures the semantics of the IL.
 
 use std::fmt;
 use il::*;
@@ -63,6 +62,11 @@ impl Operation {
     /// Create a new `Operation::Intrinsic`.
     pub fn intrinsic(intrinsic: Intrinsic) -> Operation {
         Operation::Intrinsic { intrinsic: intrinsic }
+    }
+
+    /// Create a new `Operation::Nop`
+    pub fn nop() -> Operation {
+        Operation::Nop
     }
 
     /// Get each `Scalar` read by this `Operation`.

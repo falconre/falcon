@@ -86,6 +86,7 @@ impl PartialOrd for Constant {
 }
 
 
+/// The value of all constants before the `RefProgramLocation` is evaluated.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Constants {
     constants: HashMap<il::Scalar, Constant>
@@ -150,12 +151,13 @@ impl PartialOrd for Constants {
 
 
 impl Constants {
-    pub fn new() -> Constants {
+    fn new() -> Constants {
         Constants {
             constants: HashMap::new()
         }
     }
 
+    /// Get the constant value for a scalar, if it exists.
     pub fn scalar(&self, scalar: &il::Scalar) -> Option<&il::Constant> {
         self.constants
             .get(scalar)
@@ -171,6 +173,8 @@ impl Constants {
             .for_each(|(_, constant)| *constant = Constant::Top);
     }
 
+    /// Attempt to reduce an expression down to a constant, using the constants
+    /// found by this analysis.
     pub fn eval(&self, expression: &il::Expression) -> Option<il::Constant> {
         let expression_scalars = expression.scalars();
 

@@ -158,11 +158,13 @@ impl Block {
         self.push(Instruction::branch(index, dst));
     }
 
+    /// Adds an intrinsic operation to the end of this block.
     pub fn intrinsic(&mut self, intrinsic: Intrinsic) {
         let index = self.new_instruction_index();
         self.push(Instruction::intrinsic(index, intrinsic));
     }
 
+    /// Adds a nop operation to the end of this block.
     pub fn nop(&mut self) {
         let index = self.new_instruction_index();
         self.push(Instruction::nop(index));

@@ -20,12 +20,7 @@
 //!
 //! ## Limitations
 //!
-//! * Falcon IL does not support operations over values > 64 bits in width.
 //! * Falcon IL does not support floating point operations.
-//!
-//! While Falcon IL allows for analyses that find real bugs, due to these
-//! limitations it cannot completely analyze programs which require floating
-//! point or wide-register instructions.
 //! 
 //! ## Position and Semantics
 //! 
@@ -99,9 +94,14 @@
 //! result into a `Scalar`. The size of the load will be determined by the size
 //! of the Scalar being loaded into.
 //! * `Branch`: Branch to the address in the given `Expression`.
-//! * `Raise`: The raise operation takes a single `Expression`, which is
-//! architecture/lifter-dependent, and allows for implementation of semantics
-//! which cannot be captured by Falcon IL, for example a system call.
+//! * `Intrinsic`: The `Intrinsic` operation is used when a Falcon lifter cannot
+//! capture the semantics of a lifted instruction. Dealing with intrinsic
+//! instructions is left to the user.
+//! * `Nop`: The nop instruction is used to provide an instruction, which has a
+//! location, when no operation needs take place at that location. For example,
+//! Intra-precedural direct branches lifted as edges in the `ControlFlowGraph`,
+//! and `Nop` is emitted in case a follow-on analysis needs to find the address
+//! where that branching instruction was originally located.
 //!
 //! When lifting, direct conditional branches such as X86 `je` or MIPS `be` do
 //! not result in an `Operation::Branch`. Instead, the instruction will be
