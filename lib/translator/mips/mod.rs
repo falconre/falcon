@@ -62,7 +62,7 @@ fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
 
     let block_index = {
         let block = cfg.new_block()?;
-        block.assign(scalar("nop", 1), expr_const(0, 1));
+        block.nop();
         block.index()
     };
 

@@ -111,7 +111,7 @@ pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -200,7 +200,7 @@ pub fn addi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -1209,7 +1209,7 @@ pub fn movn(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -1259,7 +1259,7 @@ pub fn movz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -1523,7 +1523,7 @@ pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Re
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -1773,7 +1773,7 @@ pub fn slt(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -1830,7 +1830,7 @@ pub fn slti(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -1887,7 +1887,7 @@ pub fn sltiu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -1944,7 +1944,7 @@ pub fn sltu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -2129,7 +2129,7 @@ pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };
@@ -2434,7 +2434,7 @@ pub fn teq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let head_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(scalar("nop", 1), expr_const(1, 1));
+        block.nop();
 
         block.index()
     };

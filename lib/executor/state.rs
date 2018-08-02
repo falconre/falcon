@@ -173,7 +173,9 @@ impl State {
                 return Err(
                     ErrorKind::UnhandledIntrinsic(format!("{}", intrinsic))
                         .into());
-            }
+            },
+            il::Operation::Nop =>
+                Successor::new(self, SuccessorType::FallThrough)
         })
     }
 }

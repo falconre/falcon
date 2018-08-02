@@ -240,7 +240,8 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
                     intrinsic.scalars_written().into_iter().for_each(|scalar|
                         state.set_scalar(scalar.clone(), Constant::Top));
                     state
-                }
+                },
+                il::Operation::Nop => state
             },
             None => state
         };

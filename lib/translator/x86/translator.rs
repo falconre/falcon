@@ -200,7 +200,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_JNS  |
                 capstone::x86_insn::X86_INS_JO   |
                 capstone::x86_insn::X86_INS_JP   |
-                capstone::x86_insn::X86_INS_JS   => semantics.jcc(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_JS   => semantics.nop(&mut instruction_graph),
                 // unconditional jumps will only emit a brc if the destination is undetermined at
                 // translation time
                 capstone::x86_insn::X86_INS_JMP   => semantics.jmp(&mut instruction_graph),
@@ -338,8 +338,10 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                     break;
                 }
                 // instructions without successors
-                capstone::x86_insn::X86_INS_HLT => break,
-                capstone::x86_insn::X86_INS_RET => break,
+                capstone::x86_insn::X86_INS_HLT | 
+                capstone::x86_insn::X86_INS_RET => {
+                    break;
+                },
                 _ => ()
             }
         }

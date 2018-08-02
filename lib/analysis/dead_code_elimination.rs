@@ -87,7 +87,9 @@ pub fn dead_code_elimination(function: &il::Function)
         let instruction_index = k.instruction_index().unwrap();
         let block_index = k.block_index().unwrap();
         let mut block = dce_function.block_mut(block_index).unwrap();
-        block.remove_instruction(instruction_index)?;
+        *block.instruction_mut(instruction_index)
+            .ok_or("Failed to find instruction")?
+            .operation_mut() = il::Operation::Nop;
     }
 
     Ok(dce_function)

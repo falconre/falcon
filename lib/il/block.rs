@@ -162,6 +162,11 @@ impl Block {
         let index = self.new_instruction_index();
         self.push(Instruction::intrinsic(index, intrinsic));
     }
+
+    pub fn nop(&mut self) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::nop(index));
+    }
 }
 
 

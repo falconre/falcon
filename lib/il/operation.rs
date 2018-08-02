@@ -29,7 +29,10 @@ pub enum Operation {
     /// Holds an Intrinsic for unmodellable instructions
     Intrinsic {
         intrinsic: Intrinsic
-    }
+    },
+    /// An operation that does nothing, and allows for a placeholder
+    /// `Instuction`
+    Nop
 }
 
 
@@ -81,7 +84,8 @@ impl Operation {
             },
             Operation::Intrinsic { ref intrinsic } => {
                 read.append(&mut intrinsic.scalars_read());
-            }
+            },
+            Operation::Nop => {}
         }
         read
     }
@@ -105,7 +109,8 @@ impl Operation {
             },
             Operation::Intrinsic { ref mut intrinsic } => {
                 read.append(&mut intrinsic.scalars_read_mut());
-            }
+            },
+            Operation::Nop => {}
         }
 
         read
@@ -119,7 +124,8 @@ impl Operation {
             Operation::Store  { .. } |
             Operation::Branch { .. } => Vec::new(),
             Operation::Intrinsic { ref intrinsic } =>
-                intrinsic.scalars_written()
+                intrinsic.scalars_written(),
+            Operation::Nop => Vec::new()
         }
     }
 
@@ -132,7 +138,8 @@ impl Operation {
             Operation::Store  { .. } |
             Operation::Branch { .. } => Vec::new(),
             Operation::Intrinsic { ref mut intrinsic } =>
-                intrinsic.scalars_written_mut()
+                intrinsic.scalars_written_mut(),
+            Operation::Nop => Vec::new()
         }
     }
 }
@@ -150,7 +157,8 @@ impl fmt::Display for Operation {
             Operation::Branch { ref target } =>
                 write!(f, "branch {}", target),
             Operation::Intrinsic { ref intrinsic } =>
-                write!(f, "intrinsic {}", intrinsic)
+                write!(f, "intrinsic {}", intrinsic),
+            Operation::Nop => write!(f, "nop")
         }
     }
 }

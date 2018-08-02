@@ -94,6 +94,16 @@ impl Instruction {
     }
 
 
+    /// Create a new `Nop` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `nop` method on `il::Block` instead.
+    pub fn nop(index: usize) -> Instruction {
+        Instruction::new(index, Operation::Nop)
+    }
+
+
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Assign`
     pub fn is_assign(&self) -> bool {
         if let Operation::Assign{..} = self.operation {

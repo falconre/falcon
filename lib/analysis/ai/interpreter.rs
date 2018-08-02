@@ -68,7 +68,8 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                                     scalar.clone(),
                                     V::top(scalar.bits())));
                         state
-                    }
+                    },
+                    il::Operation::Nop => state
                 }
             },
             il::RefFunctionLocation::Edge(_) |

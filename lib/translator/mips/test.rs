@@ -1997,20 +1997,20 @@ fn nop() {
     let mut backing = memory::backing::Memory::new(Endian::Big);
     backing.set_memory(0, bytes.to_vec(),
         memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ);
-    
     let function = Mips::new().translate_function(&backing, 0).unwrap();
-    let control_flow_graph = function.control_flow_graph();
 
-    assert_eq!(control_flow_graph.block(0).unwrap().instructions().len(), 1);
+    assert_eq!(function.block(0).unwrap().instructions().len(), 1);
 
-    /* negu nop */
-    let result = get_scalar(
-        &[0x00, 0x00, 0x00, 0x00],
-        vec![],
-        Memory::new(Endian::Big),
-        "nop"
-    );
-    assert_eq!(result.value_u64().unwrap(), 1);
+    let nop = match function.block(0)
+                            .unwrap()
+                            .instruction(0)
+                            .unwrap()
+                            .operation() {
+        Operation::Nop => Some(Operation::Nop),
+        _ => None
+    };
+
+    assert_eq!(nop.is_some(), true);
 }
 
 

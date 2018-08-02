@@ -1983,25 +1983,6 @@ impl<'s> Semantics<'s> {
     }
 
 
-    pub fn jcc(
-        &self,
-        control_flow_graph: &mut ControlFlowGraph
-    ) -> Result<()> {
-        let detail = self.details()?;
-
-        if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
-            bail!("jcc instruction with non-immediate operand (this should never happen");
-        }
-
-        let block_index = control_flow_graph.new_block()?.index();
-
-        control_flow_graph.set_entry(block_index)?;
-        control_flow_graph.set_exit(block_index)?;
-
-        Ok(())
-    }
-
-
     pub fn jmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 
@@ -2013,6 +1994,9 @@ impl<'s> Semantics<'s> {
             if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
                 let dst = self.operand_load(&mut block, &detail.operands[0])?;
                 block.branch(dst);
+            }
+            else {
+                block.nop();
             }
 
             block.index()
@@ -2442,7 +2426,11 @@ impl<'s> Semantics<'s> {
     pub fn nop(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
 
         let block_index = {
-            control_flow_graph.new_block()?.index()
+            let mut block = control_flow_graph.new_block()?;
+
+            block.nop();
+
+            block.index()
         };
 
         control_flow_graph.set_entry(block_index)?;
