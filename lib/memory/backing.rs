@@ -6,6 +6,8 @@
 
 use architecture::Endian;
 use error::*;
+use executor;
+use il;
 use memory::MemoryPermissions;
 use std::collections::Bound::Included;
 use std::collections::BTreeMap;
@@ -172,6 +174,44 @@ impl Memory {
                 (section.data[offset + 3] as u32) << 24
             }
         })
+    }
+
+    /// Get a constant value up to a certain number of bits
+    pub fn get(&self, address: u64, bits: usize) -> Option<il::Constant> {
+        if bits % 8 > 0 || bits == 0 {
+            return None;
+        }
+
+        let mut value = il::expr_const(self.get8(address)? as u64, 8);
+
+        match self.endian {
+            Endian::Big => {
+                for i in 1..(bits / 8) {
+                    let expr_bits = (i + 1) * 8;
+                    value = il::Expression::or(
+                        il::Expression::shl(
+                            il::Expression::zext(expr_bits, value).unwrap(),
+                            il::expr_const(8, expr_bits)).unwrap(),
+                        
+                        il::expr_const(self.get8(address + i as u64).unwrap() as u64, expr_bits)
+                    ).unwrap();
+                }
+                Some(executor::eval(&value).unwrap())
+            },
+            Endian::Little => {
+                for i in 1..(bits / 8) {
+                    let expr_bits = value.bits() + 8;
+                    value = il::Expression::or(
+                        il::Expression::shl(
+                            il::expr_const(self.get8(address + i as u64).unwrap() as u64, expr_bits),
+                            il::expr_const((i * 8) as u64, expr_bits)).unwrap(),
+                        il::Expression::zext(expr_bits,
+                            il::Expression::zext(expr_bits, value).unwrap()
+                        ).unwrap()).unwrap();
+                }
+                Some(executor::eval(&value).unwrap())
+            }
+        }
     }
 
     /// Set the memory at the given address, and give that memory the given
