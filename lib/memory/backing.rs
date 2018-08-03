@@ -182,32 +182,30 @@ impl Memory {
             return None;
         }
 
-        let mut value = il::expr_const(self.get8(address)? as u64, 8);
+        let mut value = il::expr_const(self.get8(address)? as u64, bits);
 
         match self.endian {
             Endian::Big => {
                 for i in 1..(bits / 8) {
-                    let expr_bits = (i + 1) * 8;
                     value = il::Expression::or(
                         il::Expression::shl(
-                            il::Expression::zext(expr_bits, value).unwrap(),
-                            il::expr_const(8, expr_bits)).unwrap(),
-                        
-                        il::expr_const(self.get8(address + i as u64).unwrap() as u64, expr_bits)
+                            value,
+                            il::expr_const(8, bits)
+                        ).unwrap(),
+                        il::expr_const(self.get8(address + i as u64).unwrap() as u64, bits)
                     ).unwrap();
                 }
                 Some(executor::eval(&value).unwrap())
             },
             Endian::Little => {
                 for i in 1..(bits / 8) {
-                    let expr_bits = value.bits() + 8;
                     value = il::Expression::or(
                         il::Expression::shl(
-                            il::expr_const(self.get8(address + i as u64).unwrap() as u64, expr_bits),
-                            il::expr_const((i * 8) as u64, expr_bits)).unwrap(),
-                        il::Expression::zext(expr_bits,
-                            il::Expression::zext(expr_bits, value).unwrap()
-                        ).unwrap()).unwrap();
+                            il::expr_const(self.get8(address + i as u64).unwrap() as u64, bits),
+                            il::expr_const((i * 8) as u64, bits)
+                        ).unwrap(),
+                        value
+                    ).unwrap();
                 }
                 Some(executor::eval(&value).unwrap())
             }
