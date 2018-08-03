@@ -1,7 +1,7 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Symbol {
-    name: String,
-    address: u64
+    address: u64,
+    name: String
 }
 
 

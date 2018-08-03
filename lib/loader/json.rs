@@ -125,4 +125,8 @@ impl Loader for Json {
     fn architecture(&self) -> &Architecture {
         self.architecture.as_ref()
     }
+
+    fn symbols(&self) -> Vec<Symbol> {
+        Vec::new()
+    }
 }

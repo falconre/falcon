@@ -131,4 +131,13 @@ impl Loader for Pe {
     fn architecture(&self) -> &Architecture {
         self.architecture.as_ref()
     }
+
+    fn symbols(&self) -> Vec<Symbol> {
+        let pe = self.pe();
+        let mut symbols = Vec::new();
+        for export in pe.exports {
+            symbols.push(Symbol::new(export.name, export.offset as u64));
+        }
+        symbols
+    }
 }

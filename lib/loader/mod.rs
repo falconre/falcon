@@ -23,16 +23,18 @@ use error::*;
 use executor::eval;
 use il;
 use memory;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 mod elf;
 mod json;
 mod pe;
+mod symbol;
 
 pub use self::elf::*;
 pub use self::json::*;
 pub use self::pe::*;
+pub use self::symbol::Symbol;
 
 /// A declared entry point for a function.
 #[derive(Clone, Debug, PartialEq)]
@@ -94,6 +96,17 @@ pub trait Loader: fmt::Debug + Send + Sync {
         let translator = self.architecture().translator();
         let memory = self.memory()?;
         Ok(translator.translate_function(&memory, address)?)
+    }
+
+    /// Get the symbols for this loader
+    fn symbols(&self) -> Vec<Symbol>;
+
+    /// Get the symbols as a hashmap by address
+    fn symbols_map(&self) -> HashMap<u64, Symbol> {
+        self.symbols()
+            .into_iter()
+            .map(|symbol| (symbol.address(), symbol))
+            .collect()
     }
 
     /// Lift executable into an il::Program

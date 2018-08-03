@@ -522,4 +522,11 @@ impl Loader for ElfLinker {
                            .unwrap();
         self.loaded[filename].architecture()
     }
+
+    fn symbols(&self) -> Vec<Symbol> {
+        self.loaded
+            .iter()
+            .flat_map(|(_, elf)| elf.symbols())
+            .collect()
+    }
 }

@@ -151,11 +151,45 @@ impl Elf {
             }
             if    sym.st_bind() == goblin::elf::sym::STB_GLOBAL
                || sym.st_bind() == goblin::elf::sym::STB_WEAK {
-                v.push(Symbol::new(&elf.dynstrtab[sym.st_name], sym.st_value));
+                v.push(Symbol::new(
+                    &elf.dynstrtab[sym.st_name],
+                    sym.st_value + self.base_address()
+                ));
             }
         }
 
         v
+    }
+
+    /// Return all symbols for this Elf
+    pub fn symbols(&self) -> Vec<Symbol> {
+        let elf = self.elf();
+        let mut symbols = Vec::new();
+        for sym in elf.dynsyms.iter() {
+            if sym.st_value == 0 {
+                continue;
+            }
+            symbols.push(
+                Symbol::new(
+                    &elf.dynstrtab[sym.st_name],
+                    sym.st_value + self.base_address()
+                ));
+        }
+
+        for sym in elf.syms.iter() {
+            if sym.st_value == 0 {
+                continue;
+            }
+            symbols.push(
+                Symbol::new(
+                    &elf.strtab[sym.st_name],
+                    sym.st_value + self.base_address()
+                ));
+        }
+
+        symbols.sort();
+        symbols.dedup();
+        symbols
     }
 }
 
@@ -260,5 +294,9 @@ impl Loader for Elf {
 
     fn architecture(&self) -> &Architecture {
         self.architecture.as_ref()
+    }
+
+    fn symbols(&self) -> Vec<Symbol> {
+        self.symbols()
     }
 }
