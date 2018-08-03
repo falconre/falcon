@@ -66,6 +66,7 @@ pub trait TranslationMemory {
 /// and a host of other oddness. Translators therefor return a `ControlFlowGraph` for the
 /// translation of a block. The *entry* and *exit* for this `ControlFlowGraph` should be
 /// set.
+#[derive(Clone, Debug)]
 pub struct BlockTranslationResult {
     /// A vector of one `ControlFlowGraph` per instruction, which represents the
     /// semantics of this block

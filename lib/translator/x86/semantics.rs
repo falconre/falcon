@@ -299,9 +299,11 @@ impl<'s> Semantics<'s> {
                 capstone::x86_insn::X86_INS_CMPSB |
                 capstone::x86_insn::X86_INS_CMPSW |
                 capstone::x86_insn::X86_INS_CMPSD |
+                capstone::x86_insn::X86_INS_CMPSQ |
                 capstone::x86_insn::X86_INS_SCASB |
                 capstone::x86_insn::X86_INS_SCASW |
-                capstone::x86_insn::X86_INS_SCASD => {
+                capstone::x86_insn::X86_INS_SCASD |
+                capstone::x86_insn::X86_INS_SCASQ => {
                     // loop -> head
                     control_flow_graph.conditional_edge(
                         loop_index,
@@ -318,9 +320,11 @@ impl<'s> Semantics<'s> {
                 capstone::x86_insn::X86_INS_STOSB |
                 capstone::x86_insn::X86_INS_STOSW |
                 capstone::x86_insn::X86_INS_STOSD |
+                capstone::x86_insn::X86_INS_STOSQ |
                 capstone::x86_insn::X86_INS_MOVSB |
                 capstone::x86_insn::X86_INS_MOVSW |
-                capstone::x86_insn::X86_INS_MOVSD => {
+                capstone::x86_insn::X86_INS_MOVSD |
+                capstone::x86_insn::X86_INS_MOVSQ => {
                     // loop -> head
                     control_flow_graph.unconditional_edge(loop_index,
                                                           head_index)?;
@@ -385,9 +389,11 @@ impl<'s> Semantics<'s> {
                 capstone::x86_insn::X86_INS_CMPSB |
                 capstone::x86_insn::X86_INS_CMPSW |
                 capstone::x86_insn::X86_INS_CMPSD |
+                capstone::x86_insn::X86_INS_CMPSQ |
                 capstone::x86_insn::X86_INS_SCASB |
                 capstone::x86_insn::X86_INS_SCASW |
-                capstone::x86_insn::X86_INS_SCASD => {
+                capstone::x86_insn::X86_INS_SCASD |
+                capstone::x86_insn::X86_INS_SCASQ => {
                     // loop -> head
                     control_flow_graph.conditional_edge(
                         loop_index,
@@ -404,14 +410,19 @@ impl<'s> Semantics<'s> {
                 capstone::x86_insn::X86_INS_STOSB |
                 capstone::x86_insn::X86_INS_STOSW |
                 capstone::x86_insn::X86_INS_STOSD |
+                capstone::x86_insn::X86_INS_STOSQ |
                 capstone::x86_insn::X86_INS_MOVSB |
                 capstone::x86_insn::X86_INS_MOVSW |
-                capstone::x86_insn::X86_INS_MOVSD => {
+                capstone::x86_insn::X86_INS_MOVSD |
+                capstone::x86_insn::X86_INS_MOVSQ => {
                     // loop -> head
                     control_flow_graph.unconditional_edge(loop_index,
                                                           head_index)?;
                 },
-                _ => bail!("unsupported instruction for rep prefix, 0x{:x}",
+                _ => bail!("unsupported instruction for rep prefix, \
+                            instruction: {} {}, address: 0x{:x}",
+                           self.instruction().mnemonic,
+                           self.instruction().op_str,
                            self.instruction().address)
             }
         }
@@ -2015,11 +2026,16 @@ impl<'s> Semantics<'s> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
-            let src =
+            let dst = self.get_register(detail.operands[0].reg())?;
+            let mut src =
                 self.mode().operand_value(&detail.operands[1],
                                           self.instruction())?;
 
-            self.operand_store(&mut block, &detail.operands[0], src)?;
+            if src.bits() > dst.bits() {
+                src = Expr::trun(dst.bits(), src)?;
+            }
+
+            dst.set(&mut block, src)?;
 
             block.index()
         };
@@ -2147,6 +2163,47 @@ impl<'s> Semantics<'s> {
             let mut block = control_flow_graph.new_block()?;
 
             let src = self.operand_load(&mut block, &detail.operands[1])?;
+
+            self.operand_store(&mut block, &detail.operands[0], src)?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
+    pub fn movq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            let mut src = self.operand_load(&mut block, &detail.operands[1])?;
+
+            // When the src is an xmm register, the lower 64 bits are copied,
+            // and the high bits are zeroed out.
+            // We can start by ensuring all src operands are 64-bits.
+            if src.bits() > 64 {
+                src = Expr::trun(64, src)?;
+            }
+
+            // Valid destinations are 64-bit memory location, 64-bit register,
+            // and 128-bit xmm register. We're already good for 64-bit cases,
+            // just need to zext for 128-bit case.
+            match detail.operands[0].type_ {
+                x86_op_type::X86_OP_REG => {
+                    // mov to 64-bit register
+                    let register = self.get_register(detail.operands[0].reg())?;
+                    if register.bits() == 128 {
+                        src = Expr::zext(128, src)?;
+                    }
+                }
+                _ => {}
+            }
 
             self.operand_store(&mut block, &detail.operands[0], src)?;
 
@@ -2490,6 +2547,152 @@ impl<'s> Semantics<'s> {
 
             // store result
             self.operand_store(&mut block, &detail.operands[0], result.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
+    pub fn paddq(&self, control_flow_graph: &mut ControlFlowGraph)
+        -> Result<()> {
+
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            if lhs.bits() == 64 {
+                self.operand_store(
+                    &mut block,
+                    &detail.operands[0],
+                    Expr::add(lhs, rhs)?)?;
+            }
+            else if lhs.bits() == 128 {
+                let upper =
+                    Expr::shl(expr_const(64, 128),
+                        Expr::add(
+                            Expr::shr(expr_const(64, 128), lhs.clone())?,
+                            Expr::shr(expr_const(64, 128), lhs.clone())?)?)?;
+                let lower =
+                    Expr::and(
+                        expr_const(0xffff_ffff_ffff_ffff, 128),
+                        Expr::add(lhs, rhs)?)?;
+                self.operand_store(
+                    &mut block,
+                    &detail.operands[0],
+                    Expr::or(upper, lower)?)?;
+            }
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
+    pub fn pcmpeqd(&self, control_flow_graph: &mut ControlFlowGraph)
+        -> Result<()> {
+
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            let temp = block.temp(lhs.bits());
+
+            block.assign(temp.clone(),
+                Expr::ite(
+                    Expr::cmpeq(
+                        Expr::trun(32, lhs.clone())?,
+                        Expr::trun(32, rhs.clone())?)?,
+                    expr_const(0xffff_ffff, lhs.bits()),
+                    expr_const(0, lhs.bits()))?);
+
+            for i in 1..(lhs.bits() / 32) {
+                let shift_constant = expr_const((i * 32) as u64, lhs.bits());
+                let cmp_lhs =
+                    Expr::trun(32, 
+                        Expr::shr(lhs.clone(), shift_constant.clone())?)?;
+                let cmp_rhs =
+                    Expr::trun(32,
+                        Expr::shr(rhs.clone(), shift_constant.clone())?)?;
+
+                block.assign(temp.clone(),
+                    Expr::or(
+                        temp.clone().into(),
+                        Expr::shl(
+                            Expr::ite(
+                                Expr::cmpeq(cmp_lhs, cmp_rhs)?,
+                                Expr::zext(lhs.bits(), expr_const(0xffff_ffff, 32))?,
+                                Expr::zext(lhs.bits(), expr_const(0, 32))?
+                            )?,
+                            shift_constant
+                        )?
+                    )?
+                );
+            }
+
+            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
+    pub fn psubq(&self, control_flow_graph: &mut ControlFlowGraph)
+        -> Result<()> {
+
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            if lhs.bits() == 64 {
+                self.operand_store(
+                    &mut block,
+                    &detail.operands[0],
+                    Expr::sub(lhs, rhs)?)?;
+            }
+            else if lhs.bits() == 128 {
+                let upper =
+                    Expr::shl(expr_const(64, 128),
+                        Expr::sub(
+                            Expr::shr(expr_const(64, 128), lhs.clone())?,
+                            Expr::shr(expr_const(64, 128), lhs.clone())?)?)?;
+                let lower =
+                    Expr::sub(
+                        expr_const(0xffff_ffff_ffff_ffff, 128),
+                        Expr::sub(lhs, rhs)?)?;
+                self.operand_store(
+                    &mut block,
+                    &detail.operands[0],
+                    Expr::or(upper, lower)?)?;
+            }
 
             block.index()
         };
@@ -3475,6 +3678,30 @@ impl<'s> Semantics<'s> {
             self.set_sf(&mut block, expr)?;
             block.assign(scalar("CF", 1), expr_const(0, 1));
             block.assign(scalar("OF", 1), expr_const(0, 1));;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
+    pub fn ud2(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            block.intrinsic(Intrinsic::new(
+                "ud2",
+                "ud2",
+                Vec::new(),
+                None,
+                None,
+                self.instruction().bytes.get(0..2).unwrap().to_vec()
+            ));
 
             block.index()
         };

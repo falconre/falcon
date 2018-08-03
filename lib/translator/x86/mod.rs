@@ -8,6 +8,10 @@ mod semantics;
 mod translator;
 mod x86register;
 
+
+#[cfg(test)] mod test;
+
+
 use self::mode::Mode;
 
 /// The X86 translator.
