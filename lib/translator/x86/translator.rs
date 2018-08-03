@@ -19,7 +19,7 @@ fn raise_fp(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 
         block.intrinsic(
             Intrinsic::new(
-                "unhandled fp",
+                instruction.mnemonic.clone(),
                 format!("{} {}", instruction.mnemonic, instruction.op_str),
                 Vec::new(),
                 None,
