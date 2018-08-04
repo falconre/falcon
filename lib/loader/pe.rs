@@ -105,7 +105,7 @@ impl Loader for Pe {
         for symbol in pe.exports {
             let function_entry = FunctionEntry::new(
                 (symbol.rva + pe.image_base) as u64,
-                Some(symbol.name.to_string())
+                symbol.name.map(|s| s.to_string())
             );
             function_entries.push(function_entry);
         }
@@ -132,11 +132,15 @@ impl Loader for Pe {
         self.architecture.as_ref()
     }
 
+    fn as_any(&self) -> &Any { self }
+
     fn symbols(&self) -> Vec<Symbol> {
         let pe = self.pe();
         let mut symbols = Vec::new();
         for export in pe.exports {
-            symbols.push(Symbol::new(export.name, export.offset as u64));
+            if let Some(name) = export.name {
+                symbols.push(Symbol::new(name.to_string(), export.offset as u64));
+            }
         }
         symbols
     }

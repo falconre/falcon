@@ -23,6 +23,7 @@ use error::*;
 use executor::eval;
 use il;
 use memory;
+use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
@@ -97,6 +98,9 @@ pub trait Loader: fmt::Debug + Send + Sync {
         let memory = self.memory()?;
         Ok(translator.translate_function(&memory, address)?)
     }
+
+    /// Cast loader to `Any`
+    fn as_any(&self) -> &Any;
 
     /// Get the symbols for this loader
     fn symbols(&self) -> Vec<Symbol>;

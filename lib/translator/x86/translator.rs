@@ -215,6 +215,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_MOVAPS |
                 capstone::x86_insn::X86_INS_MOVAPD |
                 capstone::x86_insn::X86_INS_MOVDQU |
+                capstone::x86_insn::X86_INS_MOVNTI |
                 capstone::x86_insn::X86_INS_MOVUPS => semantics.mov(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVQ   => semantics.movq(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVSB  |

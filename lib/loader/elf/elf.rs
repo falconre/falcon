@@ -187,6 +187,16 @@ impl Elf {
                 ));
         }
 
+        for rel in elf.pltrelocs.iter() {
+            let sym = match elf.dynsyms.get(rel.r_sym) {
+                Some(sym) => sym,
+                None => continue
+            };
+
+            let name = &elf.dynstrtab[sym.st_name];
+            symbols.push(Symbol::new(name, rel.r_offset));
+        }
+
         symbols.sort();
         symbols.dedup();
         symbols
@@ -295,6 +305,8 @@ impl Loader for Elf {
     fn architecture(&self) -> &Architecture {
         self.architecture.as_ref()
     }
+
+    fn as_any(&self) -> &Any { self }
 
     fn symbols(&self) -> Vec<Symbol> {
         self.symbols()

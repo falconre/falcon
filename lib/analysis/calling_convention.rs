@@ -26,6 +26,23 @@ pub enum ReturnAddressType {
 }
 
 
+impl ReturnAddressType {
+    pub fn register(&self) -> Option<&il::Scalar> {
+        match self {
+            ReturnAddressType::Register(scalar) => Some(scalar),
+            ReturnAddressType::Stack(_) => None
+        }
+    }
+
+    pub fn stack(&self) -> Option<usize> {
+        match self {
+            ReturnAddressType::Stack(offset) => Some(*offset),
+            ReturnAddressType::Register(_) => None,
+        }
+    }
+}
+
+
 /// The type of an argument.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArgumentType {
@@ -36,6 +53,23 @@ pub enum ArgumentType {
     ///
     /// The stack offset is given at function call/entry.
     Stack(usize)
+}
+
+
+impl ArgumentType {
+    pub fn register(&self) -> Option<&il::Scalar> {
+        match self {
+            ArgumentType::Register(scalar) => Some(scalar),
+            ArgumentType::Stack(_) => None
+        }
+    }
+
+    pub fn stack(&self) -> Option<usize> {
+        match self {
+            ArgumentType::Stack(offset) => Some(*offset),
+            ArgumentType::Register(_) => None,
+        }
+    }
 }
 
 
@@ -181,6 +215,7 @@ impl CallingConvention {
                 trashed_registers.insert(il::scalar("$t7", 32));
                 trashed_registers.insert(il::scalar("$t8", 32));
                 trashed_registers.insert(il::scalar("$t9", 32));
+                trashed_registers.insert(il::scalar("$gp", 32));
 
                 let return_type = ReturnAddressType::Register(il::scalar("$ra", 32));
 
@@ -188,7 +223,7 @@ impl CallingConvention {
                     argument_registers: argument_registers,
                     preserved_registers: preserved_registers,
                     trashed_registers: trashed_registers,
-                    stack_argument_offset: 0,
+                    stack_argument_offset: 16,
                     stack_argument_length: 4,
                     return_address_type: return_type,
                     return_register: il::scalar("$v0", 32)

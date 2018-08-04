@@ -523,6 +523,8 @@ impl Loader for ElfLinker {
         self.loaded[filename].architecture()
     }
 
+    fn as_any(&self) -> &Any { self }
+
     fn symbols(&self) -> Vec<Symbol> {
         self.loaded
             .iter()
