@@ -2985,7 +2985,7 @@ impl<'s> Semantics<'s> {
             block.assign(temp.clone(), expr);
 
             // OF is the last bit shifted out
-            block.assign(scalar("OF", 1), expr_const(0, lhs.bits()));
+            block.assign(scalar("OF", 1), expr_const(0, 1));
 
             self.set_zf(&mut block, temp.clone().into())?;
             self.set_sf(&mut block, temp.clone().into())?;
