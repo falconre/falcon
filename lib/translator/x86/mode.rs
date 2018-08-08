@@ -215,11 +215,13 @@ impl Mode {
     pub fn push_value(&self, block: &mut Block, value: Expression)
         -> Result<()> {
 
-        block.assign(
-            self.sp(),
-            Expr::sub(self.sp().into(),
-                      expr_const((value.bits() / 8) as u64, self.bits()))?
-        );
+        match self {
+            Mode::X86 =>
+                block.assign(self.sp(), Expr::sub(self.sp().into(), expr_const(4, 32))?),
+            Mode::Amd64 =>
+                block.assign(self.sp(), Expr::sub(self.sp().into(), expr_const(8, 32))?)
+        };
+
         block.store(self.sp().into(), value);
         Ok(())
     }
