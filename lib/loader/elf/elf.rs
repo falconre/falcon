@@ -252,7 +252,7 @@ impl Loader for Elf {
 
         // dynamic symbols
         for sym in &elf.dynsyms {
-            if sym.is_function() && sym.st_value != 0 {
+            if sym.is_function() && sym.st_value != 0 && sym.st_shndx > 0 {
                 let name = &elf.dynstrtab[sym.st_name];
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
@@ -264,7 +264,7 @@ impl Loader for Elf {
 
         // normal symbols
         for sym in &elf.syms {
-            if sym.is_function() && sym.st_value != 0 {
+            if sym.is_function() && sym.st_value != 0 && sym.st_shndx > 0 {
                 let name = &elf.strtab[sym.st_name];
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
