@@ -218,8 +218,9 @@ impl Mode {
         match self {
             Mode::X86 =>
                 block.assign(self.sp(), Expr::sub(self.sp().into(), expr_const(4, 32))?),
-            Mode::Amd64 =>
-                block.assign(self.sp(), Expr::sub(self.sp().into(), expr_const(8, 32))?)
+            Mode::Amd64 => {
+                block.assign(self.sp(), Expr::sub(self.sp().into(), expr_const(8, 64))?)
+            }
         };
 
         block.store(self.sp().into(), value);
