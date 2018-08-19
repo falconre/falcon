@@ -7,7 +7,7 @@ use std::hash::Hash;
 use error::*;
 
 
-pub trait Vertex: Clone + Debug + Eq + Hash + PartialEq + Sync {
+pub trait Vertex: Clone + Debug + Eq + Hash + Ord + PartialEq + PartialOrd + Sync {
     // The index of this vertex.
     fn index(&self) -> usize;
     // A string to display in dot graphviz format.
@@ -15,7 +15,7 @@ pub trait Vertex: Clone + Debug + Eq + Hash + PartialEq + Sync {
 }
 
 
-pub trait Edge: Clone + Debug + Eq + Hash + PartialEq + Sync {
+pub trait Edge: Clone + Debug + Eq + Hash + Ord + PartialEq + PartialOrd + Sync {
     /// The index of the head vertex.
     fn head(&self) -> usize;
     /// The index of the tail vertex.
@@ -74,7 +74,7 @@ impl Edge for NullEdge {
 
 
 /// A directed graph.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Graph<V: Vertex, E: Edge> {
     head: Option<usize>,
     vertices: BTreeMap<usize, V>,
