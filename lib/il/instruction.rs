@@ -199,34 +199,38 @@ impl Instruction {
     }
 
     /// Get the `Scalar` which will be written by this `Instruction`.
-    pub fn scalars_written(&self) -> Vec<&Scalar> {
+    pub fn scalars_written(&self) -> Option<Vec<&Scalar>> {
         self.operation.scalars_written()
     }
 
     /// Get a mutable reference to the `Scalar` which will be written by this
     /// `Instruction`.
-    pub fn scalar_written_mut(&mut self) -> Vec<&mut Scalar> {
+    pub fn scalar_written_mut(&mut self) -> Option<Vec<&mut Scalar>> {
         self.operation.scalars_written_mut()
     }
 
     /// Get a Vec of each `Scalar` read by this `Instruction`.
-    pub fn scalars_read(&self) -> Vec<&Scalar> {
+    pub fn scalars_read(&self) -> Option<Vec<&Scalar>> {
         self.operation.scalars_read()
     }
 
     /// Get a Vec of mutable references for each `Scalar` read by this
     /// `Instruction`.
-    pub fn scalars_read_mut(&mut self) -> Vec<&mut Scalar> {
+    pub fn scalars_read_mut(&mut self) -> Option<Vec<&mut Scalar>> {
         self.operation.scalars_read_mut()
     }
 
     /// Get all the scalars used in this instruction
-    pub fn scalars(&self) -> Vec<&Scalar> {
-        let mut scalars = self.scalars_written();
-        scalars.append(&mut self.scalars_read());
+    pub fn scalars(&self) -> Option<Vec<&Scalar>> {
+        let mut scalars =
+            self.scalars_written()?
+                .into_iter()
+                .chain(self.scalars_read()?.into_iter())
+                .collect::<Vec<&Scalar>>();
+
         scalars.sort();
         scalars.dedup();
-        scalars
+        Some(scalars)
     }
 }
 

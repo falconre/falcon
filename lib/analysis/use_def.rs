@@ -39,17 +39,19 @@ pub fn use_def<'r>(function: &'r il::Function)
                         condition.scalars()
                                  .into_iter()
                                  .fold(LocationSet::new(), |mut defs, scalar_read| {
-                                    rd[&location].locations().into_iter().for_each(|rd|
+                                    rd[&location].locations().into_iter().for_each(|rd| {
                                         rd.instruction()
                                           .unwrap()
                                           .operation()
                                           .scalars_written()
-                                          .into_iter()
-                                          .for_each(|scalar_written|
-                                            if scalar_written == scalar_read {
-                                                defs.insert(rd.clone());
-                                            })
-                                    );
+                                          .map(|scalars_written|
+                                            scalars_written
+                                              .into_iter()
+                                              .for_each(|scalar_written|
+                                                if scalar_written == scalar_read {
+                                                    defs.insert(rd.clone());
+                                                }));
+                                    });
                                     defs
                                  })
                         )

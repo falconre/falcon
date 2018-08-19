@@ -62,11 +62,13 @@ impl<'a, D, M, V> fixed_point::FixedPointAnalysis<'a, domain::State<M, V>> for I
                     },
                     il::Operation::Intrinsic { ref intrinsic } => {
                         intrinsic.scalars_written()
-                            .into_iter()
-                            .for_each(|scalar|
-                                state.set_variable(
-                                    scalar.clone(),
-                                    V::top(scalar.bits())));
+                            .map(|scalars_written|
+                                scalars_written
+                                    .into_iter()
+                                    .for_each(|scalar|
+                                        state.set_variable(
+                                            scalar.clone(),
+                                            V::top(scalar.bits()))));
                         state
                     },
                     il::Operation::Nop => state

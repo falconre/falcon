@@ -76,7 +76,9 @@ pub fn dead_code_elimination(function: &il::Function)
             .into_iter()
             .filter(|location|
                     location.instruction().map(|instruction|
-                        !instruction.scalars_written().is_empty())
+                        !instruction.scalars_written()
+                            .map(|scalars_written| scalars_written.is_empty())
+                            .unwrap_or(false))
                     .unwrap_or(false))
             .filter(|location| !live.contains(location))
             .filter(|location|

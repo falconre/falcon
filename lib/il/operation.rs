@@ -70,80 +70,62 @@ impl Operation {
     }
 
     /// Get each `Scalar` read by this `Operation`.
-    pub fn scalars_read(&self) -> Vec<&Scalar> {
-        let mut read: Vec<&Scalar> = Vec::new();
+    pub fn scalars_read(&self) -> Option<Vec<&Scalar>> {
         match *self {
-            Operation::Assign { ref src, .. } => {
-                read.append(&mut src.scalars());
-            },
-            Operation::Store { ref index, ref src } => {
-                read.append(&mut index.scalars());
-                read.append(&mut src.scalars());
-            },
-            Operation::Load { ref index, .. } => {
-                read.append(&mut index.scalars());
-            },
-            Operation::Branch { ref target } => {
-                read.append(&mut target.scalars());
-            },
-            Operation::Intrinsic { ref intrinsic } => {
-                read.append(&mut intrinsic.scalars_read());
-            },
-            Operation::Nop => {}
+            Operation::Assign { ref src, .. } => Some(src.scalars()),
+            Operation::Store { ref index, ref src } =>
+                Some(index.scalars()
+                          .into_iter()
+                          .chain(src.scalars().into_iter())
+                          .collect()),
+            Operation::Load { ref index, .. } => Some(index.scalars()),
+            Operation::Branch { ref target } => Some(target.scalars()),
+            Operation::Intrinsic { ref intrinsic } => intrinsic.scalars_read(),
+            Operation::Nop => Some(Vec::new())
         }
-        read
     }
 
     /// Get a mutable reference to each `Scalar` read by this `Operation`.
-    pub fn scalars_read_mut(&mut self) -> Vec<&mut Scalar> {
-        let mut read: Vec<&mut Scalar> = Vec::new();
+    pub fn scalars_read_mut(&mut self) -> Option<Vec<&mut Scalar>> {
         match *self {
-            Operation::Assign { ref mut src, .. } => {
-                read.append(&mut src.scalars_mut());
-            },
-            Operation::Store { ref mut index, ref mut src } => {
-                read.append(&mut index.scalars_mut());
-                read.append(&mut src.scalars_mut());
-            },
-            Operation::Load { ref mut index, .. } => {
-                read.append(&mut index.scalars_mut());
-            },
-            Operation::Branch { ref mut target } => {
-                read.append(&mut target.scalars_mut());
-            },
-            Operation::Intrinsic { ref mut intrinsic } => {
-                read.append(&mut intrinsic.scalars_read_mut());
-            },
-            Operation::Nop => {}
+            Operation::Assign { ref mut src, .. } => Some(src.scalars_mut()),
+            Operation::Store { ref mut index, ref mut src } => 
+                Some(index.scalars_mut()
+                          .into_iter()
+                          .chain(src.scalars_mut().into_iter())
+                          .collect()),
+            Operation::Load { ref mut index, .. } => Some(index.scalars_mut()),
+            Operation::Branch { ref mut target } => Some(target.scalars_mut()),
+            Operation::Intrinsic { ref mut intrinsic } =>
+                intrinsic.scalars_read_mut(),
+            Operation::Nop => Some(Vec::new())
         }
-
-        read
     }
 
     /// Get a Vec of the `Scalar`s written by this `Operation`
-    pub fn scalars_written(&self) -> Vec<&Scalar> {
+    pub fn scalars_written(&self) -> Option<Vec<&Scalar>> {
         match *self {
             Operation::Assign { ref dst, .. } |
-            Operation::Load   { ref dst, .. } => vec![dst],
+            Operation::Load   { ref dst, .. } => Some(vec![dst]),
             Operation::Store  { .. } |
-            Operation::Branch { .. } => Vec::new(),
+            Operation::Branch { .. } => Some(Vec::new()),
             Operation::Intrinsic { ref intrinsic } =>
                 intrinsic.scalars_written(),
-            Operation::Nop => Vec::new()
+            Operation::Nop => Some(Vec::new())
         }
     }
 
     /// Get a Vec of mutable referencer to the `Scalar`s written by this
     /// `Operation`
-    pub fn scalars_written_mut(&mut self) -> Vec<&mut Scalar> {
+    pub fn scalars_written_mut(&mut self) -> Option<Vec<&mut Scalar>> {
         match *self {
             Operation::Assign { ref mut dst, .. } |
-            Operation::Load   { ref mut dst, .. } => vec![dst],
+            Operation::Load   { ref mut dst, .. } => Some(vec![dst]),
             Operation::Store  { .. } |
-            Operation::Branch { .. } => Vec::new(),
+            Operation::Branch { .. } => Some(Vec::new()),
             Operation::Intrinsic { ref mut intrinsic } =>
                 intrinsic.scalars_written_mut(),
-            Operation::Nop => Vec::new()
+            Operation::Nop => Some(Vec::new())
         }
     }
 }

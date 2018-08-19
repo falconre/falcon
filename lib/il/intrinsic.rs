@@ -89,56 +89,52 @@ impl Intrinsic {
     ///
     /// These are the scalars contained in the written expressions. Caveats for
     /// `written_expressions` apply here.
-    pub fn scalars_written(&self) -> Vec<&Scalar> {
+    pub fn scalars_written(&self) -> Option<Vec<&Scalar>> {
         self.written_expressions()
             .map(|written_expressions|
                 written_expressions
                     .iter()
                     .flat_map(|expression| expression.scalars())
                     .collect::<Vec<&Scalar>>())
-            .unwrap_or(Vec::new())
     }
 
     /// Get a mutable reference to the scalars written by this intrinsic.
     ///
     /// This is a mutable reference to the scalars contained in the written
     /// expressions. Caveats for `written_expressions` apply here.
-    pub fn scalars_written_mut(&mut self) -> Vec<&mut Scalar> {
+    pub fn scalars_written_mut(&mut self) -> Option<Vec<&mut Scalar>> {
         self.written_expressions_mut()
             .map(|written_expressions|
                 written_expressions
                     .iter_mut()
                     .flat_map(|expression| expression.scalars_mut())
                     .collect::<Vec<&mut Scalar>>())
-            .unwrap_or(Vec::new())
     }
 
     /// Get the scalared read by this intrinsic.
     ///
     /// These are the scalars in the expressions read by this intrinsic.
     /// Caveats for `read_expressions` apply here.
-    pub fn scalars_read(&self) -> Vec<&Scalar> {
+    pub fn scalars_read(&self) -> Option<Vec<&Scalar>> {
         self.read_expressions()
             .map(|read_expressions|
                 read_expressions
                     .iter()
                     .flat_map(|expression| expression.scalars())
                     .collect::<Vec<&Scalar>>())
-            .unwrap_or(Vec::new())
     }
 
     /// Get a mutable reference to the scalars written by this inrinsic.
     ///
     /// These are the scalars in the expression written by this intrinsic.
     /// Caveats for `read_expressions` apply here.
-    pub fn scalars_read_mut(&mut self) -> Vec<&mut Scalar> {
+    pub fn scalars_read_mut(&mut self) -> Option<Vec<&mut Scalar>> {
         self.read_expressions_mut()
             .map(|read_expressions|
                 read_expressions
                     .iter_mut()
                     .flat_map(|expression| expression.scalars_mut())
                     .collect::<Vec<&mut Scalar>>())
-            .unwrap_or(Vec::new())
     }
 
     /// Get the bytes which make up this instruction.

@@ -34,18 +34,21 @@ pub fn def_use<'r>(function: &'r il::Function)
             il::RefFunctionLocation::Edge(ref edge) => {
                 edge.condition().map(|condition|
                     condition.scalars().into_iter().for_each(|scalar_read|
-                        rd[&location].locations().into_iter().for_each(|rd|
+                        rd[&location].locations().into_iter().for_each(|rd| {
                             rd.instruction()
                               .unwrap()
                               .operation()
                               .scalars_written()
-                              .into_iter()
-                              .for_each(|scalar_written|
-                                if scalar_written == scalar_read {
-                                    du.entry(rd.clone())
-                                        .or_insert(LocationSet::new())
-                                        .insert(location.clone());
-                                }))));
+                              .map(|scalars_written|
+                                scalars_written
+                                  .into_iter()
+                                  .for_each(|scalar_written|
+                                    if scalar_written == scalar_read {
+                                        du.entry(rd.clone())
+                                            .or_insert(LocationSet::new())
+                                            .insert(location.clone());
+                                    }));
+                        })));
             },
             il::RefFunctionLocation::EmptyBlock(_) => {}
         }
