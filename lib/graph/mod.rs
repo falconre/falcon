@@ -518,24 +518,32 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
 
     /// Fetches an index from the graph by index.
-    pub fn vertex(&self, index: usize) -> Option<&V> {
-        self.vertices.get(&index)
+    pub fn vertex(&self, index: usize) -> Result<&V> {
+        self.vertices
+            .get(&index)
+            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
     }
 
 
     // Fetches a mutable instance of a vertex.
-    pub fn vertex_mut(&mut self, index: usize) -> Option<&mut V> {
-        self.vertices.get_mut(&index)
+    pub fn vertex_mut(&mut self, index: usize) -> Result<&mut V> {
+        self.vertices
+            .get_mut(&index)
+            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
     }
 
 
-    pub fn edge(&self, head: usize, tail: usize) -> Option<&E> {
-        self.edges.get(&(head, tail))
+    pub fn edge(&self, head: usize, tail: usize) -> Result<&E> {
+        self.edges
+            .get(&(head, tail))
+            .ok_or(ErrorKind::GraphEdgeNotFound(head, tail).into())
     }
 
 
-    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Option<&mut E> {
-        self.edges.get_mut(&(head, tail))
+    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut E> {
+        self.edges
+            .get_mut(&(head, tail))
+            .ok_or(ErrorKind::GraphEdgeNotFound(head, tail).into())
     }
 
 
@@ -556,14 +564,18 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
 
 
     /// Return all edges out for a vertex
-    pub fn edges_out(&self, index: usize) -> Option<&Vec<E>> {
-        self.edges_out.get(&index)
+    pub fn edges_out(&self, index: usize) -> Result<&Vec<E>> {
+        self.edges_out
+            .get(&index)
+            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
     }
 
 
     /// Return all edges in for a vertex
-    pub fn edges_in(&self, index: usize) -> Option<&Vec<E>> {
-        self.edges_in.get(&index)
+    pub fn edges_in(&self, index: usize) -> Result<&Vec<E>> {
+        self.edges_in
+            .get(&index)
+            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
     }
 
 

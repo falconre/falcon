@@ -116,6 +116,14 @@ pub mod error {
                 description("Executor can only execute over constant values")
                 display("A scalar \"{}\" was found while executor was evaluating expression", name)
             }
+            GraphEdgeNotFound(head: usize, tail: usize) {
+                description("An edge was not found in a graph")
+                display("The edge with head {} and tail {} does not exist in the graph", head, tail)
+            }
+            GraphVertexNotFound(vertex_id: usize) {
+                description("A vertex was not found in a graph")
+                display("The vertex id {} does not exist in the graph", vertex_id)
+            }
             ProgramLocationMigration(reason: String) {
                 description("Error migrating ProgramLocation between Program")
                 display("Failed to migrate ProgramLocation between Program: {}", reason)

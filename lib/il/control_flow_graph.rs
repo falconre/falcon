@@ -80,12 +80,12 @@ impl ControlFlowGraph {
     }
 
     /// Get a `Block` by index.
-    pub fn block(&self, index: usize) -> Option<&Block> {
+    pub fn block(&self, index: usize) -> Result<&Block> {
         self.graph.vertex(index)
     }
 
     /// Get a mutable reference to a `Block` by index.
-    pub fn block_mut(&mut self, index: usize) -> Option<&mut Block> {
+    pub fn block_mut(&mut self, index: usize) -> Result<&mut Block> {
         self.graph.vertex_mut(index)
     }
 
@@ -100,12 +100,12 @@ impl ControlFlowGraph {
     }
 
     /// Get an `Edge` by its head and tail `Block` indices.
-    pub fn edge(&self, head: usize, tail: usize) -> Option<&Edge> {
+    pub fn edge(&self, head: usize, tail: usize) -> Result<&Edge> {
         self.graph.edge(head, tail)
     }
 
     /// Get a mutable reference to an `Edge` by its head and tail `Block` indices.
-    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Option<&mut Edge> {
+    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut Edge> {
         self.graph.edge_mut(head, tail)
     }
 
@@ -120,12 +120,12 @@ impl ControlFlowGraph {
     }
 
     /// Get every incoming edge to a block
-    pub fn edges_in(&self, index: usize) -> Option<&Vec<Edge>> {
+    pub fn edges_in(&self, index: usize) -> Result<&Vec<Edge>> {
         self.graph.edges_in(index)
     }
 
     /// Get every outgoing edge from a block
-    pub fn edges_out(&self, index: usize) -> Option<&Vec<Edge>> {
+    pub fn edges_out(&self, index: usize) -> Result<&Vec<Edge>> {
         self.graph.edges_out(index)
     }
 
@@ -143,12 +143,12 @@ impl ControlFlowGraph {
 
 
     /// Returns the entry block for this ControlFlowGraph
-    pub fn entry_block(&self) -> Option<&Block> {
+    pub fn entry_block(&self) -> Option<Result<&Block>> {
         if self.entry.is_none() {
             None
         }
         else {
-            self.block(self.entry.unwrap())
+            Some(self.block(self.entry.unwrap()))
         }
     }
 
@@ -254,12 +254,10 @@ impl ControlFlowGraph {
             for (merge_index, successor_index) in merges {
                 // merge the blocks
                 let successor_block = self.graph
-                                          .vertex(successor_index)
-                                          .ok_or("Could not find block")?
+                                          .vertex(successor_index)?
                                           .clone();
                 self.graph
-                    .vertex_mut(merge_index)
-                    .ok_or("Could not find block")?
+                    .vertex_mut(merge_index)?
                     .append(&successor_block);
 
                 // all of successor's successors become merge_block's successors

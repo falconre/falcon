@@ -70,12 +70,12 @@ impl Function {
     }
 
     /// Return a `Block` from this `Function`'s `ControlFlowGraph` by index.
-    pub fn block(&self, index: usize) -> Option<&Block> {
+    pub fn block(&self, index: usize) -> Result<&Block> {
         self.control_flow_graph.block(index)
     }
 
     /// Return a mutable reference to a `Block` in this `Function`
-    pub fn block_mut(&mut self, index: usize) -> Option<&mut Block> {
+    pub fn block_mut(&mut self, index: usize) -> Result<&mut Block> {
         self.control_flow_graph.block_mut(index)
     }
 
@@ -90,7 +90,7 @@ impl Function {
     }
 
     /// Return an `Edge` from this `Function`'s `ControlFlowGraph` by index.
-    pub fn edge(&self, head: usize, tail: usize) -> Option<&Edge> {
+    pub fn edge(&self, head: usize, tail: usize) -> Result<&Edge> {
         self.control_flow_graph.edge(head, tail)
     }
 

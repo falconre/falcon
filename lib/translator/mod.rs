@@ -234,7 +234,7 @@ pub trait Translator: {
                 // Not our first instruction through this block.
                 if let Some(previous_exit) = previous_exit {
                     // Check to see if this edge already exists
-                    if control_flow_graph.edge(previous_exit, entry).is_none() {
+                    if control_flow_graph.edge(previous_exit, entry).is_err() {
                         control_flow_graph.unconditional_edge(previous_exit, entry)?;
                     }
                 }
@@ -254,7 +254,7 @@ pub trait Translator: {
             for successor in result.1.successors().iter() {
                 let (block_entry, _) = block_indices[&successor.0];
                 // check for duplicate edges
-                if control_flow_graph.edge(block_exit, block_entry).is_some() {
+                if control_flow_graph.edge(block_exit, block_entry).is_ok() {
                     continue;
                 }
                 match successor.1 {

@@ -579,8 +579,7 @@ impl<'s> Semantics<'s> {
                 control_flow_graph.temp(rhs.bits())
             };
 
-            let head_block = control_flow_graph.block_mut(head_index)
-                                               .ok_or("Could not find block")?;
+            let head_block = control_flow_graph.block_mut(head_index)?;
 
             // This is the loop preamble, and we'll always execute it
             head_block.assign(scalar("ZF", 1), expr_const(0, 1));
@@ -693,8 +692,7 @@ impl<'s> Semantics<'s> {
                 control_flow_graph.temp(rhs.bits())
             };
 
-            let head_block = control_flow_graph.block_mut(head_index)
-                                               .ok_or("Could not find block")?;
+            let head_block = control_flow_graph.block_mut(head_index)?;
 
             // This is the loop preamble, and we'll always execute it
             head_block.assign(scalar("ZF", 1), expr_const(0, 1));

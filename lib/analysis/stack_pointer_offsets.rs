@@ -202,7 +202,7 @@ impl<'f> fixed_point::FixedPointAnalysis<'f, IntermediateOffset> for StackPointe
                 // Get function entry
                 let function_entry =
                     il::RefProgramLocation::from_function(location.function())
-                        .ok_or("Unable to get function entry")?;
+                        .ok_or("Unable to get function entry")??;
 
                 if location == function_entry {
                     IntermediateOffset::Value(il::const_(0, 32))

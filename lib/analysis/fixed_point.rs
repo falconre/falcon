@@ -41,8 +41,7 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
                               .entry()
                               .ok_or("Function's control flow graph must have entry")?;
     let entry_block = function.control_flow_graph()
-                              .block(entry_index)
-                              .ok_or(format!("Could not find block for entry {}", entry_index))?;
+                              .block(entry_index)?;
 
     match entry_block.instructions().first() {
         Some(ref instruction) => {
@@ -137,8 +136,7 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
                              .entry()
                              .ok_or("Function's control flow graph must have entry")?;
     let exit_block = function.control_flow_graph()
-                             .block(exit_index)
-                             .ok_or(format!("Could not find block for entry {}", exit_index))?;
+                             .block(exit_index)?;
 
     match exit_block.instructions().last() {
         Some(ref instruction) => {
