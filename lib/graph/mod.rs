@@ -261,6 +261,38 @@ impl<V, E> Graph<V, E> where V: Vertex, E: Edge {
     }
 
 
+    // Compute the post order of all vertices in the graph
+    pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>> {
+        let mut visited: HashSet<usize> = HashSet::new();
+        let mut order: Vec<usize> = Vec::new();
+
+        fn dfs_walk<V: Vertex, E: Edge>(
+            graph: &Graph<V, E>,
+            node: usize,
+            visited: &mut HashSet<usize>,
+            order: &mut Vec<usize>
+        ) -> Result<()> {
+            visited.insert(node);
+            for successor in graph.edges_out(node)? {
+                if !visited.contains(&successor.tail()) {
+                    dfs_walk(
+                        graph,
+                        successor.tail(),
+                        visited,
+                        order
+                    )?;
+                }
+            }
+            order.push(node);
+            Ok(())
+        }
+
+        dfs_walk(self, root, &mut visited, &mut order)?;
+
+        Ok(order)
+    }
+
+
     /// Computes the dominance frontiers for all vertices in the graph
     ///
     /// # Warning
