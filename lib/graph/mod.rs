@@ -1,13 +1,11 @@
 //! Implements a directed graph.
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
-use std::fmt::Debug;
-use std::hash::Hash;
 
 use error::*;
 
 
-pub trait Vertex: Clone + Debug + Eq + Hash + Ord + PartialEq + PartialOrd + Sync {
+pub trait Vertex: Clone + Sync {
     // The index of this vertex.
     fn index(&self) -> usize;
     // A string to display in dot graphviz format.
@@ -15,7 +13,7 @@ pub trait Vertex: Clone + Debug + Eq + Hash + Ord + PartialEq + PartialOrd + Syn
 }
 
 
-pub trait Edge: Clone + Debug + Eq + Hash + Ord + PartialEq + PartialOrd + Sync {
+pub trait Edge: Clone + Sync {
     /// The index of the head vertex.
     fn head(&self) -> usize;
     /// The index of the tail vertex.
