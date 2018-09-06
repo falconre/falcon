@@ -7,20 +7,23 @@ use std::collections::HashMap;
 #[allow(dead_code)]
 /// Compute use definition chains for the given function.
 pub fn use_def<'r>(function: &'r il::Function)
--> Result<HashMap<il::RefProgramLocation<'r>, LocationSet<'r>>> {
+-> Result<HashMap<il::ProgramLocation, LocationSet>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     let mut ud = HashMap::new();
 
     for (location, _) in &rd {
-        let defs = match *location.function_location() {
+        let defs = match location.function_location().apply(function).unwrap() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
                 instruction.operation()
                            .scalars_read()
                            .into_iter()
                            .fold(LocationSet::new(), |mut defs, scalar_read| {
                             rd[&location].locations().into_iter().for_each(|rd|
-                                rd.instruction()
+                                rd.function_location()
+                                  .apply(function)
+                                  .unwrap()
+                                  .instruction()
                                   .unwrap()
                                   .operation()
                                   .scalars_written()
@@ -40,7 +43,10 @@ pub fn use_def<'r>(function: &'r il::Function)
                                  .into_iter()
                                  .fold(LocationSet::new(), |mut defs, scalar_read| {
                                     rd[&location].locations().into_iter().for_each(|rd| {
-                                        rd.instruction()
+                                        rd.function_location()
+                                          .apply(function)
+                                          .unwrap()
+                                          .instruction()
                                           .unwrap()
                                           .operation()
                                           .scalars_written()

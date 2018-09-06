@@ -6,18 +6,21 @@ use std::collections::{HashMap};
 
 /// Compute reaching definitions for the given function.
 pub fn reaching_definitions<'r>(function: &'r il::Function)
--> Result<HashMap<il::RefProgramLocation<'r>, LocationSet>> {
-    fixed_point::fixed_point_forward(ReachingDefinitions{}, function)
+-> Result<HashMap<il::ProgramLocation, LocationSet>> {
+    let rda = ReachingDefinitionsAnalysis { function: function };
+    fixed_point::fixed_point_forward(rda, function)
 }
 
 
 // We require a struct to implement methods for our analysis over.
-struct ReachingDefinitions {}
+struct ReachingDefinitionsAnalysis<'r> {
+    function: &'r il::Function
+}
 
 
-impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefinitions {
-    fn trans(&self, location: il::RefProgramLocation<'r>, state: Option<LocationSet<'r>>)
-        -> Result<LocationSet<'r>> {
+impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinitionsAnalysis<'r> {
+    fn trans(&self, location: il::RefProgramLocation<'r>, state: Option<LocationSet>)
+        -> Result<LocationSet> {
 
         let mut state = match state {
             Some(state) => state,
@@ -30,11 +33,15 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefini
                     .scalars_written()
                     .into_iter()
                     .for_each(|scalar_written| {
-                        let kill: Vec<il::RefProgramLocation<'r>> =
+                        let kill: Vec<il::ProgramLocation> =
                             state.locations()
                                 .into_iter()
                                 .filter(|location|
-                                    location.instruction()
+                                    location
+                                        .function_location()
+                                        .apply(self.function)
+                                        .unwrap()
+                                        .instruction()
                                         .unwrap()
                                         .operation()
                                         .scalars_written()
@@ -44,7 +51,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefini
                                 .collect();
                         kill.iter()
                             .for_each(|location| state.remove(&location));
-                        state.insert(location.clone());
+                        state.insert(location.clone().into());
                     });
             },
             il::RefFunctionLocation::EmptyBlock(_) |
@@ -55,8 +62,8 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet<'r>> for ReachingDefini
     }
 
 
-    fn join(&self, mut state0: LocationSet<'r>, state1: &LocationSet<'r>)
-        -> Result<LocationSet<'r>> {
+    fn join(&self, mut state0: LocationSet, state1: &LocationSet)
+        -> Result<LocationSet> {
 
         state1.locations().into_iter().for_each(|location|
             state0.insert(location.clone()));
@@ -149,7 +156,7 @@ fn reaching_definitions_test() {
     let function_location = il::RefFunctionLocation::Instruction(block, instruction);
     let program_location = il::RefProgramLocation::new(&function, function_location);
 
-    let r = &rd[&program_location];
+    let r = &rd[&program_location.into()];
 
     let block = function.control_flow_graph().block(0).unwrap();
     assert!(r.contains(&il::RefProgramLocation::new(&function,
@@ -157,7 +164,7 @@ fn reaching_definitions_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )));
+    ).into()));
 
     let block = function.control_flow_graph().block(1).unwrap();
     assert!(r.contains(&il::RefProgramLocation::new(&function,
@@ -165,7 +172,7 @@ fn reaching_definitions_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )));
+    ).into()));
 
     let block = function.control_flow_graph().block(2).unwrap();
     assert!(r.contains(&il::RefProgramLocation::new(&function,
@@ -173,7 +180,7 @@ fn reaching_definitions_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )));
+    ).into()));
 
     let block = function.control_flow_graph().block(3).unwrap();
     assert!(r.contains(&il::RefProgramLocation::new(&function,
@@ -181,7 +188,7 @@ fn reaching_definitions_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )));
+    ).into()));
 
     let block = function.control_flow_graph().block(0).unwrap();
     assert!(!r.contains(&il::RefProgramLocation::new(&function,
@@ -189,5 +196,5 @@ fn reaching_definitions_test() {
             block,
             block.instruction(1).unwrap()
         )
-    )));
+    ).into()));
 }

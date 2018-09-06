@@ -8,19 +8,22 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 /// Compute definition use chains for the given function.
-pub fn def_use<'r>(function: &'r il::Function)
--> Result<HashMap<il::RefProgramLocation<'r>, LocationSet<'r>>> {
+pub fn def_use(function: &il::Function)
+-> Result<HashMap<il::ProgramLocation, LocationSet>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
-    let mut du: HashMap<il::RefProgramLocation<'r>, LocationSet<'r>> = HashMap::new();
+    let mut du: HashMap<il::ProgramLocation, LocationSet> = HashMap::new();
 
     for (location, _) in &rd {
         du.entry(location.clone()).or_insert(LocationSet::new());
-        match *location.function_location() {
-            il::RefFunctionLocation::Instruction(_, ref instruction) =>
+        match location.function_location().apply(function).unwrap() {
+            il::RefFunctionLocation::Instruction(_, instruction) =>
                 instruction.operation().scalars_read().into_iter().for_each(|scalar_read|
                     rd[&location].locations().into_iter().for_each(|rd|
-                        rd.instruction()
+                        rd.function_location()
+                          .apply(function)
+                          .unwrap()
+                          .instruction()
                           .unwrap()
                           .operation()
                           .scalars_written()
@@ -35,7 +38,10 @@ pub fn def_use<'r>(function: &'r il::Function)
                 edge.condition().map(|condition|
                     condition.scalars().into_iter().for_each(|scalar_read|
                         rd[&location].locations().into_iter().for_each(|rd| {
-                            rd.instruction()
+                            rd.function_location()
+                              .apply(function)
+                              .unwrap()
+                              .instruction()
                               .unwrap()
                               .operation()
                               .scalars_written()
@@ -145,7 +151,7 @@ fn use_def_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )].len() == 3);
+    ).into()].len() == 3);
 
     let block = function.control_flow_graph().block(0).unwrap();
     assert!(du[&il::RefProgramLocation::new(
@@ -154,7 +160,7 @@ fn use_def_test() {
             block,
             block.instruction(1).unwrap()
         )
-    )].len() == 1);
+    ).into()].len() == 1);
 
     let block = function.control_flow_graph().block(1).unwrap();
     assert!(du[&il::RefProgramLocation::new(
@@ -163,7 +169,7 @@ fn use_def_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )].len() == 1);
+    ).into()].len() == 1);
 
     let block = function.control_flow_graph().block(0).unwrap();
     assert!(du[&il::RefProgramLocation::new(
@@ -172,11 +178,11 @@ fn use_def_test() {
             block,
             block.instruction(1).unwrap()
         )
-    )].contains(&il::RefProgramLocation::new(
+    ).into()].contains(&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
             function.control_flow_graph().block(1).unwrap(),
             function.control_flow_graph().block(1).unwrap().instruction(0).unwrap()
         )
-    )));
+    ).into()));
 }
