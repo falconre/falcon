@@ -157,7 +157,7 @@ fn use_def_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )].len() == 0);
+    ).into()].len() == 0);
 
     let block = function.control_flow_graph().block(0).unwrap();
     assert!(ud[&il::RefProgramLocation::new(
@@ -166,7 +166,7 @@ fn use_def_test() {
             block,
             block.instruction(1).unwrap()
         )
-    )].len() == 0);
+    ).into()].len() == 0);
 
     let block = function.control_flow_graph().block(1).unwrap();
     assert!(ud[&il::RefProgramLocation::new(
@@ -175,7 +175,7 @@ fn use_def_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )].len() == 1);
+    ).into()].len() == 1);
 
     let block = function.control_flow_graph().block(3).unwrap();
     assert!(ud[&il::RefProgramLocation::new(
@@ -184,13 +184,13 @@ fn use_def_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )].contains(&il::RefProgramLocation::new(
+    ).into()].contains(&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
             function.control_flow_graph().block(1).unwrap(),
             function.control_flow_graph().block(1).unwrap().instruction(0).unwrap()
         )
-    )));
+    ).into()));
 
     let block = function.control_flow_graph().block(3).unwrap();
     assert!(ud[&il::RefProgramLocation::new(
@@ -199,13 +199,13 @@ fn use_def_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )].contains(&il::RefProgramLocation::new(
+    ).into()].contains(&il::RefProgramLocation::new(
         &function,
         il::RefFunctionLocation::Instruction(
             function.control_flow_graph().block(2).unwrap(),
             function.control_flow_graph().block(2).unwrap().instruction(0).unwrap()
         )
-    )));
+    ).into()));
 
     let block = function.control_flow_graph().block(3).unwrap();
     assert!(ud[&il::RefProgramLocation::new(
@@ -214,5 +214,5 @@ fn use_def_test() {
             block,
             block.instruction(0).unwrap()
         )
-    )].len() == 2);
+    ).into()].len() == 2);
 }
