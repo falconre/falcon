@@ -19,7 +19,7 @@ use std::cmp::{Ordering, PartialOrd};
 pub fn stack_pointer_offsets<'f>(
     function: &'f il::Function,
     architecture: &Architecture
-) -> Result<HashMap<il::RefProgramLocation<'f>, StackPointerOffset>> {
+) -> Result<HashMap<il::ProgramLocation, StackPointerOffset>> {
 
     let spoa = StackPointerOffsetAnalysis {
         stack_pointer: architecture.stack_pointer()
@@ -91,8 +91,8 @@ impl StackPointerOffset {
 }
 
 
-fn transform(states: HashMap<il::RefProgramLocation, IntermediateOffset>)
-    -> Result<HashMap<il::RefProgramLocation, StackPointerOffset>> {
+fn transform(states: HashMap<il::ProgramLocation, IntermediateOffset>)
+    -> Result<HashMap<il::ProgramLocation, StackPointerOffset>> {
 
     states.into_iter()
         .try_fold(HashMap::new(), |mut t, (rpl, ispo)| {

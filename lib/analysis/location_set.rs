@@ -7,22 +7,22 @@ use std::collections::HashSet;
 
 /// A partially-ordered set of `RefProgramLocation` used in analyses
 #[derive(Clone, Debug)]
-pub struct LocationSet<'r> {
-    pub locations: HashSet<il::RefProgramLocation<'r>>
+pub struct LocationSet {
+    pub locations: HashSet<il::ProgramLocation>
 }
 
-impl<'r> LocationSet<'r> {
-    pub fn new() -> LocationSet<'r> {
+impl LocationSet {
+    pub fn new() -> LocationSet {
         LocationSet {
             locations: HashSet::new()
         }
     }
 
-    pub fn contains(&self, location: &il::RefProgramLocation<'r>) -> bool {
+    pub fn contains(&self, location: &il::ProgramLocation) -> bool {
         self.locations.contains(location)
     }
 
-    pub fn insert(&mut self, location: il::RefProgramLocation<'r>) {
+    pub fn insert(&mut self, location: il::ProgramLocation) {
         self.locations.insert(location);
     }
 
@@ -34,17 +34,17 @@ impl<'r> LocationSet<'r> {
         self.locations.is_empty()
     }
 
-    pub fn locations(&self) -> &HashSet<il::RefProgramLocation<'r>> {
+    pub fn locations(&self) -> &HashSet<il::ProgramLocation> {
         &self.locations
     }
 
-    pub fn remove(&mut self, location: &il::RefProgramLocation<'r>) {
+    pub fn remove(&mut self, location: &il::ProgramLocation) {
         self.locations.remove(location);
     }
 }
 
 
-impl<'r> PartialOrd for LocationSet<'r> {
+impl PartialOrd for LocationSet {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.locations.len() == other.locations.len() {
             for rpl in &self.locations {
@@ -74,7 +74,7 @@ impl<'r> PartialOrd for LocationSet<'r> {
 }
 
 
-impl<'r> PartialEq for LocationSet<'r> {
+impl PartialEq for LocationSet {
     fn eq(&self, other: &Self) -> bool {
         if let Some(ordering) = self.partial_cmp(other) {
             if ordering == Ordering::Equal {

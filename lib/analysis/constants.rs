@@ -17,7 +17,7 @@ use std::cmp::{Ordering, PartialOrd};
 
 /// Compute constants for the given function
 pub fn constants<'r>(function: &'r il::Function)
--> Result<HashMap<il::RefProgramLocation<'r>, Constants>> {
+-> Result<HashMap<il::ProgramLocation, Constants>> {
     let constants = fixed_point::fixed_point_forward(ConstantsAnalysis{}, function)?;
 
     // we're now going to remap constants, so each position holds the values of
@@ -26,11 +26,17 @@ pub fn constants<'r>(function: &'r il::Function)
     let mut result = HashMap::new();
 
     for (location, _) in &constants {
+        let rfl =
+            location
+                .function_location()
+                .apply(function)
+                .unwrap();
+        let rpl = il::RefProgramLocation::new(function, rfl);
         result.insert(location.clone(),
-            location.backward()?
+            rpl.backward()?
                 .into_iter()
                 .fold(Constants::new(), |c, location|
-                    c.join(&constants[&location])));
+                    c.join(&constants[&location.into()])));
     }
 
     Ok(result)

@@ -22,7 +22,7 @@ pub fn dead_code_elimination(function: &il::Function)
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     // This is a set of assignments we will always consider used.
-    let mut live: HashSet<il::RefFunctionLocation> = HashSet::new();
+    let mut live: HashSet<il::FunctionLocation> = HashSet::new();
 
     // Every assignment that reaches the last instruction in a block with no
     // successor
@@ -43,10 +43,10 @@ pub fn dead_code_elimination(function: &il::Function)
                 };
             let rpl = il::RefProgramLocation::new(function, rfl);
 
-            rd.get(&rpl).unwrap().locations()
+            rd.get(&rpl.into()).unwrap().locations()
                 .iter()
                 .for_each(|location| {
-                    live.insert(location.function_location().clone().into());
+                    live.insert(location.function_location().clone());
                 });
         });
 
@@ -57,7 +57,7 @@ pub fn dead_code_elimination(function: &il::Function)
                 il::Operation::Intrinsic { .. } => {
                     let rpl = il::RefProgramLocation::new(function,
                         il::RefFunctionLocation::Instruction(block, instruction));
-                    rd[&rpl].locations()
+                    rd[&rpl.into()].locations()
                         .into_iter()
                         .for_each(|location| {
                             live.insert(location.function_location().clone());
@@ -80,10 +80,12 @@ pub fn dead_code_elimination(function: &il::Function)
                             .map(|scalars_written| scalars_written.is_empty())
                             .unwrap_or(false))
                     .unwrap_or(false))
-            .filter(|location| !live.contains(location))
+            .filter(|location| !live.contains(&location.clone().into()))
             .filter(|location|
-                du[&location.clone().program_location(function)].is_empty())
-            .collect::<Vec<il::RefFunctionLocation>>();
+                du[&location.clone().program_location(function).into()]
+                    .is_empty())
+            .map(|l| l.into())
+            .collect::<Vec<il::FunctionLocation>>();
 
     // Eliminate those instructions from our new function
     let kill: Vec<il::FunctionLocation> =

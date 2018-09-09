@@ -30,11 +30,12 @@ pub fn fixed_point_forward_options<'f, Analysis, State> (
     analysis: Analysis,
     function: &'f il::Function,
     force: bool
-) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+) -> Result<HashMap<il::ProgramLocation, State>>
 where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd {
-    let mut states: HashMap<il::RefProgramLocation<'f>, State> = HashMap::new();
 
-    let mut queue: VecDeque<il::RefProgramLocation<'f>> = VecDeque::new();
+    let mut states: HashMap<il::ProgramLocation, State> = HashMap::new();
+
+    let mut queue: VecDeque<il::ProgramLocation> = VecDeque::new();
 
     // Find the entry block to the function.
     let entry_index = function.control_flow_graph()
@@ -47,22 +48,30 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
         Some(ref instruction) => {
             let location = il::RefFunctionLocation::Instruction(entry_block, instruction);
             let location = il::RefProgramLocation::new(function, location);
-            queue.push_back(location.clone());
+            queue.push_back(location.into());
         },
         None => {
             let location = il::RefFunctionLocation::EmptyBlock(entry_block);
             let location = il::RefProgramLocation::new(function, location);
-            queue.push_back(location.clone());
+            queue.push_back(location.into());
         }
     }
 
     while !queue.is_empty() {
         let location = queue.pop_front().unwrap();
 
+        // TODO this should not be an unwrap
+        let location =
+            location.function_location()
+                .apply(function)
+                .unwrap();
+
+        let location = il::RefProgramLocation::new(function, location);
+
         let location_predecessors = location.backward()?;
 
-        let state = location_predecessors.iter().fold(None, |s, p| {
-            match states.get(p) {
+        let state = location_predecessors.into_iter().fold(None, |s, p| {
+            match states.get(&p.into()) {
                 Some(in_state) => match s {
                     Some(s) => Some(analysis.join(s, in_state).unwrap()),
                     None => Some(in_state.clone())
@@ -73,7 +82,7 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
 
         let mut state = analysis.trans(location.clone(), state)?;
 
-        if let Some(in_state) = states.get(&location) {
+        if let Some(in_state) = states.get(&location.clone().into()) {
             let ordering = match state.partial_cmp(in_state) {
                 Some (ordering) => match ordering {
                     ::std::cmp::Ordering::Less => Some("less"),
@@ -93,11 +102,11 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
             }
         }
 
-        states.insert(location.clone(), state);
+        states.insert(location.clone().into(), state);
 
         for successor in location.forward()? {
-            if !queue.contains(&successor) {
-                queue.push_back(successor);
+            if !queue.contains(&successor.clone().into()) {
+                queue.push_back(successor.into());
             }
         }
     }
@@ -110,7 +119,7 @@ where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + Parti
 pub fn fixed_point_forward<'f, Analysis, State> (
     analysis: Analysis,
     function: &'f il::Function
-) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+) -> Result<HashMap<il::ProgramLocation, State>>
 where Analysis: FixedPointAnalysis<'f, State>, State: 'f + Clone + Debug + PartialOrd  {
     fixed_point_forward_options(analysis, function, false)
 }

@@ -1,6 +1,5 @@
 //! Implementations and traits for static analysis over Falcon IL.
 
-pub mod ai;
 pub mod calling_convention;
 pub mod constants;
 mod dead_code_elimination;

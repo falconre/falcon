@@ -3800,7 +3800,17 @@ impl<'s> Semantics<'s> {
             }
 
             let result = block.temp(lhs.bits());
-            block.assign(result.clone(), Expr::xor(lhs.clone(), rhs.clone())?);
+
+            // In the event lhs and rhs are the same, this is actually an
+            // assignment of zero. Treat it as such.
+            if lhs == rhs {
+                block.assign(result.clone(), expr_const(0, result.bits()));
+            }
+            else {
+                block.assign(
+                    result.clone(),
+                    Expr::xor(lhs.clone(), rhs.clone())?);
+            }
 
             // calculate flags
             self.set_zf(&mut block, result.clone().into())?;
