@@ -71,6 +71,7 @@
 //! `Or`, `Xor`, `Shl`, `Shr`.
 //! * Comparison: `Cmpeq`, `Cmpneq`, `Cmplts`, `Cmpltu`.
 //! * Extension: `Zext`, `Sext`, `Trun`.
+//! * Ternary: `Ite`
 //!
 //! Comparison expressions evaluate to a 1-bit expression with the value `1`
 //! representing `True`, and the value `0` representing `False`.
