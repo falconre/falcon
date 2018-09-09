@@ -10,7 +10,7 @@ use il;
 pub enum SuccessorType {
     FallThrough,
     Branch(u64),
-    Raise(il::Expression)
+    Intrinsic(il::Intrinsic)
 }
 
 

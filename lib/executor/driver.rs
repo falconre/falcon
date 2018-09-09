@@ -106,8 +106,9 @@ impl Driver {
                             }
                         }
                     },
-                    SuccessorType::Raise(ref expression) => {
-                        bail!(format!("Raise is unimplemented, {}", expression));
+                    SuccessorType::Intrinsic(ref intrinsic) => {
+                        bail!(format!("Intrinsic is unimplemented, {}",
+                                      intrinsic.instruction_str()));
                     }
                 }
             },
