@@ -37,6 +37,14 @@ fn unhandled_intrinsic(control_flow_graph: &mut ControlFlowGraph, instruction: &
 }
 
 
+fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
+    let mut cfg = ControlFlowGraph::new();
+    cfg.new_block()?.nop();
+    cfg.set_address(Some(address));
+    Ok(cfg)
+}
+
+
 pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
     -> Result<BlockTranslationResult> {
 
@@ -130,6 +138,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_CMP    => semantics.cmp(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_CMPSB  => semantics.cmpsb(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_CMPXCHG => semantics.cmpxchg(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_CPUID  => unhandled_intrinsic(&mut instruction_graph, &instruction),
                 capstone::x86_insn::X86_INS_CWD    => semantics.cwd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_CWDE   => semantics.cwde(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_DEC    => semantics.dec(&mut instruction_graph),
@@ -248,7 +257,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_PUSH => semantics.push(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PUSHFD => unhandled_intrinsic(&mut instruction_graph, &instruction),
                 capstone::x86_insn::X86_INS_PXOR => unhandled_intrinsic(&mut instruction_graph, &instruction),
-                capstone::x86_insn::X86_INS_RDTSC => semantics.nop(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_RDTSC => unhandled_intrinsic(&mut instruction_graph, &instruction),
                 capstone::x86_insn::X86_INS_RET  => semantics.ret(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_ROL  => semantics.rol(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_ROR  => semantics.ror(&mut instruction_graph),
@@ -292,6 +301,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_UD2  => semantics.ud2(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_XADD => semantics.xadd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_XCHG => semantics.xchg(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_XGETBV => unhandled_intrinsic(&mut instruction_graph, &instruction),
                 capstone::x86_insn::X86_INS_XOR  => semantics.xor(&mut instruction_graph),
 
                 _ => return Err(format!("Unhandled instruction {} {} at 0x{:x}",
@@ -336,6 +346,8 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_JO |
                 capstone::x86_insn::X86_INS_JP |
                 capstone::x86_insn::X86_INS_JS => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     let condition = semantics.cc_condition()?;
                     successors.push((address + length as u64, Some(Expression::cmpeq(condition.clone(), expr_const(0, 1))?)));
                     let operand = semantics.details()?.operands[0];
@@ -347,6 +359,8 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_LOOP |
                 capstone::x86_insn::X86_INS_LOOPE |
                 capstone::x86_insn::X86_INS_LOOPNE => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     let condition = semantics.loop_condition()?;
                     successors.push((address + length as u64, Some(Expression::cmpeq(condition.clone(), expr_const(0, 1))?)));
                     let operand = semantics.details()?.operands[0];
@@ -357,6 +371,8 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 }
                 // non-conditional branching instructions
                 capstone::x86_insn::X86_INS_JMP => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     let operand = semantics.details()?.operands[0];
                     if operand.type_ == capstone_sys::x86_op_type::X86_OP_IMM {
                         successors.push((operand.imm() as u64, None));
@@ -366,6 +382,8 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 // instructions without successors
                 capstone::x86_insn::X86_INS_HLT | 
                 capstone::x86_insn::X86_INS_RET => {
+                    block_graphs.push(
+                        (instruction.address, nop_graph(instruction.address)?));
                     break;
                 },
                 _ => ()
