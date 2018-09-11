@@ -45,7 +45,10 @@ impl Mode {
         instruction: &capstone::Instr
     ) -> Result<Expression> {
         Ok(match register {
-            x86_reg::X86_REG_RIP => expr_const(instruction.address, 64),
+            x86_reg::X86_REG_RIP => {
+                let value = instruction.address + instruction.size as u64;
+                expr_const(value, 64)
+            },
             _ => get_register(self, register)?.get()?
         })
     }
