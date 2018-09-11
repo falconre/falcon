@@ -1270,6 +1270,10 @@ impl<'s> Semantics<'s> {
         let head_index = {
             let block = control_flow_graph.new_block()?;
 
+            // This nop allows us to find this instruction in traces, even when
+            // then false branch is taken and no instruction is executed.
+            block.nop();
+
             block.index()
         };
 
