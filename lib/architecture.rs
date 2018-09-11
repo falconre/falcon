@@ -17,6 +17,8 @@ pub enum Endian {
 
 /// Necessary functions for analysis over architectures.
 pub trait Architecture: Debug + Send + Sync {
+    /// Get the name of this architecture
+    fn name(&self) -> &str;
     /// Get the endianness of this architecture.
     fn endian(&self) -> Endian;
     /// Get this architecture's translator.
@@ -42,6 +44,7 @@ impl Amd64 {
 }
 
 impl Architecture for Amd64 {
+    fn name(&self) -> &str { &"amd64" }
     fn endian(&self) -> Endian { Endian::Little }
     fn translator(&self) -> Box<translator::Translator> {
         Box::new(translator::x86::Amd64::new())
@@ -64,6 +67,7 @@ impl Mips {
 }
 
 impl Architecture for Mips {
+    fn name(&self) -> &str { &"mips" }
     fn endian(&self) -> Endian { Endian::Big }
     fn translator(&self) -> Box<translator::Translator> {
         Box::new(translator::mips::Mips::new())
@@ -86,6 +90,7 @@ impl Mipsel {
 }
 
 impl Architecture for Mipsel {
+    fn name(&self) -> &str { &"mipsel" }
     fn endian(&self) -> Endian { Endian::Big }
     fn translator(&self) -> Box<translator::Translator> {
         Box::new(translator::mips::Mipsel::new())
@@ -108,6 +113,7 @@ impl X86 {
 }
 
 impl Architecture for X86 {
+    fn name(&self) -> &str { &"x86" }
     fn endian(&self) -> Endian { Endian::Little }
     fn translator(&self) -> Box<translator::Translator> {
         Box::new(translator::x86::X86::new())
