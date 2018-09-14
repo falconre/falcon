@@ -2604,6 +2604,64 @@ impl<'s> Semantics<'s> {
     }
 
 
+    pub fn pcmpeqb(&self, control_flow_graph: &mut ControlFlowGraph)
+        -> Result<()> {
+
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            let temp = block.temp(lhs.bits());
+
+            block.assign(temp.clone(),
+                Expr::ite(
+                    Expr::cmpeq(
+                        Expr::trun(8, lhs.clone())?,
+                        Expr::trun(8, rhs.clone())?)?,
+                    expr_const(0xff, lhs.bits()),
+                    expr_const(0, lhs.bits()))?);
+
+            for i in 1..(lhs.bits() / 8) {
+                let shift_constant = expr_const((i * 8) as u64, lhs.bits());
+                let cmp_lhs =
+                    Expr::trun(8,
+                        Expr::shr(lhs.clone(), shift_constant.clone())?)?;
+                let cmp_rhs =
+                    Expr::trun(8,
+                        Expr::shr(rhs.clone(), shift_constant.clone())?)?;
+
+                block.assign(temp.clone(),
+                    Expr::or(
+                        temp.clone().into(),
+                        Expr::shl(
+                            Expr::ite(
+                                Expr::cmpeq(cmp_lhs, cmp_rhs)?,
+                                Expr::zext(lhs.bits(), expr_const(0xff, 8))?,
+                                Expr::zext(lhs.bits(), expr_const(0, 8))?
+                            )?,
+                            shift_constant
+                        )?
+                    )?
+                );
+            }
+
+            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
     pub fn pcmpeqd(&self, control_flow_graph: &mut ControlFlowGraph)
         -> Result<()> {
 

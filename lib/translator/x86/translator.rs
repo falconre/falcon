@@ -254,6 +254,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_OR   => semantics.or(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PADDQ => semantics.paddq(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PAUSE => semantics.nop(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_PCMPEQB => semantics.pcmpeqb(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PCMPEQD => semantics.pcmpeqd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_POP  => semantics.pop(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PREFETCHT0 => semantics.nop(&mut instruction_graph),
