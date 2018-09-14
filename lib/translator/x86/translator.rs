@@ -37,11 +37,21 @@ fn unhandled_intrinsic(control_flow_graph: &mut ControlFlowGraph, instruction: &
 }
 
 
-fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
-    let mut cfg = ControlFlowGraph::new();
-    cfg.new_block()?.nop();
-    cfg.set_address(Some(address));
-    Ok(cfg)
+fn ensure_block_instruction(control_flow_graph: &mut ControlFlowGraph)
+    -> Result<()> {
+
+    let head_block_num_instructions =
+        control_flow_graph
+            .block(control_flow_graph.entry().unwrap())?
+            .instructions()
+            .len();
+
+    if head_block_num_instructions == 0 {
+        let head_index = control_flow_graph.entry().unwrap();
+        control_flow_graph.block_mut(head_index)?.nop();
+    }
+
+    Ok(())
 }
 
 
@@ -319,10 +329,6 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 semantics.repne_prefix(&mut instruction_graph)?;
             }
 
-            instruction_graph.set_address(Some(instruction.address));
-
-            block_graphs.push((instruction.address, instruction_graph));
-
             length += instruction.size as usize;
 
             // instructions that terminate blocks
@@ -346,8 +352,10 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_JO |
                 capstone::x86_insn::X86_INS_JP |
                 capstone::x86_insn::X86_INS_JS => {
-                    block_graphs.push(
-                        (instruction.address, nop_graph(instruction.address)?));
+                    ensure_block_instruction(&mut instruction_graph)?;
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+
                     let condition = semantics.cc_condition()?;
                     successors.push((address + length as u64, Some(Expression::cmpeq(condition.clone(), expr_const(0, 1))?)));
                     let operand = semantics.details()?.operands[0];
@@ -359,8 +367,10 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_LOOP |
                 capstone::x86_insn::X86_INS_LOOPE |
                 capstone::x86_insn::X86_INS_LOOPNE => {
-                    block_graphs.push(
-                        (instruction.address, nop_graph(instruction.address)?));
+                    ensure_block_instruction(&mut instruction_graph)?;
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+
                     let condition = semantics.loop_condition()?;
                     successors.push((address + length as u64, Some(Expression::cmpeq(condition.clone(), expr_const(0, 1))?)));
                     let operand = semantics.details()?.operands[0];
@@ -371,8 +381,10 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 }
                 // non-conditional branching instructions
                 capstone::x86_insn::X86_INS_JMP => {
-                    block_graphs.push(
-                        (instruction.address, nop_graph(instruction.address)?));
+                    ensure_block_instruction(&mut instruction_graph)?;
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+                    
                     let operand = semantics.details()?.operands[0];
                     if operand.type_ == capstone_sys::x86_op_type::X86_OP_IMM {
                         successors.push((operand.imm() as u64, None));
@@ -382,11 +394,16 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 // instructions without successors
                 capstone::x86_insn::X86_INS_HLT | 
                 capstone::x86_insn::X86_INS_RET => {
-                    block_graphs.push(
-                        (instruction.address, nop_graph(instruction.address)?));
+                    ensure_block_instruction(&mut instruction_graph)?;
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+                    
                     break;
                 },
-                _ => ()
+                _ => {
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+                }
             }
         }
         else {

@@ -231,10 +231,12 @@ pub trait Translator: {
                         instruction_indices.insert(address, (entry, exit));
                         (entry, exit)
                     };
-                // Not our first instruction through this block.
+                // If this is not our first instruction through this block.
                 if let Some(previous_exit) = previous_exit {
-                    // Check to see if this edge already exists
+                    // If an edge from the previoud block to this block doesn't
+                    // exist
                     if control_flow_graph.edge(previous_exit, entry).is_err() {
+                        // Create an edge from the previous block to this block.
                         control_flow_graph.unconditional_edge(previous_exit, entry)?;
                     }
                 }
@@ -249,15 +251,23 @@ pub trait Translator: {
         }
 
         // Insert the edges
-        for result in translation_results {
-            let (_, block_exit) = block_indices[&result.0];
-            for successor in result.1.successors().iter() {
-                let (block_entry, _) = block_indices[&successor.0];
+
+        // For every block translation result
+        for (address, block_translation_result) in translation_results {
+            // Get the exit index for the last/tail vertex in this block
+            let (_, block_exit) = block_indices[&address];
+            // For every successor in the block translation result (this is an
+            // (address, condition) tuple)
+            for (successor_address, successor_condition)
+                in block_translation_result.successors().iter() {
+
+                // get the entry index for the first/head block in the successor
+                let (block_entry, _) = block_indices[successor_address];
                 // check for duplicate edges
                 if control_flow_graph.edge(block_exit, block_entry).is_ok() {
                     continue;
                 }
-                match successor.1 {
+                match successor_condition {
                     Some(ref condition) =>
                         control_flow_graph.conditional_edge(block_exit,
                                                             block_entry,
