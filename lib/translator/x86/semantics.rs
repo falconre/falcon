@@ -2720,6 +2720,106 @@ impl<'s> Semantics<'s> {
     }
 
 
+    pub fn pmovmskb(&self, control_flow_graph: &mut ControlFlowGraph)
+        -> Result<()> {
+
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let dst = self.get_register(detail.operands[0].reg())?;
+            let src = self.operand_load(&mut block, &detail.operands[1])?;
+
+            let temp = block.temp(dst.bits());
+
+            block.assign(temp.clone(),
+                Expr::ite(
+                    Expr::cmpeq(
+                        Expr::trun(1, Expr::shr(src.clone(), expr_const(7, src.bits()))?)?,
+                        expr_const(1, 1))?,
+                    expr_const(1, dst.bits()),
+                    expr_const(0, dst.bits()))?);
+
+            for i in 1..(dst.bits() / 8) {
+                let cmp =
+                    Expr::cmpeq(
+                        Expr::trun(1,
+                            Expr::shr(src.clone(),
+                                      expr_const(((i as u64 + 1) * 8) - 1, src.bits()))?)?,
+                        expr_const(1, 1))?;
+                let bit = Expr::ite(
+                    cmp,
+                    expr_const(1 << i, dst.bits()),
+                    expr_const(0, dst.bits()))?;
+
+                block.assign(temp.clone(), Expr::or(temp.clone().into(), bit)?);
+            }
+
+            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
+    pub fn pminub(&self, control_flow_graph: &mut ControlFlowGraph)
+        -> Result<()> {
+
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            let temp = block.temp(lhs.bits());
+
+            block.assign(temp.clone(),
+                Expr::ite(
+                    Expr::cmpltu(
+                        Expr::trun(8, lhs.clone())?,
+                        Expr::trun(8, rhs.clone())?)?,
+                    Expr::and(lhs.clone(), expr_const(0xff, lhs.bits()))?,
+                    Expr::and(rhs.clone(), expr_const(0xff, rhs.bits()))?)?);
+
+            for i in 1..(lhs.bits() / 8) {
+                let mask =
+                    const_(0xff, lhs.bits())
+                        .shl(&const_(8 * i as u64, lhs.bits()))?;
+
+                let l8 = Expr::and(lhs.clone(), mask.clone().into())?;
+                let r8 = Expr::and(rhs.clone(), mask.into())?;
+
+                let ite =
+                    Expr::ite(
+                        Expr::cmpltu(l8.clone(), r8.clone())?,
+                        l8,
+                        r8)?;
+
+                block.assign(temp.clone(), Expr::or(temp.clone().into(), ite)?);
+            }
+
+            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
     pub fn psubq(&self, control_flow_graph: &mut ControlFlowGraph)
         -> Result<()> {
 
@@ -2810,6 +2910,34 @@ impl<'s> Semantics<'s> {
             let value = self.operand_load(&mut block, &detail.operands[0])?;
 
             self.mode().push_value(&mut block, value)?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+
+    pub fn pxor(&self, control_flow_graph: &mut ControlFlowGraph)
+        -> Result<()> {
+
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            self.operand_store(
+                &mut block,
+                &detail.operands[0],
+                Expr::xor(lhs, rhs)?
+            )?;
 
             block.index()
         };
