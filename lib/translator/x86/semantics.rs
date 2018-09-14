@@ -182,7 +182,7 @@ impl<'s> Semantics<'s> {
                                             expr_scalar("OF", 1))?;
                     let zf = Expr::cmpeq(expr_scalar("ZF", 1),
                                          expr_const(1, 1))?;
-                    Expr::and(sfof, zf)
+                    Expr::or(sfof, zf)
                 },
                 capstone::x86_insn::X86_INS_CMOVNE |
                 capstone::x86_insn::X86_INS_JNE |
