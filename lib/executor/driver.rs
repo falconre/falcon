@@ -35,10 +35,7 @@ impl Driver {
 
     /// Step forward over Falcon IL.
     pub fn step(self) -> Result<Driver> {
-        let location =
-            self.location
-                .apply(&self.program)
-                .ok_or("Failed to apply program location")?;
+        let location = self.location.apply(&self.program)?;
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, instruction) => {
                 let successor = self.state.execute(instruction.operation())?;

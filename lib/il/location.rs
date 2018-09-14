@@ -421,21 +421,22 @@ impl ProgramLocation {
 
     /// "Apply" this `ProgramLocation` to a `Program`, returning a
     /// `RefProgramLocation`.
-    pub fn apply<'p>(&self, program: &'p Program) -> Option<RefProgramLocation<'p>> {
-        if self.function_index.is_none() {
-            return None;
-        }
-        let function_index = self.function_index.unwrap();
+    pub fn apply<'p>(&self, program: &'p Program)
+        -> Result<RefProgramLocation<'p>> {
 
-        let function = match program.function(function_index) {
-            Some(function) => function,
-            None => { return None; }
-        };
-        let function_location = match self.function_location.apply(function) {
-            Some(function_location) => function_location,
-            None => { return None; }
-        };
-        Some(RefProgramLocation::new(function, function_location))
+        if self.function_index.is_none() {
+            return Err(ErrorKind::ProgramLocationApplication.into());
+        }
+        let function_index =
+            self.function_index
+                .ok_or(ErrorKind::ProgramLocationApplication)?;
+
+        let function =
+            program.function(function_index)
+                .ok_or(ErrorKind::ProgramLocationApplication)?;
+        
+        let function_location = self.function_location.apply(function)?;
+        Ok(RefProgramLocation::new(function, function_location))
     }
 
     /// Get the `FunctionLocation` for this `ProgramLocation`
@@ -491,31 +492,28 @@ impl FunctionLocation {
     /// "Apply" this `FunctionLocation` to a `Function`, returning a
     /// `RefFunctionLocation`.
     pub fn apply<'f>(&self, function: &'f Function)
-    -> Option<RefFunctionLocation<'f>> {
+    -> Result<RefFunctionLocation<'f>> {
 
         match *self {
             FunctionLocation::Instruction(block_index, instruction_index) => {
-                let block = match function.block(block_index).ok() {
-                    Some(block) => block,
-                    None => { return None; }
-                };
-                let instruction = match block.instruction(instruction_index) {
-                    Some(instruction) => instruction,
-                    None => { return None; }
-                };
-                Some(RefFunctionLocation::Instruction(block, instruction))
+                let block =
+                    function.block(block_index)
+                        .map_err(|_| ErrorKind::FunctionLocationApplication)?;
+                let instruction =
+                    block.instruction(instruction_index)
+                        .ok_or(ErrorKind::FunctionLocationApplication)?;
+                Ok(RefFunctionLocation::Instruction(block, instruction))
             },
             FunctionLocation::Edge(head, tail) => {
-                match function.edge(head, tail).ok() {
-                    Some(edge) => Some(RefFunctionLocation::Edge(edge)),
-                    None => None
-                }
+                let edge = function.edge(head, tail)
+                    .map_err(|_| ErrorKind::FunctionLocationApplication)?;
+                Ok(RefFunctionLocation::Edge(edge))
             },
             FunctionLocation::EmptyBlock(block_index) => {
-                match function.block(block_index).ok() {
-                    Some(block) => Some(RefFunctionLocation::EmptyBlock(block)),
-                    None => None
-                }
+                let block =
+                    function.block(block_index)
+                        .map_err(|_| ErrorKind::FunctionLocationApplication)?;
+                Ok(RefFunctionLocation::EmptyBlock(block))
             }
         }
     }

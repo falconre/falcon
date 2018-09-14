@@ -116,6 +116,10 @@ pub mod error {
                 description("Executor can only execute over constant values")
                 display("A scalar \"{}\" was found while executor was evaluating expression", name)
             }
+            FunctionLocationApplication {
+                description("Failed to apply il::FunctionLocation")
+                display("Failed to apply il::FunctionLocation")
+            }
             GraphEdgeNotFound(head: usize, tail: usize) {
                 description("An edge was not found in a graph")
                 display("The edge with head {} and tail {} does not exist in the graph", head, tail)
@@ -127,6 +131,10 @@ pub mod error {
             ProgramLocationMigration(reason: String) {
                 description("Error migrating ProgramLocation between Program")
                 display("Failed to migrate ProgramLocation between Program: {}", reason)
+            }
+            ProgramLocationApplication {
+                description("Failed to apply il::ProgramLocation")
+                display("Failed to apply il::ProgramLocation")
             }
             Sort {
                 description("Sort error, invalid bitness between expressions")
