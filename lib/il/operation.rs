@@ -69,6 +69,30 @@ impl Operation {
         Operation::Nop
     }
 
+    pub fn is_assign(&self) -> bool {
+        match self { Operation::Assign { .. } => true, _ => false }
+    }
+
+    pub fn is_store(&self) -> bool {
+        match self { Operation::Store { .. } => true, _ => false }
+    }
+
+    pub fn is_load(&self) -> bool {
+        match self { Operation::Load { .. } => true, _ => false }
+    }
+
+    pub fn is_branch(&self) -> bool {
+        match self { Operation::Branch { .. } => true, _ => false }
+    }
+
+    pub fn is_intrinsic(&self) -> bool {
+        match self { Operation::Intrinsic { .. } => true, _ => false }
+    }
+
+    pub fn is_nop(&self) -> bool {
+        match self { Operation::Nop => true, _ => false }
+    }
+
     /// Get each `Scalar` read by this `Operation`.
     pub fn scalars_read(&self) -> Option<Vec<&Scalar>> {
         match *self {
