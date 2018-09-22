@@ -135,3 +135,55 @@ fn pcmpeqd() {
         .is_one()
     );
 }
+
+
+#[test]
+fn pcmpeqb() {
+    // pcmeqb xmm0, xmm1
+    // nop
+    let bytes: Vec<u8> = vec![0x66, 0x0f, 0x74, 0xc1, 0x90];
+
+    let driver = init_amd64_driver(
+        bytes.clone(),
+        vec![
+            ("xmm0", mk128const(0x00000000_11111111, 0x22222222_33333333)),
+            ("xmm1", mk128const(0x00000000_11111111, 0x55555555_00113322))
+        ],
+        Memory::new(Endian::Little)
+    );
+
+    let driver = step_to(driver, 0x4);
+
+    assert!(
+        eval(
+            &il::Expression::cmpeq(
+                driver.state().get_scalar("xmm0").unwrap().clone().into(),
+                mk128const(0xffffffff_ffffffff, 0x00000000_0000ff00).into()
+            ).unwrap()
+        ).unwrap()
+        .is_one()
+    );
+}
+
+
+#[test]
+fn pmovmskb() {
+    // pcmeqb xmm0, xmm1
+    // nop
+    let bytes: Vec<u8> = vec![0x66, 0x0f, 0xd7, 0xd4, 0x90];
+
+    let driver = init_amd64_driver(
+        bytes.clone(),
+        vec![
+            ("xmm4", mk128const(0x00ff00ff_00000000, 0xffffffff_ff00ff00))
+        ],
+        Memory::new(Endian::Little)
+    );
+
+    let driver = step_to(driver, 0x4);
+
+    assert_eq!(
+        driver.state().get_scalar("rdx").unwrap().value_u64().unwrap(),
+        0b01010000_11111010
+    );
+}

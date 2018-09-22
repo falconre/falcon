@@ -2742,7 +2742,7 @@ impl<'s> Semantics<'s> {
                     expr_const(1, dst.bits()),
                     expr_const(0, dst.bits()))?);
 
-            for i in 1..(dst.bits() / 8) {
+            for i in 1..(src.bits() / 8) {
                 let cmp =
                     Expr::cmpeq(
                         Expr::trun(1,
