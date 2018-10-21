@@ -233,7 +233,7 @@ pub trait Translator: {
                     };
                 // If this is not our first instruction through this block.
                 if let Some(previous_exit) = previous_exit {
-                    // If an edge from the previoud block to this block doesn't
+                    // If an edge from the previous block to this block doesn't
                     // exist
                     if control_flow_graph.edge(previous_exit, entry).is_err() {
                         // Create an edge from the previous block to this block.
