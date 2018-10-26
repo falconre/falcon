@@ -1,0 +1,183 @@
+//! Capstone-based translator for MIPS.
+
+use falcon_capstone::capstone;
+use error::*;
+use il::*;
+use translator::{Translator, BlockTranslationResult};
+
+pub mod semantics;
+
+/// The MIPS translator.
+#[derive(Clone, Debug)]
+pub struct Ppc;
+
+impl Ppc {
+    pub fn new() -> Ppc { Ppc }
+}
+
+impl Translator for Ppc {
+    fn translate_block(&self, bytes: &[u8], address: u64)
+        -> Result<BlockTranslationResult> {
+
+        translate_block(bytes, address)
+    }
+}
+
+
+
+pub fn nop(control_flow_graph: &mut ControlFlowGraph)
+    -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+        block.nop();
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
+    println!("address: 0x{:x}", address);
+    let mode = capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN;
+    let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_PPC, mode) {
+        Ok(cs) => cs,
+        Err(_) => return Err("Capstone Error".into())
+    };
+
+    cs.option(capstone::cs_opt_type::CS_OPT_DETAIL, capstone::cs_opt_value::CS_OPT_ON).unwrap();
+
+    // A vec which holds each lifted instruction in this block.
+    let mut block_graphs: Vec<(u64, ControlFlowGraph)> = Vec::new();
+
+    // the length of this block in bytes.
+    let mut length: usize = 0;
+
+    // The successors which exit this block.
+    let mut successors: Vec<(u64, Option<Expression>)> = Vec::new();
+
+    // Offset in bytes to the next instruction from the address given at entry.
+    let mut offset: usize = 0;
+
+    loop {
+        println!("offset: {}, address: 0x{:x}", offset, address + offset as u64);
+
+        if offset == bytes.len() {
+            successors.push((address + offset as u64, None));
+            break;
+        }
+
+        let disassembly_range = (offset)..bytes.len();
+        let disassembly_bytes = bytes.get(disassembly_range).unwrap();
+        let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
+            Ok(instructions) => instructions,
+            Err(e) => bail!("Capstone Error: {}", e.code() as u32)
+        };
+
+        if instructions.count() == 0 {
+            return Err("Capstone failed to disassemble any instruction".into());
+        }
+
+        let instruction = instructions.get(0).unwrap();
+
+        if let capstone::InstrIdArch::PPC(instruction_id) = instruction.id {
+            
+            let mut instruction_graph = ControlFlowGraph::new();
+
+            match instruction_id {
+                capstone::ppc_insn::PPC_INS_ADD    => semantics::addi(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_ADDI   => semantics::addi(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_ADDZE  => semantics::addze(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_B      => nop(&mut instruction_graph),
+                capstone::ppc_insn::PPC_INS_BL     => semantics::bl(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_BC     => nop(&mut instruction_graph),
+                capstone::ppc_insn::PPC_INS_BCLR   => semantics::bclr(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_BDNZL  => nop(&mut instruction_graph),
+                capstone::ppc_insn::PPC_INS_BLR    => nop(&mut instruction_graph),
+                capstone::ppc_insn::PPC_INS_CMPWI  => semantics::cmpwi(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_CMPLWI => semantics::cmplwi(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_LBZ    => semantics::lbz(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_LWZ    => semantics::lwz(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_LWZU   => semantics::lwzu(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_LIS    => semantics::lis(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_MFLR   => semantics::mflr(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_MR     => semantics::mr(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_MTLR   => semantics::mflr(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_SRAWI  => semantics::srawi(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_STMW   => semantics::stmw(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_STW    => semantics::stw(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_STWU   => semantics::stwu(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_SUBF   => semantics::stwu(&mut instruction_graph, &instruction),
+                _ => {
+                    let bytes =
+                        (0..4).map(|i| disassembly_bytes[i])
+                            .map(|byte| format!("{:02x}", byte))
+                            .collect::<Vec<String>>()
+                            .join("");
+                    return Err(format!("Unhandled instruction {} {} {} at 0x{:x}",
+                    bytes,
+                    instruction.mnemonic,
+                    instruction.op_str,
+                    instruction.address).into())
+                }
+            }?;
+
+
+
+            match instruction_id {
+                capstone::ppc_insn::PPC_INS_B => {
+                    let detail = semantics::details(&instruction)?;
+
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+
+                    successors.push((detail.operands[0].imm() as u64, None));
+
+                    break;
+                },
+                capstone::ppc_insn::PPC_INS_BC => {
+                    let detail = semantics::details(&instruction)?;
+
+                    // beq
+                    if detail.operands[0].imm() == 12 && detail.operands[1].imm() == 10 {
+                        let true_condition = expr_scalar("cr0-eq", 1);
+                        let false_condition =
+                            Expression::cmpneq(
+                                true_condition.clone(),
+                                expr_const(1, 1))?;
+                        successors.push((instruction.address + 4,
+                                        Some(false_condition)));
+                        successors.push((detail.operands[0].imm() as u64,
+                                        Some(true_condition)));
+                    }
+                    else {
+                        bail!("Unhandled bc instruction");
+                    }
+                    break;
+                },
+                capstone::ppc_insn::PPC_INS_BLR |
+                capstone::ppc_insn::PPC_INS_BL => {
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+                    break;
+                },
+                _ => {
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
+                }
+            }
+
+            length += instruction.size as usize;
+        }
+        else {
+            bail!("not a MIPS instruction")
+        }
+
+        offset += instruction.size as usize;
+    }
+
+    Ok(BlockTranslationResult::new(block_graphs, address, length, successors))
+}
