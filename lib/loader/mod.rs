@@ -129,7 +129,17 @@ pub trait Loader: fmt::Debug + Send + Sync {
             if memory.permissions(address)
                      .map_or(false, |p|
                         p.contains(memory::MemoryPermissions::EXECUTE)) {
-                let mut function = translator.translate_function(&memory, address)?;
+                let mut function =
+                    match translator.translate_function(&memory, address) {
+                        Ok(function) => function,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            match e {
+                                Error(ErrorKind::CapstoneError, _) => continue,
+                                _ => return Err(e)
+                            }
+                        }
+                    };
                 function.set_name(function_entry.name().map(|n| n.to_string()));
                 program.add_function(function);
             }
