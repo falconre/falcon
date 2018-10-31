@@ -317,6 +317,31 @@ pub fn addi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 }
 
 
+pub fn addis(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
+    -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let dst = get_register(detail.operands[0].reg())?.scalar();
+    let lhs = get_register(detail.operands[1].reg())?.expression();
+    let rhs = expr_const((detail.operands[2].imm() as u64) << 16, 32);
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let src = Expression::add(lhs, rhs)?;
+        block.assign(dst, src);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
 pub fn addze(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
     -> Result<()> {
     let detail = details(instruction)?;

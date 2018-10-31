@@ -88,8 +88,9 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
             let mut instruction_graph = ControlFlowGraph::new();
 
             match instruction_id {
-                capstone::ppc_insn::PPC_INS_ADD    => semantics::addi(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_ADD    => semantics::add(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_ADDI   => semantics::addi(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_ADDIS  => semantics::addis(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_ADDZE  => semantics::addze(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_B      => nop(&mut instruction_graph),
                 capstone::ppc_insn::PPC_INS_BL     => semantics::bl(&mut instruction_graph, &instruction),
@@ -114,7 +115,7 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                 capstone::ppc_insn::PPC_INS_STMW   => semantics::stmw(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_STW    => semantics::stw(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_STWU   => semantics::stwu(&mut instruction_graph, &instruction),
-                capstone::ppc_insn::PPC_INS_SUBF   => semantics::stwu(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_SUBF   => semantics::subf(&mut instruction_graph, &instruction),
                 _ => {
                     let bytes =
                         (0..4).map(|i| disassembly_bytes[i])

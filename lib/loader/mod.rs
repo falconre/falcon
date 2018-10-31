@@ -133,9 +133,11 @@ pub trait Loader: fmt::Debug + Send + Sync {
                     match translator.translate_function(&memory, address) {
                         Ok(function) => function,
                         Err(e) => {
-                            eprintln!("{}", e);
                             match e {
-                                Error(ErrorKind::CapstoneError, _) => continue,
+                                Error(ErrorKind::CapstoneError, _) => {
+                                    eprintln!("Capstone failure, 0x{:x}", address);
+                                    continue
+                                },
                                 _ => return Err(e)
                             }
                         }
@@ -214,7 +216,19 @@ pub trait Loader: fmt::Debug + Send + Sync {
             };
 
             for address in addresses {
-                program.add_function(self.function(address)?);
+                let function = match self.function(address) {
+                    Ok(function) => function,
+                    Err(e) => {
+                        match e {
+                            Error(ErrorKind::CapstoneError, _) => {
+                                eprintln!("Capstone failure, 0x{:x}", address);
+                                continue
+                            },
+                            _ => return Err(e)
+                        }
+                    }
+                };
+                program.add_function(function);
             }
         }
 
