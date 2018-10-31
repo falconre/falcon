@@ -10,7 +10,8 @@ pub enum CallingConventionType {
     Amd64SystemV,
     Cdecl,
     MipsSystemV,
-    MipselSystemV
+    MipselSystemV,
+    PpcSystemV
 }
 
 
@@ -228,7 +229,67 @@ impl CallingConvention {
                     return_address_type: return_type,
                     return_register: il::scalar("$v0", 32)
                 }
-            }
+            },
+            CallingConventionType::PpcSystemV => {
+                let argument_registers = vec![
+                    il::scalar("r3", 32),
+                    il::scalar("r4", 32),
+                    il::scalar("r5", 32),
+                    il::scalar("r6", 32),
+                    il::scalar("r7", 32),
+                    il::scalar("r8", 32),
+                    il::scalar("r9", 32),
+                    il::scalar("r10", 32),
+                ];
+
+                let mut preserved_registers = HashSet::new();
+                preserved_registers.insert(il::scalar("r1", 32));
+                preserved_registers.insert(il::scalar("r2", 32));
+                preserved_registers.insert(il::scalar("r14", 32));
+                preserved_registers.insert(il::scalar("r15", 32));
+                preserved_registers.insert(il::scalar("r16", 32));
+                preserved_registers.insert(il::scalar("r17", 32));
+                preserved_registers.insert(il::scalar("r18", 32));
+                preserved_registers.insert(il::scalar("r19", 32));
+                preserved_registers.insert(il::scalar("r20", 32));
+                preserved_registers.insert(il::scalar("r21", 32));
+                preserved_registers.insert(il::scalar("r22", 32));
+                preserved_registers.insert(il::scalar("r23", 32));
+                preserved_registers.insert(il::scalar("r24", 32));
+                preserved_registers.insert(il::scalar("r25", 32));
+                preserved_registers.insert(il::scalar("r26", 32));
+                preserved_registers.insert(il::scalar("r27", 32));
+                preserved_registers.insert(il::scalar("r28", 32));
+                preserved_registers.insert(il::scalar("r29", 32));
+                preserved_registers.insert(il::scalar("r30", 32));
+                preserved_registers.insert(il::scalar("r31", 32));
+
+                let mut trashed_registers = HashSet::new();
+                trashed_registers.insert(il::scalar("r0", 32));
+                trashed_registers.insert(il::scalar("r3", 32));
+                trashed_registers.insert(il::scalar("r4", 32));
+                trashed_registers.insert(il::scalar("r5", 32));
+                trashed_registers.insert(il::scalar("r6", 32));
+                trashed_registers.insert(il::scalar("r7", 32));
+                trashed_registers.insert(il::scalar("r8", 32));
+                trashed_registers.insert(il::scalar("r9", 32));
+                trashed_registers.insert(il::scalar("r10", 32));
+                trashed_registers.insert(il::scalar("r11", 32));
+                trashed_registers.insert(il::scalar("r12", 32));
+                trashed_registers.insert(il::scalar("r13", 32));
+
+                let return_type = ReturnAddressType::Register(il::scalar("r3", 32));
+
+                CallingConvention {
+                    argument_registers: argument_registers,
+                    preserved_registers: preserved_registers,
+                    trashed_registers: trashed_registers,
+                    stack_argument_offset: 4,
+                    stack_argument_length: 4,
+                    return_address_type: return_type,
+                    return_register: il::scalar("lr", 32)
+                }
+            },
         }
     }
 

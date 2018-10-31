@@ -438,12 +438,6 @@ impl ElfLinker {
             if sym.st_shndx == 0 {
                 if let Some(value) = self.symbols.get(symbol_name) {
                     self.memory.set32(address, *value as u32)?;
-
-                    if symbol_name == "_rtld_global" {
-                        println!("0x{:08x} symbol {} 0x{:08x} {:02} {} 0x{:x}",
-                            address, i, sym.st_value, sym.st_shndx, symbol_name,
-                            value);
-                    }
                 }
                 else {
                     format!("Could not get symbol with name: \"{}\"",

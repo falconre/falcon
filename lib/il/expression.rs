@@ -516,6 +516,53 @@ impl Expression {
         }
         Ok(Expression::Ite(Box::new(cond), Box::new(then), Box::new(else_)))
     }
+
+    /// Perform a shift-right arithmetic
+    ///
+    /// This is a pseudo-expression, and emits an expression with
+    /// sub-expressions
+    pub fn sra(lhs: Expression, rhs: Expression) -> Result<Expression> {
+        if lhs.bits() != rhs.bits() { return Err(ErrorKind::Sort.into()); }
+
+        let expr = Expression::shr(lhs.clone(), rhs.clone())?;
+
+        let mask = 
+            if rhs.bits() <= 64 {
+                Expression::shl(
+                    expr_const(0xffff_ffff_ffff_ffff, rhs.bits()),
+                    Expression::sub(
+                        expr_const(rhs.bits() as u64, rhs.bits()),
+                        rhs)?)?
+            }
+            else {
+                Expression::shl(
+                    const_(0, rhs.bits()).sub(&const_(1, rhs.bits()))?.into(),
+                    Expression::sub(
+                        expr_const(rhs.bits() as u64, rhs.bits()),
+                        rhs)?)?
+            };
+
+        Ok(Expression::or(
+            expr,
+            Expression::ite(
+                Expression::cmplts(lhs.clone(), expr_const(0, lhs.bits()))?,
+                mask,
+                expr_const(0, lhs.bits()))?)?)
+    }
+
+    /// Perform a left-rotation
+    ///
+    /// This is a pseudo-expression, and emits an expression with
+    /// sub-expressions
+    pub fn rotl(e: Expression, s: Expression) -> Result<Expression> {
+        Ok(Expression::or(
+            Expression::shl(e.clone(), s.clone())?,
+            Expression::shr(
+                e.clone(),
+                Expression::sub(
+                    expr_const(e.bits() as u64, e.bits()),
+                    s.clone())?)?)?)
+    }
 }
 
 

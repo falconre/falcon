@@ -94,7 +94,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                     successors.push((address + offset as u64, None));
                     break;
                 }
-                _ => bail!("Capstone Error: {}", e.code() as u32)
+                _ => return Err(ErrorKind::CapstoneError.into())
             }
         };
 

@@ -24,6 +24,7 @@ use memory::MemoryPermissions;
 use std::collections::{BTreeMap, VecDeque};
 
 pub mod mips;
+pub mod ppc;
 pub mod x86;
 
 

@@ -39,6 +39,14 @@ impl Elf {
                             Box::new(Mipsel::new()) as Box<Architecture>,
                     }
                 }
+                else if elf.header.e_machine == goblin::elf::header::EM_PPC {
+                    match elf.header.endianness()? {
+                        goblin::container::Endian::Big =>
+                            Box::new(Ppc::new()) as Box<Architecture>,
+                        goblin::container::Endian::Little =>
+                            bail!("PPC Little-Endian not supported")
+                    }
+                }
                 else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
                     Box::new(Amd64::new())
                 }

@@ -129,7 +129,19 @@ pub trait Loader: fmt::Debug + Send + Sync {
             if memory.permissions(address)
                      .map_or(false, |p|
                         p.contains(memory::MemoryPermissions::EXECUTE)) {
-                let mut function = translator.translate_function(&memory, address)?;
+                let mut function =
+                    match translator.translate_function(&memory, address) {
+                        Ok(function) => function,
+                        Err(e) => {
+                            match e {
+                                Error(ErrorKind::CapstoneError, _) => {
+                                    eprintln!("Capstone failure, 0x{:x}", address);
+                                    continue
+                                },
+                                _ => return Err(e)
+                            }
+                        }
+                    };
                 function.set_name(function_entry.name().map(|n| n.to_string()));
                 program.add_function(function);
             }
@@ -204,7 +216,19 @@ pub trait Loader: fmt::Debug + Send + Sync {
             };
 
             for address in addresses {
-                program.add_function(self.function(address)?);
+                let function = match self.function(address) {
+                    Ok(function) => function,
+                    Err(e) => {
+                        match e {
+                            Error(ErrorKind::CapstoneError, _) => {
+                                eprintln!("Capstone failure, 0x{:x}", address);
+                                continue
+                            },
+                            _ => return Err(e)
+                        }
+                    }
+                };
+                program.add_function(function);
             }
         }
 

@@ -104,6 +104,29 @@ impl Architecture for Mipsel {
 }
 
 
+/// The 32-bit Mips Architecture.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Ppc {}
+
+impl Ppc {
+    pub fn new() -> Ppc { Ppc {} }
+}
+
+impl Architecture for Ppc {
+    fn name(&self) -> &str { &"ppc" }
+    fn endian(&self) -> Endian { Endian::Big }
+    fn translator(&self) -> Box<translator::Translator> {
+        Box::new(translator::ppc::Ppc::new())
+    }
+    fn calling_convention(&self) -> CallingConvention {
+        CallingConvention::new(CallingConventionType::PpcSystemV)
+    }
+    fn stack_pointer(&self) -> il::Scalar { il::scalar("r1", 32) }
+    fn word_size(&self) -> usize { 32 }
+    fn box_clone(&self) -> Box<Architecture> { Box::new(self.clone()) }
+}
+
+
 /// The 32-bit X86 Architecture.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct X86 {}
