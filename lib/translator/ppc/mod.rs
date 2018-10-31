@@ -5,6 +5,7 @@ use error::*;
 use il::*;
 use translator::{Translator, BlockTranslationResult};
 
+#[cfg(test)] mod test;
 pub mod semantics;
 
 /// The MIPS translator.
@@ -24,7 +25,6 @@ impl Translator for Ppc {
 }
 
 
-
 pub fn nop(control_flow_graph: &mut ControlFlowGraph)
     -> Result<()> {
     let block_index = {
@@ -41,11 +41,10 @@ pub fn nop(control_flow_graph: &mut ControlFlowGraph)
 
 
 fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
-    println!("address: 0x{:x}", address);
     let mode = capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN;
     let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_PPC, mode) {
         Ok(cs) => cs,
-        Err(_) => return Err("Capstone Error".into())
+        Err(_) => return Err(ErrorKind::CapstoneError.into())
     };
 
     cs.option(capstone::cs_opt_type::CS_OPT_DETAIL, capstone::cs_opt_value::CS_OPT_ON).unwrap();
@@ -63,8 +62,9 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
     let mut offset: usize = 0;
 
     loop {
-        println!("offset: {}, address: 0x{:x}", offset, address + offset as u64);
-
+        // println!("offset: 0x{:x}, address + offset: 0x{:x}",
+        //          offset,
+        //          address + offset as u64);
         if offset == bytes.len() {
             successors.push((address + offset as u64, None));
             break;
@@ -74,11 +74,11 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
         let disassembly_bytes = bytes.get(disassembly_range).unwrap();
         let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
             Ok(instructions) => instructions,
-            Err(e) => bail!("Capstone Error: {}", e.code() as u32)
+            Err(_) => return Err(ErrorKind::CapstoneError.into())
         };
 
         if instructions.count() == 0 {
-            return Err("Capstone failed to disassemble any instruction".into());
+            return Err(ErrorKind::CapstoneError.into());
         }
 
         let instruction = instructions.get(0).unwrap();
@@ -102,10 +102,14 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                 capstone::ppc_insn::PPC_INS_LBZ    => semantics::lbz(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_LWZ    => semantics::lwz(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_LWZU   => semantics::lwzu(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_LI     => semantics::li(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_LIS    => semantics::lis(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_MFLR   => semantics::mflr(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_MR     => semantics::mr(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_MTLR   => semantics::mflr(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_NOP    => semantics::nop(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_RLWINM => semantics::rlwinm(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_SLWI   => semantics::slwi(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_SRAWI  => semantics::srawi(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_STMW   => semantics::stmw(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_STW    => semantics::stw(&mut instruction_graph, &instruction),

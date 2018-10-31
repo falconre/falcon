@@ -105,7 +105,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
     };
     let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_MIPS, mode) {
         Ok(cs) => cs,
-        Err(_) => return Err("Capstone Error".into())
+        Err(_) => return Err(ErrorKind::CapstoneError.into())
     };
 
     cs.option(capstone::cs_opt_type::CS_OPT_DETAIL, capstone::cs_opt_value::CS_OPT_ON).unwrap();

@@ -549,6 +549,20 @@ impl Expression {
                 mask,
                 expr_const(0, lhs.bits()))?)?)
     }
+
+    /// Perform a left-rotation
+    ///
+    /// This is a pseudo-expression, and emits an expression with
+    /// sub-expressions
+    pub fn rotl(e: Expression, s: Expression) -> Result<Expression> {
+        Ok(Expression::or(
+            Expression::shl(e.clone(), s.clone())?,
+            Expression::shr(
+                e.clone(),
+                Expression::sub(
+                    expr_const(e.bits() as u64, e.bits()),
+                    s.clone())?)?)?)
+    }
 }
 
 

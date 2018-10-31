@@ -212,6 +212,61 @@ pub fn condition_register_bit_to_flag(condition_register_bit: usize)
 }
 
 
+pub fn rlwinm_(
+    control_flow_graph: &mut ControlFlowGraph,
+    ra: Scalar,
+    rs: Expression,
+    sh: u64,
+    mb: u64,
+    me: u64
+) -> Result<()> {
+
+    /*
+    - If the MB value is less than the ME value + 1, then the mask bits between
+      and including the starting point and the end point are set to ones. All
+      other bits are set to zeros.
+    - If the MB value is the same as the ME value + 1, then all 32 mask bits are
+      set to ones.
+    - If the MB value is greater than the ME value + 1, then all of the mask
+      bits between and including the ME value +1 and the MB value -1 are set to
+      zeros. All other bits are set to ones.
+    */
+
+    let mask = if mb < me + 1 {
+        let mb = 32 - mb;
+        let me = 32 - me;
+        let mask = (1 << (mb - me)) - 1;
+        let mask = mask << me;
+        mask
+    }
+    else if mb == me + 1 {
+        0xffff_ffff
+    }
+    else {
+        let mb = 32 - mb;
+        let me = 32 - me;
+        let mask = (1 << (me - mb)) - 1;
+        let mask = mask << mb;
+        mask ^ 0xffff_ffff
+    };
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let value = Expr::rotl(rs, expr_const(sh, 32))?;
+        let value = Expr::and(value, expr_const(mask, 32))?;
+        block.assign(ra, value);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
 pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
     -> Result<()> {
     let detail = details(instruction)?;
@@ -674,6 +729,29 @@ pub fn lbz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 }
 
 
+pub fn li(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
+    -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let dst = get_register(detail.operands[0].reg())?.scalar();
+    let src = expr_const(detail.operands[1].imm() as u64, 32);
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(dst, src);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
 pub fn lwz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
     -> Result<()> {
     let detail = details(instruction)?;
@@ -825,6 +903,48 @@ pub fn mtlr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
     control_flow_graph.set_exit(block_index)?;
 
     Ok(())
+}
+
+
+pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr)
+    -> Result<()> {
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+        block.nop();
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+pub fn rlwinm(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
+    -> Result<()> {
+    let detail = details(instruction)?;
+
+    let ra = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let sh = detail.operands[2].imm() as u64;
+    let mb = detail.operands[3].imm() as u64;
+    let me = detail.operands[4].imm() as u64;
+
+    rlwinm_(control_flow_graph, ra, rs, sh, mb, me)
+}
+
+
+pub fn slwi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
+    -> Result<()> {
+    let detail = details(instruction)?;
+
+    let ra = get_register(detail.operands[0].reg())?.scalar();
+    let rs = get_register(detail.operands[1].reg())?.expression();
+    let sh = detail.operands[2].imm() as u64;
+
+    rlwinm_(control_flow_graph, ra, rs, sh, 0, 31 - sh)
 }
 
 

@@ -108,6 +108,10 @@ pub mod error {
                 description("Attempt to access unmapped memory")
                 display("Attempt to access unmapped memory at address 0x{:x}", address)
             }
+            CapstoneError {
+                description("Capstone failed")
+                display("Capstone failed")
+            }
             DivideByZero {
                 description("Division by zero")
                 display("Division by zero")
