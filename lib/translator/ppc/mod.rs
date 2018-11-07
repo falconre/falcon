@@ -167,7 +167,6 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                 capstone::ppc_insn::PPC_INS_BL => {
                     instruction_graph.set_address(Some(instruction.address));
                     block_graphs.push((instruction.address, instruction_graph));
-                    break;
                 },
                 _ => {
                     instruction_graph.set_address(Some(instruction.address));
