@@ -96,6 +96,7 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                 capstone::ppc_insn::PPC_INS_BL     => semantics::bl(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_BC     => nop(&mut instruction_graph),
                 capstone::ppc_insn::PPC_INS_BCLR   => semantics::bclr(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_BCTR   => semantics::bctr(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_BDNZL  => nop(&mut instruction_graph),
                 capstone::ppc_insn::PPC_INS_BLR    => nop(&mut instruction_graph),
                 capstone::ppc_insn::PPC_INS_CMPWI  => semantics::cmpwi(&mut instruction_graph, &instruction),
@@ -105,6 +106,7 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                 capstone::ppc_insn::PPC_INS_LWZU   => semantics::lwzu(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_LI     => semantics::li(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_LIS    => semantics::lis(&mut instruction_graph, &instruction),
+                capstone::ppc_insn::PPC_INS_MTCTR  => semantics::mtctr(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_MFLR   => semantics::mflr(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_MR     => semantics::mr(&mut instruction_graph, &instruction),
                 capstone::ppc_insn::PPC_INS_MTLR   => semantics::mflr(&mut instruction_graph, &instruction),
@@ -131,7 +133,6 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
             }?;
 
 
-
             match instruction_id {
                 capstone::ppc_insn::PPC_INS_B => {
                     let detail = semantics::details(&instruction)?;
@@ -140,6 +141,12 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                     block_graphs.push((instruction.address, instruction_graph));
 
                     successors.push((detail.operands[0].imm() as u64, None));
+
+                    break;
+                },
+                capstone::ppc_insn::PPC_INS_BCTR => {
+                    instruction_graph.set_address(Some(instruction.address));
+                    block_graphs.push((instruction.address, instruction_graph));
 
                     break;
                 },

@@ -157,6 +157,18 @@ pub trait Translator: {
         memory: &TranslationMemory,
         function_address: u64
     ) -> Result<Function> {
+        self.translate_function_extended(memory, function_address, vec![])
+    }
+
+    /// Translates a function
+    ///
+    /// Provides additional options over translate_function
+    fn translate_function_extended(
+        &self,
+        memory: &TranslationMemory,
+        function_address: u64,
+        manual_edges: Vec<(u64, u64, Option<Expression>)>
+    ) -> Result<Function> {
 
         // Addresses of blocks pending translation
         let mut translation_queue: VecDeque<u64> = VecDeque::new();
@@ -165,6 +177,13 @@ pub trait Translator: {
         let mut translation_results: BTreeMap<u64, BlockTranslationResult> = BTreeMap::new();
 
         translation_queue.push_front(function_address);
+
+        manual_edges
+            .iter()
+            .for_each(|(head_address, tail_address, _)| {
+                translation_queue.push_back(*head_address);
+                translation_queue.push_back(*tail_address);
+            });
 
         // translate all blocks in the function
         while !translation_queue.is_empty() {
@@ -252,6 +271,25 @@ pub trait Translator: {
         }
 
         // Insert the edges
+
+        // Start with edges for our manual edges
+        for (head_address, tail_address, condition) in manual_edges {
+            let (_, edge_head) = block_indices[&head_address];
+            let (edge_tail, _) = block_indices[&tail_address];
+
+            if control_flow_graph.edge(edge_head, edge_tail).is_ok() {
+                continue;
+            }
+
+            if let Some(condition) = condition {
+                control_flow_graph.conditional_edge(edge_head,
+                                                    edge_tail,
+                                                    condition)?;
+            }
+            else {
+                control_flow_graph.unconditional_edge(edge_head, edge_tail)?;
+            }
+        }
 
         // For every block translation result
         for (address, block_translation_result) in translation_results {

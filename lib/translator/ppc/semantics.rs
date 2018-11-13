@@ -76,6 +76,7 @@ const PPC_REGISTERS : &'static [PPCRegister] = &[
     PPCRegister { name: "cr5", capstone_reg: ppc_reg::PPC_REG_CR5, bits: 32 },
     PPCRegister { name: "cr6", capstone_reg: ppc_reg::PPC_REG_CR6, bits: 32 },
     PPCRegister { name: "cr7", capstone_reg: ppc_reg::PPC_REG_CR7, bits: 32 },
+    PPCRegister { name: "ctr", capstone_reg: ppc_reg::PPC_REG_CTR, bits: 32 },
 ];
 
 
@@ -676,6 +677,23 @@ pub fn bclr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
 }
 
 
+pub fn bctr(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr)
+    -> Result<()> {
+    // get operands
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.branch(expr_scalar("ctr", 32));
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
 
 pub fn cmpwi(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
     -> Result<()> {
@@ -898,6 +916,29 @@ pub fn mflr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::I
         let block = control_flow_graph.new_block()?;
 
         block.assign(dst, expr_scalar("lr", 32));
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+
+pub fn mtctr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr)
+    -> Result<()> {
+    let detail = details(instruction)?;
+
+    // get operands
+    let dst = get_register(detail.operands[0].reg())?.scalar();
+    let src = expr_const(detail.operands[1].imm() as u64, 32);
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.assign(dst, src);
 
         block.index()
     };
