@@ -227,6 +227,7 @@ pub(crate) fn translate_block(mode: Mode, bytes: &[u8], address: u64)
                 capstone::x86_insn::X86_INS_LEA   => semantics.lea(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_LEAVE => semantics.leave(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_LODSB => semantics.lodsb(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_LODSD => semantics.lodsd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_LOOP  => semantics.loop_(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_LOOPE => semantics.loop_(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_LOOPNE => semantics.loop_(&mut instruction_graph),

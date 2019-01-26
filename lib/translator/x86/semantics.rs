@@ -2137,6 +2137,70 @@ impl<'s> Semantics<'s> {
     }
 
 
+    pub fn lodsd(
+        &self,
+        control_flow_graph: &mut ControlFlowGraph
+    ) -> Result<()> {
+
+        let detail = self.details()?;
+
+        let si = self.get_register(x86_reg::X86_REG_ESI)?.get_full()?;
+
+        let head_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            self.get_register(x86_reg::X86_REG_EAX)?.set(&mut block, rhs)?;
+
+            block.index()
+        };
+
+        let inc_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            si.set(&mut block, Expr::add(si.get()?,
+                                         expr_const(1, self.mode().bits()))?)?;
+
+            block.index()
+        };
+
+        let dec_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            si.set(&mut block, Expr::sub(si.get()?,
+                                         expr_const(1, self.mode().bits()))?)?;
+
+            block.index()
+        };
+
+        let tail_index = {
+            control_flow_graph.new_block()?.index()
+        };
+
+
+        control_flow_graph.conditional_edge(
+            head_index,
+            inc_index,
+            Expr::cmpeq(expr_scalar("DF", 1), expr_const(0, 1))?
+        )?;
+
+        control_flow_graph.conditional_edge(
+            head_index,
+            dec_index,
+            Expr::cmpeq(expr_scalar("DF", 1), expr_const(1, 1))?
+        )?;
+
+        control_flow_graph.unconditional_edge(inc_index, tail_index)?;
+        control_flow_graph.unconditional_edge(dec_index, tail_index)?;
+
+        control_flow_graph.set_entry(head_index)?;
+        control_flow_graph.set_exit(tail_index)?;
+
+        Ok(())
+    }
+
+
     pub fn loop_(
         &self,
         control_flow_graph: &mut ControlFlowGraph
