@@ -1,34 +1,39 @@
-use executor::*;
-use memory;
-use il::*;
-use RC;
-use translator::ppc::*;
 use architecture;
 use architecture::Endian;
-
-
+use executor::*;
+use il::*;
+use memory;
+use translator::ppc::*;
+use RC;
 
 fn init_driver_block<'d>(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Constant)>,
-    memory_: Memory
+    memory_: Memory,
 ) -> Driver {
     let mut bytes = instruction_bytes.to_vec();
     // ori 0,0,0
     bytes.append(&mut vec![0x60, 0x00, 0x00, 0x00]);
 
     let mut backing = memory::backing::Memory::new(Endian::Big);
-    backing.set_memory(0, bytes.to_vec(),
-        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ);
-    
+    backing.set_memory(
+        0,
+        bytes.to_vec(),
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ,
+    );
+
     let function = Ppc::new().translate_function(&backing, 0).unwrap();
 
-    let location = if function.control_flow_graph()
-                              .block(0).unwrap()
-                              .instructions().len() == 0 {
+    let location = if function
+        .control_flow_graph()
+        .block(0)
+        .unwrap()
+        .instructions()
+        .len()
+        == 0
+    {
         ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0))
-    }
-    else {
+    } else {
         ProgramLocation::new(Some(0), FunctionLocation::Instruction(0, 0))
     };
 
@@ -44,24 +49,27 @@ fn init_driver_block<'d>(
         RC::new(program),
         location,
         state,
-        RC::new(architecture::Ppc::new())
+        RC::new(architecture::Ppc::new()),
     )
 }
-
 
 fn get_scalar(
     instruction_bytes: &[u8],
     scalars: Vec<(&str, Constant)>,
     memory: Memory,
-    result_scalar: &str
+    result_scalar: &str,
 ) -> Constant {
-
     let mut driver = init_driver_block(instruction_bytes, scalars, memory);
 
-    while driver.location()
-                .apply(driver.program()).unwrap()
-                .forward().unwrap()
-                .len() > 0 {
+    while driver
+        .location()
+        .apply(driver.program())
+        .unwrap()
+        .forward()
+        .unwrap()
+        .len()
+        > 0
+    {
         driver = driver.step().unwrap();
     }
     // The final step
@@ -70,8 +78,6 @@ fn get_scalar(
     driver.state().get_scalar(result_scalar).unwrap().clone()
 }
 
-
-
 #[test]
 fn rlwinm() {
     // rlwinm 6,4,2,0,0x1D
@@ -79,19 +85,23 @@ fn rlwinm() {
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("r4", const_(0x9000_3000, 32)),
-             ("r6", const_(0xffff_ffff, 32))],
+        vec![
+            ("r4", const_(0x9000_3000, 32)),
+            ("r6", const_(0xffff_ffff, 32)),
+        ],
         Memory::new(Endian::Big),
-        "r6"
+        "r6",
     );
     assert_eq!(result.value_u64().unwrap(), 0x4000_c000);
 
     let result = get_scalar(
         instruction_bytes,
-        vec![("r4", const_(0xb004_3000, 32)),
-             ("r6", const_(0xffff_ffff, 32))],
+        vec![
+            ("r4", const_(0xb004_3000, 32)),
+            ("r6", const_(0xffff_ffff, 32)),
+        ],
         Memory::new(Endian::Big),
-        "r6"
+        "r6",
     );
     assert_eq!(result.value_u64().unwrap(), 0xc010_c000);
 }

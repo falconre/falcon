@@ -2,8 +2,8 @@
 
 use architecture::Architecture;
 use error::*;
-use executor::State;
 use executor::successor::*;
+use executor::State;
 use il;
 use RC;
 
@@ -15,7 +15,6 @@ pub struct Driver {
     state: State,
     architecture: RC<Architecture>,
 }
-
 
 impl Driver {
     /// Create a new driver for concrete execution over Falcon IL.
@@ -29,7 +28,7 @@ impl Driver {
             program: program,
             location: location,
             state: state,
-            architecture: architecture
+            architecture: architecture,
         }
     }
 
@@ -48,76 +47,84 @@ impl Driver {
                                 self.program.clone(),
                                 locations[0].clone().into(),
                                 successor.into(),
-                                self.architecture
+                                self.architecture,
                             ));
-                        }
-                        else {
+                        } else {
                             // every location should be an edge, and only one
                             // edge should be satisfiable
                             for location in locations {
-                                if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
-                                    if successor.state()
-                                                .symbolize_and_eval(
-                                                    edge.condition()
-                                                        .ok_or("Failed to get edge condition")?)?
-                                                .is_one() {
+                                if let il::RefFunctionLocation::Edge(edge) =
+                                    *location.function_location()
+                                {
+                                    if successor
+                                        .state()
+                                        .symbolize_and_eval(
+                                            edge.condition()
+                                                .ok_or("Failed to get edge condition")?,
+                                        )?
+                                        .is_one()
+                                    {
                                         return Ok(Driver::new(
                                             self.program.clone(),
                                             location.clone().into(),
                                             successor.into(),
-                                            self.architecture
+                                            self.architecture,
                                         ));
                                     }
                                 }
                             }
                             bail!("No valid successor location found on fall through");
                         }
-                    },
+                    }
                     SuccessorType::Branch(address) => {
                         match il::RefProgramLocation::from_address(&self.program, address) {
-                            Some(location) => return Ok(Driver::new(
-                                self.program.clone(),
-                                location.into(),
-                                successor.into(),
-                                self.architecture
-                            )),
+                            Some(location) => {
+                                return Ok(Driver::new(
+                                    self.program.clone(),
+                                    location.into(),
+                                    successor.into(),
+                                    self.architecture,
+                                ))
+                            }
                             None => {
                                 let state: State = successor.into();
-                                let function = self.architecture
-                                                   .translator()
-                                                   .translate_function(state.memory(), address)
-                                                   .expect(&format!("Failed to lift function at 0x{:x}", address));
+                                let function = self
+                                    .architecture
+                                    .translator()
+                                    .translate_function(state.memory(), address)
+                                    .expect(&format!("Failed to lift function at 0x{:x}", address));
                                 let mut program = self.program.clone();
                                 RC::make_mut(&mut program).add_function(function);
                                 let location: il::ProgramLocation =
-                                    il::RefProgramLocation::from_address(&program,
-                                                                         address)
+                                    il::RefProgramLocation::from_address(&program, address)
                                         .ok_or("Failed to get location for newly lifted function")?
                                         .into();
                                 return Ok(Driver::new(
                                     program.clone(),
                                     location,
                                     state,
-                                    self.architecture
+                                    self.architecture,
                                 ));
                             }
                         }
-                    },
+                    }
                     SuccessorType::Intrinsic(ref intrinsic) => {
-                        bail!(format!("Intrinsic is unimplemented, {}",
-                                      intrinsic.instruction_str()));
+                        bail!(format!(
+                            "Intrinsic is unimplemented, {}",
+                            intrinsic.instruction_str()
+                        ));
                     }
                 }
-            },
+            }
             il::RefFunctionLocation::Edge(_) => {
                 let locations = location.forward()?;
                 return Ok(Driver::new(
                     self.program.clone(),
                     locations[0].clone().into(),
                     self.state,
-                    self.architecture
+                    self.architecture,
                 ));
-            },
+            }
             il::RefFunctionLocation::EmptyBlock(_) => {
                 let locations = location.forward()?;
                 if locations.len() == 1 {
@@ -125,22 +132,23 @@ impl Driver {
                         self.program.clone(),
                         locations[0].clone().into(),
                         self.state,
-                        self.architecture
+                        self.architecture,
                     ));
-                }
-                else {
+                } else {
                     for location in locations {
                         if let il::RefFunctionLocation::Edge(edge) = *location.function_location() {
-                            if self.state
-                                   .symbolize_and_eval(
-                                        edge.condition()
-                                            .ok_or("Failed to get edge condition")?)?
-                                   .is_one() {
+                            if self
+                                .state
+                                .symbolize_and_eval(
+                                    edge.condition().ok_or("Failed to get edge condition")?,
+                                )?
+                                .is_one()
+                            {
                                 return Ok(Driver::new(
                                     self.program.clone(),
                                     location.clone().into(),
                                     self.state,
-                                    self.architecture
+                                    self.architecture,
                                 ));
                             }
                         }

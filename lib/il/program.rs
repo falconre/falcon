@@ -11,16 +11,15 @@ pub struct Program {
     // Mapping of function indices (not addresses) to `Function`.
     functions: BTreeMap<usize, RC<Function>>,
     // The next index to assign to a function when added to the program.
-    next_index: usize
+    next_index: usize,
 }
-
 
 impl Program {
     /// Creates a new, empty `Program`.
     pub fn new() -> Program {
         Program {
             functions: BTreeMap::new(),
-            next_index: 0
+            next_index: 0,
         }
     }
 
@@ -45,7 +44,6 @@ impl Program {
         v
     }
 
-
     /// Get the underlying BTreeMap holding all `Function` for this `Program`.
     pub fn functions_map(&self) -> BTreeMap<usize, &Function> {
         self.functions
@@ -54,7 +52,6 @@ impl Program {
             .collect::<BTreeMap<usize, &Function>>()
     }
 
-
     /// Get a `Function` by its index.
     ///
     /// A `Function` index is assigned by `Program` and is not the address where the `Function`
@@ -62,10 +59,9 @@ impl Program {
     pub fn function(&self, index: usize) -> Option<&Function> {
         match self.functions.get(&index) {
             Some(f) => Some(f),
-            None => None
+            None => None,
         }
     }
-
 
     /// Add a `Function` to the `Program`.
     ///
@@ -84,7 +80,6 @@ impl Program {
             .map(|(_, function)| function.as_ref())
     }
 }
-
 
 impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

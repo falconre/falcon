@@ -1,10 +1,10 @@
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
 //! Falcon: A Binary Analysis Framework in Rust.
-//! 
+//!
 //! Falcon is a framework in rust for implementing formal analyses over binary
 //! programs. A quick synopsis of Falcon's modules:
-//! 
+//!
 //! * **analysis** - A fixed-point engine and methods for abstract interpretation
 //! over Falcon IL. Example, usable analyses are given.
 //! * **architecture** - Information on Falcon's supported architectures.
@@ -16,7 +16,7 @@
 //! * **translator** - Translators from native architectures to Falcon IL.
 //!
 //! Falcon also has bindings for the scripting language
-//! [gluon](https://github.com/gluon-lang/gluon), which makes exploratory 
+//! [gluon](https://github.com/gluon-lang/gluon), which makes exploratory
 //! analysis over Falcon quick and pleasant.
 //!
 //! ```
@@ -37,7 +37,6 @@
 //! # }
 //! ```
 
-
 extern crate base64;
 #[macro_use]
 extern crate bitflags;
@@ -54,7 +53,6 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-
 pub mod analysis;
 pub mod architecture;
 pub mod executor;
@@ -63,8 +61,6 @@ pub mod il;
 pub mod loader;
 pub mod memory;
 pub mod translator;
-
-
 
 #[cfg(not(feature = "thread_safe"))]
 use std::rc::Rc;
@@ -75,7 +71,6 @@ pub type RC<T> = Rc<T>;
 use std::sync::Arc;
 #[cfg(feature = "thread_safe")]
 pub type RC<T> = Arc<T>;
-
 
 /// Falcon Error types.
 pub mod error {

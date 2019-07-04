@@ -41,9 +41,8 @@ pub use self::symbol::Symbol;
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionEntry {
     address: u64,
-    name: Option<String>
+    name: Option<String>,
 }
-
 
 impl FunctionEntry {
     /// Create a new `FunctionEntry`.
@@ -52,7 +51,7 @@ impl FunctionEntry {
     pub fn new(address: u64, name: Option<String>) -> FunctionEntry {
         FunctionEntry {
             address: address,
-            name: name
+            name: name,
         }
     }
 
@@ -67,16 +66,14 @@ impl FunctionEntry {
     }
 }
 
-
 impl fmt::Display for FunctionEntry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.name {
             Some(ref name) => write!(f, "FunctionEntry({} -> 0x{:X})", name, self.address),
-            None => write!(f, "FunctionEntry(0x{:X})", self.address)
+            None => write!(f, "FunctionEntry(0x{:X})", self.address),
         }
     }
 }
-
 
 /// Generic trait for all loaders
 pub trait Loader: fmt::Debug + Send + Sync {
@@ -126,22 +123,20 @@ pub trait Loader: fmt::Debug + Send + Sync {
         for function_entry in self.function_entries()? {
             let address = function_entry.address();
             // Ensure this memory is marked executable
-            if memory.permissions(address)
-                     .map_or(false, |p|
-                        p.contains(memory::MemoryPermissions::EXECUTE)) {
-                let mut function =
-                    match translator.translate_function(&memory, address) {
-                        Ok(function) => function,
-                        Err(e) => {
-                            match e {
-                                Error(ErrorKind::CapstoneError, _) => {
-                                    eprintln!("Capstone failure, 0x{:x}", address);
-                                    continue
-                                },
-                                _ => return Err(e)
-                            }
+            if memory
+                .permissions(address)
+                .map_or(false, |p| p.contains(memory::MemoryPermissions::EXECUTE))
+            {
+                let mut function = match translator.translate_function(&memory, address) {
+                    Ok(function) => function,
+                    Err(e) => match e {
+                        Error(ErrorKind::CapstoneError, _) => {
+                            eprintln!("Capstone failure, 0x{:x}", address);
+                            continue;
                         }
-                    };
+                        _ => return Err(e),
+                    },
+                };
                 function.set_name(function_entry.name().map(|n| n.to_string()));
                 program.add_function(function);
             }
@@ -155,18 +150,22 @@ pub trait Loader: fmt::Debug + Send + Sync {
     fn program_recursive(&self) -> Result<il::Program> {
         fn call_targets(function: &il::Function) -> Result<Vec<u64>> {
             let call_targets =
-                function.blocks().iter().fold(Vec::new(), |mut call_targets, block| {
-                    block.instructions().iter().for_each(|instruction|
-                        match *instruction.operation() {
-                            il::Operation::Branch { ref target } => {
-                                eval(target).ok().map(|constant|
-                                    call_targets.push(constant.value_u64()
-                                                              .unwrap()));
+                function
+                    .blocks()
+                    .iter()
+                    .fold(Vec::new(), |mut call_targets, block| {
+                        block.instructions().iter().for_each(|instruction| {
+                            match *instruction.operation() {
+                                il::Operation::Branch { ref target } => {
+                                    eval(target).ok().map(|constant| {
+                                        call_targets.push(constant.value_u64().unwrap())
+                                    });
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         });
-                    call_targets
-                });
+                        call_targets
+                    });
             Ok(call_targets)
         }
 
@@ -175,38 +174,37 @@ pub trait Loader: fmt::Debug + Send + Sync {
         let mut processed = HashSet::new();
 
         loop {
-            let function_addresses =
-                program.functions()
-                    .into_iter()
-                    .map(|function| function.address())
-                    .collect::<Vec<u64>>();
+            let function_addresses = program
+                .functions()
+                .into_iter()
+                .map(|function| function.address())
+                .collect::<Vec<u64>>();
 
             let addresses = {
-                let functions =
-                    program.functions()
-                        .into_iter()
-                        .filter(|function| !processed.contains(&function.address()))
-                        .collect::<Vec<&il::Function>>();
+                let functions = program
+                    .functions()
+                    .into_iter()
+                    .filter(|function| !processed.contains(&function.address()))
+                    .collect::<Vec<&il::Function>>();
 
-                functions.iter()
-                    .for_each(|function| {
-                        processed.insert(function.address());
-                    });
+                functions.iter().for_each(|function| {
+                    processed.insert(function.address());
+                });
 
-                let addresses =
-                    functions.into_iter()
-                        .fold(HashSet::new(), |mut targets, function| {
-                            call_targets(function).unwrap()
-                                .into_iter()
-                                .for_each(|target| {
-                                    targets.insert(target);
-                                });
-                            targets
-                        })
-                        .into_iter()
-                        .filter(|address|
-                            !function_addresses.contains(address))
-                        .collect::<Vec<u64>>();
+                let addresses = functions
+                    .into_iter()
+                    .fold(HashSet::new(), |mut targets, function| {
+                        call_targets(function)
+                            .unwrap()
+                            .into_iter()
+                            .for_each(|target| {
+                                targets.insert(target);
+                            });
+                        targets
+                    })
+                    .into_iter()
+                    .filter(|address| !function_addresses.contains(address))
+                    .collect::<Vec<u64>>();
 
                 if addresses.is_empty() {
                     break;
@@ -218,15 +216,13 @@ pub trait Loader: fmt::Debug + Send + Sync {
             for address in addresses {
                 let function = match self.function(address) {
                     Ok(function) => function,
-                    Err(e) => {
-                        match e {
-                            Error(ErrorKind::CapstoneError, _) => {
-                                eprintln!("Capstone failure, 0x{:x}", address);
-                                continue
-                            },
-                            _ => return Err(e)
+                    Err(e) => match e {
+                        Error(ErrorKind::CapstoneError, _) => {
+                            eprintln!("Capstone failure, 0x{:x}", address);
+                            continue;
                         }
-                    }
+                        _ => return Err(e),
+                    },
                 };
                 program.add_function(function);
             }

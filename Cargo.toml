@@ -12,7 +12,7 @@ base64 = "0.9"
 bitflags = "1.0"
 falcon_capstone = "0.2.1"
 error-chain = "0.12"
-goblin = "0.0.17"
+goblin = "0.0.23"
 log = "0.4"
 num-bigint = {version="0.2", features=["serde"]}
 num-traits = "0.2.1"

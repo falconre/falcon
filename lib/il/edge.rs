@@ -18,19 +18,16 @@ pub struct Edge {
     head: usize,
     tail: usize,
     condition: Option<Expression>,
-    comment: Option<String>
+    comment: Option<String>,
 }
 
-
 impl Edge {
-    pub(crate) fn new(head: usize, tail: usize, condition: Option<Expression>)
-        -> Edge {
-            
+    pub(crate) fn new(head: usize, tail: usize, condition: Option<Expression>) -> Edge {
         Edge {
             head: head,
             tail: tail,
             condition: condition,
-            comment: None
+            comment: None,
         }
     }
 
@@ -45,10 +42,14 @@ impl Edge {
     }
 
     /// Retrieve the index of the head `Vertex` for this `Edge`.
-    pub fn head(&self) -> usize { self.head }
+    pub fn head(&self) -> usize {
+        self.head
+    }
 
     /// Retrieve the index of the tail `Vertex` for this `Edge`.
-    pub fn tail(&self) -> usize { self.tail }
+    pub fn tail(&self) -> usize {
+        self.tail
+    }
 
     /// Set the comment for this `Edge`.
     pub fn set_comment(&mut self, comment: Option<String>) {
@@ -61,7 +62,6 @@ impl Edge {
     }
 }
 
-
 impl fmt::Display for Edge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(ref comment) = self.comment {
@@ -71,26 +71,26 @@ impl fmt::Display for Edge {
             write!(
                 f,
                 "(0x{:X}->0x{:X}) ? ({})",
-                self.head,
-                self.tail,
-                condition
+                self.head, self.tail, condition
             )?
-        }
-        else {
+        } else {
             write!(f, "(0x{:X}->0x{:X})", self.head, self.tail)?
         }
         Ok(())
     }
 }
 
-
 impl graph::Edge for Edge {
-    fn head(&self) -> usize { self.head }
-    fn tail(&self) -> usize { self.tail }
-    fn dot_label(&self) -> String { 
+    fn head(&self) -> usize {
+        self.head
+    }
+    fn tail(&self) -> usize {
+        self.tail
+    }
+    fn dot_label(&self) -> String {
         match self.condition {
             Some(ref condition) => format!("{}", condition),
-            None => "".to_string()
+            None => "".to_string(),
         }
     }
 }

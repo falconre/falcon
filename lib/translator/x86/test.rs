@@ -2,29 +2,35 @@ use architecture;
 use architecture::Endian;
 use executor::*;
 use il;
-use RC;
 use memory;
-use translator::Translator;
 use translator::x86::Amd64;
-
+use translator::Translator;
+use RC;
 
 fn init_amd64_driver<'d>(
     instruction_bytes: Vec<u8>,
     scalars: Vec<(&str, il::Constant)>,
-    memory_: Memory
+    memory_: Memory,
 ) -> Driver {
     let mut backing = memory::backing::Memory::new(Endian::Little);
-    backing.set_memory(0, instruction_bytes,
-        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ);
-    
+    backing.set_memory(
+        0,
+        instruction_bytes,
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ,
+    );
+
     let function = Amd64::new().translate_function(&backing, 0).unwrap();
 
-    let location = if function.control_flow_graph()
-                              .block(0).unwrap()
-                              .instructions().len() == 0 {
+    let location = if function
+        .control_flow_graph()
+        .block(0)
+        .unwrap()
+        .instructions()
+        .len()
+        == 0
+    {
         il::ProgramLocation::new(Some(0), il::FunctionLocation::EmptyBlock(0))
-    }
-    else {
+    } else {
         il::ProgramLocation::new(Some(0), il::FunctionLocation::Instruction(0, 0))
     };
 
@@ -42,19 +48,14 @@ fn init_amd64_driver<'d>(
         RC::new(program),
         location,
         state,
-        RC::new(architecture::Amd64::new())
+        RC::new(architecture::Amd64::new()),
     )
 }
 
-
 fn step_to(mut driver: Driver, target_address: u64) -> Driver {
-
     loop {
         driver = driver.step().unwrap();
-        if let Some(address) = driver.location()
-                                     .apply(driver.program())
-                                     .unwrap()
-                                     .address() {
+        if let Some(address) = driver.location().apply(driver.program()).unwrap().address() {
             if address == target_address {
                 return driver;
             }
@@ -62,19 +63,20 @@ fn step_to(mut driver: Driver, target_address: u64) -> Driver {
     }
 }
 
-
 fn mk128const(lo: u64, hi: u64) -> il::Constant {
     eval(
         &il::Expression::or(
             il::Expression::shl(
                 il::Expression::zext(128, il::expr_const(lo, 64)).unwrap(),
-                il::expr_const(64, 128)
-            ).unwrap(),
-            il::Expression::zext(128, il::expr_const(hi, 64)).unwrap()
-        ).unwrap()
-    ).unwrap()
+                il::expr_const(64, 128),
+            )
+            .unwrap(),
+            il::Expression::zext(128, il::expr_const(hi, 64)).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap()
 }
-
 
 #[test]
 fn lea() {
@@ -86,7 +88,6 @@ fn lea() {
     let _ = translator.translate_block(&bytes, 0).unwrap();
 }
 
-
 #[test]
 fn pcmpeqd() {
     // pcmeqd xmm0, xmm1
@@ -97,45 +98,44 @@ fn pcmpeqd() {
         bytes.clone(),
         vec![
             ("xmm0", mk128const(0x00000000_11111111, 0x22222222_33333333)),
-            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333))
+            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333)),
         ],
-        Memory::new(Endian::Little)
+        Memory::new(Endian::Little),
     );
 
     let driver = step_to(driver, 0x4);
 
-    assert!(
-        eval(
-            &il::Expression::cmpeq(
-                driver.state().get_scalar("xmm0").unwrap().clone().into(),
-                mk128const(0xffffffff_ffffffff, 0xffffffff_ffffffff).into()
-            ).unwrap()
-        ).unwrap()
-        .is_one()
-    );
+    assert!(eval(
+        &il::Expression::cmpeq(
+            driver.state().get_scalar("xmm0").unwrap().clone().into(),
+            mk128const(0xffffffff_ffffffff, 0xffffffff_ffffffff).into()
+        )
+        .unwrap()
+    )
+    .unwrap()
+    .is_one());
 
     let driver = init_amd64_driver(
         bytes,
         vec![
             ("xmm0", mk128const(0x00000000_11111111, 0x22322222_33333333)),
-            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333))
+            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333)),
         ],
-        Memory::new(Endian::Little)
+        Memory::new(Endian::Little),
     );
 
     let driver = step_to(driver, 0x4);
 
-    assert!(
-        eval(
-            &il::Expression::cmpeq(
-                driver.state().get_scalar("xmm0").unwrap().clone().into(),
-                mk128const(0xffffffff_ffffffff, 0x00000000_ffffffff).into()
-            ).unwrap()
-        ).unwrap()
-        .is_one()
-    );
+    assert!(eval(
+        &il::Expression::cmpeq(
+            driver.state().get_scalar("xmm0").unwrap().clone().into(),
+            mk128const(0xffffffff_ffffffff, 0x00000000_ffffffff).into()
+        )
+        .unwrap()
+    )
+    .unwrap()
+    .is_one());
 }
-
 
 #[test]
 fn pcmpeqb() {
@@ -147,24 +147,23 @@ fn pcmpeqb() {
         bytes.clone(),
         vec![
             ("xmm0", mk128const(0x00000000_11111111, 0x22222222_33333333)),
-            ("xmm1", mk128const(0x00000000_11111111, 0x55555555_00113322))
+            ("xmm1", mk128const(0x00000000_11111111, 0x55555555_00113322)),
         ],
-        Memory::new(Endian::Little)
+        Memory::new(Endian::Little),
     );
 
     let driver = step_to(driver, 0x4);
 
-    assert!(
-        eval(
-            &il::Expression::cmpeq(
-                driver.state().get_scalar("xmm0").unwrap().clone().into(),
-                mk128const(0xffffffff_ffffffff, 0x00000000_0000ff00).into()
-            ).unwrap()
-        ).unwrap()
-        .is_one()
-    );
+    assert!(eval(
+        &il::Expression::cmpeq(
+            driver.state().get_scalar("xmm0").unwrap().clone().into(),
+            mk128const(0xffffffff_ffffffff, 0x00000000_0000ff00).into()
+        )
+        .unwrap()
+    )
+    .unwrap()
+    .is_one());
 }
-
 
 #[test]
 fn pmovmskb() {
@@ -174,16 +173,19 @@ fn pmovmskb() {
 
     let driver = init_amd64_driver(
         bytes.clone(),
-        vec![
-            ("xmm4", mk128const(0x00ff00ff_00000000, 0xffffffff_ff00ff00))
-        ],
-        Memory::new(Endian::Little)
+        vec![("xmm4", mk128const(0x00ff00ff_00000000, 0xffffffff_ff00ff00))],
+        Memory::new(Endian::Little),
     );
 
     let driver = step_to(driver, 0x4);
 
     assert_eq!(
-        driver.state().get_scalar("rdx").unwrap().value_u64().unwrap(),
+        driver
+            .state()
+            .get_scalar("rdx")
+            .unwrap()
+            .value_u64()
+            .unwrap(),
         0b01010000_11111010
     );
 }

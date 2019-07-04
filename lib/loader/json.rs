@@ -19,9 +19,8 @@ pub struct Json {
     function_entries: Vec<FunctionEntry>,
     memory: Memory,
     architecture: Box<Architecture>,
-    entry: u64
+    entry: u64,
 }
-
 
 impl Json {
     /// Create a new `Json` loader from the given file.
@@ -36,17 +35,16 @@ impl Json {
             Value::String(ref architecture) => {
                 if architecture == "x86" {
                     Box::new(X86::new())
-                }
-                else {
+                } else {
                     bail!("unsupported architecture {}", root["arch"])
                 }
             }
-            _ => bail!("architecture missing")
+            _ => bail!("architecture missing"),
         };
 
         let entry = match root["entry"] {
             Value::Number(ref number) => number.as_u64().unwrap(),
-            _ => bail!("entry missing")
+            _ => bail!("entry missing"),
         };
 
         let mut function_entries = Vec::new();
@@ -55,20 +53,19 @@ impl Json {
                 let address = match function["address"] {
                     Value::Number(ref address) => match address.as_u64() {
                         Some(address) => address,
-                        None => bail!("function address not u64")
+                        None => bail!("function address not u64"),
                     },
-                    _ => bail!("address missing for function")
+                    _ => bail!("address missing for function"),
                 };
 
                 let name = match function["name"] {
                     Value::String(ref name) => name.to_string(),
-                    _ => bail!("name missing for function")
+                    _ => bail!("name missing for function"),
                 };
 
                 function_entries.push(FunctionEntry::new(address, Some(name)));
             }
-        }
-        else {
+        } else {
             bail!("functions missing");
         }
 
@@ -78,55 +75,51 @@ impl Json {
                 let address = match segment["address"] {
                     Value::Number(ref address) => match address.as_u64() {
                         Some(address) => address,
-                        None => bail!("segment address not u64")
+                        None => bail!("segment address not u64"),
                     },
-                    _ => bail!("address missing for segment")
+                    _ => bail!("address missing for segment"),
                 };
 
                 let bytes = match segment["bytes"] {
                     Value::String(ref bytes) => base64::decode(&bytes)?,
-                    _ => bail!("bytes missing for segment")
+                    _ => bail!("bytes missing for segment"),
                 };
 
                 memory.set_memory(address, bytes, MemoryPermissions::ALL);
             }
-        }
-        else {
+        } else {
             bail!("segments missing");
         }
 
-        Ok(Json{
+        Ok(Json {
             function_entries: function_entries,
             memory: memory,
             architecture: architecture,
-            entry: entry
+            entry: entry,
         })
     }
 }
-
-
 
 impl Loader for Json {
     fn memory(&self) -> Result<Memory> {
         Ok(self.memory.clone())
     }
 
-
     fn function_entries(&self) -> Result<Vec<FunctionEntry>> {
         Ok(self.function_entries.clone())
     }
-
 
     fn program_entry(&self) -> u64 {
         self.entry
     }
 
-
     fn architecture(&self) -> &Architecture {
         self.architecture.as_ref()
     }
 
-    fn as_any(&self) -> &Any { self }
+    fn as_any(&self) -> &Any {
+        self
+    }
 
     fn symbols(&self) -> Vec<Symbol> {
         Vec::new()

@@ -3,7 +3,6 @@
 use il;
 use std::collections::HashSet;
 
-
 /// Available type of calling conventions
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CallingConventionType {
@@ -11,9 +10,8 @@ pub enum CallingConventionType {
     Cdecl,
     MipsSystemV,
     MipselSystemV,
-    PpcSystemV
+    PpcSystemV,
 }
-
 
 /// The return type for a function.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -23,15 +21,14 @@ pub enum ReturnAddressType {
     /// Functions return by loading an address from the stack.
     ///
     /// The offset to the return address at function call/entry is given.
-    Stack(usize)
+    Stack(usize),
 }
-
 
 impl ReturnAddressType {
     pub fn register(&self) -> Option<&il::Scalar> {
         match self {
             ReturnAddressType::Register(scalar) => Some(scalar),
-            ReturnAddressType::Stack(_) => None
+            ReturnAddressType::Stack(_) => None,
         }
     }
 
@@ -43,7 +40,6 @@ impl ReturnAddressType {
     }
 }
 
-
 /// The type of an argument.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArgumentType {
@@ -53,15 +49,14 @@ pub enum ArgumentType {
     /// The argument is held in a stack offset.
     ///
     /// The stack offset is given at function call/entry.
-    Stack(usize)
+    Stack(usize),
 }
-
 
 impl ArgumentType {
     pub fn register(&self) -> Option<&il::Scalar> {
         match self {
             ArgumentType::Register(scalar) => Some(scalar),
-            ArgumentType::Stack(_) => None
+            ArgumentType::Stack(_) => None,
         }
     }
 
@@ -73,19 +68,18 @@ impl ArgumentType {
     }
 }
 
-
 /// Represents the calling convention of a particular platform.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallingConvention {
     /// arguments passed in registers.
     argument_registers: Vec<il::Scalar>,
-    
+
     /// These registers are preserved across function calls.
     preserved_registers: HashSet<il::Scalar>,
 
     /// These registers are not preserved across function calls.
     trashed_registers: HashSet<il::Scalar>,
-    
+
     /// Offset from function start where first argument on stack is found.
     ///
     /// After register arguments are exhausted, analysis will begin looking
@@ -99,7 +93,7 @@ pub struct CallingConvention {
     return_address_type: ReturnAddressType,
 
     /// The register the returned value is given in.
-    return_register: il::Scalar
+    return_register: il::Scalar,
 }
 
 /*
@@ -109,7 +103,6 @@ pub struct CallingConvention {
         Everything else is trashed.
 */
 
-
 impl CallingConvention {
     /// Create a new `CallingConvention` based on the given
     /// `CallingConventionType`.
@@ -117,9 +110,12 @@ impl CallingConvention {
         match typ {
             CallingConventionType::Amd64SystemV => {
                 let argument_registers = vec![
-                    il::scalar("rdi", 64), il::scalar("rsi", 64),
-                    il::scalar("rdx", 64), il::scalar("rcx", 64),
-                    il::scalar("r8", 64),  il::scalar("r9", 64)
+                    il::scalar("rdi", 64),
+                    il::scalar("rsi", 64),
+                    il::scalar("rdx", 64),
+                    il::scalar("rcx", 64),
+                    il::scalar("r8", 64),
+                    il::scalar("r9", 64),
                 ];
                 let mut preserved_registers = HashSet::new();
                 preserved_registers.insert(il::scalar("rbx", 64));
@@ -150,9 +146,9 @@ impl CallingConvention {
                     stack_argument_offset: 8,
                     stack_argument_length: 8,
                     return_address_type: return_type,
-                    return_register: il::scalar("rax", 64)
+                    return_register: il::scalar("rax", 64),
                 }
-            },
+            }
             CallingConventionType::Cdecl => {
                 let mut preserved_registers = HashSet::new();
                 preserved_registers.insert(il::scalar("ebx", 32));
@@ -175,14 +171,15 @@ impl CallingConvention {
                     stack_argument_offset: 4,
                     stack_argument_length: 4,
                     return_address_type: return_type,
-                    return_register: il::scalar("eax", 32)
+                    return_register: il::scalar("eax", 32),
                 }
-            },
-            CallingConventionType::MipsSystemV |
-            CallingConventionType::MipselSystemV => {
+            }
+            CallingConventionType::MipsSystemV | CallingConventionType::MipselSystemV => {
                 let argument_registers = vec![
-                    il::scalar("$a0", 32), il::scalar("$a1", 32),
-                    il::scalar("$a2", 32), il::scalar("$a3", 32)
+                    il::scalar("$a0", 32),
+                    il::scalar("$a1", 32),
+                    il::scalar("$a2", 32),
+                    il::scalar("$a3", 32),
                 ];
 
                 let mut preserved_registers = HashSet::new();
@@ -227,9 +224,9 @@ impl CallingConvention {
                     stack_argument_offset: 16,
                     stack_argument_length: 4,
                     return_address_type: return_type,
-                    return_register: il::scalar("$v0", 32)
+                    return_register: il::scalar("$v0", 32),
                 }
-            },
+            }
             CallingConventionType::PpcSystemV => {
                 let argument_registers = vec![
                     il::scalar("r3", 32),
@@ -287,9 +284,9 @@ impl CallingConvention {
                     stack_argument_offset: 4,
                     stack_argument_length: 4,
                     return_address_type: return_type,
-                    return_register: il::scalar("lr", 32)
+                    return_register: il::scalar("lr", 32),
                 }
-            },
+            }
         }
     }
 
@@ -340,8 +337,7 @@ impl CallingConvention {
             let n = argument_number - self.argument_registers.len();
             let offset = self.stack_argument_offset + (self.stack_argument_length * n);
             ArgumentType::Stack(offset)
-        }
-        else {
+        } else {
             ArgumentType::Register(self.argument_registers[argument_number].clone())
         }
     }
@@ -350,11 +346,9 @@ impl CallingConvention {
     pub fn is_preserved(&self, scalar: &il::Scalar) -> Option<bool> {
         if self.preserved_registers.contains(scalar) {
             Some(true)
-        }
-        else if self.trashed_registers.contains(scalar) {
+        } else if self.trashed_registers.contains(scalar) {
             Some(false)
-        }
-        else {
+        } else {
             None
         }
     }
@@ -363,11 +357,9 @@ impl CallingConvention {
     pub fn is_trashed(&self, scalar: &il::Scalar) -> Option<bool> {
         if self.trashed_registers.contains(scalar) {
             Some(true)
-        }
-        else if self.preserved_registers.contains(scalar) {
+        } else if self.preserved_registers.contains(scalar) {
             Some(false)
-        }
-        else {
+        } else {
             None
         }
     }

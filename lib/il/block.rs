@@ -10,7 +10,6 @@
 use il::*;
 use std::fmt;
 
-
 /// A basic block in Falcon IL.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Block {
@@ -24,17 +23,15 @@ pub struct Block {
     instructions: Vec<Instruction>,
 }
 
-
 impl Block {
     pub(crate) fn new(index: usize) -> Block {
         Block {
             index: index,
             next_instruction_index: 0,
             next_temp_index: 0,
-            instructions: Vec::new()
+            instructions: Vec::new(),
         }
     }
-
 
     fn new_instruction_index(&mut self) -> usize {
         let instruction_index = self.next_instruction_index;
@@ -42,11 +39,9 @@ impl Block {
         instruction_index
     }
 
-
     fn push(&mut self, instruction: Instruction) {
         self.instructions.push(instruction);
     }
-
 
     /// Get the address of the first instruction in this block
     pub fn address(&self) -> Option<u64> {
@@ -54,7 +49,6 @@ impl Block {
             .first()
             .and_then(|instruction| instruction.address())
     }
-
 
     /// Appends the contents of another `Block` to this `Block`.
     ///
@@ -66,30 +60,25 @@ impl Block {
         })
     }
 
-
     /// Returns the index of this `Block`
     pub fn index(&self) -> usize {
         self.index
     }
-
 
     /// Returns instructions for this `Block`
     pub fn instructions(&self) -> &Vec<Instruction> {
         &self.instructions
     }
 
-
     /// Returns a mutable reference to the instructions for this `Block`.
     pub fn instructions_mut(&mut self) -> &mut Vec<Instruction> {
         &mut self.instructions
     }
 
-
     /// Returns try if this `Block` is empty, meaning it has no `Instruction`
     pub fn is_empty(&self) -> bool {
         self.instructions.is_empty()
     }
-
 
     /// Returns an `Instruction` by index, or `None` if the instruction does not
     /// exist.
@@ -99,25 +88,24 @@ impl Block {
             .find(|instruction| instruction.index() == index)
     }
 
-
     /// Returns a mutable reference to an `Instruction` by index, or `None` if
     /// the `Instruction` does not exist.
-    pub fn instruction_mut<>(&mut self, index: usize) -> Option<&mut Instruction> {
+    pub fn instruction_mut(&mut self, index: usize) -> Option<&mut Instruction> {
         self.instructions
             .iter_mut()
             .find(|instruction| instruction.index() == index)
     }
-
 
     /// Deletes an `Instruction` by its index.
     pub fn remove_instruction(&mut self, index: usize) -> Result<()> {
         self.instructions
             .iter()
             .position(|instruction| instruction.index() == index)
-            .map(|index| { self.instructions.remove(index); })
+            .map(|index| {
+                self.instructions.remove(index);
+            })
             .ok_or(format!("No instruction with index {} found", index).into())
     }
-
 
     /// Clone this block and set a new index.
     pub(crate) fn clone_new_index(&self, index: usize) -> Block {
@@ -125,7 +113,6 @@ impl Block {
         clone.index = index;
         clone
     }
-
 
     /// Generates a temporary scalar unique to this block.
     pub fn temp(&mut self, bits: usize) -> Scalar {
@@ -171,12 +158,14 @@ impl Block {
     }
 }
 
-
 impl graph::Vertex for Block {
-    fn index (&self) -> usize { self.index }
-    fn dot_label(&self) -> String { format!("{}", self) }
+    fn index(&self) -> usize {
+        self.index
+    }
+    fn dot_label(&self) -> String {
+        format!("{}", self)
+    }
 }
-
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

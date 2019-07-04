@@ -6,34 +6,34 @@
 use architecture::Endian;
 use error::*;
 use il;
-use RC;
 use std::collections::HashMap;
+use RC;
 
 use memory::backing;
-use memory::MemoryPermissions;
 use memory::value::Value;
-
+use memory::MemoryPermissions;
 
 /// The size of the copy-on-write pages.
 pub const PAGE_SIZE: usize = 1024;
-
 
 /// A memory cell.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum MemoryCell<V: Value> {
     Value(V),
-    Backref(u64)
+    Backref(u64),
 }
 
-impl<V> MemoryCell<V> where V: Value {
+impl<V> MemoryCell<V>
+where
+    V: Value,
+{
     pub fn value(&self) -> Option<&V> {
         match *self {
             MemoryCell::Value(ref v) => Some(v),
-            MemoryCell::Backref(_) => None
+            MemoryCell::Backref(_) => None,
         }
     }
 }
-
 
 /// A memory page.
 ///
@@ -41,20 +41,20 @@ impl<V> MemoryCell<V> where V: Value {
 /// They are used for performance reasons in the copy-on-write memory model.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Page<V: Value> {
-    pub(crate) cells: Vec<Option<MemoryCell<V>>>
+    pub(crate) cells: Vec<Option<MemoryCell<V>>>,
 }
 
-
-impl<V> Page<V> where V: Value {
+impl<V> Page<V>
+where
+    V: Value,
+{
     fn new(size: usize) -> Page<V> {
         let mut v = Vec::new();
         for _ in 0..size {
             v.push(None);
         }
 
-        Page {
-            cells: v
-        }
+        Page { cells: v }
     }
 
     fn store(&mut self, offset: usize, cell: MemoryCell<V>) {
@@ -70,25 +70,25 @@ impl<V> Page<V> where V: Value {
     }
 }
 
-
 impl<V: Value> PartialEq for Memory<V> {
     fn eq(&self, other: &Self) -> bool {
         if self.pages == other.pages && self.endian == other.endian {
-            self.backing().and_then(|self_backing|
-                other.backing().map(|other_backing|
-                    if RC::ptr_eq(&self_backing, &other_backing) {
-                        true
-                    }
-                    else {
-                        self_backing == other_backing
-                    })).unwrap_or(false)
-        }
-        else {
+            self.backing()
+                .and_then(|self_backing| {
+                    other.backing().map(|other_backing| {
+                        if RC::ptr_eq(&self_backing, &other_backing) {
+                            true
+                        } else {
+                            self_backing == other_backing
+                        }
+                    })
+                })
+                .unwrap_or(false)
+        } else {
             false
         }
     }
 }
-
 
 /// A copy-on-write paged memory model.
 #[derive(Clone, Debug, Deserialize, Eq, Serialize)]
@@ -96,17 +96,19 @@ pub struct Memory<V: Value> {
     #[serde(skip)]
     backing: Option<RC<backing::Memory>>,
     endian: Endian,
-    pub(crate) pages: HashMap<u64, RC<Page<V>>>
+    pub(crate) pages: HashMap<u64, RC<Page<V>>>,
 }
 
-
-impl<V> Memory<V> where V: Value {
+impl<V> Memory<V>
+where
+    V: Value,
+{
     /// Create a new paged memory model with the given endianness.
     pub fn new(endian: Endian) -> Memory<V> {
         Memory {
             backing: None,
             endian: endian,
-            pages: HashMap::new()
+            pages: HashMap::new(),
         }
     }
 
@@ -120,19 +122,18 @@ impl<V> Memory<V> where V: Value {
     ///
     /// Paged memory will use the given backing when asked to load values which
     /// it does not have.
-    pub fn new_with_backing(endian: Endian, backing: RC<backing::Memory>)
-        -> Memory<V> {
-
+    pub fn new_with_backing(endian: Endian, backing: RC<backing::Memory>) -> Memory<V> {
         Memory {
             backing: Some(backing),
             endian: endian,
-            pages: HashMap::new()
+            pages: HashMap::new(),
         }
     }
 
     /// Get the permissions for the given address.
     pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
-        self.backing().and_then(|backing| backing.permissions(address))
+        self.backing()
+            .and_then(|backing| backing.permissions(address))
     }
 
     /// Get a reference to the memory backing, if there is one
@@ -150,7 +151,6 @@ impl<V> Memory<V> where V: Value {
         &self.pages
     }
 
-
     fn store_cell(&mut self, address: u64, cell: MemoryCell<V>) {
         let page_address = address & !(PAGE_SIZE as u64 - 1);
         let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
@@ -164,23 +164,22 @@ impl<V> Memory<V> where V: Value {
         self.pages.insert(page_address, RC::new(page));
     }
 
-
     fn load_cell(&self, address: u64) -> Option<&MemoryCell<V>> {
         let page_address = address & !(PAGE_SIZE as u64 - 1);
         let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
         match self.pages.get(&page_address) {
             Some(page) => page.load(offset),
-            None => None
+            None => None,
         }
     }
 
-
     fn load_backing(&self, address: u64) -> Option<V> {
-        self.backing().and_then(|backing|
-            backing.get8(address).map(|v|
-                V::constant(il::const_(v as u64, 8))))
+        self.backing().and_then(|backing| {
+            backing
+                .get8(address)
+                .map(|v| V::constant(il::const_(v as u64, 8)))
+        })
     }
-
 
     /// Don't take backrefs into account during this store. Needed sometimes to
     /// keep us from infinitely recursing
@@ -192,15 +191,17 @@ impl<V> Memory<V> where V: Value {
         }
     }
 
-
     /// Store a value at the given address.
     ///
     /// The value must have a bit-width >= 8, and the bit-width must be evenly
     /// divisible by 8.
     pub fn store(&mut self, address: u64, value: V) -> Result<()> {
         if value.bits() % 8 != 0 || value.bits() == 0 {
-            return Err(format!("Storing value in paged memory with bit width not divisible by 8 and > 0 {}",
-                value.bits()).into());
+            return Err(format!(
+                "Storing value in paged memory with bit width not divisible by 8 and > 0 {}",
+                value.bits()
+            )
+            .into());
         }
 
         // There are a few scenarios here we need to account for
@@ -226,61 +227,51 @@ impl<V> Memory<V> where V: Value {
         //  WWWW    and continues after out expression.
         //          Handle case 2, then case 1, and case 3 will be fine.
 
-
         // Handle backrefs that come after by finding the first address after
         // our write, truncating it to the appropriate size, and rewriting it
         let address_after_write = address + (value.bits() / 8) as u64;
 
-        let value_to_write =
-            if let Some(cell) = self.load_cell(address_after_write) {
-                if let MemoryCell::Backref(backref_address) = *cell {
-                    let backref_value =
-                        self.load_cell(backref_address)
-                            .ok_or("Backref cell pointed to null cell")?
-                            .value()
-                            .ok_or("Backref cell pointed to cell without value")?;
-                    // furthest most address backref value reaches
-                    let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
-                    // how many bits are left after our write
-                    let left_bits = ((backref_furthest_address - address_after_write) * 8) as usize;
-                    // load that value
-                    self.load(address_after_write, left_bits)?
-                }
-                else {
-                    None
-                }
-            }
-            else {
+        let value_to_write = if let Some(cell) = self.load_cell(address_after_write) {
+            if let MemoryCell::Backref(backref_address) = *cell {
+                let backref_value = self
+                    .load_cell(backref_address)
+                    .ok_or("Backref cell pointed to null cell")?
+                    .value()
+                    .ok_or("Backref cell pointed to cell without value")?;
+                // furthest most address backref value reaches
+                let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
+                // how many bits are left after our write
+                let left_bits = ((backref_furthest_address - address_after_write) * 8) as usize;
+                // load that value
+                self.load(address_after_write, left_bits)?
+            } else {
                 None
-            };
+            }
+        } else {
+            None
+        };
 
         if let Some(value_to_write) = value_to_write {
             self.store_no_backref(address_after_write, value_to_write);
         }
 
         // handle values we overwrite before this write
-        let value_to_write =
-            if let Some(cell) = self.load_cell(address) {
-                if let MemoryCell::Backref(backref_address) = *cell {
-                    let backref_value = self.load_cell(backref_address)
-                                            .unwrap()
-                                            .value()
-                                            .unwrap();
-                    // furthest most address backref value reaches
-                    let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
-                    // how many bits are we about to overwrite
-                    let overwrite_bits = (backref_furthest_address - address) * 8;
-                    // how many bits are left over
-                    let left_bits = backref_value.bits() - overwrite_bits as usize;
-                    Some((backref_address, self.load(backref_address, left_bits)?))
-                }
-                else {
-                    None
-                }
-            }
-            else {
+        let value_to_write = if let Some(cell) = self.load_cell(address) {
+            if let MemoryCell::Backref(backref_address) = *cell {
+                let backref_value = self.load_cell(backref_address).unwrap().value().unwrap();
+                // furthest most address backref value reaches
+                let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
+                // how many bits are we about to overwrite
+                let overwrite_bits = (backref_furthest_address - address) * 8;
+                // how many bits are left over
+                let left_bits = backref_value.bits() - overwrite_bits as usize;
+                Some((backref_address, self.load(backref_address, left_bits)?))
+            } else {
                 None
-            };
+            }
+        } else {
+            None
+        };
 
         if let Some(value_to_write) = value_to_write {
             self.store_no_backref(value_to_write.0, value_to_write.1.unwrap());
@@ -292,7 +283,6 @@ impl<V> Memory<V> where V: Value {
         Ok(())
     }
 
-
     /// Loads a value from the given address.
     ///
     /// `bits` must be >= 8, and evenly divisible by 8.
@@ -302,8 +292,7 @@ impl<V> Memory<V> where V: Value {
     pub fn load(&self, address: u64, bits: usize) -> Result<Option<V>> {
         if bits % 8 != 0 {
             return Err(format!("Loading paged memory with non-8 bit-width {}", bits).into());
-        }
-        else if bits == 0 {
+        } else if bits == 0 {
             return Err("Loading paged memory with 0 bit-width".into());
         }
 
@@ -341,38 +330,41 @@ impl<V> Memory<V> where V: Value {
                 MemoryCell::Value(ref value) => {
                     if value.bits() <= bits {
                         value.clone()
-                    }
-                    else {
+                    } else {
                         match self.endian {
-                            Endian::Little =>
-                                value.trun(bits)
-                                     .chain_err(|| format!("Truncating {:?} to {}",
-                                                           value,
-                                                           bits))?,
-                            Endian::Big =>
-                                value.shr(value.bits() - bits)?
-                                     .trun(bits)
-                                     .chain_err(||format!("Shift {:?} right {} truncate {}",
-                                                          value, value.bits() - bits, bits))?
+                            Endian::Little => value
+                                .trun(bits)
+                                .chain_err(|| format!("Truncating {:?} to {}", value, bits))?,
+                            Endian::Big => {
+                                value.shr(value.bits() - bits)?.trun(bits).chain_err(|| {
+                                    format!(
+                                        "Shift {:?} right {} truncate {}",
+                                        value,
+                                        value.bits() - bits,
+                                        bits
+                                    )
+                                })?
+                            }
                         }
                     }
-                },
+                }
                 MemoryCell::Backref(backref_address) => {
-                    let value =
-                        self.load_cell(backref_address)
-                            .ok_or("Backref cell pointed to null cell")?
-                            .value()
-                            .ok_or("Backref cell pointed to cell without value")?;
+                    let value = self
+                        .load_cell(backref_address)
+                        .ok_or("Backref cell pointed to null cell")?
+                        .value()
+                        .ok_or("Backref cell pointed to cell without value")?;
                     let value = match self.endian {
                         Endian::Little => {
                             let shift_bits = ((address - backref_address) * 8) as usize;
                             let trun_bits = value.bits() - shift_bits;
-                            value.shr(shift_bits)?
-                                 .trun(trun_bits)
-                                 .chain_err(||
-                                    format!("Shifted {:?} right {} and truncated to {}",
-                                        value, shift_bits, bits))?
-                        },
+                            value.shr(shift_bits)?.trun(trun_bits).chain_err(|| {
+                                format!(
+                                    "Shifted {:?} right {} and truncated to {}",
+                                    value, shift_bits, bits
+                                )
+                            })?
+                        }
                         Endian::Big => {
                             let offset = ((address - backref_address) * 8) as usize;
                             let shift_bits = if bits + offset >= value.bits() {
@@ -381,29 +373,27 @@ impl<V> Memory<V> where V: Value {
                                 value.bits() - bits - offset
                             };
                             let trun_bits = value.bits() - offset - shift_bits;
-                            value.shr(shift_bits)?
-                                 .trun(trun_bits)
-                                 .chain_err(||
-                                    format!("Shifted {:?} right {} and truncated to {}",
-                                        value, shift_bits, bits))?
+                            value.shr(shift_bits)?.trun(trun_bits).chain_err(|| {
+                                format!(
+                                    "Shifted {:?} right {} and truncated to {}",
+                                    value, shift_bits, bits
+                                )
+                            })?
                         }
                     };
                     if value.bits() > bits {
-                        value.trun(bits)
-                             .chain_err(|| format!("Error truncating {} bits to {}",
-                                                   value.bits(),
-                                                   bits))?
-                    }
-                    else {
+                        value.trun(bits).chain_err(|| {
+                            format!("Error truncating {} bits to {}", value.bits(), bits)
+                        })?
+                    } else {
                         value
                     }
                 }
             }
-        }
-        else {
+        } else {
             match self.load_backing(address) {
                 Some(v) => v,
-                None => return Ok(None)
+                None => return Ok(None),
             }
         };
 
@@ -426,18 +416,18 @@ impl<V> Memory<V> where V: Value {
                 Some(v) => v,
                 None => match self.load_backing(address) {
                     Some(v) => v,
-                    None => return Ok(None)
-                }
+                    None => return Ok(None),
+                },
             };
             let value = value.zext(bits)?;
             let shift = match self.endian {
                 Endian::Big => (bytes - offset - 1) * 8,
-                Endian::Little => offset * 8
+                Endian::Little => offset * 8,
             };
             let value = value.shl(shift as usize)?;
             result = match result {
                 Some(r) => Some(r.or(&value)?),
-                None => Some(value)
+                None => Some(value),
             };
         }
 
@@ -445,14 +435,13 @@ impl<V> Memory<V> where V: Value {
     }
 }
 
-
 #[cfg(test)]
 mod memory_tests {
     use architecture::Endian;
     use il;
     use memory;
-    use memory::MemoryPermissions;
     use memory::paged::Memory;
+    use memory::MemoryPermissions;
     use RC;
 
     #[test]
@@ -498,7 +487,7 @@ mod memory_tests {
             il::const_(0xaabbffdd, 32)
         );
 
-        /*     
+        /*
                \/
             AA BB CC DD 11 22 33 44
             0x44AABBCC
@@ -558,7 +547,7 @@ mod memory_tests {
             il::const_(0xAAFFCCDD, 32)
         );
 
-        /*     
+        /*
                \/
             DD CC BB AA 44 33 22 11
             0x44AABBCC
@@ -575,7 +564,6 @@ mod memory_tests {
         );
     }
 
-
     #[test]
     fn backed() {
         let mut backing = memory::backing::Memory::new(Endian::Big);
@@ -583,7 +571,7 @@ mod memory_tests {
         backing.set_memory(
             0x100,
             [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77].to_vec(),
-            MemoryPermissions::READ
+            MemoryPermissions::READ,
         );
 
         let mut memory: Memory<il::Constant> =

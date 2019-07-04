@@ -1,15 +1,13 @@
 //! Definition Use Analysis
 
-use analysis::{LocationSet, reaching_definitions};
+use analysis::{reaching_definitions, LocationSet};
 use error::*;
 use il;
 use std::collections::HashMap;
 
-
 #[allow(dead_code)]
 /// Compute definition use chains for the given function.
-pub fn def_use(function: &il::Function)
--> Result<HashMap<il::ProgramLocation, LocationSet>> {
+pub fn def_use(function: &il::Function) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     let mut du: HashMap<il::ProgramLocation, LocationSet> = HashMap::new();
@@ -17,53 +15,59 @@ pub fn def_use(function: &il::Function)
     for (location, _) in &rd {
         du.entry(location.clone()).or_insert(LocationSet::new());
         match location.function_location().apply(function).unwrap() {
-            il::RefFunctionLocation::Instruction(_, instruction) =>
-                instruction.operation().scalars_read().into_iter().for_each(|scalar_read|
-                    rd[&location].locations().into_iter().for_each(|rd|
+            il::RefFunctionLocation::Instruction(_, instruction) => instruction
+                .operation()
+                .scalars_read()
+                .into_iter()
+                .for_each(|scalar_read| {
+                    rd[&location].locations().into_iter().for_each(|rd| {
                         rd.function_location()
-                          .apply(function)
-                          .unwrap()
-                          .instruction()
-                          .unwrap()
-                          .operation()
-                          .scalars_written()
-                          .into_iter()
-                          .for_each(|scalar_written|
-                            if scalar_written == scalar_read {
-                                du.entry(rd.clone())
-                                    .or_insert(LocationSet::new())
-                                    .insert(location.clone());
-                            }))),
+                            .apply(function)
+                            .unwrap()
+                            .instruction()
+                            .unwrap()
+                            .operation()
+                            .scalars_written()
+                            .into_iter()
+                            .for_each(|scalar_written| {
+                                if scalar_written == scalar_read {
+                                    du.entry(rd.clone())
+                                        .or_insert(LocationSet::new())
+                                        .insert(location.clone());
+                                }
+                            })
+                    })
+                }),
             il::RefFunctionLocation::Edge(ref edge) => {
-                edge.condition().map(|condition|
-                    condition.scalars().into_iter().for_each(|scalar_read|
+                edge.condition().map(|condition| {
+                    condition.scalars().into_iter().for_each(|scalar_read| {
                         rd[&location].locations().into_iter().for_each(|rd| {
                             rd.function_location()
-                              .apply(function)
-                              .unwrap()
-                              .instruction()
-                              .unwrap()
-                              .operation()
-                              .scalars_written()
-                              .map(|scalars_written|
-                                scalars_written
-                                  .into_iter()
-                                  .for_each(|scalar_written|
-                                    if scalar_written == scalar_read {
-                                        du.entry(rd.clone())
-                                            .or_insert(LocationSet::new())
-                                            .insert(location.clone());
-                                    }));
-                        })));
-            },
+                                .apply(function)
+                                .unwrap()
+                                .instruction()
+                                .unwrap()
+                                .operation()
+                                .scalars_written()
+                                .map(|scalars_written| {
+                                    scalars_written.into_iter().for_each(|scalar_written| {
+                                        if scalar_written == scalar_read {
+                                            du.entry(rd.clone())
+                                                .or_insert(LocationSet::new())
+                                                .insert(location.clone());
+                                        }
+                                    })
+                                });
+                        })
+                    })
+                });
+            }
             il::RefFunctionLocation::EmptyBlock(_) => {}
         }
     }
 
     Ok(du)
 }
-
-
 
 #[test]
 fn use_def_test() {
@@ -117,18 +121,26 @@ fn use_def_test() {
         block.index()
     };
 
-    let condition = il::Expression::cmpltu(
-        il::expr_scalar("a", 32),
-        il::expr_const(10, 32)
-    ).unwrap();
+    let condition =
+        il::Expression::cmpltu(il::expr_scalar("a", 32), il::expr_const(10, 32)).unwrap();
 
-    control_flow_graph.conditional_edge(head_index, lt_index, condition.clone()).unwrap();
-    control_flow_graph.conditional_edge(head_index, gt_index, 
-        il::Expression::cmpeq(condition, il::expr_const(0, 1)).unwrap()
-    ).unwrap();
+    control_flow_graph
+        .conditional_edge(head_index, lt_index, condition.clone())
+        .unwrap();
+    control_flow_graph
+        .conditional_edge(
+            head_index,
+            gt_index,
+            il::Expression::cmpeq(condition, il::expr_const(0, 1)).unwrap(),
+        )
+        .unwrap();
 
-    control_flow_graph.unconditional_edge(lt_index, tail_index).unwrap();
-    control_flow_graph.unconditional_edge(gt_index, tail_index).unwrap();
+    control_flow_graph
+        .unconditional_edge(lt_index, tail_index)
+        .unwrap();
+    control_flow_graph
+        .unconditional_edge(gt_index, tail_index)
+        .unwrap();
 
     control_flow_graph.set_entry(head_index).unwrap();
 
@@ -145,44 +157,57 @@ fn use_def_test() {
     // }
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(du[&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
+    assert!(
+        du[&il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
         )
-    ).into()].len() == 3);
+        .into()]
+            .len()
+            == 3
+    );
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(du[&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(1).unwrap()
+    assert!(
+        du[&il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(1).unwrap())
         )
-    ).into()].len() == 1);
+        .into()]
+            .len()
+            == 1
+    );
 
     let block = function.control_flow_graph().block(1).unwrap();
-    assert!(du[&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
+    assert!(
+        du[&il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
         )
-    ).into()].len() == 1);
+        .into()]
+            .len()
+            == 1
+    );
 
     let block = function.control_flow_graph().block(0).unwrap();
     assert!(du[&il::RefProgramLocation::new(
         &function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(1).unwrap()
-        )
-    ).into()].contains(&il::RefProgramLocation::new(
-        &function,
-        il::RefFunctionLocation::Instruction(
-            function.control_flow_graph().block(1).unwrap(),
-            function.control_flow_graph().block(1).unwrap().instruction(0).unwrap()
-        )
-    ).into()));
+        il::RefFunctionLocation::Instruction(block, block.instruction(1).unwrap())
+    )
+    .into()]
+        .contains(
+            &il::RefProgramLocation::new(
+                &function,
+                il::RefFunctionLocation::Instruction(
+                    function.control_flow_graph().block(1).unwrap(),
+                    function
+                        .control_flow_graph()
+                        .block(1)
+                        .unwrap()
+                        .instruction(0)
+                        .unwrap()
+                )
+            )
+            .into()
+        ));
 }

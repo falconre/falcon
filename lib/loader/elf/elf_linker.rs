@@ -7,18 +7,15 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-
 /// The address where the first library will be loaded
 const DEFAULT_LIB_BASE: u64 = 0x4000_0000;
 /// The step in address between where we will load libraries.
-const LIB_BASE_STEP: u64    = 0x0200_0000;
-
+const LIB_BASE_STEP: u64 = 0x0200_0000;
 
 // Some MIPS-specific DT entries. This will eventually land in Goblin.
 const DT_MIPS_LOCAL_GOTNO: u64 = 0x7000000a;
-const DT_MIPS_GOTSYM: u64      = 0x70000013;
-const DT_MIPS_SYMTABNO: u64    = 0x70000011;
-
+const DT_MIPS_GOTSYM: u64 = 0x70000013;
+const DT_MIPS_SYMTABNO: u64 = 0x70000011;
 
 /// A helper to build an ElfLinker using the builder pattern.
 #[derive(Clone, Debug)]
@@ -26,9 +23,8 @@ pub struct ElfLinkerBuilder {
     filename: PathBuf,
     do_relocations: bool,
     just_interpreter: bool,
-    ld_paths: Option<Vec<PathBuf>>
+    ld_paths: Option<Vec<PathBuf>>,
 }
-
 
 impl ElfLinkerBuilder {
     /// Create a new ElfLinker
@@ -37,7 +33,7 @@ impl ElfLinkerBuilder {
             filename: filename,
             do_relocations: true,
             just_interpreter: false,
-            ld_paths: None
+            ld_paths: None,
         }
     }
 
@@ -56,27 +52,21 @@ impl ElfLinkerBuilder {
 
     /// Set the paths where the ElfLinker should look for shared objects and
     /// depenedncies
-    pub fn ld_paths<P: Into<PathBuf>>(mut self, ld_paths: Option<Vec<P>>)
-        -> Self {
-
-        self.ld_paths =
-            ld_paths.map(|v|
-                v.into_iter()
-                 .map(|p| p.into())
-                 .collect::<Vec<PathBuf>>()
-            );
+    pub fn ld_paths<P: Into<PathBuf>>(mut self, ld_paths: Option<Vec<P>>) -> Self {
+        self.ld_paths = ld_paths.map(|v| v.into_iter().map(|p| p.into()).collect::<Vec<PathBuf>>());
         self
     }
 
     /// Get the ElfLinker for this ElfLinkerBuilder
     pub fn link(self) -> Result<ElfLinker> {
-        ElfLinker::new(self.filename,
-                       self.do_relocations,
-                       self.just_interpreter,
-                       self.ld_paths)
+        ElfLinker::new(
+            self.filename,
+            self.do_relocations,
+            self.just_interpreter,
+            self.ld_paths,
+        )
     }
 }
-
 
 /// Loader which links together multiple Elf files.
 ///
@@ -101,9 +91,8 @@ pub struct ElfLinker {
     /// if a process was loaded normally.
     just_interpreter: bool,
     /// The paths where ElfLinker will look for dependencies
-    ld_paths: Option<Vec<PathBuf>>
+    ld_paths: Option<Vec<PathBuf>>,
 }
-
 
 impl ElfLinker {
     /// Create a new ElfLinker.
@@ -113,9 +102,8 @@ impl ElfLinker {
         filename: PathBuf,
         do_relocations: bool,
         just_interpreter: bool,
-        ld_paths: Option<Vec<PathBuf>>
+        ld_paths: Option<Vec<PathBuf>>,
     ) -> Result<ElfLinker> {
-
         let mut file = File::open(&filename)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
@@ -126,8 +114,7 @@ impl ElfLinker {
             if elf_peek.header.endianness()?.is_little() {
                 endian = Endian::Little;
             }
-        }
-        else {
+        } else {
             bail!(format!("{} was not an Elf", filename.to_str().unwrap()));
         }
 
@@ -140,7 +127,7 @@ impl ElfLinker {
             user_functions: Vec::new(),
             do_relocations: do_relocations,
             just_interpreter: just_interpreter,
-            ld_paths: ld_paths
+            ld_paths: ld_paths,
         };
 
         elf_linker.load_elf(&filename, 0)?;
@@ -148,60 +135,50 @@ impl ElfLinker {
         Ok(elf_linker)
     }
 
-
     /// Get the ELFs loaded and linked in this loader
     pub fn loaded(&self) -> &BTreeMap<String, Elf> {
         &self.loaded
     }
-
 
     /// Get the filename of the ELF we're loading
     pub fn filename(&self) -> &Path {
         &self.filename
     }
 
-
     /// Takes the path to an Elf, and a base address the Elf should be loaded
     /// at. Loads the Elf, all it's dependencies (DT_NEEDED), and then handles
     /// the supported relocations.
-    pub fn load_elf(&mut self, filename: &Path, base_address: u64)
-        -> Result<()> {
-
-        let path =
-            self.ld_paths
-                .as_ref()
-                .map(|ld_paths|
-                    ld_paths.iter()
+    pub fn load_elf(&mut self, filename: &Path, base_address: u64) -> Result<()> {
+        let path = self
+            .ld_paths
+            .as_ref()
+            .map(|ld_paths| {
+                ld_paths
+                    .iter()
                     .map(|ld_path| {
                         let filename = if filename.starts_with("/") {
                             let filename = filename.to_str().unwrap();
                             Path::new(filename.split_at(1).1)
-                        }
-                        else {
+                        } else {
                             filename
                         };
                         ld_path.to_path_buf().join(filename)
                     })
                     .find(|path| path.exists())
-                    .unwrap_or(filename.to_path_buf()))
-                .unwrap_or(filename.to_path_buf());
+                    .unwrap_or(filename.to_path_buf())
+            })
+            .unwrap_or(filename.to_path_buf());
 
         let elf = Elf::from_file_with_base_address(&path, base_address)?;
 
-
         // Update our memory map based on what's in the Elf
         for (address, section) in elf.memory()?.sections() {
-            self.memory.set_memory(*address,
-                                   section.data().to_owned(),
-                                   section.permissions());
+            self.memory
+                .set_memory(*address, section.data().to_owned(), section.permissions());
         }
 
         // Add this Elf to the loaded Elfs
-        let filename = filename.file_name()
-                               .unwrap()
-                               .to_str()
-                               .unwrap()
-                               .to_string();
+        let filename = filename.file_name().unwrap().to_str().unwrap().to_string();
         self.loaded.insert(filename.clone(), elf);
 
         {
@@ -214,19 +191,20 @@ impl ElfLinker {
                 }
                 self.symbols.insert(
                     symbol.name().to_string(),
-                    elf.base_address() + symbol.address()
+                    elf.base_address() + symbol.address(),
                 );
             }
         }
 
         if self.just_interpreter {
-            let interpreter_filename =
-                self.loaded[&filename].elf().interpreter.map(|s| s.to_string());
+            let interpreter_filename = self.loaded[&filename]
+                .elf()
+                .interpreter
+                .map(|s| s.to_string());
             if let Some(interpreter_filename) = interpreter_filename {
                 self.load_elf(Path::new(&interpreter_filename), DEFAULT_LIB_BASE)?;
             }
-        }
-        else {
+        } else {
             // Ensure all shared objects we rely on are loaded
             for so_name in self.loaded[&filename].dt_needed()?.clone() {
                 if self.loaded.get(&so_name).is_none() {
@@ -239,32 +217,30 @@ impl ElfLinker {
 
         if self.do_relocations {
             match self.loaded[&filename].elf().header.e_machine {
-                goblin::elf::header::EM_386 =>
-                    self.relocations_x86(&filename)?,
-                goblin::elf::header::EM_MIPS =>
-                    self.relocations_mips(&filename)?,
-                _ => bail!("relocations unsupported for target architecture")
+                goblin::elf::header::EM_386 => self.relocations_x86(&filename)?,
+                goblin::elf::header::EM_MIPS => self.relocations_mips(&filename)?,
+                _ => bail!("relocations unsupported for target architecture"),
             }
         }
 
         Ok(())
     }
 
-
     /// Get the `Elf` for the primary elf loaded.
     pub fn get_elf(&self) -> Result<&Elf> {
         let loaded = self.loaded();
-        let filename = self.filename()
+        let filename = self
+            .filename()
             .file_name()
             .and_then(|filename| filename.to_str())
             .ok_or("Could not get filename for ElfLinker's primary program")?;
 
-        let elf = loaded.get(filename)
-              .ok_or(format!("Could not get {} from ElfLinker", filename))?;
+        let elf = loaded
+            .get(filename)
+            .ok_or(format!("Could not get {} from ElfLinker", filename))?;
 
         Ok(elf)
     }
-
 
     /// If the primary `Elf` we're loading has an interpreter designated in its
     /// dynamic sectino, get the `Elf` for the interpreter.
@@ -273,21 +249,22 @@ impl ElfLinker {
 
         let interpreter_elf = match elf.elf().interpreter {
             Some(interpreter_filename) => {
-                let interpreter_filename =
-                    Path::new(interpreter_filename)
-                        .file_name()
-                        .and_then(|filename| filename.to_str())
-                        .ok_or(format!("Failed to get filename portion of interpreter filename"))?;
-                Some(self.loaded().get(interpreter_filename)
-                    .ok_or(format!("Could not find interpreter {}",
-                                    interpreter_filename))?)
+                let interpreter_filename = Path::new(interpreter_filename)
+                    .file_name()
+                    .and_then(|filename| filename.to_str())
+                    .ok_or(format!(
+                        "Failed to get filename portion of interpreter filename"
+                    ))?;
+                Some(self.loaded().get(interpreter_filename).ok_or(format!(
+                    "Could not find interpreter {}",
+                    interpreter_filename
+                ))?)
             }
-            None => None
+            None => None,
         };
 
         Ok(interpreter_elf)
     }
-
 
     /// Perform x86-specific relocations
     fn relocations_x86(&mut self, filename: &str) -> Result<()> {
@@ -295,176 +272,186 @@ impl ElfLinker {
         let ref elf = self.loaded[filename];
         let dynsyms = elf.elf().dynsyms;
         let dynstrtab = elf.elf().dynstrtab;
-        for reloc in elf.elf().dynrelas.iter().chain(
-            elf.elf().dynrels.iter().chain(
-                elf.elf().pltrelocs.iter())) {
+        for reloc in elf
+            .elf()
+            .dynrelas
+            .iter()
+            .chain(elf.elf().dynrels.iter().chain(elf.elf().pltrelocs.iter()))
+        {
             match reloc.r_type {
                 goblin::elf::reloc::R_386_32 => {
-                    let ref sym = dynsyms.get(reloc.r_sym)
+                    let ref sym = dynsyms
+                        .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
-                        None => bail!("Could not resolve symbol {}", sym_name)
+                        None => bail!("Could not resolve symbol {}", sym_name),
                     };
-                    self.memory.set32(
-                        reloc.r_offset as u64 + elf.base_address(),
-                        value
-                    )?;
+                    self.memory
+                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_GOT32 => {
                     bail!("R_386_GOT32");
-                },
+                }
                 goblin::elf::reloc::R_386_PLT32 => {
-                    let ref sym = dynsyms.get(reloc.r_sym)
+                    let ref sym = dynsyms
+                        .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
-                    bail!("R_386_PLT32 {:?}:0x{:x}:{}",
-                          self.filename,
-                          reloc.r_offset,
-                          sym_name);
-                },
+                    bail!(
+                        "R_386_PLT32 {:?}:0x{:x}:{}",
+                        self.filename,
+                        reloc.r_offset,
+                        sym_name
+                    );
+                }
                 goblin::elf::reloc::R_386_COPY => {
                     bail!("R_386_COPY");
-                },
+                }
                 goblin::elf::reloc::R_386_GLOB_DAT => {
-                    let ref sym = dynsyms.get(reloc.r_sym)
+                    let ref sym = dynsyms
+                        .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
                         None => {
                             warn!("Could not resolve symbol {}", sym_name);
-                            continue
+                            continue;
                         }
                     };
-                    self.memory.set32(
-                        reloc.r_offset as u64 + elf.base_address(),
-                        value
-                    )?;
-                },
+                    self.memory
+                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                }
                 goblin::elf::reloc::R_386_JMP_SLOT => {
-                    let ref sym = dynsyms.get(reloc.r_sym)
+                    let ref sym = dynsyms
+                        .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
                     let value = match self.symbols.get(sym_name) {
                         Some(v) => v.to_owned() as u32,
-                        None => bail!("Could not resolve symbol {}", sym_name)
+                        None => bail!("Could not resolve symbol {}", sym_name),
                     };
-                    self.memory.set32(
-                        reloc.r_offset as u64 + elf.base_address(),
-                        value
-                    )?;
-                },
+                    self.memory
+                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                }
                 goblin::elf::reloc::R_386_RELATIVE => {
-                    let value = self.memory.get32(reloc.r_offset as u64 + elf.base_address());
+                    let value = self
+                        .memory
+                        .get32(reloc.r_offset as u64 + elf.base_address());
                     let value = match value {
                         Some(value) => elf.base_address() as u32 + value,
-                        None => bail!("Invalid address for R_386_RELATIVE {:?}:{:x}",
-                                      self.filename,
-                                      reloc.r_offset)
+                        None => bail!(
+                            "Invalid address for R_386_RELATIVE {:?}:{:x}",
+                            self.filename,
+                            reloc.r_offset
+                        ),
                     };
-                    self.memory.set32(reloc.r_offset as u64 + elf.base_address(), value)?;
-                },
+                    self.memory
+                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                }
                 goblin::elf::reloc::R_386_GOTPC => {
                     bail!("R_386_GOT_PC");
-                },
+                }
                 goblin::elf::reloc::R_386_TLS_TPOFF => {
                     warn!("Ignoring R_386_TLS_TPOFF Relocation");
-                },
-                goblin::elf::reloc::R_386_IRELATIVE => {
-                    warn!("R_386_IRELATIVE {:?}:0x{:x} going unprocessed",
-                          self.filename,
-                          reloc.r_offset);
                 }
-                _ => bail!("unhandled relocation type {}", reloc.r_type)
+                goblin::elf::reloc::R_386_IRELATIVE => {
+                    warn!(
+                        "R_386_IRELATIVE {:?}:0x{:x} going unprocessed",
+                        self.filename, reloc.r_offset
+                    );
+                }
+                _ => bail!("unhandled relocation type {}", reloc.r_type),
             }
         }
         Ok(())
     }
-
 
     /// Perform MIPS-specific relocations
     fn relocations_mips(&mut self, filename: &str) -> Result<()> {
         let elf = &self.loaded[filename];
 
         fn get_dynamic(elf: &Elf, tag: u64) -> Option<u64> {
-            elf.elf().dynamic.and_then(|dynamic|
-                dynamic.dyns
+            elf.elf().dynamic.and_then(|dynamic| {
+                dynamic
+                    .dyns
                     .iter()
                     .find(|dyn| dyn.d_tag == tag)
-                    .map(|dyn| dyn.d_val))
+                    .map(|dyn| dyn.d_val)
+            })
         }
 
         // The number of local GOT entries. Also an index into the GOT
         // for the first external GOT entry.
-        let local_gotno = get_dynamic(elf, DT_MIPS_LOCAL_GOTNO)
-            .ok_or("Could not get DT_MIPS_LOCAL_GOTNO")?;
+        let local_gotno =
+            get_dynamic(elf, DT_MIPS_LOCAL_GOTNO).ok_or("Could not get DT_MIPS_LOCAL_GOTNO")?;
 
         // Index of the first dynamic symbol table entry that corresponds
         // to an entry in the GOT.
-        let gotsym = get_dynamic(elf, DT_MIPS_GOTSYM)
-            .ok_or("Could not get DT_MIPS_GOTSYM")?;
+        let gotsym = get_dynamic(elf, DT_MIPS_GOTSYM).ok_or("Could not get DT_MIPS_GOTSYM")?;
 
         // The number of entries in the dynamic symbol table
-        let symtabno = get_dynamic(elf, DT_MIPS_SYMTABNO)
-            .ok_or("Could not get DT_MIPS_SYMTABNO")?;
+        let symtabno =
+            get_dynamic(elf, DT_MIPS_SYMTABNO).ok_or("Could not get DT_MIPS_SYMTABNO")?;
 
         // The address of the GOT section
         let pltgot =
-            get_dynamic(elf, goblin::elf::dyn::DT_PLTGOT)
-            .ok_or("Could not get DT_PLTGOT")?;
+            get_dynamic(elf, goblin::elf::dynamic::DT_PLTGOT).ok_or("Could not get DT_PLTGOT")?;
 
         // Start by adding the base address to all entries in the GOT
         for i in 0..(local_gotno + (symtabno - gotsym)) {
             let address = elf.base_address() + (i * 4) + pltgot;
-            let value = self.memory.get32(address)
-                .ok_or(format!("Could not get memory at address 0x{:x} for adding base address",
-                    address))?;
-            self.memory.set32(address, value.wrapping_add(elf.base_address() as u32))?;
+            let value = self.memory.get32(address).ok_or(format!(
+                "Could not get memory at address 0x{:x} for adding base address",
+                address
+            ))?;
+            self.memory
+                .set32(address, value.wrapping_add(elf.base_address() as u32))?;
         }
-
 
         let dynstrtab = elf.elf().dynstrtab;
         let dynsyms = elf.elf().dynsyms;
         let mut address = pltgot + elf.base_address() + (local_gotno * 4);
         for i in gotsym..(symtabno) {
-            let sym = dynsyms.get(i as usize)
+            let sym = dynsyms
+                .get(i as usize)
                 .ok_or(format!("Could not get symbol {}", i))?;
-            let symbol_name = dynstrtab.get(sym.st_name)
+            let symbol_name = dynstrtab
+                .get(sym.st_name)
                 .ok_or(format!("Could not get symbol name for {}", i))??;
             // Internal entries have already been relocated, so we only need to
             // relocate external entries
             if sym.st_shndx == 0 {
                 if let Some(value) = self.symbols.get(symbol_name) {
                     self.memory.set32(address, *value as u32)?;
-                }
-                else {
-                    format!("Could not get symbol with name: \"{}\"",
-                        symbol_name);
+                } else {
+                    format!("Could not get symbol with name: \"{}\"", symbol_name);
                 }
             }
             address += 4;
         }
 
         // handle all relocation entries
-        for dynrel in elf.elf().dynrels {
+        for dynrel in elf.elf().dynrels.iter() {
             if dynrel.r_type == goblin::elf::reloc::R_MIPS_REL32 {
-                let value =
-                    self.memory
-                        .get32(dynrel.r_offset + elf.base_address())
-                        .ok_or(format!("Could not load R_MIPS_REL32 at 0x{:x}",
-                            dynrel.r_offset + elf.base_address()))?;
+                let value = self
+                    .memory
+                    .get32(dynrel.r_offset + elf.base_address())
+                    .ok_or(format!(
+                        "Could not load R_MIPS_REL32 at 0x{:x}",
+                        dynrel.r_offset + elf.base_address()
+                    ))?;
                 self.memory.set32(
                     dynrel.r_offset + elf.base_address(),
-                    value + (elf.base_address() as u32)
+                    value + (elf.base_address() as u32),
                 )?;
             }
         }
 
         Ok(())
     }
-
 
     /// Inform the linker of a function at the given address.
     ///
@@ -474,7 +461,6 @@ impl ElfLinker {
         self.user_functions.push(address);
     }
 }
-
 
 impl Loader for ElfLinker {
     fn memory(&self) -> Result<Memory> {
@@ -498,26 +484,30 @@ impl Loader for ElfLinker {
 
     // TODO Just maybe a bit too much unwrapping here.
     fn program_entry(&self) -> u64 {
-        let filename = self.filename
-                           .as_path()
-                           .file_name()
-                           .unwrap()
-                           .to_str()
-                           .unwrap();
+        let filename = self
+            .filename
+            .as_path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
         self.loaded[filename].program_entry()
     }
 
     fn architecture(&self) -> &Architecture {
-        let filename = self.filename
-                           .as_path()
-                           .file_name()
-                           .unwrap()
-                           .to_str()
-                           .unwrap();
+        let filename = self
+            .filename
+            .as_path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
         self.loaded[filename].architecture()
     }
 
-    fn as_any(&self) -> &Any { self }
+    fn as_any(&self) -> &Any {
+        self
+    }
 
     fn symbols(&self) -> Vec<Symbol> {
         self.loaded

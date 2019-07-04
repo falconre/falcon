@@ -4,7 +4,6 @@
 
 use il::*;
 
-
 /// A function for Falcon IL. Provides location and context in a `Program` to a
 /// `ControlFlowGraph`.
 #[derive(Clone, Debug, Deserialize, Hash, Eq, PartialEq, Serialize)]
@@ -16,9 +15,8 @@ pub struct Function {
     // The name of the function
     name: Option<String>,
     // Functions which belong to Programs have indices
-    index: Option<usize>
+    index: Option<usize>,
 }
-
 
 impl Function {
     /// Create a new `Function`
@@ -31,7 +29,7 @@ impl Function {
             address: address,
             control_flow_graph: control_flow_graph,
             name: None,
-            index: None
+            index: None,
         }
     }
 
@@ -46,8 +44,7 @@ impl Function {
             let instructions = block.instructions();
             if instructions.is_empty() {
                 locations.push(RefFunctionLocation::EmptyBlock(block));
-            }
-            else {
+            } else {
                 for instruction in instructions {
                     locations.push(RefFunctionLocation::Instruction(block, instruction));
                 }
@@ -113,7 +110,7 @@ impl Function {
     pub fn name(&self) -> String {
         match self.name {
             Some(ref name) => name.to_string(),
-            None => format!("unknown@{:08X}", self.address)
+            None => format!("unknown@{:08X}", self.address),
         }
     }
 
@@ -127,7 +124,6 @@ impl Function {
     pub fn index(&self) -> Option<usize> {
         self.index
     }
-
 
     pub fn set_index(&mut self, index: Option<usize>) {
         self.index = index;

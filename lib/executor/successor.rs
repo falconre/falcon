@@ -3,30 +3,27 @@
 use executor::State;
 use il;
 
-
 /// A representation of the successor location in an `il::Program` after
 /// execution of an `il::Operation`.
 #[derive(Clone, Debug)]
 pub enum SuccessorType {
     FallThrough,
     Branch(u64),
-    Intrinsic(il::Intrinsic)
+    Intrinsic(il::Intrinsic),
 }
-
 
 /// The result of executing an `il::Operation` over a `State`.
 #[derive(Clone)]
 pub struct Successor {
     state: State,
-    type_: SuccessorType
+    type_: SuccessorType,
 }
-
 
 impl Successor {
     pub(crate) fn new(state: State, type_: SuccessorType) -> Successor {
         Successor {
             state: state,
-            type_: type_
+            type_: type_,
         }
     }
 
@@ -35,13 +32,11 @@ impl Successor {
         &self.type_
     }
 
-
     /// Get the `State` of this `Successor`.
     pub fn state(&self) -> &State {
         &self.state
     }
 }
-
 
 /// Turn this `Successor` into its `State`, discarding the `SuccessorType`.
 impl Into<State> for Successor {

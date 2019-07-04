@@ -5,7 +5,6 @@ use executor::eval;
 use il;
 use std::fmt::Debug;
 
-
 /// In order for a value to be used in the paged memory model, it must implement
 /// this trait.
 pub trait Value: Clone + Debug + Eq + PartialEq {
@@ -31,7 +30,6 @@ pub trait Value: Clone + Debug + Eq + PartialEq {
     fn or(&self, other: &Self) -> Result<Self>;
 }
 
-
 impl Value for il::Constant {
     fn constant(constant: il::Constant) -> Self {
         constant
@@ -42,11 +40,17 @@ impl Value for il::Constant {
     }
 
     fn shl(&self, bits: usize) -> Result<Self> {
-        eval(&il::Expression::shl(self.clone().into(), il::expr_const(bits as u64, self.bits()))?)
+        eval(&il::Expression::shl(
+            self.clone().into(),
+            il::expr_const(bits as u64, self.bits()),
+        )?)
     }
 
     fn shr(&self, bits: usize) -> Result<Self> {
-        eval(&il::Expression::shr(self.clone().into(), il::expr_const(bits as u64, self.bits()))?)
+        eval(&il::Expression::shr(
+            self.clone().into(),
+            il::expr_const(bits as u64, self.bits()),
+        )?)
     }
 
     fn trun(&self, bits: usize) -> Result<Self> {
@@ -58,10 +62,12 @@ impl Value for il::Constant {
     }
 
     fn or(&self, other: &Self) -> Result<Self> {
-        eval(&il::Expression::or(self.clone().into(), other.clone().into())?)
+        eval(&il::Expression::or(
+            self.clone().into(),
+            other.clone().into(),
+        )?)
     }
 }
-
 
 impl Value for il::Expression {
     fn constant(constant: il::Constant) -> Self {

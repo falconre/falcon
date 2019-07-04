@@ -8,51 +8,41 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-
 /// Loader for a single ELf file.
 #[derive(Debug)]
 pub struct Elf {
     base_address: u64,
     bytes: Vec<u8>,
     user_function_entries: Vec<u64>,
-    architecture: Box<Architecture>
+    architecture: Box<Architecture>,
 }
-
 
 impl Elf {
     /// Create a new Elf from the given bytes. This Elf will be rebased to the given
     /// base address.
     pub fn new(bytes: Vec<u8>, base_address: u64) -> Result<Elf> {
         let architecture = {
-            let elf = goblin::elf::Elf::parse(&bytes)
-                .map_err(|_| "Not a valid elf")?;
+            let elf = goblin::elf::Elf::parse(&bytes).map_err(|_| "Not a valid elf")?;
 
-            let architecture = 
-                if elf.header.e_machine == goblin::elf::header::EM_386 {
-                    Box::new(X86::new())
-                }
-                else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
-                    match elf.header.endianness()? {
-                        goblin::container::Endian::Big =>
-                            Box::new(Mips::new()) as Box<Architecture>,
-                        goblin::container::Endian::Little =>
-                            Box::new(Mipsel::new()) as Box<Architecture>,
+            let architecture = if elf.header.e_machine == goblin::elf::header::EM_386 {
+                Box::new(X86::new())
+            } else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
+                match elf.header.endianness()? {
+                    goblin::container::Endian::Big => Box::new(Mips::new()) as Box<Architecture>,
+                    goblin::container::Endian::Little => {
+                        Box::new(Mipsel::new()) as Box<Architecture>
                     }
                 }
-                else if elf.header.e_machine == goblin::elf::header::EM_PPC {
-                    match elf.header.endianness()? {
-                        goblin::container::Endian::Big =>
-                            Box::new(Ppc::new()) as Box<Architecture>,
-                        goblin::container::Endian::Little =>
-                            bail!("PPC Little-Endian not supported")
-                    }
+            } else if elf.header.e_machine == goblin::elf::header::EM_PPC {
+                match elf.header.endianness()? {
+                    goblin::container::Endian::Big => Box::new(Ppc::new()) as Box<Architecture>,
+                    goblin::container::Endian::Little => bail!("PPC Little-Endian not supported"),
                 }
-                else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
-                    Box::new(Amd64::new())
-                }
-                else {
-                    bail!("Unsupported Architecture");
-                };
+            } else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
+                Box::new(Amd64::new())
+            } else {
+                bail!("Unsupported Architecture");
+            };
 
             architecture
         };
@@ -61,7 +51,7 @@ impl Elf {
             base_address: base_address,
             bytes: bytes,
             user_function_entries: Vec::new(),
-            architecture: architecture
+            architecture: architecture,
         })
     }
 
@@ -71,16 +61,13 @@ impl Elf {
         self.base_address
     }
 
-
     /// Load an Elf from a file and use the given base address.
-    pub fn from_file_with_base_address(filename: &Path, base_address: u64)
-        -> Result<Elf> {
+    pub fn from_file_with_base_address(filename: &Path, base_address: u64) -> Result<Elf> {
         let mut file = match File::open(filename) {
             Ok(file) => file,
-            Err(e) => return Err(format!(
-                "Error opening {}: {}",
-                filename.to_str().unwrap(),
-                e).into())
+            Err(e) => {
+                return Err(format!("Error opening {}: {}", filename.to_str().unwrap(), e).into())
+            }
         };
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
@@ -107,7 +94,7 @@ impl Elf {
             // Get the strtab address
             let mut strtab_address = None;
             for dyn in &dynamic.dyns {
-                if dyn.d_tag == goblin::elf::dyn::DT_STRTAB {
+                if dyn.d_tag == goblin::elf::dynamic::DT_STRTAB {
                     strtab_address = Some(dyn.d_val);
                     break;
                 }
@@ -119,17 +106,19 @@ impl Elf {
             // We're going to make a pretty safe assumption that strtab is all
             // in one section
             for section_header in &elf.section_headers {
-                if    section_header.sh_addr > 0 
-                   && section_header.sh_addr <= strtab_address
-                   && section_header.sh_addr + section_header.sh_size > strtab_address {
-                    let start = section_header.sh_offset + (strtab_address - section_header.sh_addr);
+                if section_header.sh_addr > 0
+                    && section_header.sh_addr <= strtab_address
+                    && section_header.sh_addr + section_header.sh_size > strtab_address
+                {
+                    let start =
+                        section_header.sh_offset + (strtab_address - section_header.sh_addr);
                     let size = section_header.sh_size - (start - section_header.sh_offset);
                     let start = start as usize;
                     let size = size as usize;
                     let strtab_bytes = self.bytes.get(start..(start + size)).unwrap();
                     let strtab = goblin::strtab::Strtab::new(&strtab_bytes, 0);
                     for dyn in dynamic.dyns {
-                        if dyn.d_tag == goblin::elf::dyn::DT_NEEDED {
+                        if dyn.d_tag == goblin::elf::dynamic::DT_NEEDED {
                             let so_name = &strtab[dyn.d_val as usize];
                             v.push(so_name.to_string());
                         }
@@ -157,11 +146,12 @@ impl Elf {
             if sym.st_value == 0 || sym.st_shndx == 0 {
                 continue;
             }
-            if    sym.st_bind() == goblin::elf::sym::STB_GLOBAL
-               || sym.st_bind() == goblin::elf::sym::STB_WEAK {
+            if sym.st_bind() == goblin::elf::sym::STB_GLOBAL
+                || sym.st_bind() == goblin::elf::sym::STB_WEAK
+            {
                 v.push(Symbol::new(
                     &elf.dynstrtab[sym.st_name],
-                    sym.st_value + self.base_address()
+                    sym.st_value + self.base_address(),
                 ));
             }
         }
@@ -177,28 +167,26 @@ impl Elf {
             if sym.st_value == 0 {
                 continue;
             }
-            symbols.push(
-                Symbol::new(
-                    &elf.dynstrtab[sym.st_name],
-                    sym.st_value + self.base_address()
-                ));
+            symbols.push(Symbol::new(
+                &elf.dynstrtab[sym.st_name],
+                sym.st_value + self.base_address(),
+            ));
         }
 
         for sym in elf.syms.iter() {
             if sym.st_value == 0 {
                 continue;
             }
-            symbols.push(
-                Symbol::new(
-                    &elf.strtab[sym.st_name],
-                    sym.st_value + self.base_address()
-                ));
+            symbols.push(Symbol::new(
+                &elf.strtab[sym.st_name],
+                sym.st_value + self.base_address(),
+            ));
         }
 
         for rel in elf.pltrelocs.iter() {
             let sym = match elf.dynsyms.get(rel.r_sym) {
                 Some(sym) => sym,
-                None => continue
+                None => continue,
             };
 
             let name = &elf.dynstrtab[sym.st_name];
@@ -211,20 +199,16 @@ impl Elf {
     }
 }
 
-
-
 impl Loader for Elf {
     fn memory(&self) -> Result<Memory> {
         let elf = self.elf();
         let mut memory = Memory::new(self.architecture().endian());
 
+        println!("BEGIN CALL TO MEMORY");
         for ph in elf.program_headers {
             if ph.p_type == goblin::elf::program_header::PT_LOAD {
                 let file_range = (ph.p_offset as usize)..((ph.p_offset + ph.p_filesz) as usize);
-                let mut bytes = self.bytes
-                                    .get(file_range)
-                                    .ok_or("Malformed Elf")?
-                                    .to_vec();
+                let mut bytes = self.bytes.get(file_range).ok_or("Malformed Elf")?.to_vec();
 
                 if bytes.len() != ph.p_memsz as usize {
                     bytes.append(&mut vec![0; (ph.p_memsz - ph.p_filesz) as usize]);
@@ -241,15 +225,12 @@ impl Loader for Elf {
                     permissions |= MemoryPermissions::EXECUTE;
                 }
 
-                memory.set_memory(ph.p_vaddr + self.base_address,
-                                  bytes,
-                                  permissions);
+                memory.set_memory(ph.p_vaddr + self.base_address, bytes, permissions);
             }
         }
 
         Ok(memory)
     }
-
 
     fn function_entries(&self) -> Result<Vec<FunctionEntry>> {
         let elf = self.elf();
@@ -264,7 +245,7 @@ impl Loader for Elf {
                 let name = &elf.dynstrtab[sym.st_name];
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
-                    Some(name.to_string())
+                    Some(name.to_string()),
                 ));
                 functions_added.insert(sym.st_value);
             }
@@ -276,45 +257,47 @@ impl Loader for Elf {
                 let name = &elf.strtab[sym.st_name];
                 function_entries.push(FunctionEntry::new(
                     sym.st_value + self.base_address,
-                    Some(name.to_string()))
-                );
+                    Some(name.to_string()),
+                ));
                 functions_added.insert(sym.st_value);
             }
         }
 
-
         if !functions_added.contains(&elf.header.e_entry) {
             function_entries.push(FunctionEntry::new(
                 elf.header.e_entry + self.base_address,
-                None
+                None,
             ));
         }
 
         for user_function_entry in &self.user_function_entries {
-            if functions_added.get(&(user_function_entry + self.base_address)).is_some() {
+            if functions_added
+                .get(&(user_function_entry + self.base_address))
+                .is_some()
+            {
                 continue;
             }
 
             function_entries.push(FunctionEntry::new(
                 user_function_entry + self.base_address,
-                Some(format!("user_function_{:x}", user_function_entry))
+                Some(format!("user_function_{:x}", user_function_entry)),
             ));
         }
 
         Ok(function_entries)
     }
 
-
     fn program_entry(&self) -> u64 {
         self.elf().header.e_entry
     }
-
 
     fn architecture(&self) -> &Architecture {
         self.architecture.as_ref()
     }
 
-    fn as_any(&self) -> &Any { self }
+    fn as_any(&self) -> &Any {
+        self
+    }
 
     fn symbols(&self) -> Vec<Symbol> {
         self.symbols()

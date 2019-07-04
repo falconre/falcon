@@ -1,20 +1,18 @@
 /// A Partially-Ordered set of program locations for data-flow analysis.
-
 use il;
 use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::collections::HashSet;
 
-
 /// A partially-ordered set of `RefProgramLocation` used in analyses
 #[derive(Clone, Debug)]
 pub struct LocationSet {
-    pub locations: HashSet<il::ProgramLocation>
+    pub locations: HashSet<il::ProgramLocation>,
 }
 
 impl LocationSet {
     pub fn new() -> LocationSet {
         LocationSet {
-            locations: HashSet::new()
+            locations: HashSet::new(),
         }
     }
 
@@ -43,7 +41,6 @@ impl LocationSet {
     }
 }
 
-
 impl PartialOrd for LocationSet {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.locations.len() == other.locations.len() {
@@ -53,16 +50,14 @@ impl PartialOrd for LocationSet {
                 }
             }
             Some(Ordering::Equal)
-        }
-        else if self.locations.len() < other.locations.len() {
+        } else if self.locations.len() < other.locations.len() {
             for rpl in &self.locations {
                 if !other.locations.contains(rpl) {
                     return None;
                 }
             }
             Some(Ordering::Less)
-        }
-        else {
+        } else {
             for rpl in &other.locations {
                 if !self.locations.contains(rpl) {
                     return None;
@@ -73,18 +68,15 @@ impl PartialOrd for LocationSet {
     }
 }
 
-
 impl PartialEq for LocationSet {
     fn eq(&self, other: &Self) -> bool {
         if let Some(ordering) = self.partial_cmp(other) {
             if ordering == Ordering::Equal {
                 true
-            }
-            else {
+            } else {
                 false
             }
-        }
-        else {
+        } else {
             false
         }
     }

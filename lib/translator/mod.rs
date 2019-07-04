@@ -27,7 +27,6 @@ pub mod mips;
 pub mod ppc;
 pub mod x86;
 
-
 const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
 
 /// This trait is used by the translator to continually find and lift bytes from an underlying
@@ -43,20 +42,21 @@ pub trait TranslationMemory {
         let mut bytes = Vec::new();
         for i in 0..length {
             match self.permissions(address) {
-                Some(permissions) => if !permissions.contains(MemoryPermissions::EXECUTE) {
-                    break;
-                },
-                None => break
+                Some(permissions) => {
+                    if !permissions.contains(MemoryPermissions::EXECUTE) {
+                        break;
+                    }
+                }
+                None => break,
             }
             match self.get_u8(address + i as u64) {
                 Some(u) => bytes.push(u),
-                None => break
+                None => break,
             };
         }
         bytes
     }
 }
-
 
 /// The result of translating a block from a native architecture.
 ///
@@ -77,9 +77,8 @@ pub struct BlockTranslationResult {
     /// The length of this block in bytes as represented in the host architecture
     length: usize,
     /// Addresses of known successor blocks, and optional conditions to reach them
-    successors: Vec<(u64, Option<Expression>)>
+    successors: Vec<(u64, Option<Expression>)>,
 }
-
 
 impl BlockTranslationResult {
     /// Create a new `BlockTranslationResult`.
@@ -93,13 +92,13 @@ impl BlockTranslationResult {
         instructions: Vec<(u64, ControlFlowGraph)>,
         address: u64,
         length: usize,
-        successors: Vec<(u64, Option<Expression>)>
+        successors: Vec<(u64, Option<Expression>)>,
     ) -> BlockTranslationResult {
         BlockTranslationResult {
             instructions: instructions,
             address: address,
             length: length,
-            successors: successors
+            successors: successors,
         }
     }
 
@@ -145,9 +144,8 @@ impl BlockTranslationResult {
     }
 }
 
-
 /// A generic translation trait, implemented by various architectures.
-pub trait Translator: {
+pub trait Translator {
     /// Translates a basic block
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;
 
@@ -155,7 +153,7 @@ pub trait Translator: {
     fn translate_function(
         &self,
         memory: &TranslationMemory,
-        function_address: u64
+        function_address: u64,
     ) -> Result<Function> {
         self.translate_function_extended(memory, function_address, vec![])
     }
@@ -167,9 +165,8 @@ pub trait Translator: {
         &self,
         memory: &TranslationMemory,
         function_address: u64,
-        manual_edges: Vec<(u64, u64, Option<Expression>)>
+        manual_edges: Vec<(u64, u64, Option<Expression>)>,
     ) -> Result<Function> {
-
         // Addresses of blocks pending translation
         let mut translation_queue: VecDeque<u64> = VecDeque::new();
 
@@ -205,8 +202,8 @@ pub trait Translator: {
                         vec![(block_address, control_flow_graph)],
                         block_address,
                         0,
-                        Vec::new()
-                    )
+                        Vec::new(),
+                    ),
                 );
                 continue;
             }
@@ -228,8 +225,7 @@ pub trait Translator: {
         // keeping track of their new entry and exit indices.
 
         // A mapping of instruction address to entry/exit vertex indices
-        let mut instruction_indices: BTreeMap<u64, (usize, usize)>
-            = BTreeMap::new();
+        let mut instruction_indices: BTreeMap<u64, (usize, usize)> = BTreeMap::new();
 
         // A mapping of block address to entry/exit vertex indices;
         let mut block_indices: BTreeMap<u64, (usize, usize)> = BTreeMap::new();
@@ -242,15 +238,13 @@ pub trait Translator: {
             let mut previous_exit = None;
             for &(address, ref instruction_graph) in block_translation_result.instructions.iter() {
                 // Have we already inserted this instruction?
-                let (entry, exit) =
-                    if instruction_indices.get(&address).is_some() {
-                        instruction_indices[&address]
-                    }
-                    else {
-                        let (entry, exit) = control_flow_graph.insert(instruction_graph)?;
-                        instruction_indices.insert(address, (entry, exit));
-                        (entry, exit)
-                    };
+                let (entry, exit) = if instruction_indices.get(&address).is_some() {
+                    instruction_indices[&address]
+                } else {
+                    let (entry, exit) = control_flow_graph.insert(instruction_graph)?;
+                    instruction_indices.insert(address, (entry, exit));
+                    (entry, exit)
+                };
                 // If this is not our first instruction through this block.
                 if let Some(previous_exit) = previous_exit {
                     // If an edge from the previous block to this block doesn't
@@ -282,11 +276,8 @@ pub trait Translator: {
             }
 
             if let Some(condition) = condition {
-                control_flow_graph.conditional_edge(edge_head,
-                                                    edge_tail,
-                                                    condition)?;
-            }
-            else {
+                control_flow_graph.conditional_edge(edge_head, edge_tail, condition)?;
+            } else {
                 control_flow_graph.unconditional_edge(edge_head, edge_tail)?;
             }
         }
@@ -297,9 +288,9 @@ pub trait Translator: {
             let (_, block_exit) = block_indices[&address];
             // For every successor in the block translation result (this is an
             // (address, condition) tuple)
-            for (successor_address, successor_condition)
-                in block_translation_result.successors().iter() {
-
+            for (successor_address, successor_condition) in
+                block_translation_result.successors().iter()
+            {
                 // get the entry index for the first/head block in the successor
                 let (block_entry, _) = block_indices[successor_address];
                 // check for duplicate edges
@@ -307,12 +298,12 @@ pub trait Translator: {
                     continue;
                 }
                 match successor_condition {
-                    Some(ref condition) =>
-                        control_flow_graph.conditional_edge(block_exit,
-                                                            block_entry,
-                                                            condition.clone())?,
-                    None => control_flow_graph.unconditional_edge(block_exit,
-                                                                  block_entry)?
+                    Some(ref condition) => control_flow_graph.conditional_edge(
+                        block_exit,
+                        block_entry,
+                        condition.clone(),
+                    )?,
+                    None => control_flow_graph.unconditional_edge(block_exit, block_entry)?,
                 }
             }
         }

@@ -10,7 +10,7 @@ use std::fmt;
 ///
 /// Methods are provided to create individual instructions, as all uses cases
 /// cannot be seen beforehand. However, it is generally poor-form to create
-/// an `Instruction` manually. You should use the methods on `Block` which 
+/// an `Instruction` manually. You should use the methods on `Block` which
 /// correspond to the `Operation` you wish to create, and the `Instruction`
 /// will be created automatically.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -18,9 +18,8 @@ pub struct Instruction {
     operation: Operation,
     index: usize,
     comment: Option<String>,
-    address: Option<u64>
+    address: Option<u64>,
 }
-
 
 impl Instruction {
     /// Create a new instruction with the given index and operation.
@@ -34,10 +33,9 @@ impl Instruction {
             operation: operation,
             index: index,
             comment: None,
-            address: None
+            address: None,
         }
     }
-
 
     /// Create a new `Assign` instruction.
     ///
@@ -48,30 +46,23 @@ impl Instruction {
         Instruction::new(index, Operation::assign(dst, src))
     }
 
-
     /// Create a new `Store` instruction.
     ///
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `store` method on `il::Block` instead.
-    pub fn store(instruction_index: usize, index: Expression, src: Expression)
-        -> Instruction {
-
+    pub fn store(instruction_index: usize, index: Expression, src: Expression) -> Instruction {
         Instruction::new(instruction_index, Operation::store(index, src))
     }
-
 
     /// Create a new `Load` instruction.
     ///
     /// # Warning
     /// You almost never want to call this function. You should use the
     /// `load` method on `il::Block` instead.
-    pub fn load(instruction_index: usize, dst: Scalar, index: Expression)
-        -> Instruction {
-
+    pub fn load(instruction_index: usize, dst: Scalar, index: Expression) -> Instruction {
         Instruction::new(instruction_index, Operation::load(dst, index))
     }
-
 
     /// Create a new `Brc` instruction.
     ///
@@ -79,10 +70,8 @@ impl Instruction {
     /// You almost never want to call this function. You should use the
     /// `brc` method on `il::Block` instead.
     pub fn branch(index: usize, target: Expression) -> Instruction {
-
         Instruction::new(index, Operation::branch(target))
     }
-
 
     /// Create a new `Intrinsic` instruction.
     ///
@@ -90,9 +79,13 @@ impl Instruction {
     /// You almost never want to call this function. You should use the
     /// `intrinsic` method on `il::Block` instead.
     pub fn intrinsic(index: usize, intrinsic: Intrinsic) -> Instruction {
-        Instruction::new(index, Operation::Intrinsic { intrinsic: intrinsic })
+        Instruction::new(
+            index,
+            Operation::Intrinsic {
+                intrinsic: intrinsic,
+            },
+        )
     }
-
 
     /// Create a new `Nop` instruction.
     ///
@@ -103,43 +96,38 @@ impl Instruction {
         Instruction::new(index, Operation::Nop)
     }
 
-
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Assign`
     pub fn is_assign(&self) -> bool {
-        if let Operation::Assign{..} = self.operation {
+        if let Operation::Assign { .. } = self.operation {
             true
-        }
-        else {
+        } else {
             false
         }
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Store`
     pub fn is_store(&self) -> bool {
-        if let Operation::Store{..} = self.operation {
+        if let Operation::Store { .. } = self.operation {
             true
-        }
-        else {
+        } else {
             false
         }
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Load`
     pub fn is_load(&self) -> bool {
-        if let Operation::Load{..} = self.operation {
+        if let Operation::Load { .. } = self.operation {
             true
-        }
-        else {
+        } else {
             false
         }
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Brc`
     pub fn is_branch(&self) -> bool {
-        if let Operation::Branch{..} = self.operation {
+        if let Operation::Branch { .. } = self.operation {
             true
-        }
-        else {
+        } else {
             false
         }
     }
@@ -194,7 +182,7 @@ impl Instruction {
             operation: self.operation.clone(),
             index: index,
             comment: self.comment.clone(),
-            address: self.address
+            address: self.address,
         }
     }
 
@@ -222,11 +210,11 @@ impl Instruction {
 
     /// Get all the scalars used in this instruction
     pub fn scalars(&self) -> Option<Vec<&Scalar>> {
-        let mut scalars =
-            self.scalars_written()?
-                .into_iter()
-                .chain(self.scalars_read()?.into_iter())
-                .collect::<Vec<&Scalar>>();
+        let mut scalars = self
+            .scalars_written()?
+            .into_iter()
+            .chain(self.scalars_read()?.into_iter())
+            .collect::<Vec<&Scalar>>();
 
         scalars.sort();
         scalars.dedup();
@@ -234,20 +222,15 @@ impl Instruction {
     }
 }
 
-
-
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let prefix = match self.address {
-            Some(address) => 
-                format!("{:X} {:02X} {}", address, self.index, self.operation),
-            None =>
-                format!("{:02X} {}", self.index, self.operation)
+            Some(address) => format!("{:X} {:02X} {}", address, self.index, self.operation),
+            None => format!("{:02X} {}", self.index, self.operation),
         };
         if let Some(ref comment) = self.comment {
             write!(f, "{} // {}", prefix, comment)
-        }
-        else {
+        } else {
             write!(f, "{}", prefix)
         }
     }

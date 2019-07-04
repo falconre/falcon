@@ -1,76 +1,74 @@
 use analysis::{fixed_point, LocationSet};
 use error::*;
 use il;
-use std::collections::{HashMap};
-
+use std::collections::HashMap;
 
 /// Compute reaching definitions for the given function.
-pub fn reaching_definitions<'r>(function: &'r il::Function)
--> Result<HashMap<il::ProgramLocation, LocationSet>> {
+pub fn reaching_definitions<'r>(
+    function: &'r il::Function,
+) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
     let rda = ReachingDefinitionsAnalysis { function: function };
     fixed_point::fixed_point_forward(rda, function)
 }
 
-
 // We require a struct to implement methods for our analysis over.
 struct ReachingDefinitionsAnalysis<'r> {
-    function: &'r il::Function
+    function: &'r il::Function,
 }
 
-
 impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinitionsAnalysis<'r> {
-    fn trans(&self, location: il::RefProgramLocation<'r>, state: Option<LocationSet>)
-        -> Result<LocationSet> {
-
+    fn trans(
+        &self,
+        location: il::RefProgramLocation<'r>,
+        state: Option<LocationSet>,
+    ) -> Result<LocationSet> {
         let mut state = match state {
             Some(state) => state,
-            None => LocationSet::new()
+            None => LocationSet::new(),
         };
 
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => {
-                instruction.operation()
+                instruction
+                    .operation()
                     .scalars_written()
                     .into_iter()
                     .for_each(|scalar_written| {
-                        let kill: Vec<il::ProgramLocation> =
-                            state.locations()
-                                .into_iter()
-                                .filter(|location|
-                                    location
-                                        .function_location()
-                                        .apply(self.function)
-                                        .unwrap()
-                                        .instruction()
-                                        .unwrap()
-                                        .operation()
-                                        .scalars_written()
-                                        .into_iter()
-                                        .any(|scalar| scalar == scalar_written))
-                                .cloned()
-                                .collect();
-                        kill.iter()
-                            .for_each(|location| state.remove(&location));
+                        let kill: Vec<il::ProgramLocation> = state
+                            .locations()
+                            .into_iter()
+                            .filter(|location| {
+                                location
+                                    .function_location()
+                                    .apply(self.function)
+                                    .unwrap()
+                                    .instruction()
+                                    .unwrap()
+                                    .operation()
+                                    .scalars_written()
+                                    .into_iter()
+                                    .any(|scalar| scalar == scalar_written)
+                            })
+                            .cloned()
+                            .collect();
+                        kill.iter().for_each(|location| state.remove(&location));
                         state.insert(location.clone().into());
                     });
-            },
-            il::RefFunctionLocation::EmptyBlock(_) |
-            il::RefFunctionLocation::Edge(_) => {}
+            }
+            il::RefFunctionLocation::EmptyBlock(_) | il::RefFunctionLocation::Edge(_) => {}
         }
 
         Ok(state)
     }
 
-
-    fn join(&self, mut state0: LocationSet, state1: &LocationSet)
-        -> Result<LocationSet> {
-
-        state1.locations().into_iter().for_each(|location|
-            state0.insert(location.clone()));
+    fn join(&self, mut state0: LocationSet, state1: &LocationSet) -> Result<LocationSet> {
+        state1
+            .locations()
+            .into_iter()
+            .for_each(|location| state0.insert(location.clone()));
         Ok(state0)
     }
 }
-
 
 #[test]
 fn reaching_definitions_test() {
@@ -124,18 +122,26 @@ fn reaching_definitions_test() {
         block.index()
     };
 
-    let condition = il::Expression::cmpltu(
-        il::expr_scalar("a", 32),
-        il::expr_const(10, 32)
-    ).unwrap();
+    let condition =
+        il::Expression::cmpltu(il::expr_scalar("a", 32), il::expr_const(10, 32)).unwrap();
 
-    control_flow_graph.conditional_edge(head_index, lt_index, condition.clone()).unwrap();
-    control_flow_graph.conditional_edge(head_index, gt_index, 
-        il::Expression::cmpeq(condition, il::expr_const(0, 1)).unwrap()
-    ).unwrap();
+    control_flow_graph
+        .conditional_edge(head_index, lt_index, condition.clone())
+        .unwrap();
+    control_flow_graph
+        .conditional_edge(
+            head_index,
+            gt_index,
+            il::Expression::cmpeq(condition, il::expr_const(0, 1)).unwrap(),
+        )
+        .unwrap();
 
-    control_flow_graph.unconditional_edge(lt_index, tail_index).unwrap();
-    control_flow_graph.unconditional_edge(gt_index, tail_index).unwrap();
+    control_flow_graph
+        .unconditional_edge(lt_index, tail_index)
+        .unwrap();
+    control_flow_graph
+        .unconditional_edge(gt_index, tail_index)
+        .unwrap();
 
     control_flow_graph.set_entry(head_index).unwrap();
 
@@ -159,42 +165,47 @@ fn reaching_definitions_test() {
     let r = &rd[&program_location.into()];
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(r.contains(&il::RefProgramLocation::new(&function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
+    assert!(r.contains(
+        &il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
         )
-    ).into()));
+        .into()
+    ));
 
     let block = function.control_flow_graph().block(1).unwrap();
-    assert!(r.contains(&il::RefProgramLocation::new(&function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
+    assert!(r.contains(
+        &il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
         )
-    ).into()));
+        .into()
+    ));
 
     let block = function.control_flow_graph().block(2).unwrap();
-    assert!(r.contains(&il::RefProgramLocation::new(&function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
+    assert!(r.contains(
+        &il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
         )
-    ).into()));
+        .into()
+    ));
 
     let block = function.control_flow_graph().block(3).unwrap();
-    assert!(r.contains(&il::RefProgramLocation::new(&function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(0).unwrap()
+    assert!(r.contains(
+        &il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
         )
-    ).into()));
+        .into()
+    ));
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(!r.contains(&il::RefProgramLocation::new(&function,
-        il::RefFunctionLocation::Instruction(
-            block,
-            block.instruction(1).unwrap()
+    assert!(!r.contains(
+        &il::RefProgramLocation::new(
+            &function,
+            il::RefFunctionLocation::Instruction(block, block.instruction(1).unwrap())
         )
-    ).into()));
+        .into()
+    ));
 }

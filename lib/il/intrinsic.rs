@@ -11,9 +11,8 @@ pub struct Intrinsic {
     arguments: Vec<Expression>,
     written_expressions: Option<Vec<Expression>>,
     read_expressions: Option<Vec<Expression>>,
-    bytes: Vec<u8>
+    bytes: Vec<u8>,
 }
-
 
 impl Intrinsic {
     /// Create a new intrinsic instruction.
@@ -23,7 +22,7 @@ impl Intrinsic {
         arguments: Vec<Expression>,
         written_expressions: Option<Vec<Expression>>,
         read_expressions: Option<Vec<Expression>>,
-        bytes: Vec<u8>
+        bytes: Vec<u8>,
     ) -> Intrinsic {
         Intrinsic {
             mnemonic: mnemonic.into(),
@@ -31,7 +30,7 @@ impl Intrinsic {
             arguments: arguments,
             written_expressions: written_expressions,
             read_expressions: read_expressions,
-            bytes: bytes.clone()
+            bytes: bytes.clone(),
         }
     }
 
@@ -90,12 +89,12 @@ impl Intrinsic {
     /// These are the scalars contained in the written expressions. Caveats for
     /// `written_expressions` apply here.
     pub fn scalars_written(&self) -> Option<Vec<&Scalar>> {
-        self.written_expressions()
-            .map(|written_expressions|
-                written_expressions
-                    .iter()
-                    .flat_map(|expression| expression.scalars())
-                    .collect::<Vec<&Scalar>>())
+        self.written_expressions().map(|written_expressions| {
+            written_expressions
+                .iter()
+                .flat_map(|expression| expression.scalars())
+                .collect::<Vec<&Scalar>>()
+        })
     }
 
     /// Get a mutable reference to the scalars written by this intrinsic.
@@ -103,12 +102,12 @@ impl Intrinsic {
     /// This is a mutable reference to the scalars contained in the written
     /// expressions. Caveats for `written_expressions` apply here.
     pub fn scalars_written_mut(&mut self) -> Option<Vec<&mut Scalar>> {
-        self.written_expressions_mut()
-            .map(|written_expressions|
-                written_expressions
-                    .iter_mut()
-                    .flat_map(|expression| expression.scalars_mut())
-                    .collect::<Vec<&mut Scalar>>())
+        self.written_expressions_mut().map(|written_expressions| {
+            written_expressions
+                .iter_mut()
+                .flat_map(|expression| expression.scalars_mut())
+                .collect::<Vec<&mut Scalar>>()
+        })
     }
 
     /// Get the scalared read by this intrinsic.
@@ -116,12 +115,12 @@ impl Intrinsic {
     /// These are the scalars in the expressions read by this intrinsic.
     /// Caveats for `read_expressions` apply here.
     pub fn scalars_read(&self) -> Option<Vec<&Scalar>> {
-        self.read_expressions()
-            .map(|read_expressions|
-                read_expressions
-                    .iter()
-                    .flat_map(|expression| expression.scalars())
-                    .collect::<Vec<&Scalar>>())
+        self.read_expressions().map(|read_expressions| {
+            read_expressions
+                .iter()
+                .flat_map(|expression| expression.scalars())
+                .collect::<Vec<&Scalar>>()
+        })
     }
 
     /// Get a mutable reference to the scalars written by this inrinsic.
@@ -129,12 +128,12 @@ impl Intrinsic {
     /// These are the scalars in the expression written by this intrinsic.
     /// Caveats for `read_expressions` apply here.
     pub fn scalars_read_mut(&mut self) -> Option<Vec<&mut Scalar>> {
-        self.read_expressions_mut()
-            .map(|read_expressions|
-                read_expressions
-                    .iter_mut()
-                    .flat_map(|expression| expression.scalars_mut())
-                    .collect::<Vec<&mut Scalar>>())
+        self.read_expressions_mut().map(|read_expressions| {
+            read_expressions
+                .iter_mut()
+                .flat_map(|expression| expression.scalars_mut())
+                .collect::<Vec<&mut Scalar>>()
+        })
     }
 
     /// Get the bytes which make up this instruction.
@@ -145,10 +144,10 @@ impl Intrinsic {
     }
 }
 
-
 impl fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let bytes = self.bytes()
+        let bytes = self
+            .bytes()
             .into_iter()
             .map(|byte| format!("{:02x}", byte))
             .collect::<Vec<String>>()

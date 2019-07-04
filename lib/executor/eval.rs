@@ -1,15 +1,13 @@
 use error::*;
 use il;
 
-
 /// Evaluate an `il::Expression` where all terminals are `il::Constant`, and
 /// return the resulting `il::Constant`.
 pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
-
     Ok(match *expr {
         il::Expression::Scalar(ref scalar) => {
             return Err(ErrorKind::ExecutorScalar(scalar.name().to_string()).into());
-        },
+        }
         il::Expression::Constant(ref constant) => constant.clone(),
         il::Expression::Add(ref lhs, ref rhs) => eval(lhs)?.add(&eval(rhs)?)?,
         il::Expression::Sub(ref lhs, ref rhs) => eval(lhs)?.sub(&eval(rhs)?)?,
@@ -30,11 +28,15 @@ pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
         il::Expression::Zext(bits, ref rhs) => eval(rhs)?.zext(bits)?,
         il::Expression::Trun(bits, ref rhs) => eval(rhs)?.trun(bits)?,
         il::Expression::Sext(bits, ref rhs) => eval(rhs)?.sext(bits)?,
-        il::Expression::Ite(ref cond, ref then, ref else_) =>
-            if eval(cond)?.is_one() { eval(then)? } else { eval(else_)? }
+        il::Expression::Ite(ref cond, ref then, ref else_) => {
+            if eval(cond)?.is_one() {
+                eval(then)?
+            } else {
+                eval(else_)?
+            }
+        }
     })
 }
-
 
 #[test]
 fn add() {

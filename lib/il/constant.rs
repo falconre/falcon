@@ -18,17 +18,15 @@ use std::ops::*;
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Constant {
     value: BigUint,
-    bits: usize
+    bits: usize,
 }
-
 
 impl Constant {
     /// Create a new `Constant` with the given value and bitness.
     pub fn new(value: u64, bits: usize) -> Constant {
         Constant {
-            value: Constant::trim_value(BigUint::from_u64(value).unwrap(),
-                                        bits),
-            bits: bits
+            value: Constant::trim_value(BigUint::from_u64(value).unwrap(), bits),
+            bits: bits,
         }
     }
 
@@ -36,7 +34,7 @@ impl Constant {
     pub fn new_big(value: BigUint, bits: usize) -> Constant {
         Constant {
             value: Constant::trim_value(value, bits),
-            bits: bits
+            bits: bits,
         }
     }
 
@@ -45,11 +43,9 @@ impl Constant {
         let constant = Constant::new_big(s.parse()?, bits);
         Ok(if constant.bits() < bits {
             constant.zext(bits)?
-        }
-        else if constant.bits() > bits {
+        } else if constant.bits() > bits {
             constant.trun(bits)?
-        }
-        else {
+        } else {
             constant
         })
     }
@@ -58,7 +54,7 @@ impl Constant {
     pub fn new_zero(bits: usize) -> Constant {
         Constant {
             value: BigUint::from_u64(0).unwrap(),
-            bits: bits
+            bits: bits,
         }
     }
 
@@ -78,8 +74,7 @@ impl Constant {
             let v = v + BigUint::from_u64(1).unwrap();
             let v = BigInt::from_i64(-1).unwrap() * v.to_bigint().unwrap();
             v
-        }
-        else {
+        } else {
             self.value.to_bigint().unwrap()
         }
     }
@@ -93,11 +88,9 @@ impl Constant {
     pub fn value_i64(&self) -> Option<i64> {
         if self.bits() > 64 {
             None
-        }
-        else if self.bits() == 64 {
+        } else if self.bits() == 64 {
             self.value.to_u64().map(|v| v as i64)
-        }
-        else {
+        } else {
             self.sext(64).ok()?.value.to_u64().map(|v| v as i64)
         }
     }
@@ -123,67 +116,82 @@ impl Constant {
     }
 
     pub fn add(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
+        if self.bits != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
             Ok(Constant::new_big(
                 self.value.clone() + rhs.value.clone(),
-                self.bits))
+                self.bits,
+            ))
         }
     }
 
     pub fn sub(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
             if self.value < rhs.value {
                 let lhs = self.value.clone();
                 let lhs = lhs | (BigUint::from_u64(1).unwrap() << self.bits);
                 Ok(Constant::new_big(lhs - rhs.value.clone(), self.bits))
-            }
-            else {
+            } else {
                 Ok(Constant::new_big(
                     self.value.clone().sub(rhs.value.clone()),
-                    self.bits))
+                    self.bits,
+                ))
             }
         }
     }
 
     pub fn mul(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
-            Ok(Constant::new_big(self.value.clone() * rhs.value.clone(),
-                self.bits))
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
+            Ok(Constant::new_big(
+                self.value.clone() * rhs.value.clone(),
+                self.bits,
+            ))
         }
     }
 
     pub fn divu(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else if rhs.is_zero() { Err(ErrorKind::DivideByZero.into()) }
-        else {
-            Ok(Constant::new_big(self.value.clone() / rhs.value.clone(),
-                self.bits))
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else if rhs.is_zero() {
+            Err(ErrorKind::DivideByZero.into())
+        } else {
+            Ok(Constant::new_big(
+                self.value.clone() / rhs.value.clone(),
+                self.bits,
+            ))
         }
     }
 
     pub fn modu(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else if rhs.is_zero() { Err(ErrorKind::DivideByZero.into()) }
-        else {
-            Ok(Constant::new_big(self.value.clone() % rhs.value.clone(),
-                self.bits))
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else if rhs.is_zero() {
+            Err(ErrorKind::DivideByZero.into())
+        } else {
+            Ok(Constant::new_big(
+                self.value.clone() % rhs.value.clone(),
+                self.bits,
+            ))
         }
     }
 
     pub fn divs(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else if rhs.is_zero() { Err(ErrorKind::DivideByZero.into()) }
-        else {
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else if rhs.is_zero() {
+            Err(ErrorKind::DivideByZero.into())
+        } else {
             let lhs = self.to_bigint();
             let rhs = rhs.to_bigint();
             let r = lhs / rhs;
             if r >= BigInt::from_i64(0).unwrap() {
                 Ok(Constant::new_big(r.to_biguint().unwrap(), self.bits))
-            }
-            else {
+            } else {
                 let mask = BigInt::from_i64(1).unwrap() << self.bits;
                 let mask = mask - BigInt::from_i64(1).unwrap();
                 let r = (r - BigInt::from_u64(1).unwrap()) ^ mask;
@@ -194,16 +202,17 @@ impl Constant {
     }
 
     pub fn mods(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else if rhs.is_zero() { Err(ErrorKind::DivideByZero.into()) }
-        else {
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else if rhs.is_zero() {
+            Err(ErrorKind::DivideByZero.into())
+        } else {
             let lhs = self.to_bigint();
             let rhs = rhs.to_bigint();
             let r = lhs % rhs;
             if r >= BigInt::from_i64(0).unwrap() {
                 Ok(Constant::new_big(r.to_biguint().unwrap(), self.bits))
-            }
-            else {
+            } else {
                 let mask = BigInt::from_i64(1).unwrap() << self.bits;
                 let mask = mask - BigInt::from_i64(1).unwrap();
                 let r = (r - BigInt::from_u64(1).unwrap()) ^ mask;
@@ -214,114 +223,134 @@ impl Constant {
     }
 
     pub fn and(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
-            Ok(Constant::new_big(self.value.clone() & rhs.value.clone(),
-                self.bits))
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
+            Ok(Constant::new_big(
+                self.value.clone() & rhs.value.clone(),
+                self.bits,
+            ))
         }
     }
 
     pub fn or(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
-            Ok(Constant::new_big(self.value.clone() | rhs.value.clone(), self.bits))
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
+            Ok(Constant::new_big(
+                self.value.clone() | rhs.value.clone(),
+                self.bits,
+            ))
         }
     }
 
     pub fn xor(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
-            Ok(Constant::new_big(self.value.clone() ^ rhs.value.clone(), self.bits))
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
+            Ok(Constant::new_big(
+                self.value.clone() ^ rhs.value.clone(),
+                self.bits,
+            ))
         }
     }
 
     pub fn shl(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
-            let r = rhs.value
-                       .to_usize().map(|bits| self.value.clone() << bits)
-                       .unwrap_or(BigUint::from_u64(0).unwrap());
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
+            let r = rhs
+                .value
+                .to_usize()
+                .map(|bits| self.value.clone() << bits)
+                .unwrap_or(BigUint::from_u64(0).unwrap());
             Ok(Constant::new_big(r, self.bits))
         }
     }
 
     pub fn shr(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else {
-            let r = rhs.value
-                       .to_usize().map(|bits| self.value.clone() >> bits)
-                       .unwrap_or(BigUint::from_u64(0).unwrap());
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
+            let r = rhs
+                .value
+                .to_usize()
+                .map(|bits| self.value.clone() >> bits)
+                .unwrap_or(BigUint::from_u64(0).unwrap());
             Ok(Constant::new_big(r, self.bits))
         }
     }
 
     pub fn cmpeq(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else if self.value == rhs.value {
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else if self.value == rhs.value {
             Ok(Constant::new(1, 1))
-        }
-        else {
+        } else {
             Ok(Constant::new(0, 1))
         }
     }
 
     pub fn cmpneq(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else if self.value == rhs.value {
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else if self.value == rhs.value {
             Ok(Constant::new(0, 1))
-        }
-        else {
+        } else {
             Ok(Constant::new(1, 1))
         }
     }
 
     pub fn cmpltu(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { Err(ErrorKind::Sort.into()) }
-        else if self.value < rhs.value {
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else if self.value < rhs.value {
             Ok(Constant::new(1, 1))
-        }
-        else {
+        } else {
             Ok(Constant::new(0, 1))
         }
     }
 
     pub fn cmplts(&self, rhs: &Constant) -> Result<Constant> {
-        if self.bits() != rhs.bits() { return Err(ErrorKind::Sort.into()); }
+        if self.bits() != rhs.bits() {
+            return Err(ErrorKind::Sort.into());
+        }
         let lhs = self.to_bigint();
         let rhs = rhs.to_bigint();
         if lhs < rhs {
             Ok(Constant::new(1, 1))
-        }
-        else {
+        } else {
             Ok(Constant::new(0, 1))
         }
     }
 
     pub fn trun(&self, bits: usize) -> Result<Constant> {
-        if bits >= self.bits() { Err(ErrorKind::Sort.into()) }
-        else {
+        if bits >= self.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
             Ok(Constant::new_big(self.value.clone(), bits))
         }
     }
 
     pub fn zext(&self, bits: usize) -> Result<Constant> {
-        if bits <= self.bits() { Err(ErrorKind::Sort.into()) }
-        else {
+        if bits <= self.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
             Ok(Constant::new_big(self.value.clone(), bits))
         }
     }
 
     pub fn sext(&self, bits: usize) -> Result<Constant> {
-        if bits <= self.bits() || bits % 8 > 0 { Err(ErrorKind::Sort.into()) }
-        else {
+        if bits <= self.bits() || bits % 8 > 0 {
+            Err(ErrorKind::Sort.into())
+        } else {
             let sign_bit = self.value.clone() >> (self.bits - 1);
             let value = if sign_bit == BigUint::from_u64(1).unwrap() {
                 let mask = BigUint::from_u64(1).unwrap() << bits;
                 let mask = mask - BigUint::from_u64(1).unwrap();
                 let mask = mask << self.bits;
                 self.value.clone() | mask
-            }
-            else {
+            } else {
                 self.value.clone()
             };
             Ok(Constant::new_big(value, bits))
@@ -329,13 +358,11 @@ impl Constant {
     }
 }
 
-
 impl fmt::Display for Constant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "0x{:X}:{}", self.value, self.bits)
     }
 }
-
 
 impl Into<Expression> for Constant {
     fn into(self) -> Expression {
@@ -343,113 +370,166 @@ impl Into<Expression> for Constant {
     }
 }
 
-
 #[test]
 fn constant_add() {
-    assert_eq!(Constant::new(1, 64).add(&Constant::new(1, 64)).unwrap(),
-               Constant::new(2, 64));
-    assert_eq!(Constant::new(0xff, 8).add(&Constant::new(1, 8)).unwrap(),
-               Constant::new(0, 8));
+    assert_eq!(
+        Constant::new(1, 64).add(&Constant::new(1, 64)).unwrap(),
+        Constant::new(2, 64)
+    );
+    assert_eq!(
+        Constant::new(0xff, 8).add(&Constant::new(1, 8)).unwrap(),
+        Constant::new(0, 8)
+    );
 }
 
 #[test]
 fn constant_sub() {
-    assert_eq!(Constant::new(1, 64).sub(&Constant::new(1, 64)).unwrap(),
-               Constant::new(0, 64));
-    assert_eq!(Constant::new(0, 64).sub(&Constant::new(1, 64)).unwrap(),
-               Constant::new(0xffffffffffffffff, 64));
+    assert_eq!(
+        Constant::new(1, 64).sub(&Constant::new(1, 64)).unwrap(),
+        Constant::new(0, 64)
+    );
+    assert_eq!(
+        Constant::new(0, 64).sub(&Constant::new(1, 64)).unwrap(),
+        Constant::new(0xffffffffffffffff, 64)
+    );
 }
 
 #[test]
 fn constant_mul() {
-    assert_eq!(Constant::new(6, 64).mul(&Constant::new(4, 64)).unwrap(),
-               Constant::new(24, 64));
+    assert_eq!(
+        Constant::new(6, 64).mul(&Constant::new(4, 64)).unwrap(),
+        Constant::new(24, 64)
+    );
 }
 
 #[test]
 fn constant_divu() {
-    assert_eq!(Constant::new(6, 64).divu(&Constant::new(4, 64)).unwrap(),
-               Constant::new(1, 64));
+    assert_eq!(
+        Constant::new(6, 64).divu(&Constant::new(4, 64)).unwrap(),
+        Constant::new(1, 64)
+    );
 }
 
 #[test]
 fn constant_modu() {
-    assert_eq!(Constant::new(6, 64).modu(&Constant::new(4, 64)).unwrap(),
-               Constant::new(2, 64));
+    assert_eq!(
+        Constant::new(6, 64).modu(&Constant::new(4, 64)).unwrap(),
+        Constant::new(2, 64)
+    );
 }
 
 #[test]
 fn constant_divs() {
-    assert_eq!(Constant::new(6, 64).divs(&Constant::new(4, 64)).unwrap(),
-               Constant::new(1, 64));
+    assert_eq!(
+        Constant::new(6, 64).divs(&Constant::new(4, 64)).unwrap(),
+        Constant::new(1, 64)
+    );
 }
 
 #[test]
 fn constant_mods() {
-    assert_eq!(Constant::new(6, 64).mods(&Constant::new(4, 64)).unwrap(),
-               Constant::new(2, 64));
+    assert_eq!(
+        Constant::new(6, 64).mods(&Constant::new(4, 64)).unwrap(),
+        Constant::new(2, 64)
+    );
 }
 
 #[test]
 fn constant_and() {
-    assert_eq!(Constant::new(0xff00ff, 64).and(&Constant::new(0xf0f0f0, 64)).unwrap(),
-               Constant::new(0xf000f0, 64));
+    assert_eq!(
+        Constant::new(0xff00ff, 64)
+            .and(&Constant::new(0xf0f0f0, 64))
+            .unwrap(),
+        Constant::new(0xf000f0, 64)
+    );
 }
 
 #[test]
 fn constant_or() {
-    assert_eq!(Constant::new(0xff00ff, 64).or(&Constant::new(0xf0f0f0, 64)).unwrap(),
-               Constant::new(0xfff0ff, 64));
+    assert_eq!(
+        Constant::new(0xff00ff, 64)
+            .or(&Constant::new(0xf0f0f0, 64))
+            .unwrap(),
+        Constant::new(0xfff0ff, 64)
+    );
 }
 
 #[test]
 fn constant_xor() {
-    assert_eq!(Constant::new(0xff00ff, 64).xor(&Constant::new(0xf0f0f0, 64)).unwrap(),
-               Constant::new(0x0ff00f, 64));
+    assert_eq!(
+        Constant::new(0xff00ff, 64)
+            .xor(&Constant::new(0xf0f0f0, 64))
+            .unwrap(),
+        Constant::new(0x0ff00f, 64)
+    );
 }
 
 #[test]
 fn constant_shl() {
-    assert_eq!(Constant::new(1, 64).shl(&Constant::new(8, 64)).unwrap(),
-               Constant::new(0x100, 64));
+    assert_eq!(
+        Constant::new(1, 64).shl(&Constant::new(8, 64)).unwrap(),
+        Constant::new(0x100, 64)
+    );
 }
 
 #[test]
 fn constant_shr() {
-    assert_eq!(Constant::new(0x100, 64).shr(&Constant::new(8, 64)).unwrap(),
-               Constant::new(1, 64));
+    assert_eq!(
+        Constant::new(0x100, 64).shr(&Constant::new(8, 64)).unwrap(),
+        Constant::new(1, 64)
+    );
 }
 
 #[test]
 fn constant_cmpeq() {
-    assert_eq!(Constant::new(1, 64).cmpeq(&Constant::new(1, 64)).unwrap(),
-               Constant::new(1, 1));
-    assert_eq!(Constant::new(1, 64).cmpeq(&Constant::new(2, 64)).unwrap(),
-               Constant::new(0, 1));
+    assert_eq!(
+        Constant::new(1, 64).cmpeq(&Constant::new(1, 64)).unwrap(),
+        Constant::new(1, 1)
+    );
+    assert_eq!(
+        Constant::new(1, 64).cmpeq(&Constant::new(2, 64)).unwrap(),
+        Constant::new(0, 1)
+    );
 }
 
 #[test]
 fn constant_cmpneq() {
-    assert_eq!(Constant::new(1, 64).cmpneq(&Constant::new(1, 64)).unwrap(),
-               Constant::new(0, 1));
-    assert_eq!(Constant::new(1, 64).cmpneq(&Constant::new(2, 64)).unwrap(),
-               Constant::new(1, 1));
+    assert_eq!(
+        Constant::new(1, 64).cmpneq(&Constant::new(1, 64)).unwrap(),
+        Constant::new(0, 1)
+    );
+    assert_eq!(
+        Constant::new(1, 64).cmpneq(&Constant::new(2, 64)).unwrap(),
+        Constant::new(1, 1)
+    );
 }
 
 #[test]
 fn constant_cmpltu() {
-    assert_eq!(Constant::new(1, 64).cmpltu(&Constant::new(1, 64)).unwrap(),
-               Constant::new(0, 1));
-    assert_eq!(Constant::new(1, 64).cmpltu(&Constant::new(2, 64)).unwrap(),
-               Constant::new(1, 1));
+    assert_eq!(
+        Constant::new(1, 64).cmpltu(&Constant::new(1, 64)).unwrap(),
+        Constant::new(0, 1)
+    );
+    assert_eq!(
+        Constant::new(1, 64).cmpltu(&Constant::new(2, 64)).unwrap(),
+        Constant::new(1, 1)
+    );
 }
 
 #[test]
 fn constant_cmplts() {
-    assert_eq!(Constant::new(1, 64).cmplts(&Constant::new(1, 64)).unwrap(),
-               Constant::new(0, 1));
-    assert_eq!(Constant::new(1, 64).cmplts(&Constant::new(2, 64)).unwrap(),
-               Constant::new(1, 1));
-    assert_eq!(Constant::new(0xffffffffffffffff, 64).cmplts(&Constant::new(1, 64)).unwrap(),
-               Constant::new(1, 1));
+    assert_eq!(
+        Constant::new(1, 64).cmplts(&Constant::new(1, 64)).unwrap(),
+        Constant::new(0, 1)
+    );
+    assert_eq!(
+        Constant::new(1, 64).cmplts(&Constant::new(2, 64)).unwrap(),
+        Constant::new(1, 1)
+    );
+    assert_eq!(
+        Constant::new(0xffffffffffffffff, 64)
+            .cmplts(&Constant::new(1, 64))
+            .unwrap(),
+        Constant::new(1, 1)
+    );
 }
