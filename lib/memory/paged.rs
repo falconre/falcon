@@ -15,6 +15,7 @@ use memory::MemoryPermissions;
 
 /// The size of the copy-on-write pages.
 pub const PAGE_SIZE: usize = 1024;
+pub const PAGE_MASK: u64 = !(PAGE_SIZE as u64 - 1);
 
 /// A memory cell.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -42,6 +43,7 @@ where
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Page<V: Value> {
     pub(crate) cells: Vec<Option<MemoryCell<V>>>,
+    permissions: Option<MemoryPermissions>,
 }
 
 impl<V> Page<V>
@@ -54,7 +56,10 @@ where
             v.push(None);
         }
 
-        Page { cells: v }
+        Page {
+            cells: v,
+            permissions: None,
+        }
     }
 
     fn store(&mut self, offset: usize, cell: MemoryCell<V>) {
@@ -63,6 +68,13 @@ where
 
     fn load(&self, offset: usize) -> Option<&MemoryCell<V>> {
         self.cells[offset].as_ref().clone()
+    }
+
+    pub fn permissions(&self) -> Option<&MemoryPermissions> {
+        self.permissions.as_ref()
+    }
+    pub fn set_permissions(&mut self, permissions: Option<MemoryPermissions>) {
+        self.permissions = permissions;
     }
 
     pub fn cells(&self) -> &[Option<MemoryCell<V>>] {
@@ -132,8 +144,29 @@ where
 
     /// Get the permissions for the given address.
     pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
-        self.backing()
-            .and_then(|backing| backing.permissions(address))
+        let page_address = address & PAGE_MASK;
+        self.pages
+            .get(&page_address)
+            .map(|page| page.permissions().cloned())
+            .unwrap_or_else(|| {
+                self.backing()
+                    .and_then(|backing| backing.permissions(address))
+            })
+    }
+
+    /// Set memory permissions for the page at the given address
+    pub fn set_permissions(&mut self, address: u64, len: u64, permissions: MemoryPermissions) {
+        let mut page_address = address & PAGE_MASK;
+        let total_length = len as u64 + (address - page_address);
+        while page_address < total_length {
+            RC::make_mut(
+                self.pages
+                    .entry(page_address)
+                    .or_insert(RC::new(Page::new(PAGE_SIZE))),
+            )
+            .set_permissions(Some(permissions.clone()));
+            page_address += PAGE_SIZE as u64;
+        }
     }
 
     /// Get a reference to the memory backing, if there is one
@@ -589,6 +622,34 @@ mod memory_tests {
         assert_eq!(
             memory.load(0x106, 32).unwrap().unwrap(),
             il::const_(0x66AABBCC, 32)
+        );
+    }
+
+    #[test]
+    fn set_permissions() {
+        let mut backing = memory::backing::Memory::new(Endian::Big);
+
+        backing.set_memory(
+            0x100,
+            [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77].to_vec(),
+            MemoryPermissions::READ,
+        );
+
+        let mut memory: Memory<il::Constant> =
+            Memory::new_with_backing(Endian::Big, RC::new(backing));
+
+        assert_eq!(MemoryPermissions::READ, memory.permissions(0x100).unwrap());
+
+        memory.set_permissions(0, 1024, MemoryPermissions::READ | MemoryPermissions::WRITE);
+
+        assert_eq!(
+            MemoryPermissions::READ | MemoryPermissions::WRITE,
+            memory.permissions(0).unwrap()
+        );
+
+        assert_eq!(
+            MemoryPermissions::READ | MemoryPermissions::WRITE,
+            memory.permissions(0x100).unwrap()
         );
     }
 }
