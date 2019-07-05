@@ -204,7 +204,6 @@ impl Loader for Elf {
         let elf = self.elf();
         let mut memory = Memory::new(self.architecture().endian());
 
-        println!("BEGIN CALL TO MEMORY");
         for ph in elf.program_headers {
             if ph.p_type == goblin::elf::program_header::PT_LOAD {
                 let file_range = (ph.p_offset as usize)..((ph.p_offset + ph.p_filesz) as usize);
