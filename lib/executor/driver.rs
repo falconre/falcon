@@ -13,7 +13,7 @@ pub struct Driver {
     program: RC<il::Program>,
     location: il::ProgramLocation,
     state: State,
-    architecture: RC<Architecture>,
+    architecture: RC<dyn Architecture>,
 }
 
 impl Driver {
@@ -22,7 +22,7 @@ impl Driver {
         program: RC<il::Program>,
         location: il::ProgramLocation,
         state: State,
-        architecture: RC<Architecture>,
+        architecture: RC<dyn Architecture>,
     ) -> Driver {
         Driver {
             program: program,

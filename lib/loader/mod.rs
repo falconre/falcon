@@ -87,7 +87,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     fn program_entry(&self) -> u64;
 
     /// Get the architecture of the binary
-    fn architecture(&self) -> &Architecture;
+    fn architecture(&self) -> &dyn Architecture;
 
     /// Lift just one function from the executable
     fn function(&self, address: u64) -> Result<il::Function> {
@@ -97,7 +97,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     }
 
     /// Cast loader to `Any`
-    fn as_any(&self) -> &Any;
+    fn as_any(&self) -> &dyn Any;
 
     /// Get the symbols for this loader
     fn symbols(&self) -> Vec<Symbol>;

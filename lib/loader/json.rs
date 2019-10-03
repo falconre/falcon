@@ -18,7 +18,7 @@ use std::path::Path;
 pub struct Json {
     function_entries: Vec<FunctionEntry>,
     memory: Memory,
-    architecture: Box<Architecture>,
+    architecture: Box<dyn Architecture>,
     entry: u64,
 }
 
@@ -113,11 +113,11 @@ impl Loader for Json {
         self.entry
     }
 
-    fn architecture(&self) -> &Architecture {
+    fn architecture(&self) -> &dyn Architecture {
         self.architecture.as_ref()
     }
 
-    fn as_any(&self) -> &Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 

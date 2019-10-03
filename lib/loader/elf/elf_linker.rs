@@ -494,7 +494,7 @@ impl Loader for ElfLinker {
         self.loaded[filename].program_entry()
     }
 
-    fn architecture(&self) -> &Architecture {
+    fn architecture(&self) -> &dyn Architecture {
         let filename = self
             .filename
             .as_path()
@@ -505,7 +505,7 @@ impl Loader for ElfLinker {
         self.loaded[filename].architecture()
     }
 
-    fn as_any(&self) -> &Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 

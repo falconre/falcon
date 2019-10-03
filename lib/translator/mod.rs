@@ -152,7 +152,7 @@ pub trait Translator {
     /// Translates a function
     fn translate_function(
         &self,
-        memory: &TranslationMemory,
+        memory: &dyn TranslationMemory,
         function_address: u64,
     ) -> Result<Function> {
         self.translate_function_extended(memory, function_address, vec![])
@@ -163,7 +163,7 @@ pub trait Translator {
     /// Provides additional options over translate_function
     fn translate_function_extended(
         &self,
-        memory: &TranslationMemory,
+        memory: &dyn TranslationMemory,
         function_address: u64,
         manual_edges: Vec<(u64, u64, Option<Expression>)>,
     ) -> Result<Function> {

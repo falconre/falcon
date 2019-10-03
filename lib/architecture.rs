@@ -19,7 +19,7 @@ pub trait Architecture: Debug + Send + Sync {
     /// Get the endianness of this architecture.
     fn endian(&self) -> Endian;
     /// Get this architecture's translator.
-    fn translator(&self) -> Box<translator::Translator>;
+    fn translator(&self) -> Box<dyn translator::Translator>;
     /// Get the _default_ calling convention for this architecture.
     fn calling_convention(&self) -> CallingConvention;
     /// Get the scalar used to represent the stack pointer by this
@@ -28,7 +28,7 @@ pub trait Architecture: Debug + Send + Sync {
     /// Get the size of a natural word for this architecture in bits.
     fn word_size(&self) -> usize;
     /// Clone into a boxed `Architecture`
-    fn box_clone(&self) -> Box<Architecture>;
+    fn box_clone(&self) -> Box<dyn Architecture>;
 }
 
 /// The 64-bit X86 Architecture.
@@ -48,7 +48,7 @@ impl Architecture for Amd64 {
     fn endian(&self) -> Endian {
         Endian::Little
     }
-    fn translator(&self) -> Box<translator::Translator> {
+    fn translator(&self) -> Box<dyn translator::Translator> {
         Box::new(translator::x86::Amd64::new())
     }
     fn calling_convention(&self) -> CallingConvention {
@@ -60,7 +60,7 @@ impl Architecture for Amd64 {
     fn word_size(&self) -> usize {
         64
     }
-    fn box_clone(&self) -> Box<Architecture> {
+    fn box_clone(&self) -> Box<dyn Architecture> {
         Box::new(self.clone())
     }
 }
@@ -82,7 +82,7 @@ impl Architecture for Mips {
     fn endian(&self) -> Endian {
         Endian::Big
     }
-    fn translator(&self) -> Box<translator::Translator> {
+    fn translator(&self) -> Box<dyn translator::Translator> {
         Box::new(translator::mips::Mips::new())
     }
     fn calling_convention(&self) -> CallingConvention {
@@ -94,7 +94,7 @@ impl Architecture for Mips {
     fn word_size(&self) -> usize {
         32
     }
-    fn box_clone(&self) -> Box<Architecture> {
+    fn box_clone(&self) -> Box<dyn Architecture> {
         Box::new(self.clone())
     }
 }
@@ -116,7 +116,7 @@ impl Architecture for Mipsel {
     fn endian(&self) -> Endian {
         Endian::Big
     }
-    fn translator(&self) -> Box<translator::Translator> {
+    fn translator(&self) -> Box<dyn translator::Translator> {
         Box::new(translator::mips::Mipsel::new())
     }
     fn calling_convention(&self) -> CallingConvention {
@@ -128,7 +128,7 @@ impl Architecture for Mipsel {
     fn word_size(&self) -> usize {
         32
     }
-    fn box_clone(&self) -> Box<Architecture> {
+    fn box_clone(&self) -> Box<dyn Architecture> {
         Box::new(self.clone())
     }
 }
@@ -150,7 +150,7 @@ impl Architecture for Ppc {
     fn endian(&self) -> Endian {
         Endian::Big
     }
-    fn translator(&self) -> Box<translator::Translator> {
+    fn translator(&self) -> Box<dyn translator::Translator> {
         Box::new(translator::ppc::Ppc::new())
     }
     fn calling_convention(&self) -> CallingConvention {
@@ -162,7 +162,7 @@ impl Architecture for Ppc {
     fn word_size(&self) -> usize {
         32
     }
-    fn box_clone(&self) -> Box<Architecture> {
+    fn box_clone(&self) -> Box<dyn Architecture> {
         Box::new(self.clone())
     }
 }
@@ -184,7 +184,7 @@ impl Architecture for X86 {
     fn endian(&self) -> Endian {
         Endian::Little
     }
-    fn translator(&self) -> Box<translator::Translator> {
+    fn translator(&self) -> Box<dyn translator::Translator> {
         Box::new(translator::x86::X86::new())
     }
     fn calling_convention(&self) -> CallingConvention {
@@ -196,7 +196,7 @@ impl Architecture for X86 {
     fn word_size(&self) -> usize {
         32
     }
-    fn box_clone(&self) -> Box<Architecture> {
+    fn box_clone(&self) -> Box<dyn Architecture> {
         Box::new(self.clone())
     }
 }

@@ -14,7 +14,7 @@ pub struct Elf {
     base_address: u64,
     bytes: Vec<u8>,
     user_function_entries: Vec<u64>,
-    architecture: Box<Architecture>,
+    architecture: Box<dyn Architecture>,
 }
 
 impl Elf {
@@ -28,14 +28,14 @@ impl Elf {
                 Box::new(X86::new())
             } else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
                 match elf.header.endianness()? {
-                    goblin::container::Endian::Big => Box::new(Mips::new()) as Box<Architecture>,
+                    goblin::container::Endian::Big => Box::new(Mips::new()) as Box<dyn Architecture>,
                     goblin::container::Endian::Little => {
-                        Box::new(Mipsel::new()) as Box<Architecture>
+                        Box::new(Mipsel::new()) as Box<dyn Architecture>
                     }
                 }
             } else if elf.header.e_machine == goblin::elf::header::EM_PPC {
                 match elf.header.endianness()? {
-                    goblin::container::Endian::Big => Box::new(Ppc::new()) as Box<Architecture>,
+                    goblin::container::Endian::Big => Box::new(Ppc::new()) as Box<dyn Architecture>,
                     goblin::container::Endian::Little => bail!("PPC Little-Endian not supported"),
                 }
             } else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
@@ -290,11 +290,11 @@ impl Loader for Elf {
         self.elf().header.e_entry
     }
 
-    fn architecture(&self) -> &Architecture {
+    fn architecture(&self) -> &dyn Architecture {
         self.architecture.as_ref()
     }
 
-    fn as_any(&self) -> &Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 

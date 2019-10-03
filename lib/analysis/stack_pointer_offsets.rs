@@ -18,7 +18,7 @@ use std::collections::HashMap;
 /// program.
 pub fn stack_pointer_offsets<'f>(
     function: &'f il::Function,
-    architecture: &Architecture,
+    architecture: &dyn Architecture,
 ) -> Result<HashMap<il::ProgramLocation, StackPointerOffset>> {
     let spoa = StackPointerOffsetAnalysis {
         stack_pointer: architecture.stack_pointer(),

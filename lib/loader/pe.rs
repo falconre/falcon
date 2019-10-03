@@ -13,7 +13,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub struct Pe {
     bytes: Vec<u8>,
-    architecture: Box<Architecture>,
+    architecture: Box<dyn Architecture>,
 }
 
 impl Pe {
@@ -117,11 +117,11 @@ impl Loader for Pe {
         (self.pe().entry + self.pe().image_base) as u64
     }
 
-    fn architecture(&self) -> &Architecture {
+    fn architecture(&self) -> &dyn Architecture {
         self.architecture.as_ref()
     }
 
-    fn as_any(&self) -> &Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 
