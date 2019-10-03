@@ -10,7 +10,7 @@ readme = "README.md"
 [dependencies]
 base64 = "0.9"
 bitflags = "1.0"
-falcon_capstone = "0.2.1"
+falcon_capstone = "0.3.0"
 error-chain = "0.12"
 goblin = "0.0.23"
 log = "0.4"
