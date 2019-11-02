@@ -86,7 +86,20 @@ pub(crate) fn translate_block(
         let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
             Ok(instructions) => instructions,
             Err(e) => match e.code() {
+                // We can reach this in a couple of circumstances.
+                // One circumstance is there isn't enough data in disassembly_bytes
+                // to disassemble the next instruction, in which case we need to return
+                // and let the translator give us more bytes.
+                //
+                // Another case is just capstone has gone bonkers. In this case, return
+                // a DisassemblyFailure error.
+                //
+                // We can tell the difference based on offset. If it's non-zero, first
+                // case. If zero, second case.
                 capstone_sys::cs_err::CS_ERR_OK => {
+                    if offset == 0 {
+                        return Err(ErrorKind::DisassemblyFailure.into());
+                    }
                     successors.push((address + offset as u64, None));
                     break;
                 }

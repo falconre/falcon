@@ -28,7 +28,9 @@ impl Elf {
                 Box::new(X86::new())
             } else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
                 match elf.header.endianness()? {
-                    goblin::container::Endian::Big => Box::new(Mips::new()) as Box<dyn Architecture>,
+                    goblin::container::Endian::Big => {
+                        Box::new(Mips::new()) as Box<dyn Architecture>
+                    }
                     goblin::container::Endian::Little => {
                         Box::new(Mipsel::new()) as Box<dyn Architecture>
                     }
