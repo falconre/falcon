@@ -33,6 +33,7 @@ fn unhandled_intrinsic(
     Ok(())
 }
 
+// Ensure there is an instruction in the first block of the graph
 fn ensure_block_instruction(control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
     let head_block_num_instructions = control_flow_graph
         .block(control_flow_graph.entry().unwrap())?

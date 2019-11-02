@@ -28,7 +28,9 @@ impl Elf {
                 Box::new(X86::new())
             } else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
                 match elf.header.endianness()? {
-                    goblin::container::Endian::Big => Box::new(Mips::new()) as Box<dyn Architecture>,
+                    goblin::container::Endian::Big => {
+                        Box::new(Mips::new()) as Box<dyn Architecture>
+                    }
                     goblin::container::Endian::Little => {
                         Box::new(Mipsel::new()) as Box<dyn Architecture>
                     }
@@ -39,7 +41,12 @@ impl Elf {
                     goblin::container::Endian::Little => bail!("PPC Little-Endian not supported"),
                 }
             } else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
-                Box::new(Amd64::new())
+                Box::new(Amd64::new()) as Box<dyn Architecture>
+            } else if elf.header.e_machine == goblin::elf::header::EM_ARM {
+                match elf.header.endianness()? {
+                    goblin::container::Endian::Big => Box::new(Arm::new()) as Box<dyn Architecture>,
+                    goblin::container::Endian::Little => bail!("Unsupported Architecture"),
+                }
             } else {
                 bail!("Unsupported Architecture");
             };

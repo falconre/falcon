@@ -65,6 +65,40 @@ impl Architecture for Amd64 {
     }
 }
 
+/// The 32-bit, Big-Endian ARM Architecture.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Arm {}
+
+impl Arm {
+    pub fn new() -> Arm {
+        Arm {}
+    }
+}
+
+impl Architecture for Arm {
+    fn name(&self) -> &str {
+        &"arm"
+    }
+    fn endian(&self) -> Endian {
+        Endian::Big
+    }
+    fn translator(&self) -> Box<dyn translator::Translator> {
+        Box::new(translator::arm::Arm::new())
+    }
+    fn calling_convention(&self) -> CallingConvention {
+        CallingConvention::new(CallingConventionType::Arm)
+    }
+    fn stack_pointer(&self) -> il::Scalar {
+        il::scalar("sp", 64)
+    }
+    fn word_size(&self) -> usize {
+        32
+    }
+    fn box_clone(&self) -> Box<dyn Architecture> {
+        Box::new(self.clone())
+    }
+}
+
 /// The 32-bit Mips Architecture.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Mips {}
