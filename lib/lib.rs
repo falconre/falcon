@@ -107,6 +107,10 @@ pub mod error {
                 description("Capstone failed")
                 display("Capstone failed")
             }
+            DisassemblyFailure {
+                description("Unrecoverable error during disassembly")
+                display("Disassembly Failure")
+            }
             DivideByZero {
                 description("Division by zero")
                 display("Division by zero")

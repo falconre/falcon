@@ -110,8 +110,20 @@ pub trait Loader: fmt::Debug + Send + Sync {
             .collect()
     }
 
-    /// Lift executable into an il::Program
+    /// Lift executable into an il::Program.
+    /// 
+    /// Individual functions which fail to lift are omitted and ignored.
     fn program(&self) -> Result<il::Program> {
+        let (program, _) = self.program_verbose()?;
+        Ok(program)
+    }
+
+    /// Lift executable into an `il::Program`.
+    /// 
+    /// Errors encountered while lifting specific functions are collected, and
+    /// returned with the `FunctionEntry` identifying the function. Only
+    /// catastrophic errors should cause this function call to fail.
+    fn program_verbose(&self) -> std::result::Result<(il::Program, Vec<(FunctionEntry, Error)>), Error> {
         // Get out architecture-specific translator
         let translator = self.architecture().translator();
 
@@ -120,6 +132,8 @@ pub trait Loader: fmt::Debug + Send + Sync {
 
         let mut program = il::Program::new();
 
+        let mut translation_errors: Vec<(FunctionEntry, Error)> = Vec::new();
+
         for function_entry in self.function_entries()? {
             let address = function_entry.address();
             // Ensure this memory is marked executable
@@ -127,22 +141,17 @@ pub trait Loader: fmt::Debug + Send + Sync {
                 .permissions(address)
                 .map_or(false, |p| p.contains(memory::MemoryPermissions::EXECUTE))
             {
-                let mut function = match translator.translate_function(&memory, address) {
-                    Ok(function) => function,
-                    Err(e) => match e {
-                        Error(ErrorKind::CapstoneError, _) => {
-                            eprintln!("Capstone failure, 0x{:x}", address);
-                            continue;
-                        }
-                        _ => return Err(e),
-                    },
+                match translator.translate_function(&memory, address) {
+                    Ok(mut function) => {
+                        function.set_name(function_entry.name().map(|n| n.to_string()));
+                        program.add_function(function);
+                    }
+                    Err(e) => translation_errors.push((function_entry.clone(), e))
                 };
-                function.set_name(function_entry.name().map(|n| n.to_string()));
-                program.add_function(function);
             }
         }
 
-        Ok(program)
+        Ok((program, translation_errors))
     }
 
     /// Lift executable into an `il::Program`, while recursively resolving branch
