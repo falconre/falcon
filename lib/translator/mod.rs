@@ -144,6 +144,14 @@ impl BlockTranslationResult {
     }
 }
 
+fn default_block() -> Result<ControlFlowGraph> {
+    let mut control_flow_graph = ControlFlowGraph::new();
+    let block_index = control_flow_graph.new_block()?.index();
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+    Ok(control_flow_graph)
+}
+
 /// A generic translation trait, implemented by various architectures.
 pub trait Translator {
     /// Translates a basic block
@@ -192,10 +200,7 @@ pub trait Translator {
 
             let block_bytes = memory.get_bytes(block_address, DEFAULT_TRANSLATION_BLOCK_BYTES);
             if block_bytes.len() == 0 {
-                let mut control_flow_graph = ControlFlowGraph::new();
-                let block_index = control_flow_graph.new_block()?.index();
-                control_flow_graph.set_entry(block_index)?;
-                control_flow_graph.set_exit(block_index)?;
+                let control_flow_graph = default_block()?;
                 translation_results.insert(
                     block_address,
                     BlockTranslationResult::new(
@@ -209,7 +214,12 @@ pub trait Translator {
             }
 
             // translate this block
-            let block_translation_result = self.translate_block(&block_bytes, block_address)?;
+            let mut block_translation_result = self.translate_block(&block_bytes, block_address)?;
+            if block_translation_result.instructions.is_empty() {
+                block_translation_result
+                    .instructions
+                    .push((block_address, default_block()?));
+            }
 
             // enqueue all successors
             for successor in block_translation_result.successors().iter() {
