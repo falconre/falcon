@@ -192,6 +192,13 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                 capstone::arm_insn::ARM_INS_AND => {
                     semantics::and(&mut instruction_graph, &instruction)
                 }
+                capstone::arm_insn::ARM_INS_LDR |
+                capstone::arm_insn::ARM_INS_LDRB |
+                capstone::arm_insn::ARM_INS_LDRH |
+                capstone::arm_insn::ARM_INS_LDRSB |
+                capstone::arm_insn::ARM_INS_LDRSH => {
+                    semantics::ldr_multi(&mut instruction_graph, &instruction)
+                }
                 capstone::arm_insn::ARM_INS_ORR => {
                     semantics::orr(&mut instruction_graph, &instruction)
                 }
@@ -211,7 +218,7 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
 
             match instruction_id {
                 capstone::arm_insn::ARM_INS_B => {
-                    ensure_block_instruction(&mut instruction_graph);
+                    ensure_block_instruction(&mut instruction_graph)?;
                     instruction_graph.set_address(Some(instruction.address));
                     block_graphs.push((instruction.address, instruction_graph));
 

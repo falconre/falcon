@@ -248,3 +248,68 @@ pub fn orr(
         Ok(Expression::or(lhs, rhs)?)
     })
 }
+
+pub fn ldr_all(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+    bits: usize,
+    sign_extend: bool,
+) -> Result<()> {
+    let detail = details(instruction)?;
+
+    let register_maker = RegisterMaker::new(instruction);
+
+    // get operands
+    let dst = register_maker.scalar(detail.operands[0].reg())?;
+    let base = register_maker.reg_expression(detail.operands[1].mem().base.into())?;
+    let index = register_maker.reg_expression(detail.operands[2].mem().index.into())?;
+
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        let address = Expression::add(base, index)?;
+        let temp = block.temp(bits);
+        block.load(temp.clone(), address);
+        let src: Expression = if bits == dst.bits() {
+            temp.into()
+        } else {
+            if sign_extend {
+                Expression::sext(dst.bits(), temp.into())?
+            } else {
+                Expression::zext(dst.bits(), temp.into())?
+            }
+        };
+        block.assign(dst, src);
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub fn ldr_multi(
+    mut control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr
+) -> Result <()> {
+    if let capstone::InstrIdArch::ARM(instruction_id) = instruction.id {
+        match instruction_id {
+            capstone::arm_insn::ARM_INS_LDR =>
+                ldr_all(&mut control_flow_graph, instruction, 32, false),
+            capstone::arm_insn::ARM_INS_LDRB =>
+                ldr_all(&mut control_flow_graph, instruction, 8, false),
+            capstone::arm_insn::ARM_INS_LDRH =>
+                ldr_all(&mut control_flow_graph, instruction, 16, false),
+            capstone::arm_insn::ARM_INS_LDRSB =>
+                ldr_all(&mut control_flow_graph, instruction, 8, true),
+            capstone::arm_insn::ARM_INS_LDRSH =>
+                ldr_all(&mut control_flow_graph, instruction, 16, true),
+            _ => unreachable!()
+        }
+    }
+    else {
+        unreachable!()
+    }
+}
