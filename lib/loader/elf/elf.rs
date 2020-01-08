@@ -69,11 +69,14 @@ impl Elf {
     }
 
     /// Load an Elf from a file and use the given base address.
-    pub fn from_file_with_base_address(filename: &Path, base_address: u64) -> Result<Elf> {
-        let mut file = match File::open(filename) {
+    pub fn from_file_with_base_address<P: AsRef<Path>>(
+        filename: P,
+        base_address: u64,
+    ) -> Result<Elf> {
+        let mut file = match File::open(&filename) {
             Ok(file) => file,
             Err(e) => {
-                return Err(format!("Error opening {}: {}", filename.to_str().unwrap(), e).into())
+                return Err(format!("Error opening {}: {}", (filename.as_ref() as &Path).to_str().unwrap(), e).into())
             }
         };
         let mut buf = Vec::new();
@@ -82,7 +85,7 @@ impl Elf {
     }
 
     /// Load an elf from a file and use the base address of 0.
-    pub fn from_file(filename: &Path) -> Result<Elf> {
+    pub fn from_file<P: AsRef<Path>>(filename: P) -> Result<Elf> {
         Elf::from_file_with_base_address(filename, 0)
     }
 
