@@ -3472,7 +3472,7 @@ impl<'s> Semantics<'s> {
         };
 
         let inc_index = {
-            let mut inc_block = control_flow_graph.new_block()?;;
+            let mut inc_block = control_flow_graph.new_block()?;
 
             di.set(
                 &mut inc_block,
@@ -3483,7 +3483,7 @@ impl<'s> Semantics<'s> {
         };
 
         let dec_index = {
-            let mut dec_block = control_flow_graph.new_block()?;;
+            let mut dec_block = control_flow_graph.new_block()?;
 
             di.set(
                 &mut dec_block,
@@ -3612,7 +3612,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr)?;
             block.assign(scalar("CF", 1), expr_const(0, 1));
-            block.assign(scalar("OF", 1), expr_const(0, 1));;
+            block.assign(scalar("OF", 1), expr_const(0, 1));
 
             block.index()
         };
@@ -3733,7 +3733,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(&mut block, result.clone().into())?;
             self.set_sf(&mut block, result.clone().into())?;
             block.assign(scalar("CF", 1), expr_const(0, 1));
-            block.assign(scalar("OF", 1), expr_const(0, 1));;
+            block.assign(scalar("OF", 1), expr_const(0, 1));
 
             // store result
             self.operand_store(&mut block, &detail.operands[0], result.into())?;

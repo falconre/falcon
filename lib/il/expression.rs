@@ -343,7 +343,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same
     pub fn add(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Add(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -351,7 +351,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn sub(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Sub(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -359,7 +359,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn mul(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Mul(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -367,7 +367,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn divu(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Divu(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -375,7 +375,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn modu(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Modu(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -383,7 +383,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn divs(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Divs(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -391,7 +391,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn mods(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Mods(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -399,7 +399,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn and(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::And(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -407,7 +407,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn or(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Or(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -415,7 +415,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn xor(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Xor(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -423,7 +423,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn shl(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Shl(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -431,7 +431,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn shr(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, true));
+        Expression::ensure_sort(&lhs, &rhs, true)?;
         Ok(Expression::Shr(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -439,7 +439,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmpeq(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, false));
+        Expression::ensure_sort(&lhs, &rhs, false)?;
         Ok(Expression::Cmpeq(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -447,7 +447,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmpneq(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, false));
+        Expression::ensure_sort(&lhs, &rhs, false)?;
         Ok(Expression::Cmpneq(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -455,7 +455,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmpltu(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, false));
+        Expression::ensure_sort(&lhs, &rhs, false)?;
         Ok(Expression::Cmpltu(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -463,7 +463,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmplts(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        try!(Expression::ensure_sort(&lhs, &rhs, false));
+        Expression::ensure_sort(&lhs, &rhs, false)?;
         Ok(Expression::Cmplts(Box::new(lhs), Box::new(rhs)))
     }
 

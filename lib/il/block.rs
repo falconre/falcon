@@ -169,9 +169,9 @@ impl graph::Vertex for Block {
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(writeln!(f, "[ Block: 0x{:X} ]", self.index));
+        writeln!(f, "[ Block: 0x{:X} ]", self.index)?;
         for instruction in self.instructions() {
-            try!(writeln!(f, "{}", instruction));
+            writeln!(f, "{}", instruction)?;
         }
         Ok(())
     }

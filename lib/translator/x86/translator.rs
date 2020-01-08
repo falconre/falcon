@@ -117,7 +117,7 @@ pub(crate) fn translate_block(
             let semantics = Semantics::new(&mode, &instruction);
             let mut instruction_graph = ControlFlowGraph::new();
 
-            try!(match instruction_id {
+            match instruction_id {
                 capstone::x86_insn::X86_INS_ADC => semantics.adc(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_ADD => semantics.add(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_AND => semantics.and(&mut instruction_graph),
@@ -276,6 +276,7 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_FUCOMI => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
+                #[cfg(not(feature = "capstone4"))]
                 capstone::x86_insn::X86_INS_FUCOMPI => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
@@ -433,7 +434,7 @@ pub(crate) fn translate_block(
                     )
                     .into())
                 }
-            });
+            }?;
 
             let detail = semantics.details()?;
             if detail
