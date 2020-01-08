@@ -110,8 +110,21 @@ pub trait Loader: fmt::Debug + Send + Sync {
             .collect()
     }
 
-    /// Lift executable into an il::Program
+    /// Lift executable into an il::Program.
+    ///
+    /// Individual functions which fail to lift are omitted and ignored.
     fn program(&self) -> Result<il::Program> {
+        Ok(self.program_verbose()?.0)
+    }
+
+    /// Lift executable into an `il::Program`.
+    ///
+    /// Errors encountered while lifting specific functions are collected, and
+    /// returned with the `FunctionEntry` identifying the function. Only
+    /// catastrophic errors should cause this function call to fail.
+    fn program_verbose(
+        &self,
+    ) -> std::result::Result<(il::Program, Vec<(FunctionEntry, Error)>), Error> {
         // Get out architecture-specific translator
         let translator = self.architecture().translator();
 
@@ -120,6 +133,8 @@ pub trait Loader: fmt::Debug + Send + Sync {
 
         let mut program = il::Program::new();
 
+        let mut translation_errors: Vec<(FunctionEntry, Error)> = Vec::new();
+
         for function_entry in self.function_entries()? {
             let address = function_entry.address();
             // Ensure this memory is marked executable
@@ -127,27 +142,35 @@ pub trait Loader: fmt::Debug + Send + Sync {
                 .permissions(address)
                 .map_or(false, |p| p.contains(memory::MemoryPermissions::EXECUTE))
             {
-                let mut function = match translator.translate_function(&memory, address) {
-                    Ok(function) => function,
-                    Err(e) => match e {
-                        Error(ErrorKind::CapstoneError, _) => {
-                            eprintln!("Capstone failure, 0x{:x}", address);
-                            continue;
-                        }
-                        _ => return Err(e),
-                    },
+                match translator.translate_function(&memory, address) {
+                    Ok(mut function) => {
+                        function.set_name(function_entry.name().map(|n| n.to_string()));
+                        program.add_function(function);
+                    }
+                    Err(e) => translation_errors.push((function_entry.clone(), e)),
                 };
-                function.set_name(function_entry.name().map(|n| n.to_string()));
-                program.add_function(function);
             }
         }
 
-        Ok(program)
+        Ok((program, translation_errors))
     }
 
     /// Lift executable into an `il::Program`, while recursively resolving branch
     /// targets into functions.
+    ///
+    /// program_recursive silently drops any functions that cause lifting
+    /// errors. If you care about those, use `program_recursive_verbose`.
     fn program_recursive(&self) -> Result<il::Program> {
+        Ok(self.program_recursive_verbose()?.0)
+    }
+
+    /// Lift executable into an `il::Program`, while recursively resolving branch
+    /// targets into functions.
+    ///
+    /// Works in a similar manner to `program_recursive`
+    fn program_recursive_verbose(
+        &self,
+    ) -> std::result::Result<(il::Program, Vec<(FunctionEntry, Error)>), Error> {
         fn call_targets(function: &il::Function) -> Result<Vec<u64>> {
             let call_targets =
                 function
@@ -169,11 +192,11 @@ pub trait Loader: fmt::Debug + Send + Sync {
             Ok(call_targets)
         }
 
-        let mut program = self.program()?;
-
+        let (mut program, mut translation_errors) = self.program_verbose()?;
         let mut processed = HashSet::new();
 
         loop {
+            // Get the address of every function currently in the program
             let function_addresses = program
                 .functions()
                 .into_iter()
@@ -181,16 +204,22 @@ pub trait Loader: fmt::Debug + Send + Sync {
                 .collect::<Vec<u64>>();
 
             let addresses = {
+                // For every function in the program which is not currentl a
+                // member of our processed set
                 let functions = program
                     .functions()
                     .into_iter()
                     .filter(|function| !processed.contains(&function.address()))
                     .collect::<Vec<&il::Function>>();
 
+                // Insert this function into the processed set
                 functions.iter().for_each(|function| {
                     processed.insert(function.address());
                 });
 
+                // Collect the call targets in all functions that have not yet
+                // been processed, and filter them against the functions already
+                // in program.
                 let addresses = functions
                     .into_iter()
                     .fold(HashSet::new(), |mut targets, function| {
@@ -213,21 +242,18 @@ pub trait Loader: fmt::Debug + Send + Sync {
                 addresses
             };
 
+            // For each address, attempt to lift a function
             for address in addresses {
-                let function = match self.function(address) {
-                    Ok(function) => function,
-                    Err(e) => match e {
-                        Error(ErrorKind::CapstoneError, _) => {
-                            eprintln!("Capstone failure, 0x{:x}", address);
-                            continue;
-                        }
-                        _ => return Err(e),
-                    },
-                };
-                program.add_function(function);
+                match self.function(address) {
+                    Ok(function) => program.add_function(function),
+                    Err(e) => {
+                        let function_entry = FunctionEntry::new(address, None);
+                        translation_errors.push((function_entry, e));
+                    }
+                }
             }
         }
 
-        Ok(program)
+        Ok((program, translation_errors))
     }
 }

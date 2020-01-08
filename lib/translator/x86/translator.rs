@@ -87,7 +87,20 @@ pub(crate) fn translate_block(
         let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
             Ok(instructions) => instructions,
             Err(e) => match e.code() {
+                // We can reach this in a couple of circumstances.
+                // One circumstance is there isn't enough data in disassembly_bytes
+                // to disassemble the next instruction, in which case we need to return
+                // and let the translator give us more bytes.
+                //
+                // Another case is just capstone has gone bonkers. In this case, return
+                // a DisassemblyFailure error.
+                //
+                // We can tell the difference based on offset. If it's non-zero, first
+                // case. If zero, second case.
                 capstone_sys::cs_err::CS_ERR_OK => {
+                    if offset == 0 {
+                        return Err(ErrorKind::DisassemblyFailure.into());
+                    }
                     successors.push((address + offset as u64, None));
                     break;
                 }
@@ -105,7 +118,7 @@ pub(crate) fn translate_block(
             let semantics = Semantics::new(&mode, &instruction);
             let mut instruction_graph = ControlFlowGraph::new();
 
-            try!(match instruction_id {
+            match instruction_id {
                 capstone::x86_insn::X86_INS_ADC => semantics.adc(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_ADD => semantics.add(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_AND => semantics.and(&mut instruction_graph),
@@ -264,6 +277,7 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_FUCOMI => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
+                #[cfg(not(feature = "capstone4"))]
                 capstone::x86_insn::X86_INS_FUCOMPI => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
@@ -421,7 +435,7 @@ pub(crate) fn translate_block(
                     )
                     .into())
                 }
-            });
+            }?;
 
             let detail = semantics.details()?;
             if detail
