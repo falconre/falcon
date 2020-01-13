@@ -1,7 +1,7 @@
 //! A successor after concrete evaluation of a Falcon IL Instruction.
 
-use executor::State;
-use il;
+use crate::executor::State;
+use crate::il;
 
 /// A representation of the successor location in an `il::Program` after
 /// execution of an `il::Operation`.

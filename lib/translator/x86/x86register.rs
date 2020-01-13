@@ -1,8 +1,8 @@
-use error::*;
+use crate::error::*;
+use crate::il::Expression as Expr;
+use crate::il::*;
+use crate::translator::x86::mode::Mode;
 use falcon_capstone::capstone_sys::x86_reg;
-use il::Expression as Expr;
-use il::*;
-use translator::x86::mode::Mode;
 
 const X86REGISTERS: &'static [X86Register] = &[
     X86Register {

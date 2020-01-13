@@ -1,6 +1,7 @@
-use executor::successor::*;
-/// A concrete state for execution over Falcon IL.
-use executor::*;
+//! A concrete state for execution over Falcon IL.
+
+use crate::executor::successor::*;
+use crate::executor::*;
 use std::collections::BTreeMap;
 
 /// A concrete `State`.

@@ -1,10 +1,10 @@
 //! ELF Linker/Loader
 
-use architecture::X86;
+use crate::architecture::X86;
+use crate::loader::*;
+use crate::memory::backing::Memory;
+use crate::memory::MemoryPermissions;
 use goblin;
-use loader::*;
-use memory::backing::Memory;
-use memory::MemoryPermissions;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;

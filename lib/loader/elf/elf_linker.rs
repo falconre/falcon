@@ -1,7 +1,7 @@
-use architecture::*;
+use crate::architecture::*;
+use crate::loader::*;
+use crate::memory::backing::Memory;
 use goblin;
-use loader::*;
-use memory::backing::Memory;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
@@ -378,8 +378,8 @@ impl ElfLinker {
                 dynamic
                     .dyns
                     .iter()
-                    .find(|dyn| dyn.d_tag == tag)
-                    .map(|dyn| dyn.d_val)
+                    .find(|dyn_| dyn_.d_tag == tag)
+                    .map(|dyn_| dyn_.d_val)
             })
         }
 

@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
-use error::*;
+use crate::error::*;
 
 pub trait Vertex: Clone + Sync {
     // The index of this vertex.

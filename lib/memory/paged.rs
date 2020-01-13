@@ -3,15 +3,15 @@
 //!
 //! This memory model operates over types which implement the `Value` trait.
 
-use architecture::Endian;
-use error::*;
-use il;
+use crate::architecture::Endian;
+use crate::error::*;
+use crate::il;
+use crate::RC;
 use std::collections::HashMap;
-use RC;
 
-use memory::backing;
-use memory::value::Value;
-use memory::MemoryPermissions;
+use crate::memory::backing;
+use crate::memory::value::Value;
+use crate::memory::MemoryPermissions;
 
 /// The size of the copy-on-write pages.
 pub const PAGE_SIZE: usize = 1024;
@@ -470,12 +470,12 @@ where
 
 #[cfg(test)]
 mod memory_tests {
-    use architecture::Endian;
-    use il;
-    use memory;
-    use memory::paged::Memory;
-    use memory::MemoryPermissions;
-    use RC;
+    use crate::architecture::Endian;
+    use crate::il;
+    use crate::memory;
+    use crate::memory::paged::Memory;
+    use crate::memory::MemoryPermissions;
+    use crate::RC;
 
     #[test]
     fn big_endian() {

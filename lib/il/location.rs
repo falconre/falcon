@@ -13,7 +13,7 @@
 //! Therefor, we have `ProgramLocation`, which is an Owned type in its own right with no
 //! references.
 
-use il::*;
+use crate::il::*;
 use std::fmt;
 
 /// A location applied to a `Program`.

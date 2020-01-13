@@ -1,11 +1,11 @@
 //! A driver concretely executes a Falcon IL programs.
 
-use architecture::Architecture;
-use error::*;
-use executor::successor::*;
-use executor::State;
-use il;
-use RC;
+use crate::architecture::Architecture;
+use crate::error::*;
+use crate::executor::successor::*;
+use crate::executor::State;
+use crate::il;
+use crate::RC;
 
 /// A driver for a concrete executor over Falcon IL.
 #[derive(Debug, Clone)]

@@ -1,8 +1,8 @@
 //! Concrete execution over Falcon IL.
 
-use error::*;
-use il;
-use memory;
+use crate::error::*;
+use crate::il;
+use crate::memory;
 
 mod driver;
 mod eval;
@@ -17,8 +17,8 @@ pub use self::successor::*;
 /// A `falcon::memory::paged::Memory` over `il::Constant`.
 pub type Memory = memory::paged::Memory<il::Constant>;
 
-use memory::MemoryPermissions;
-use translator;
+use crate::memory::MemoryPermissions;
+use crate::translator;
 
 impl translator::TranslationMemory for Memory {
     fn get_u8(&self, address: u64) -> Option<u8> {

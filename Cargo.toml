@@ -6,6 +6,7 @@ repository = "https://github.com/falconre/falcon"
 description = "A Binary Analysis Framework in Rust"
 license = "Apache-2.0"
 readme = "README.md"
+edition = "2018"
 
 [dependencies]
 base64 = "0.9"

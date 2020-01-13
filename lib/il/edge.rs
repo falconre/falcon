@@ -9,7 +9,7 @@
 //! To create a new edge, call `ControlFlowGraph::unconditional_edge` or
 //! `ControlFlowGraph::conditional_edge`.
 
-use il::*;
+use crate::il::*;
 use std::fmt;
 
 /// Edge between IL blocks

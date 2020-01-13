@@ -1,11 +1,11 @@
-use architecture;
-use architecture::Endian;
-use executor::*;
-use il;
-use memory;
-use translator::x86::Amd64;
-use translator::Translator;
-use RC;
+use crate::architecture;
+use crate::architecture::Endian;
+use crate::executor::*;
+use crate::il;
+use crate::memory;
+use crate::translator::x86::Amd64;
+use crate::translator::Translator;
+use crate::RC;
 
 fn init_amd64_driver<'d>(
     instruction_bytes: Vec<u8>,

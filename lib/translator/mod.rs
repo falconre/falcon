@@ -18,9 +18,9 @@
 //! pay attention to the translators. The correct translator will be chosen
 //! automatically.
 
-use error::*;
-use il::*;
-use memory::MemoryPermissions;
+use crate::error::*;
+use crate::il::*;
+use crate::memory::MemoryPermissions;
 use std::collections::{BTreeMap, VecDeque};
 
 pub mod mips;

@@ -2,7 +2,7 @@
 //!
 //! We can think of a `Function` as providing _location_ to a `ControlFlowGraph`.
 
-use il::*;
+use crate::il::*;
 
 /// A function for Falcon IL. Provides location and context in a `Program` to a
 /// `ControlFlowGraph`.

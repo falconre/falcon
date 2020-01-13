@@ -1,6 +1,6 @@
 //! A `ControlFlowGraph` is a directed `Graph` of `Block` and `Edge`.
 
-use il::*;
+use crate::il::*;
 use std::collections::BTreeMap;
 use std::fmt;
 

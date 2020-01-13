@@ -1,6 +1,6 @@
 //! Information about varying calling conventions.
 
-use il;
+use crate::il;
 use std::collections::HashSet;
 
 /// Available type of calling conventions

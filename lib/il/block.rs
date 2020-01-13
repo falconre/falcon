@@ -7,7 +7,7 @@
 //!
 //! To create a `Block`, call `ControlFlowGraph::new_block`.
 
-use il::*;
+use crate::il::*;
 use std::fmt;
 
 /// A basic block in Falcon IL.

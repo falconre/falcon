@@ -1,8 +1,8 @@
-use architecture::*;
+use crate::architecture::*;
+use crate::loader::*;
+use crate::memory::backing::Memory;
+use crate::memory::MemoryPermissions;
 use goblin;
-use loader::*;
-use memory::backing::Memory;
-use memory::MemoryPermissions;
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::Read;
@@ -95,9 +95,9 @@ impl Elf {
             // We need that strtab, and we have to do this one manually.
             // Get the strtab address
             let mut strtab_address = None;
-            for dyn in &dynamic.dyns {
-                if dyn.d_tag == goblin::elf::dynamic::DT_STRTAB {
-                    strtab_address = Some(dyn.d_val);
+            for dyn_ in &dynamic.dyns {
+                if dyn_.d_tag == goblin::elf::dynamic::DT_STRTAB {
+                    strtab_address = Some(dyn_.d_val);
                     break;
                 }
             }
@@ -119,9 +119,9 @@ impl Elf {
                     let size = size as usize;
                     let strtab_bytes = self.bytes.get(start..(start + size)).unwrap();
                     let strtab = goblin::strtab::Strtab::new(&strtab_bytes, 0);
-                    for dyn in dynamic.dyns {
-                        if dyn.d_tag == goblin::elf::dynamic::DT_NEEDED {
-                            let so_name = &strtab[dyn.d_val as usize];
+                    for dyn_ in dynamic.dyns {
+                        if dyn_.d_tag == goblin::elf::dynamic::DT_NEEDED {
+                            let so_name = &strtab[dyn_.d_val as usize];
                             v.push(so_name.to_string());
                         }
                     }

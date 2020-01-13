@@ -1,9 +1,9 @@
 //! A `Program` holds multiple `Function`.
 
-use il::*;
+use crate::il::*;
+use crate::RC;
 use std::collections::BTreeMap;
 use std::fmt;
-use RC;
 
 /// A representation of a program by `il::Function`
 #[derive(Clone, Debug, Deserialize, Serialize)]

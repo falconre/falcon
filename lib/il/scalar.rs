@@ -1,6 +1,6 @@
 //! A `Scalar` is a variable which holds a single value.
 
-use il::*;
+use crate::il::*;
 use std::fmt;
 
 /// A `Scalar` is a variable which holds a single value.

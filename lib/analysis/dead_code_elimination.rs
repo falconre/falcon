@@ -1,8 +1,8 @@
 //! Dead-Code Elimination
 
-use analysis::{def_use, reaching_definitions};
-use error::*;
-use il;
+use crate::analysis::{def_use, reaching_definitions};
+use crate::error::*;
+use crate::il;
 use std::collections::HashSet;
 
 #[allow(dead_code)]

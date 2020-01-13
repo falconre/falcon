@@ -6,11 +6,11 @@
 //! This analysis works off a very simple lattice, Top/Value/Bottom, where Value
 //! is an isize.
 
-use analysis::fixed_point;
-use architecture::Architecture;
-use error::*;
-use executor::eval;
-use il;
+use crate::analysis::fixed_point;
+use crate::architecture::Architecture;
+use crate::error::*;
+use crate::executor::eval;
+use crate::il;
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
 

@@ -23,7 +23,7 @@
 
 use std::fmt;
 
-use il::*;
+use crate::il::*;
 
 /// An IL Expression.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
