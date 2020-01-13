@@ -1,6 +1,6 @@
 //! A `Constant` holds a single value.
 
-use il::*;
+use crate::il::*;
 use num_bigint::{BigInt, BigUint, ToBigInt};
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::fmt;

@@ -6,10 +6,10 @@
 //! Calling Constants::eval() uses the known constant values to replace scalars,
 //! and then attempts to evaluate the expression to an `il::Constant`.
 
-use analysis::fixed_point;
-use error::*;
-use executor::eval;
-use il;
+use crate::analysis::fixed_point;
+use crate::error::*;
+use crate::executor::eval;
+use crate::il;
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
 

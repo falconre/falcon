@@ -4,14 +4,14 @@
 //! This memory model implements the `TranslationMemory` trait, allowing lifters
 //! to use it to lift instructions.
 
-use architecture::Endian;
-use error::*;
-use executor;
-use il;
-use memory::MemoryPermissions;
+use crate::architecture::Endian;
+use crate::error::*;
+use crate::executor;
+use crate::il;
+use crate::memory::MemoryPermissions;
+use crate::translator::TranslationMemory;
 use std::collections::BTreeMap;
 use std::collections::Bound::Included;
-use translator::TranslationMemory;
 
 /// A section of backed memory. Essentially a vector of type `u8` with
 /// permissions.

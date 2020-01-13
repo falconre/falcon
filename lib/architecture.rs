@@ -1,9 +1,9 @@
 //! Information and types for Falcon's supported architectures.
 
-use analysis::calling_convention::{CallingConvention, CallingConventionType};
-use il;
+use crate::analysis::calling_convention::{CallingConvention, CallingConventionType};
+use crate::il;
+use crate::translator;
 use std::fmt::Debug;
-use translator;
 
 /// An architecture's endanness.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

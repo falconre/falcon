@@ -1,6 +1,6 @@
 //! Intrinsics are instructions Falcon cannot model.
 
-use il::*;
+use crate::il::*;
 use std::fmt;
 
 /// An Instrinsic is a lifted instruction Falcon cannot model.

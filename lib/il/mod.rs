@@ -177,8 +177,8 @@
 //! yourself, and can use the accessor methods to gather the information
 //! required.
 
-use error::*;
-use graph;
+use crate::error::*;
+use crate::graph;
 
 mod block;
 mod constant;

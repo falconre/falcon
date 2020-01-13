@@ -1,7 +1,7 @@
 //! A fixed-point engine for data-flow analysis.
 
-use error::*;
-use il;
+use crate::error::*;
+use crate::il;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 

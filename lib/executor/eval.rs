@@ -1,5 +1,5 @@
-use error::*;
-use il;
+use crate::error::*;
+use crate::il;
 
 /// Evaluate an `il::Expression` where all terminals are `il::Constant`, and
 /// return the resulting `il::Constant`.

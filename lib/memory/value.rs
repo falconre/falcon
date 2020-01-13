@@ -1,8 +1,8 @@
 //! A value used in the paged memory model.
 
-use error::*;
-use executor::eval;
-use il;
+use crate::error::*;
+use crate::executor::eval;
+use crate::il;
 use std::fmt::Debug;
 
 /// In order for a value to be used in the paged memory model, it must implement

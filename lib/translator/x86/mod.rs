@@ -1,7 +1,7 @@
 //! Capstone-based translator for 32/64-bit x86.
 
-use error::*;
-use translator::{BlockTranslationResult, Translator};
+use crate::error::*;
+use crate::translator::{BlockTranslationResult, Translator};
 
 mod mode;
 mod semantics;

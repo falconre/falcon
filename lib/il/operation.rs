@@ -1,6 +1,6 @@
 //! An `Operation` captures the semantics of the IL.
 
-use il::*;
+use crate::il::*;
 use std::fmt;
 
 /// An IL Operation updates some state.

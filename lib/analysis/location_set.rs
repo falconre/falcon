@@ -1,5 +1,5 @@
 /// A Partially-Ordered set of program locations for data-flow analysis.
-use il;
+use crate::il;
 use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::collections::HashSet;
 

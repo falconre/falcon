@@ -18,11 +18,11 @@
 //! # }
 //! ```
 
-use architecture::Architecture;
-use error::*;
-use executor::eval;
-use il;
-use memory;
+use crate::architecture::Architecture;
+use crate::error::*;
+use crate::executor::eval;
+use crate::il;
+use crate::memory;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt;

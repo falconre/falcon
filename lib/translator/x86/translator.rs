@@ -1,12 +1,12 @@
 //! Capstone-based translator for 32-bit x86.
 
-use error::*;
+use crate::error::*;
+use crate::il::*;
+use crate::translator::x86::mode::Mode;
+use crate::translator::BlockTranslationResult;
 use falcon_capstone::{capstone, capstone_sys};
-use il::*;
-use translator::x86::mode::Mode;
-use translator::BlockTranslationResult;
 
-use translator::x86::semantics::Semantics;
+use crate::translator::x86::semantics::Semantics;
 
 fn unhandled_intrinsic(
     control_flow_graph: &mut ControlFlowGraph,

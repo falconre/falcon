@@ -1,9 +1,9 @@
 //! Capstone-based translator for MIPS.
 
-use error::*;
-use falcon_capstone::capstone;
-use il::*;
-use translator::{BlockTranslationResult, Translator};
+use crate::error::*;
+use crate::falcon_capstone::capstone;
+use crate::il::*;
+use crate::translator::{BlockTranslationResult, Translator};
 
 pub mod semantics;
 #[cfg(test)]

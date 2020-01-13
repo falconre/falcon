@@ -1,6 +1,6 @@
 //! An `Instruction` holds an `Operation`.
 
-use il::*;
+use crate::il::*;
 use std::fmt;
 
 /// An `Instruction` represents location, and non-semantical information about

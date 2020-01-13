@@ -1,11 +1,11 @@
-use error::*;
+use crate::error::*;
+use crate::il::Expression as Expr;
+use crate::il::*;
+use crate::translator::x86::x86register::*;
+use crate::translator::x86::Mode;
 use falcon_capstone::capstone;
 use falcon_capstone::capstone::cs_x86_op;
 use falcon_capstone::capstone_sys::{x86_op_type, x86_reg};
-use il::Expression as Expr;
-use il::*;
-use translator::x86::x86register::*;
-use translator::x86::Mode;
 
 pub(crate) struct Semantics<'s> {
     mode: &'s Mode,
