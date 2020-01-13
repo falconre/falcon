@@ -546,6 +546,11 @@ impl Expression {
         )?)
     }
 
+    /// Alias for sra
+    pub fn asr(lhs: Expression, rhs: Expression) -> Result<Expression> {
+        Expression::sra(lhs, rhs)
+    }
+
     /// Perform a left-rotation
     ///
     /// This is a pseudo-expression, and emits an expression with
@@ -554,6 +559,20 @@ impl Expression {
         Ok(Expression::or(
             Expression::shl(e.clone(), s.clone())?,
             Expression::shr(
+                e.clone(),
+                Expression::sub(expr_const(e.bits() as u64, e.bits()), s.clone())?,
+            )?,
+        )?)
+    }
+
+    /// Perform a right-rotation
+    ///
+    /// This is a pseudo-expression, and emits an expression with
+    /// sub-expressions
+    pub fn rotr(e: Expression, s: Expression) -> Result<Expression> {
+        Ok(Expression::or(
+            Expression::shr(e.clone(), s.clone())?,
+            Expression::shl(
                 e.clone(),
                 Expression::sub(expr_const(e.bits() as u64, e.bits()), s.clone())?,
             )?,

@@ -1,5 +1,6 @@
 //! Capstone-based translator for MIPS.
 
+use architecture::Endian;
 use error::*;
 use falcon_capstone::capstone;
 use falcon_capstone::capstone_sys::arm_cc;
@@ -10,7 +11,7 @@ pub mod semantics;
 #[cfg(test)]
 mod test;
 
-/// The MIPS translator.
+/// The Arm translator.
 #[derive(Clone, Debug)]
 pub struct Arm;
 
@@ -22,7 +23,23 @@ impl Arm {
 
 impl Translator for Arm {
     fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
-        translate_block(bytes, address)
+        translate_block(bytes, address, Endian::Big)
+    }
+}
+
+/// The Armel translator.
+#[derive(Clone, Debug)]
+pub struct Armel;
+
+impl Armel {
+    pub fn new() -> Armel {
+        Armel
+    }
+}
+
+impl Translator for Armel {
+    fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
+        translate_block(bytes, address, Endian::Little)
     }
 }
 
@@ -132,8 +149,12 @@ fn make_instruction_conditional(
     Ok(())
 }
 
-fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
-    let mode = capstone::CS_MODE_ARM | capstone::CS_MODE_BIG_ENDIAN;
+fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTranslationResult> {
+    let mode = if endian == Endian::Big {
+        capstone::CS_MODE_ARM | capstone::CS_MODE_BIG_ENDIAN
+    } else {
+        capstone::CS_MODE_ARM | capstone::CS_MODE_LITTLE_ENDIAN
+    };
     let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_ARM, mode) {
         Ok(cs) => cs,
         Err(_) => return Err(ErrorKind::CapstoneError.into()),
@@ -192,11 +213,11 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                 capstone::arm_insn::ARM_INS_AND => {
                     semantics::and(&mut instruction_graph, &instruction)
                 }
-                capstone::arm_insn::ARM_INS_LDR |
-                capstone::arm_insn::ARM_INS_LDRB |
-                capstone::arm_insn::ARM_INS_LDRH |
-                capstone::arm_insn::ARM_INS_LDRSB |
-                capstone::arm_insn::ARM_INS_LDRSH => {
+                capstone::arm_insn::ARM_INS_LDR
+                | capstone::arm_insn::ARM_INS_LDRB
+                | capstone::arm_insn::ARM_INS_LDRH
+                | capstone::arm_insn::ARM_INS_LDRSB
+                | capstone::arm_insn::ARM_INS_LDRSH => {
                     semantics::ldr_multi(&mut instruction_graph, &instruction)
                 }
                 capstone::arm_insn::ARM_INS_ORR => {

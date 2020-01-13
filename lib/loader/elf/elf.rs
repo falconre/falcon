@@ -45,7 +45,9 @@ impl Elf {
             } else if elf.header.e_machine == goblin::elf::header::EM_ARM {
                 match elf.header.endianness()? {
                     goblin::container::Endian::Big => Box::new(Arm::new()) as Box<dyn Architecture>,
-                    goblin::container::Endian::Little => bail!("Unsupported Architecture"),
+                    goblin::container::Endian::Little => {
+                        Box::new(Armel::new()) as Box<dyn Architecture>
+                    }
                 }
             } else {
                 bail!("Unsupported Architecture");
@@ -76,7 +78,12 @@ impl Elf {
         let mut file = match File::open(&filename) {
             Ok(file) => file,
             Err(e) => {
-                return Err(format!("Error opening {}: {}", (filename.as_ref() as &Path).to_str().unwrap(), e).into())
+                return Err(format!(
+                    "Error opening {}: {}",
+                    (filename.as_ref() as &Path).to_str().unwrap(),
+                    e
+                )
+                .into())
             }
         };
         let mut buf = Vec::new();

@@ -89,7 +89,41 @@ impl Architecture for Arm {
         CallingConvention::new(CallingConventionType::Arm)
     }
     fn stack_pointer(&self) -> il::Scalar {
-        il::scalar("sp", 64)
+        il::scalar("sp", 32)
+    }
+    fn word_size(&self) -> usize {
+        32
+    }
+    fn box_clone(&self) -> Box<dyn Architecture> {
+        Box::new(self.clone())
+    }
+}
+
+/// The 32-bit, Little-Endian ARM Architecture.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Armel {}
+
+impl Armel {
+    pub fn new() -> Armel {
+        Armel {}
+    }
+}
+
+impl Architecture for Armel {
+    fn name(&self) -> &str {
+        &"armel"
+    }
+    fn endian(&self) -> Endian {
+        Endian::Little
+    }
+    fn translator(&self) -> Box<dyn translator::Translator> {
+        Box::new(translator::arm::Armel::new())
+    }
+    fn calling_convention(&self) -> CallingConvention {
+        CallingConvention::new(CallingConventionType::Arm)
+    }
+    fn stack_pointer(&self) -> il::Scalar {
+        il::scalar("sp", 32)
     }
     fn word_size(&self) -> usize {
         32

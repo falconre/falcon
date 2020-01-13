@@ -1,6 +1,6 @@
 use error::*;
 use falcon_capstone::capstone;
-use falcon_capstone::capstone_sys::{arm_op_type, arm_reg, cs_arm_op};
+use falcon_capstone::capstone_sys::{arm_op_mem, arm_op_type, arm_reg, arm_shifter, cs_arm_op};
 use il::Expression as Expr;
 use il::*;
 
@@ -132,9 +132,34 @@ impl<'a> RegisterMaker<'a> {
         match self.scalar(register) {
             Ok(scalar) => Ok(scalar.into()),
             Err(e) => match register {
-                arm_reg::ARM_REG_PC => Ok(expr_const(self.instruction.address, 32)),
+                arm_reg::ARM_REG_PC => Ok(expr_const(self.instruction.address + 8, 32)),
                 _ => Err(e),
             },
+        }
+    }
+
+    pub fn apply_shift(
+        &self,
+        expr: Expression,
+        type_: arm_shifter,
+        value: u32,
+    ) -> Result<Expression> {
+        let shift_amount = || expr_const(value as u64, 32);
+        match type_ {
+            arm_shifter::ARM_SFT_INVALID => bail!("Invalid arm shifter"),
+            arm_shifter::ARM_SFT_ASR => Expression::asr(expr, shift_amount()),
+            arm_shifter::ARM_SFT_LSL => Expression::shl(expr, shift_amount()),
+            arm_shifter::ARM_SFT_LSR => Expression::shr(expr, shift_amount()),
+            arm_shifter::ARM_SFT_ROR => Expression::rotr(expr, shift_amount()),
+            arm_shifter::ARM_SFT_RRX =>
+                Expression::or(
+                    Expression::shl(
+                        Expression::zext(32, expr_scalar("C", 1))?,
+                        expr_const(31, 32)
+                    )?,
+                    Expression::shr(expr, expr_const(31, 32))?
+                ),
+            _ => unimplemented!(),
         }
     }
 
@@ -142,8 +167,44 @@ impl<'a> RegisterMaker<'a> {
         match operand.type_ {
             arm_op_type::ARM_OP_REG => self.reg_expression(operand.reg()),
             arm_op_type::ARM_OP_IMM => Ok(const_(operand.imm() as u64, 32).sext(64)?.into()),
+            arm_op_type::ARM_OP_MEM => self.mem(operand),
             _ => unimplemented!("Unimplemented operand type {:?}", operand.type_),
         }
+    }
+
+    pub fn mem(&self, operand: &cs_arm_op) -> Result<Expression> {
+        let mem = operand.mem();
+
+        let mut expr = self.reg_expression(mem.base)?;
+
+        // Calculate the index
+        // Index is a register
+        let index: Option<Expression> = if mem.index != arm_reg::ARM_REG_INVALID {
+            let mut index = self.reg_expression(mem.index)?;
+            // Apply shift
+            let index = self.apply_shift(index, operand.shift.type_, operand.shift.value)?;
+            Some(index)
+        // Index is a displacement/offset
+        } else if mem.disp > 0 {
+            Some(expr_const(mem.disp as u64, 32))
+        // No index
+        } else {
+            None
+        };
+
+        if let Some(index) = index {
+            match mem.scale {
+                1 => {
+                    expr = Expression::add(expr, index)?;
+                }
+                -1 => {
+                    expr = Expression::sub(expr, index)?;
+                }
+                _ => panic!("Invalid memory scale {}", mem.scale),
+            }
+        }
+
+        Ok(expr)
     }
 }
 
@@ -261,13 +322,11 @@ pub fn ldr_all(
 
     // get operands
     let dst = register_maker.scalar(detail.operands[0].reg())?;
-    let base = register_maker.reg_expression(detail.operands[1].mem().base.into())?;
-    let index = register_maker.reg_expression(detail.operands[2].mem().index.into())?;
+    let address = register_maker.mem(&detail.operands[1])?;
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let address = Expression::add(base, index)?;
         let temp = block.temp(bits);
         block.load(temp.clone(), address);
         let src: Expression = if bits == dst.bits() {
@@ -292,24 +351,28 @@ pub fn ldr_all(
 
 pub fn ldr_multi(
     mut control_flow_graph: &mut ControlFlowGraph,
-    instruction: &capstone::Instr
-) -> Result <()> {
+    instruction: &capstone::Instr,
+) -> Result<()> {
     if let capstone::InstrIdArch::ARM(instruction_id) = instruction.id {
         match instruction_id {
-            capstone::arm_insn::ARM_INS_LDR =>
-                ldr_all(&mut control_flow_graph, instruction, 32, false),
-            capstone::arm_insn::ARM_INS_LDRB =>
-                ldr_all(&mut control_flow_graph, instruction, 8, false),
-            capstone::arm_insn::ARM_INS_LDRH =>
-                ldr_all(&mut control_flow_graph, instruction, 16, false),
-            capstone::arm_insn::ARM_INS_LDRSB =>
-                ldr_all(&mut control_flow_graph, instruction, 8, true),
-            capstone::arm_insn::ARM_INS_LDRSH =>
-                ldr_all(&mut control_flow_graph, instruction, 16, true),
-            _ => unreachable!()
+            capstone::arm_insn::ARM_INS_LDR => {
+                ldr_all(&mut control_flow_graph, instruction, 32, false)
+            }
+            capstone::arm_insn::ARM_INS_LDRB => {
+                ldr_all(&mut control_flow_graph, instruction, 8, false)
+            }
+            capstone::arm_insn::ARM_INS_LDRH => {
+                ldr_all(&mut control_flow_graph, instruction, 16, false)
+            }
+            capstone::arm_insn::ARM_INS_LDRSB => {
+                ldr_all(&mut control_flow_graph, instruction, 8, true)
+            }
+            capstone::arm_insn::ARM_INS_LDRSH => {
+                ldr_all(&mut control_flow_graph, instruction, 16, true)
+            }
+            _ => unreachable!(),
         }
-    }
-    else {
+    } else {
         unreachable!()
     }
 }
