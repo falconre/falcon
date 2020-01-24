@@ -426,6 +426,11 @@ pub(crate) fn translate_block(
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
                 capstone::x86_insn::X86_INS_XOR => semantics.xor(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_MFENCE
+                | capstone::x86_insn::X86_INS_SFENCE
+                | capstone::x86_insn::X86_INS_LFENCE => {
+                    unhandled_intrinsic(&mut instruction_graph, &instruction)
+                }
 
                 _ => {
                     return Err(format!(
