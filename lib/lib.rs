@@ -60,6 +60,7 @@ pub mod graph;
 pub mod il;
 pub mod loader;
 pub mod memory;
+pub mod transformation;
 pub mod translator;
 
 #[cfg(not(feature = "thread_safe"))]
