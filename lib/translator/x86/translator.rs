@@ -431,6 +431,10 @@ pub(crate) fn translate_block(
                 | capstone::x86_insn::X86_INS_LFENCE => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
+                #[cfg(feature = "capstone4")]
+                capstone::x86_insn::X86_INS_UD0 => {
+                    unhandled_intrinsic(&mut instruction_graph, &instruction)
+                }
 
                 _ => {
                     return Err(format!(
