@@ -441,6 +441,21 @@ where
         Ok(dominators)
     }
 
+    /// Creates a dominator tree with NullVertex and NullEdge
+    pub fn compute_dominator_tree(&self, start_index: usize) -> Result<Graph<NullVertex, NullEdge>> {
+        let mut graph = Graph::new();
+        for vertex in &self.vertices {
+            graph.insert_vertex(NullVertex::new(*vertex.0))?;
+        }
+
+        let idoms = self.compute_immediate_dominators(start_index)?;
+        for (vertex, idom) in idoms {
+            graph.insert_edge(NullEdge::new(idom, vertex))?;
+        }
+
+        Ok(graph)
+    }
+
     /// Computes predecessors for all vertices in the graph
     ///
     /// The resulting sets include all predecessors for each vertex in the
@@ -843,6 +858,27 @@ mod tests {
 
         assert_eq!(dominators.get(&6).unwrap(),
                    &vec![1, 2, 6].into_iter().collect());
+    }
+
+    #[test]
+    fn test_dominator_tree() {
+        let graph = create_test_graph();
+        let dominator_tree = graph.compute_dominator_tree(1).unwrap();
+
+        // Expected:
+        // 1 +---> 2 +---> 3
+        //           |
+        //           +---> 4
+        //           |
+        //           +---> 5
+        //           |
+        //           +---> 6
+        assert_eq!(dominator_tree.edges().len(), 5);
+        assert!(dominator_tree.edge(1, 2).is_ok());
+        assert!(dominator_tree.edge(2, 3).is_ok());
+        assert!(dominator_tree.edge(2, 4).is_ok());
+        assert!(dominator_tree.edge(2, 5).is_ok());
+        assert!(dominator_tree.edge(2, 6).is_ok());
     }
 
     #[test]
