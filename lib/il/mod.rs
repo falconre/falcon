@@ -190,6 +190,7 @@ mod instruction;
 mod intrinsic;
 mod location;
 mod operation;
+mod phi_node;
 mod program;
 mod scalar;
 
@@ -203,6 +204,7 @@ pub use self::instruction::*;
 pub use self::intrinsic::*;
 pub use self::location::*;
 pub use self::operation::*;
+pub use self::phi_node::*;
 pub use self::program::*;
 pub use self::scalar::*;
 
