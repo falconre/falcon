@@ -247,6 +247,30 @@ where
         }))
     }
 
+    /// Returns the indices of all immediate successors of a vertex from the graph.
+    pub fn successor_indices(&self, index: usize) -> Result<Vec<usize>> {
+        if !self.vertices.contains_key(&index) {
+            bail!(
+                "Vertex {} does not exist and therefor has no successors",
+                index
+            );
+        }
+
+        Ok(self.successors[&index].iter().cloned().collect())
+    }
+
+    /// Returns the indices of all immediate predecessors of a vertex from the graph.
+    pub fn predecessor_indices(&self, index: usize) -> Result<Vec<usize>> {
+        if !self.vertices.contains_key(&index) {
+            bail!(
+                "Vertex {} does not exist and therefor has no predecessors",
+                index
+            );
+        }
+
+        Ok(self.predecessors[&index].iter().cloned().collect())
+    }
+
     // Compute the post order of all vertices in the graph
     pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>> {
         let mut visited: HashSet<usize> = HashSet::new();
