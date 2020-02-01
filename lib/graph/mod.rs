@@ -282,9 +282,6 @@ where
     }
 
     /// Computes the dominance frontiers for all vertices in the graph
-    ///
-    /// # Warning
-    /// Unsure of correctness of this implementation
     pub fn compute_dominance_frontiers(
         &self,
         start_index: usize,
@@ -301,9 +298,14 @@ where
             let vertex_index: usize = *vertex.0;
 
             if self.edges_in[&vertex_index].len() >= 2 {
+                if !idoms.contains_key(&vertex_index) {
+                    continue;
+                }
+                let idom = idoms[&vertex_index];
+
                 for edge in &self.edges_in[&vertex_index] {
                     let mut runner = edge.head();
-                    while idoms.contains_key(&edge.head()) && runner != idoms[&edge.head()] {
+                    while runner != idom {
                         df.get_mut(&runner).unwrap().insert(vertex_index);
                         if !idoms.contains_key(&runner) {
                             break;
@@ -311,6 +313,19 @@ where
                         runner = idoms[&runner];
                     }
                 }
+            }
+        }
+
+        // Special handling for the start node as it can be part of a loop.
+        // This is necessary because we don't have a dedicated entry node.
+        for edge in &self.edges_in[&start_index] {
+            let mut runner = edge.head();
+            loop {
+                df.get_mut(&runner).unwrap().insert(start_index);
+                if !idoms.contains_key(&runner) {
+                    break;
+                }
+                runner = idoms[&runner];
             }
         }
 
@@ -619,5 +634,226 @@ where
             vertices.join("\n"),
             edges.join("\n")
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl Vertex for usize {
+        fn index(&self) -> usize {
+            *self
+        }
+
+        fn dot_label(&self) -> String {
+            self.to_string()
+        }
+    }
+
+    impl Edge for (usize, usize) {
+        fn head(&self) -> usize {
+            self.0
+        }
+
+        fn tail(&self) -> usize {
+            self.1
+        }
+
+        fn dot_label(&self) -> String {
+            format!("{} -> {}", self.0, self.1)
+        }
+    }
+
+    /**
+     *           +--> 3 +-+
+     *          /          \
+     *         | +--> 4 +--+
+     *         |/          |
+     *         +           v
+     * 1 +---> 2 <-------+ 5
+     *         +
+     *         |
+     *         v
+     *         6
+     *
+     * From: https://en.wikipedia.org/wiki/Dominator_(graph_theory)
+     */
+    fn create_test_graph() -> Graph<usize, (usize, usize)> {
+        let mut graph = Graph::new();
+
+        graph.insert_vertex(1).unwrap();
+        graph.insert_vertex(2).unwrap();
+        graph.insert_vertex(3).unwrap();
+        graph.insert_vertex(4).unwrap();
+        graph.insert_vertex(5).unwrap();
+        graph.insert_vertex(6).unwrap();
+
+        graph.insert_edge((1, 2)).unwrap();
+        graph.insert_edge((2, 3)).unwrap();
+        graph.insert_edge((2, 4)).unwrap();
+        graph.insert_edge((2, 6)).unwrap();
+        graph.insert_edge((3, 5)).unwrap();
+        graph.insert_edge((4, 5)).unwrap();
+        graph.insert_edge((5, 2)).unwrap();
+
+        graph.set_head(1).unwrap();
+
+        graph
+    }
+
+    #[test]
+    fn test_successors() {
+        let graph = create_test_graph();
+
+        assert_eq!(graph.successors(2).unwrap(),
+                   vec![&3, &4, &6]);
+
+        let empty_vertex_list: Vec<&usize> = vec![];
+        assert_eq!(graph.successors(6).unwrap(),
+                   empty_vertex_list);
+
+        // vertex 7 does not exist
+        assert!(graph.successors(7).is_err());
+    }
+
+    #[test]
+    fn test_predecessors() {
+        let graph = create_test_graph();
+
+        let empty_vertex_list: Vec<&usize> = vec![];
+        assert_eq!(graph.predecessors(1).unwrap(),
+                   empty_vertex_list);
+
+        assert_eq!(graph.predecessors(2).unwrap(),
+                   vec![&1, &5]);
+
+        // vertex 7 does not exist
+        assert!(graph.successors(7).is_err());
+    }
+
+    #[test]
+    fn test_post_order() {
+        let graph = create_test_graph();
+
+        assert_eq!(graph.compute_post_order(1).unwrap(),
+                   vec![5, 3, 4, 6, 2, 1]);
+
+        assert_eq!(graph.compute_post_order(5).unwrap(),
+                   vec![3, 4, 6, 2, 5]);
+    }
+
+    #[test]
+    fn test_dominance_frontiers() {
+        let graph = create_test_graph();
+        let dominance_frontiers = graph.compute_dominance_frontiers(1).unwrap();
+
+        assert_eq!(dominance_frontiers.get(&1).unwrap(),
+                   &vec![].into_iter().collect());
+
+        assert_eq!(dominance_frontiers.get(&2).unwrap(),
+                   &vec![2].into_iter().collect());
+
+        assert_eq!(dominance_frontiers.get(&3).unwrap(),
+                   &vec![5].into_iter().collect());
+
+        assert_eq!(dominance_frontiers.get(&4).unwrap(),
+                   &vec![5].into_iter().collect());
+
+        assert_eq!(dominance_frontiers.get(&5).unwrap(),
+                   &vec![2].into_iter().collect());
+
+        assert_eq!(dominance_frontiers.get(&6).unwrap(),
+                   &vec![].into_iter().collect());
+    }
+
+    #[test]
+    fn test_dominance_frontiers_of_graph_with_start_node_in_loop() {
+        //      +-------+
+        //      |       |
+        //      v       +
+        // ---> 1 +---> 2 +---> 3
+        //      +               /\
+        //      |               |
+        //      +---------------+
+        //
+        // Simplified version of the example given in
+        // https://www.seas.harvard.edu/courses/cs252/2011sp/slides/Lec04-SSA.pdf
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((1, 3)).unwrap();
+            graph.insert_edge((2, 1)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+
+            graph.set_head(1).unwrap();
+
+            graph
+        };
+
+        let dominance_frontiers = graph.compute_dominance_frontiers(1).unwrap();
+
+        assert_eq!(dominance_frontiers.get(&1).unwrap(),
+                   &vec![1].into_iter().collect());
+
+        assert_eq!(dominance_frontiers.get(&2).unwrap(),
+                   &vec![1, 3].into_iter().collect());
+
+        assert_eq!(dominance_frontiers.get(&3).unwrap(),
+                   &vec![].into_iter().collect());
+    }
+
+    #[test]
+    fn test_immediate_dominators() {
+        let graph = create_test_graph();
+        let idoms = graph.compute_immediate_dominators(1).unwrap();
+
+        assert!(idoms.get(&1).is_none());
+        assert_eq!(*idoms.get(&2).unwrap(), 1);
+        assert_eq!(*idoms.get(&3).unwrap(), 2);
+        assert_eq!(*idoms.get(&4).unwrap(), 2);
+        assert_eq!(*idoms.get(&5).unwrap(), 2);
+        assert_eq!(*idoms.get(&6).unwrap(), 2);
+    }
+
+    #[test]
+    fn test_dominators() {
+        let graph = create_test_graph();
+        let dominators = graph.compute_dominators(1).unwrap();
+
+        assert_eq!(dominators.get(&1).unwrap(),
+                   &vec![1].into_iter().collect());
+
+        assert_eq!(dominators.get(&2).unwrap(),
+                   &vec![1, 2].into_iter().collect());
+
+        assert_eq!(dominators.get(&3).unwrap(),
+                   &vec![1, 2, 3].into_iter().collect());
+
+        assert_eq!(dominators.get(&4).unwrap(),
+                   &vec![1, 2, 4].into_iter().collect());
+
+        assert_eq!(dominators.get(&5).unwrap(),
+                   &vec![1, 2, 5].into_iter().collect());
+
+        assert_eq!(dominators.get(&6).unwrap(),
+                   &vec![1, 2, 6].into_iter().collect());
+    }
+
+    #[test]
+    fn test_all_predecessors() {
+        let graph = create_test_graph();
+        let predecessors = graph.compute_predecessors().unwrap();
+
+        assert_eq!(predecessors.get(&1).unwrap(),
+                   &vec![].into_iter().collect());
+
+        assert_eq!(predecessors.get(&2).unwrap(),
+                   &vec![1, 2, 3, 4, 5].into_iter().collect());
     }
 }
