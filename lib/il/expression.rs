@@ -267,8 +267,6 @@ impl Expression {
                 scalars.append(&mut else_.scalars());
             }
         }
-        scalars.sort();
-        scalars.dedup();
         scalars
     }
 
@@ -308,8 +306,6 @@ impl Expression {
                 scalars.append(&mut else_.scalars_mut());
             }
         }
-        scalars.sort();
-        scalars.dedup();
         scalars
     }
 
