@@ -21,6 +21,8 @@ pub struct Block {
     next_temp_index: usize,
     /// The instructions for this block.
     instructions: Vec<Instruction>,
+    /// The phi nodes for this block.
+    phi_nodes: Vec<PhiNode>,
 }
 
 impl Block {
@@ -30,6 +32,7 @@ impl Block {
             next_instruction_index: 0,
             next_temp_index: 0,
             instructions: Vec::new(),
+            phi_nodes: Vec::new(),
         }
     }
 
@@ -107,6 +110,32 @@ impl Block {
             .ok_or(format!("No instruction with index {} found", index).into())
     }
 
+    /// Returns phi nodes of this `Block`
+    pub fn phi_nodes(&self) -> &Vec<PhiNode> {
+        &self.phi_nodes
+    }
+
+    /// Returns a mutable reference to the phi nodes of this `Block`.
+    pub fn phi_nodes_mut(&mut self) -> &mut Vec<PhiNode> {
+        &mut self.phi_nodes
+    }
+
+    /// Returns a `PhiNode` by index, or `None` if the `PhiNode` does not exist.
+    pub fn phi_node(&self, index: usize) -> Option<&PhiNode> {
+        self.phi_nodes.get(index)
+    }
+
+    /// Returns a mutable reference to a `PhiNode` by index, or `None` if
+    /// the `PhiNode` does not exist.
+    pub fn phi_node_mut(&mut self, index: usize) -> Option<&mut PhiNode> {
+        self.phi_nodes.get_mut(index)
+    }
+
+    /// Adds the phi node to this `Block`.
+    pub fn add_phi_node(&mut self, phi_node: PhiNode) {
+        self.phi_nodes.push(phi_node);
+    }
+
     /// Clone this block and set a new index.
     pub(crate) fn clone_new_index(&self, index: usize) -> Block {
         let mut clone = self.clone();
@@ -170,6 +199,9 @@ impl graph::Vertex for Block {
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "[ Block: 0x{:X} ]", self.index)?;
+        for phi_node in self.phi_nodes() {
+            writeln!(f, "{}", phi_node)?;
+        }
         for instruction in self.instructions() {
             writeln!(f, "{}", instruction)?;
         }
