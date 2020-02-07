@@ -8,6 +8,7 @@ use std::fmt;
 pub struct Scalar {
     name: String,
     bits: usize,
+    ssa: Option<usize>,
 }
 
 /// A scalar value for Falcon IL.
@@ -20,6 +21,7 @@ impl Scalar {
         Scalar {
             name: name.into(),
             bits: bits,
+            ssa: None,
         }
     }
 
@@ -33,10 +35,25 @@ impl Scalar {
         &self.name
     }
 
+    // Gets the SSA version of the `Scalar` or None if no SSA version is set.
+    pub fn ssa(&self) -> Option<usize> {
+        self.ssa.clone()
+    }
+
+    // Sets the SSA version of the `Scalar`.
+    pub fn set_ssa(&mut self, ssa: Option<usize>) {
+        self.ssa = ssa;
+    }
+
     /// An identifier for the `Scalar`. This is the string which is displayed
     /// when printing the IL.
     pub fn identifier(&self) -> String {
-        format!("{}:{}", self.name, self.bits)
+        let ssa = match self.ssa() {
+            Some(ssa) => format!(".{}", ssa),
+            None => String::default(),
+        };
+
+        format!("{}{}:{}", self.name, ssa, self.bits)
     }
 }
 
