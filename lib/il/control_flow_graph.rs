@@ -116,12 +116,12 @@ impl ControlFlowGraph {
     }
 
     /// Get every incoming edge to a block
-    pub fn edges_in(&self, index: usize) -> Result<&Vec<Edge>> {
+    pub fn edges_in(&self, index: usize) -> Result<Vec<&Edge>> {
         self.graph.edges_in(index)
     }
 
     /// Get every outgoing edge from a block
-    pub fn edges_out(&self, index: usize) -> Result<&Vec<Edge>> {
+    pub fn edges_out(&self, index: usize) -> Result<Vec<&Edge>> {
         self.graph.edges_out(index)
     }
 

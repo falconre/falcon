@@ -1,6 +1,6 @@
 //! Implements a directed graph.
 
-use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 use crate::error::*;
 
@@ -75,8 +75,8 @@ pub struct Graph<V: Vertex, E: Edge> {
     head: Option<usize>,
     vertices: BTreeMap<usize, V>,
     edges: BTreeMap<(usize, usize), E>,
-    edges_out: BTreeMap<usize, Vec<E>>,
-    edges_in: BTreeMap<usize, Vec<E>>,
+    successors: BTreeMap<usize, BTreeSet<usize>>,
+    predecessors: BTreeMap<usize, BTreeSet<usize>>,
 }
 
 impl<V, E> Graph<V, E>
@@ -89,8 +89,8 @@ where
             head: None,
             vertices: BTreeMap::new(),
             edges: BTreeMap::new(),
-            edges_out: BTreeMap::new(),
-            edges_in: BTreeMap::new(),
+            successors: BTreeMap::new(),
+            predecessors: BTreeMap::new(),
         }
     }
 
@@ -130,14 +130,14 @@ where
 
         // find all edges that deal with this vertex
         let mut edges = Vec::new();
-        if let Some(edges_out) = self.edges_out.get(&index) {
-            for edge in edges_out {
-                edges.push((edge.head(), edge.tail()));
+        if let Some(successors) = self.successors.get(&index) {
+            for successor in successors {
+                edges.push((index, *successor));
             }
         };
-        if let Some(edges_in) = self.edges_in.get(&index) {
-            for edge in edges_in {
-                edges.push((edge.head(), edge.tail()));
+        if let Some(predecessors) = self.predecessors.get(&index) {
+            for predecessor in predecessors {
+                edges.push((*predecessor, index));
             }
         };
 
@@ -146,8 +146,8 @@ where
             self.remove_edge(edge.0, edge.1)?;
         }
 
-        self.edges_in.remove(&index);
-        self.edges_out.remove(&index);
+        self.predecessors.remove(&index);
+        self.successors.remove(&index);
 
         Ok(())
     }
@@ -160,31 +160,15 @@ where
 
         self.edges.remove(&(head, tail));
 
-        // find the index of this edge in edges_out
-        let mut index = None;
-        let edges_out = self.edges_out.get_mut(&head).unwrap();
-        for (i, edge) in edges_out.iter().enumerate() {
-            if edge.head() == head && edge.tail() == tail {
-                index = Some(i);
-                break;
-            }
-        }
+        self.predecessors
+            .get_mut(&tail)
+            .unwrap()
+            .remove(&head);
 
-        // remove this edge by index in edges_out
-        edges_out.remove(index.unwrap());
-
-        // find the index of this edge in edges_in
-        let mut index = None;
-        let edges_in = self.edges_in.get_mut(&tail).unwrap();
-        for (i, edge) in edges_in.iter().enumerate() {
-            if edge.head() == head && edge.tail() == tail {
-                index = Some(i);
-                break;
-            }
-        }
-
-        // remove this edge by index in edges_in
-        edges_in.remove(index.unwrap());
+        self.successors
+            .get_mut(&head)
+            .unwrap()
+            .remove(&tail);
 
         Ok(())
     }
@@ -197,8 +181,8 @@ where
             return Err("duplicate vertex index".into());
         }
         self.vertices.insert(v.index(), v.clone());
-        self.edges_out.insert(v.index(), Vec::new());
-        self.edges_in.insert(v.index(), Vec::new());
+        self.successors.insert(v.index(), BTreeSet::new());
+        self.predecessors.insert(v.index(), BTreeSet::new());
         Ok(())
     }
 
@@ -209,14 +193,22 @@ where
         if self.edges.contains_key(&(edge.head(), edge.tail())) {
             return Err("duplicate edge".into());
         }
+        if !self.vertices.contains_key(&edge.head()) {
+            return Err(ErrorKind::GraphVertexNotFound(edge.head()).into());
+        }
+        if !self.vertices.contains_key(&edge.tail()) {
+            return Err(ErrorKind::GraphVertexNotFound(edge.tail()).into());
+        }
 
         self.edges.insert((edge.head(), edge.tail()), edge.clone());
-        self.edges_out
+        self.successors
             .get_mut(&edge.head())
-            .map(|v| v.push(edge.clone()));
-        self.edges_in
+            .unwrap()
+            .insert(edge.tail());
+        self.predecessors
             .get_mut(&edge.tail())
-            .map(|v| v.push(edge.clone()));
+            .unwrap()
+            .insert(edge.head());
 
         Ok(())
     }
@@ -230,10 +222,10 @@ where
             );
         }
 
-        let vertices = self.edges_out[&index].iter().map(|e| self.vertex(e.tail()));
+        let vertices = &self.successors[&index];
 
-        Ok(vertices.fold(Vec::new(), |mut v, vx| {
-            v.push(vx.unwrap());
+        Ok(vertices.iter().fold(Vec::new(), |mut v, index| {
+            v.push(self.vertices.get(index).unwrap());
             v
         }))
     }
@@ -247,10 +239,10 @@ where
             );
         }
 
-        let vertices = self.edges_in[&index].iter().map(|e| self.vertex(e.head()));
+        let vertices = &self.predecessors[&index];
 
-        Ok(vertices.fold(Vec::new(), |mut v, vx| {
-            v.push(vx.unwrap());
+        Ok(vertices.iter().fold(Vec::new(), |mut v, index| {
+            v.push(self.vertices.get(index).unwrap());
             v
         }))
     }
@@ -267,9 +259,9 @@ where
             order: &mut Vec<usize>,
         ) -> Result<()> {
             visited.insert(node);
-            for successor in graph.edges_out(node)? {
-                if !visited.contains(&successor.tail()) {
-                    dfs_walk(graph, successor.tail(), visited, order)?;
+            for successor in &graph.successors[&node] {
+                if !visited.contains(successor) {
+                    dfs_walk(graph, *successor, visited, order)?;
                 }
             }
             order.push(node);
@@ -297,14 +289,14 @@ where
         for vertex in &self.vertices {
             let vertex_index: usize = *vertex.0;
 
-            if self.edges_in[&vertex_index].len() >= 2 {
+            if self.predecessors[&vertex_index].len() >= 2 {
                 if !idoms.contains_key(&vertex_index) {
                     continue;
                 }
                 let idom = idoms[&vertex_index];
 
-                for edge in &self.edges_in[&vertex_index] {
-                    let mut runner = edge.head();
+                for predecessor in &self.predecessors[&vertex_index] {
+                    let mut runner = *predecessor;
                     while runner != idom {
                         df.get_mut(&runner).unwrap().insert(vertex_index);
                         if !idoms.contains_key(&runner) {
@@ -318,8 +310,8 @@ where
 
         // Special handling for the start node as it can be part of a loop.
         // This is necessary because we don't have a dedicated entry node.
-        for edge in &self.edges_in[&start_index] {
-            let mut runner = edge.head();
+        for predecessor in &self.predecessors[&start_index] {
+            let mut runner = *predecessor;
             loop {
                 df.get_mut(&runner).unwrap().insert(start_index);
                 if !idoms.contains_key(&runner) {
@@ -387,8 +379,8 @@ where
 
         // add all successors of start vertex to queue
         let mut queue = VecDeque::new();
-        for edge in &self.edges_out[&start_index] {
-            queue.push_back(edge.tail());
+        for successor in &self.successors[&start_index] {
+            queue.push_back(*successor);
         }
 
         let dag = self.compute_acyclic(start_index)?;
@@ -415,14 +407,14 @@ where
 
             // this vertex's dominators are the intersection of all
             // immediate predecessors' dominators, plus itself
-            let mut doms: HashSet<usize> = match dag.edges_in(vertex_index).unwrap().first() {
-                Some(predecessor_edge) => dominators[&predecessor_edge.head()].clone(),
+            let mut doms: HashSet<usize> = match dag.predecessors[&vertex_index].iter().next() {
+                Some(predecessor) => dominators[predecessor].clone(),
                 None => HashSet::new(),
             };
 
-            for edge in &self.edges_in[&vertex_index] {
-                if predecessors[&vertex_index].contains(&edge.head()) {
-                    doms = &doms & &dominators[&edge.head()];
+            for predecessor in &self.predecessors[&vertex_index] {
+                if predecessors[&vertex_index].contains(predecessor) {
+                    doms = &doms & &dominators[predecessor];
                 }
             }
 
@@ -431,9 +423,9 @@ where
             dominators.insert(vertex_index, doms.clone());
 
             // add successors to the queue
-            for edge in &dag.edges_out[&vertex_index] {
-                if !queue.contains(&edge.tail()) {
-                    queue.push_back(edge.tail());
+            for successor in &dag.successors[&vertex_index] {
+                if !queue.contains(successor) {
+                    queue.push_back(*successor);
                 }
             }
         }
@@ -469,8 +461,8 @@ where
         // initial population
         for vertex in &self.vertices {
             let mut preds = HashSet::new();
-            for edge in self.edges_in(*vertex.0).unwrap() {
-                preds.insert(edge.head());
+            for predecessor in &self.predecessors[vertex.0] {
+                preds.insert(*predecessor);
             }
             predecessors.insert(*vertex.0, preds);
             queue.push_back(*vertex.0);
@@ -501,8 +493,8 @@ where
             }
 
             if !to_add.is_empty() {
-                for successor in self.edges_out(vertex_index).unwrap() {
-                    queue.push_back(successor.tail());
+                for successor in &self.successors[&vertex_index] {
+                    queue.push_back(*successor);
                 }
             }
         }
@@ -530,17 +522,17 @@ where
 
             let vertex_predecessors = &predecessors[&vertex_index];
 
-            for edge in &self.edges_out[&vertex_index] {
+            for successor in &self.successors[&vertex_index] {
                 // skip edges that would create a loop
-                if visited.contains(&edge.tail()) && vertex_predecessors.contains(&edge.tail()) {
+                if visited.contains(successor) && vertex_predecessors.contains(successor) {
                     continue;
                 }
                 // successors we haven't seen yet get added to the queue
-                if !visited.contains(&edge.tail()) && !queue.contains(&edge.tail()) {
-                    queue.push_back(edge.tail());
+                if !visited.contains(successor) && !queue.contains(successor) {
+                    queue.push_back(*successor);
                 }
 
-                graph.insert_edge(NullEdge::new(edge.head(), edge.tail()))?;
+                graph.insert_edge(NullEdge::new(vertex_index, *successor))?;
             }
         }
 
@@ -601,16 +593,18 @@ where
     }
 
     /// Return all edges out for a vertex
-    pub fn edges_out(&self, index: usize) -> Result<&Vec<E>> {
-        self.edges_out
+    pub fn edges_out(&self, index: usize) -> Result<Vec<&E>> {
+        self.successors
             .get(&index)
+            .map(|succs| succs.iter().map(|succ| &self.edges[&(index, *succ)]).collect())
             .ok_or(ErrorKind::GraphVertexNotFound(index).into())
     }
 
     /// Return all edges in for a vertex
-    pub fn edges_in(&self, index: usize) -> Result<&Vec<E>> {
-        self.edges_in
+    pub fn edges_in(&self, index: usize) -> Result<Vec<&E>> {
+        self.predecessors
             .get(&index)
+            .map(|preds| preds.iter().map(|pred| &self.edges[&(*pred, index)]).collect())
             .ok_or(ErrorKind::GraphVertexNotFound(index).into())
     }
 
