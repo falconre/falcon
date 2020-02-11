@@ -563,6 +563,41 @@ where
         Ok(graph)
     }
 
+    /// Computes the topological ordering of all vertices in the graph
+    pub fn compute_topological_ordering(&self, root: usize) -> Result<Vec<usize>> {
+        let mut permanent_marks: HashSet<usize> = HashSet::new();
+        let mut temporary_marks: HashSet<usize> = HashSet::new();
+        let mut order: Vec<usize> = Vec::new();
+
+        fn dfs_walk<V: Vertex, E: Edge>(
+            graph: &Graph<V, E>,
+            node: usize,
+            permanent_marks: &mut HashSet<usize>,
+            temporary_marks: &mut HashSet<usize>,
+            order: &mut Vec<usize>,
+        ) -> Result<()> {
+            if permanent_marks.contains(&node) {
+                return Ok(());
+            }
+            if temporary_marks.contains(&node) {
+                return Err("Graph contains a loop".into());
+            }
+
+            temporary_marks.insert(node);
+            for successor in &graph.successors[&node] {
+                dfs_walk(graph, *successor, permanent_marks, temporary_marks, order)?;
+            }
+            temporary_marks.remove(&node);
+            permanent_marks.insert(node);
+            order.push(node);
+            Ok(())
+        }
+
+        dfs_walk(self, root, &mut permanent_marks, &mut temporary_marks, &mut order)?;
+
+        Ok(order.into_iter().rev().collect())
+    }
+
     /// Returns all vertices in the graph.
     pub fn vertices(&self) -> Vec<&V> {
         self.vertices.values().collect()
@@ -909,5 +944,47 @@ mod tests {
 
         assert_eq!(predecessors.get(&2).unwrap(),
                    &vec![1, 2, 3, 4, 5].into_iter().collect());
+    }
+
+    #[test]
+    fn test_topological_ordering_should_return_error_for_cyclic_graph() {
+        let graph = create_test_graph();
+        assert!(graph.compute_topological_ordering(1).is_err());
+    }
+
+    #[test]
+    fn test_topological_ordering() {
+        // ---> 1 +---> 2 +-+-> 3 +---> 4
+        //      +          /      \     /\
+        //      |         /        \    |
+        //      +-----> 5 +---> 6 +-+-> 7
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+            graph.insert_vertex(5).unwrap();
+            graph.insert_vertex(6).unwrap();
+            graph.insert_vertex(7).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((2, 5)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((3, 4)).unwrap();
+            graph.insert_edge((3, 7)).unwrap();
+            graph.insert_edge((5, 3)).unwrap();
+            graph.insert_edge((5, 6)).unwrap();
+            graph.insert_edge((6, 7)).unwrap();
+            graph.insert_edge((7, 4)).unwrap();
+
+            graph.set_head(1).unwrap();
+
+            graph
+        };
+
+        assert_eq!(graph.compute_topological_ordering(1).unwrap(),
+                   vec![1, 2, 5, 6, 3, 7, 4]);
     }
 }
