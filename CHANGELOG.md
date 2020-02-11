@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.9] - 10-FEB-2020
+
+* emmanuel099 Fixed implementational defect in Graph::edges_in/edges_out
+* emmanuel099 Created SSA tranformation
+
 ## [0.4.8] - 01-FEB-2020
 
 * jeandudey Ported falcon to Rust 2018 edition.
