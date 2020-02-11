@@ -125,6 +125,16 @@ impl ControlFlowGraph {
         self.graph.edges_out(index)
     }
 
+    /// Get the indices of every predecessor of a `Block` in this `ControlFlowGraph`.
+    pub fn predecessor_indices(&self, index: usize) -> Result<Vec<usize>> {
+        self.graph.predecessor_indices(index)
+    }
+
+    /// Get the indices of every successor of a `Block` in this `ControlFlowGraph`.
+    pub fn successor_indices(&self, index: usize) -> Result<Vec<usize>> {
+        self.graph.successor_indices(index)
+    }
+
     /// Sets the address for all instructions in this `ControlFlowGraph`.
     ///
     /// Useful for translators to set address information.
