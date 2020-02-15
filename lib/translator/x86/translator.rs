@@ -327,6 +327,7 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_LOOP => semantics.loop_(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_LOOPE => semantics.loop_(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_LOOPNE => semantics.loop_(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_MOVHPD => semantics.movhpd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVLPD => semantics.movlpd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOV
                 | capstone::x86_insn::X86_INS_MOVABS

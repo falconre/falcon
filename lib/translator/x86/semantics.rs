@@ -2059,6 +2059,42 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
+    pub fn movhpd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let dest_bits = detail.operands[0].size as usize * 8;
+
+            if dest_bits == 128 && src.bits() == 128 {
+                self.operand_store(&mut block, &detail.operands[0], src)?;
+            } else if dest_bits == 64 && src.bits() == 128 {
+                let src = Expression::trun(64, Expression::shr(src, expr_const(64, 128))?)?;
+                self.operand_store(&mut block, &detail.operands[0], src)?;
+            } else if dest_bits == 128 && src.bits() == 64 {
+                let src = Expression::or(
+                    Expression::and(
+                        self.operand_load(&mut block, &detail.operands[0])?,
+                        expr_const(0xffff_ffff_ffff_ffff, 128),
+                    )?,
+                    Expression::shl(Expression::zext(128, src)?, expr_const(64, 128))?,
+                )?;
+                self.operand_store(&mut block, &detail.operands[0], src)?;
+            } else {
+                bail!("Unhandled movlpd case");
+            }
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
     pub fn movlpd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 
