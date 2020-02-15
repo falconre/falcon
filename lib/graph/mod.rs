@@ -265,6 +265,22 @@ where
         Ok(self.predecessors[&index].iter().cloned().collect())
     }
 
+    /// Returns all vertices which don't have any predecessors in the graph.
+    pub fn vertices_without_predecessors(&self) -> Vec<&V> {
+        self.vertices
+            .values()
+            .filter(|v| self.predecessors.get(&v.index()).unwrap().is_empty())
+            .collect()
+    }
+
+    /// Returns all vertices which don't have any successors in the graph.
+    pub fn vertices_without_successors(&self) -> Vec<&V> {
+        self.vertices
+            .values()
+            .filter(|v| self.successors.get(&v.index()).unwrap().is_empty())
+            .collect()
+    }
+
     // Compute the post order of all vertices in the graph
     pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>> {
         let mut visited: HashSet<usize> = HashSet::new();
@@ -1023,5 +1039,19 @@ mod tests {
             graph.compute_topological_ordering(1).unwrap(),
             vec![1, 2, 5, 6, 3, 7, 4]
         );
+    }
+
+    #[test]
+    fn test_vertices_without_predecessors() {
+        let graph = create_test_graph();
+        let vertices = graph.vertices_without_predecessors();
+        assert_eq!(vertices, [graph.vertex(1).unwrap()]);
+    }
+
+    #[test]
+    fn test_vertices_without_successors() {
+        let graph = create_test_graph();
+        let vertices = graph.vertices_without_successors();
+        assert_eq!(vertices, [graph.vertex(6).unwrap()]);
     }
 }
