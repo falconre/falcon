@@ -2,8 +2,8 @@ use crate::architecture;
 use crate::architecture::Endian;
 use crate::executor::*;
 use crate::il::*;
-use crate::translator::mips::*;
 use crate::memory;
+use crate::translator::mips::*;
 use crate::RC;
 
 #[macro_use]

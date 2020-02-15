@@ -1151,7 +1151,7 @@ impl X86Register {
             Ok(())
         } else if self.offset == 0 {
             let full_reg = self.get_full()?;
-            if full_reg.bits() < 64 {
+            if self.bits() < 32 {
                 let mask = !0 << self.bits;
                 let expr = Expr::and(full_reg.get()?, expr_const(mask, full_reg.bits))?;
                 let expr = Expr::or(expr, Expr::zext(full_reg.bits, value)?)?;

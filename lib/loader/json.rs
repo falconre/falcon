@@ -1,10 +1,10 @@
 //! Experimental loader which takes a program specification in Json form.
 
-use base64;
 use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::*;
 use crate::memory::MemoryPermissions;
+use base64;
 use serde_json;
 use serde_json::Value;
 use std::fs::File;

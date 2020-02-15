@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.10] - 15-FEB-2020
+
+* Update goblin to `0.2`
+
 ## [0.4.9] - 10-FEB-2020
 
 * emmanuel099 Fixed implementational defect in Graph::edges_in/edges_out
