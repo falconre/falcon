@@ -152,6 +152,33 @@ where
         Ok(())
     }
 
+    /// Removes all unreachable vertices from this graph.
+    /// Unreachable means that there is no path from head to the vertex.
+    pub fn remove_unreachable_vertices(&mut self, head: usize) {
+        let mut unreachable_vertices: HashSet<usize> =
+            self.vertices.values().map(|v| v.index()).collect();
+        let mut queue: Vec<usize> = Vec::new();
+
+        queue.push(head);
+        unreachable_vertices.remove(&head);
+
+        while let Some(vertex) = queue.pop() {
+            self.successors
+                .get(&vertex)
+                .unwrap()
+                .iter()
+                .for_each(|succ| {
+                    if unreachable_vertices.remove(succ) {
+                        queue.push(*succ)
+                    }
+                });
+        }
+
+        unreachable_vertices
+            .iter()
+            .for_each(|vertex| self.remove_vertex(*vertex).unwrap());
+    }
+
     /// Removes an edge
     pub fn remove_edge(&mut self, head: usize, tail: usize) -> Result<()> {
         if !self.edges.contains_key(&(head, tail)) {
@@ -1053,5 +1080,28 @@ mod tests {
         let graph = create_test_graph();
         let vertices = graph.vertices_without_successors();
         assert_eq!(vertices, [graph.vertex(6).unwrap()]);
+    }
+
+    #[test]
+    fn remove_unreachable_vertices() {
+        let mut graph = Graph::new();
+
+        // reachable
+        graph.insert_vertex(1).unwrap();
+        graph.insert_vertex(2).unwrap();
+        graph.insert_edge((1, 2)).unwrap();
+
+        // unreachable
+        graph.insert_vertex(3).unwrap();
+        graph.insert_vertex(4).unwrap();
+        graph.insert_vertex(5).unwrap();
+        graph.insert_edge((4, 5)).unwrap();
+        graph.insert_edge((4, 2)).unwrap();
+
+        graph.remove_unreachable_vertices(1);
+
+        assert_eq!(graph.num_vertices(), 2);
+        assert!(graph.has_vertex(1));
+        assert!(graph.has_vertex(2));
     }
 }
