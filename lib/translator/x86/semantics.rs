@@ -2750,6 +2750,93 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
+    pub fn pshufd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let order = self.operand_load(&mut block, &detail.operands[2])?;
+
+            let order0 = Expression::and(order.clone(), expr_const(3, order.bits()))?;
+            let order1 = Expression::and(
+                Expression::shr(order.clone(), expr_const(2, order.bits()))?,
+                expr_const(3, order.bits()),
+            )?;
+            let order2 = Expression::and(
+                Expression::shr(order.clone(), expr_const(4, order.bits()))?,
+                expr_const(3, order.bits()),
+            )?;
+            let order3 = Expression::and(
+                Expression::shr(order.clone(), expr_const(6, order.bits()))?,
+                expr_const(3, order.bits()),
+            )?;
+
+            let result0 = Expression::and(
+                Expression::shr(
+                    src.clone(),
+                    // We need to multiply by 32
+                    Expression::shl(order0, expr_const(5, src.bits()))?,
+                )?,
+                expr_const(0xffffffff, src.bits()),
+            )?;
+
+            let result1 = Expression::and(
+                Expression::shr(
+                    src.clone(),
+                    // We need to multiply by 32
+                    Expression::shl(order1, expr_const(5, src.bits()))?,
+                )?,
+                expr_const(0xffffffff, src.bits()),
+            )?;
+
+            let result2 = Expression::and(
+                Expression::shr(
+                    src.clone(),
+                    // We need to multiply by 32
+                    Expression::shl(order2, expr_const(5, src.bits()))?,
+                )?,
+                expr_const(0xffffffff, src.bits()),
+            )?;
+
+            let result3 = Expression::and(
+                Expression::shr(
+                    src.clone(),
+                    // We need to multiply by 32
+                    Expression::shl(order3, expr_const(5, src.bits()))?,
+                )?,
+                expr_const(0xffffffff, src.bits()),
+            )?;
+
+            let temp = block.temp(detail.operands[0].size as usize * 8);
+
+            block.assign(temp.clone(), result0);
+            block.assign(
+                temp.clone(),
+                Expression::shl(result1, expr_const(32, temp.bits()))?,
+            );
+            block.assign(
+                temp.clone(),
+                Expression::shl(result2, expr_const(64, temp.bits()))?,
+            );
+            block.assign(
+                temp.clone(),
+                Expression::shl(result3, expr_const(96, temp.bits()))?,
+            );
+
+            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
     pub fn pslldq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 

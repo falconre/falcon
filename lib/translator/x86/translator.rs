@@ -264,8 +264,9 @@ pub(crate) fn translate_block(
                 | capstone::x86_insn::X86_INS_MOVSQ => semantics.movs(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVSX => semantics.movsx(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVSXD => semantics.movsx(&mut instruction_graph),
-                capstone::x86_insn::X86_INS_MOVD |
-                capstone::x86_insn::X86_INS_MOVZX => semantics.movzx(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_MOVD | capstone::x86_insn::X86_INS_MOVZX => {
+                    semantics.movzx(&mut instruction_graph)
+                }
                 capstone::x86_insn::X86_INS_MUL => semantics.mul(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_NEG => semantics.neg(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_NOP => semantics.nop(&mut instruction_graph),
@@ -283,9 +284,7 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_PREFETCHT1 => semantics.nop(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PREFETCHT2 => semantics.nop(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PREFETCHNTA => semantics.nop(&mut instruction_graph),
-                capstone::x86_insn::X86_INS_PSHUFD => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
+                capstone::x86_insn::X86_INS_PSHUFD => semantics.pshufd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PSLLDQ => semantics.pslldq(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PSRLDQ => semantics.psrldq(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PSUBB => semantics.psubb(&mut instruction_graph),
