@@ -330,15 +330,14 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_MOVHPD => semantics.movhpd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVLPD => semantics.movlpd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOV
+                | capstone::x86_insn::X86_INS_MOVD
                 | capstone::x86_insn::X86_INS_MOVABS
                 | capstone::x86_insn::X86_INS_MOVAPS
                 | capstone::x86_insn::X86_INS_MOVAPD
+                | capstone::x86_insn::X86_INS_MOVDQA
                 | capstone::x86_insn::X86_INS_MOVDQU
                 | capstone::x86_insn::X86_INS_MOVNTI
                 | capstone::x86_insn::X86_INS_MOVUPS => semantics.mov(&mut instruction_graph),
-                capstone::x86_insn::X86_INS_MOVD | capstone::x86_insn::X86_INS_MOVDQA => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
                 capstone::x86_insn::X86_INS_MOVQ => semantics.movq(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVSB
                 | capstone::x86_insn::X86_INS_MOVSW
@@ -359,6 +358,7 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_PMOVMSKB => semantics.pmovmskb(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PMINUB => semantics.pminub(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_POP => semantics.pop(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_POR => semantics.por(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PREFETCHT0 => semantics.nop(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PREFETCHT1 => semantics.nop(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PREFETCHT2 => semantics.nop(&mut instruction_graph),
@@ -366,6 +366,9 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_PSHUFD => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
+                capstone::x86_insn::X86_INS_PSLLDQ => semantics.pslldq(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_PSRLDQ => semantics.psrldq(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_PSUBB => semantics.psubb(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PSUBQ => semantics.psubq(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PUNPCKLBW => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)

@@ -2729,6 +2729,137 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
+    pub fn por(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            self.operand_store(&mut block, &detail.operands[0], Expr::or(lhs, rhs)?)?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+    pub fn pslldq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            if rhs.bits() < lhs.bits() {
+                rhs = Expression::zext(lhs.bits(), rhs)?;
+            }
+
+            self.operand_store(
+                &mut block,
+                &detail.operands[0],
+                Expression::shl(lhs.clone(), rhs)?,
+            )?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+    pub fn psrldq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            if rhs.bits() < lhs.bits() {
+                rhs = Expression::zext(lhs.bits(), rhs)?;
+            }
+
+            self.operand_store(
+                &mut block,
+                &detail.operands[0],
+                Expression::shr(lhs.clone(), rhs)?,
+            )?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+    pub fn psubb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            // get operands
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            let mut temp_vars = Vec::new();
+
+            for i in 0..(lhs.bits() / 8) {
+                let ll = Expression::trun(
+                    8,
+                    Expression::shr(lhs.clone(), expr_const(i as u64 * 8, lhs.bits()))?,
+                )?;
+                let rr = Expression::trun(
+                    8,
+                    Expression::shr(rhs.clone(), expr_const(i as u64 * 8, lhs.bits()))?,
+                )?;
+                let temp = block.temp(8);
+                block.assign(temp.clone(), Expression::sub(ll, rr)?);
+                temp_vars.push(temp);
+            }
+
+            let result = block.temp(lhs.bits());
+            block.assign(result.clone(), expr_const(0, lhs.bits()));
+            for i in 0..temp_vars.len() {
+                block.assign(
+                    result.clone(),
+                    Expression::or(
+                        result.clone().into(),
+                        Expression::shl(
+                            Expression::zext(lhs.bits(), temp_vars[i].clone().into())?,
+                            expr_const(i as u64 * 8, lhs.bits()),
+                        )?,
+                    )?,
+                );
+            }
+
+            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
     pub fn psubq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 
