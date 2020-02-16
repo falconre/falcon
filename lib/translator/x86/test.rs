@@ -89,6 +89,36 @@ fn lea() {
 }
 
 #[test]
+fn movd() {
+    // movd xmm1, esi
+    // nop
+    let bytes: Vec<u8> = vec![0x66, 0x0f, 0x6e, 0xce, 0x90];
+
+    let driver = init_amd64_driver(
+        bytes.clone(),
+        vec![
+            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333)),
+            ("rsi", il::const_(0x11112222_deadbeef, 64)),
+        ],
+        Memory::new(Endian::Little),
+    );
+
+    let driver = step_to(driver, 0x4);
+
+    assert_eq!(driver.state().get_scalar("xmm1").unwrap().bits(), 128);
+
+    assert!(eval(
+        &il::Expression::cmpeq(
+            driver.state().get_scalar("xmm1").unwrap().clone().into(),
+            mk128const(0x00000000_00000000, 0x00000000_deadbeef).into()
+        )
+        .unwrap()
+    )
+    .unwrap()
+    .is_one());
+}
+
+#[test]
 fn pcmpeqd() {
     // pcmeqd xmm0, xmm1
     // nop

@@ -330,7 +330,6 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_MOVHPD => semantics.movhpd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVLPD => semantics.movlpd(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOV
-                | capstone::x86_insn::X86_INS_MOVD
                 | capstone::x86_insn::X86_INS_MOVABS
                 | capstone::x86_insn::X86_INS_MOVAPS
                 | capstone::x86_insn::X86_INS_MOVAPD
@@ -345,6 +344,7 @@ pub(crate) fn translate_block(
                 | capstone::x86_insn::X86_INS_MOVSQ => semantics.movs(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVSX => semantics.movsx(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MOVSXD => semantics.movsx(&mut instruction_graph),
+                capstone::x86_insn::X86_INS_MOVD |
                 capstone::x86_insn::X86_INS_MOVZX => semantics.movzx(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_MUL => semantics.mul(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_NEG => semantics.neg(&mut instruction_graph),
