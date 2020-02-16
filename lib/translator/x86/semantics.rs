@@ -3179,7 +3179,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let count = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let mut count = match count.bits() {
+            let mut count = match lhs.bits() {
                 8 => Expr::and(count.clone(), expr_const(0x7, count.bits()))?,
                 16 => Expr::and(count.clone(), expr_const(0xf, count.bits()))?,
                 32 => Expr::and(count.clone(), expr_const(0x1f, count.bits()))?,
