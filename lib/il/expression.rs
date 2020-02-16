@@ -85,11 +85,9 @@ impl Expression {
         }
     }
 
-    /// Ensures the bits of both lhs and rhs are the same. If no_flags is true,
-    /// Also ensures this expression doesn't include flags (which have a sort
-    /// of 0)
-    fn ensure_sort(lhs: &Expression, rhs: &Expression, no_flags: bool) -> Result<()> {
-        if lhs.bits() != rhs.bits() || (no_flags && lhs.bits() == 0) {
+    /// Ensures the bits of both lhs and rhs are the same.
+    fn ensure_sort(lhs: &Expression, rhs: &Expression) -> Result<()> {
+        if lhs.bits() != rhs.bits() {
             Err(ErrorKind::Sort.into())
         } else {
             Ok(())
@@ -339,7 +337,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same
     pub fn add(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Add(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -347,7 +345,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn sub(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Sub(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -355,7 +353,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn mul(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Mul(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -363,7 +361,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn divu(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Divu(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -371,7 +369,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn modu(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Modu(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -379,7 +377,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn divs(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Divs(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -387,7 +385,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn mods(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Mods(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -395,7 +393,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn and(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::And(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -403,7 +401,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn or(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Or(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -411,7 +409,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn xor(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Xor(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -419,7 +417,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn shl(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Shl(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -427,7 +425,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn shr(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, true)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Shr(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -435,7 +433,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmpeq(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, false)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmpeq(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -443,7 +441,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmpneq(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, false)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmpneq(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -451,7 +449,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmpltu(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, false)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmpltu(Box::new(lhs), Box::new(rhs)))
     }
 
@@ -459,7 +457,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     pub fn cmplts(lhs: Expression, rhs: Expression) -> Result<Expression> {
-        Expression::ensure_sort(&lhs, &rhs, false)?;
+        Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmplts(Box::new(lhs), Box::new(rhs)))
     }
 
