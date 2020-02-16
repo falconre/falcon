@@ -72,7 +72,6 @@ impl Edge for NullEdge {
 /// A directed graph.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Graph<V: Vertex, E: Edge> {
-    head: Option<usize>,
     vertices: BTreeMap<usize, V>,
     edges: BTreeMap<(usize, usize), E>,
     successors: BTreeMap<usize, BTreeSet<usize>>,
@@ -86,7 +85,6 @@ where
 {
     pub fn new() -> Graph<V, E> {
         Graph {
-            head: None,
             vertices: BTreeMap::new(),
             edges: BTreeMap::new(),
             successors: BTreeMap::new(),
@@ -101,20 +99,6 @@ where
     /// Returns true if the vertex with the given index exists in this graph
     pub fn has_vertex(&self, index: usize) -> bool {
         self.vertices.contains_key(&index)
-    }
-
-    /// Sets the head of this graph.
-    pub fn set_head(&mut self, index: usize) -> Result<()> {
-        if !self.vertices.contains_key(&index) {
-            return Err("Cannot set head for index that does not exist".into());
-        }
-        self.head = Some(index);
-        Ok(())
-    }
-
-    /// Returns the head of this graph.
-    pub fn head(&self) -> Option<usize> {
-        self.head
     }
 
     /// Removes a vertex, and all edges associated with that vertex.
@@ -821,8 +805,6 @@ mod tests {
         graph.insert_edge((4, 5)).unwrap();
         graph.insert_edge((5, 2)).unwrap();
 
-        graph.set_head(1).unwrap();
-
         graph
     }
 
@@ -920,8 +902,6 @@ mod tests {
             graph.insert_edge((1, 3)).unwrap();
             graph.insert_edge((2, 1)).unwrap();
             graph.insert_edge((2, 3)).unwrap();
-
-            graph.set_head(1).unwrap();
 
             graph
         };
@@ -1056,8 +1036,6 @@ mod tests {
             graph.insert_edge((5, 6)).unwrap();
             graph.insert_edge((6, 7)).unwrap();
             graph.insert_edge((7, 4)).unwrap();
-
-            graph.set_head(1).unwrap();
 
             graph
         };
