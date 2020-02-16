@@ -162,131 +162,51 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_CWDE => semantics.cwde(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_DEC => semantics.dec(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_DIV => semantics.div(&mut instruction_graph),
-                capstone::x86_insn::X86_INS_F2XM1 => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FABS => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FADD => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FADDP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FCHS => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FCOMP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FCOMPP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FDIV => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FDIVR => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FDIVRP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FFREE => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FILD => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FINCSTP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FISTP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FLDCW => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FLD => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FLD1 => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FLDENV => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FLDL2E => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FLDLN2 => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FLDZ => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FDIVP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FMUL => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FMULP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FNCLEX => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FNSTENV => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FNSTCW => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FNSTSW => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FRNDINT => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FSCALE => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FST => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FSTP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FSUB => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FSUBP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FSUBR => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FSUBRP => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FTST => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FUCOMI => {
+                capstone::x86_insn::X86_INS_F2XM1
+                | capstone::x86_insn::X86_INS_FABS
+                | capstone::x86_insn::X86_INS_FADD
+                | capstone::x86_insn::X86_INS_FADDP
+                | capstone::x86_insn::X86_INS_FCHS
+                | capstone::x86_insn::X86_INS_FCOMP
+                | capstone::x86_insn::X86_INS_FCOMPP
+                | capstone::x86_insn::X86_INS_FDIV
+                | capstone::x86_insn::X86_INS_FDIVR
+                | capstone::x86_insn::X86_INS_FDIVRP
+                | capstone::x86_insn::X86_INS_FFREE
+                | capstone::x86_insn::X86_INS_FILD
+                | capstone::x86_insn::X86_INS_FINCSTP
+                | capstone::x86_insn::X86_INS_FISTP
+                | capstone::x86_insn::X86_INS_FLDCW
+                | capstone::x86_insn::X86_INS_FLD
+                | capstone::x86_insn::X86_INS_FLD1
+                | capstone::x86_insn::X86_INS_FLDENV
+                | capstone::x86_insn::X86_INS_FLDL2E
+                | capstone::x86_insn::X86_INS_FLDLN2
+                | capstone::x86_insn::X86_INS_FLDZ
+                | capstone::x86_insn::X86_INS_FDIVP
+                | capstone::x86_insn::X86_INS_FMUL
+                | capstone::x86_insn::X86_INS_FMULP
+                | capstone::x86_insn::X86_INS_FNCLEX
+                | capstone::x86_insn::X86_INS_FNSTENV
+                | capstone::x86_insn::X86_INS_FNSTCW
+                | capstone::x86_insn::X86_INS_FNSTSW
+                | capstone::x86_insn::X86_INS_FRNDINT
+                | capstone::x86_insn::X86_INS_FSCALE
+                | capstone::x86_insn::X86_INS_FST
+                | capstone::x86_insn::X86_INS_FSTP
+                | capstone::x86_insn::X86_INS_FSUB
+                | capstone::x86_insn::X86_INS_FSUBP
+                | capstone::x86_insn::X86_INS_FSUBR
+                | capstone::x86_insn::X86_INS_FSUBRP
+                | capstone::x86_insn::X86_INS_FTST
+                | capstone::x86_insn::X86_INS_FUCOMI
+                | capstone::x86_insn::X86_INS_FXAM
+                | capstone::x86_insn::X86_INS_FXCH
+                | capstone::x86_insn::X86_INS_FYL2X => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
                 #[cfg(not(feature = "capstone4"))]
                 capstone::x86_insn::X86_INS_FUCOMPI => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FXAM => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FXCH => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
-                }
-                capstone::x86_insn::X86_INS_FYL2X => {
                     unhandled_intrinsic(&mut instruction_graph, &instruction)
                 }
                 capstone::x86_insn::X86_INS_HLT => semantics.nop(&mut instruction_graph),
@@ -371,10 +291,10 @@ pub(crate) fn translate_block(
                 capstone::x86_insn::X86_INS_PSUBB => semantics.psubb(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PSUBQ => semantics.psubq(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PUNPCKLBW => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
+                    semantics.punpcklbw(&mut instruction_graph)
                 }
                 capstone::x86_insn::X86_INS_PUNPCKLWD => {
-                    unhandled_intrinsic(&mut instruction_graph, &instruction)
+                    semantics.punpcklwd(&mut instruction_graph)
                 }
                 capstone::x86_insn::X86_INS_PUSH => semantics.push(&mut instruction_graph),
                 capstone::x86_insn::X86_INS_PUSHFD => {

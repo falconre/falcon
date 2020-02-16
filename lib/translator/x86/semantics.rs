@@ -2942,6 +2942,100 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
+    pub fn punpcklbw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            let result = block.temp(lhs.bits());
+            block.assign(result.clone(), expr_const(0, result.bits()));
+            for i in 0..lhs.bits() / 16 {
+                let ll = Expression::and(
+                    Expression::shr(lhs.clone(), expr_const(i as u64 * 8, lhs.bits()))?,
+                    expr_const(0xff, lhs.bits()),
+                )?;
+                let rr = Expression::and(
+                    Expression::shr(rhs.clone(), expr_const(i as u64 * 8, lhs.bits()))?,
+                    expr_const(0xff, lhs.bits()),
+                )?;
+                block.assign(
+                    result.clone(),
+                    Expression::or(
+                        result.clone().into(),
+                        Expression::shl(ll, expr_const(i as u64 * 16, lhs.bits()))?,
+                    )?,
+                );
+                block.assign(
+                    result.clone(),
+                    Expression::or(
+                        result.clone().into(),
+                        Expression::shl(rr, expr_const(i as u64 * 16 + 8, rhs.bits()))?,
+                    )?,
+                );
+            }
+
+            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
+    pub fn punpcklwd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+
+            let result = block.temp(lhs.bits());
+            block.assign(result.clone(), expr_const(0, result.bits()));
+            for i in 0..lhs.bits() / 32 {
+                let ll = Expression::and(
+                    Expression::shr(lhs.clone(), expr_const(i as u64 * 16, lhs.bits()))?,
+                    expr_const(0xffff, lhs.bits()),
+                )?;
+                let rr = Expression::and(
+                    Expression::shr(rhs.clone(), expr_const(i as u64 * 16, lhs.bits()))?,
+                    expr_const(0xffff, lhs.bits()),
+                )?;
+                block.assign(
+                    result.clone(),
+                    Expression::or(
+                        result.clone().into(),
+                        Expression::shl(ll, expr_const(i as u64 * 32, lhs.bits()))?,
+                    )?,
+                );
+                block.assign(
+                    result.clone(),
+                    Expression::or(
+                        result.clone().into(),
+                        Expression::shl(rr, expr_const(i as u64 * 32 + 16, lhs.bits()))?,
+                    )?,
+                );
+            }
+
+            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
     pub fn pxor(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 
