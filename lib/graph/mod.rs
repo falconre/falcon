@@ -9,6 +9,14 @@ pub trait Vertex: Clone + Sync {
     fn index(&self) -> usize;
     // A string to display in dot graphviz format.
     fn dot_label(&self) -> String;
+    // Fill color in dot graphviz format.
+    fn dot_fill_color(&self) -> String {
+        "#ffddcc".to_string()
+    }
+    // Font color in dot graphviz format.
+    fn dot_font_color(&self) -> String {
+        "#000000".to_string()
+    }
 }
 
 pub trait Edge: Clone + Sync {
@@ -687,10 +695,14 @@ where
             .iter()
             .map(|v| {
                 let label = v.1.dot_label().replace("\n", "\\l");
+                let fill_color = v.1.dot_fill_color();
+                let font_color = v.1.dot_font_color();
                 format!(
-                    "{} [shape=\"box\", label=\"{}\", style=\"filled\", fillcolor=\"#ffddcc\"];",
+                    "{} [shape=\"box\", label=\"{}\", style=\"filled\", fillcolor=\"{}\", fontcolor=\"{}\"];",
                     v.1.index(),
-                    label
+                    label,
+                    fill_color,
+                    font_color,
                 )
             })
             .collect::<Vec<String>>();
