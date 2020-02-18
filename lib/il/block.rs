@@ -158,10 +158,17 @@ impl Block {
         self.push(Instruction::load(index, dst, address));
     }
 
-    /// Adds a conditional branch operation to the end of this block.
+    /// Adds an unconditional branch operation to the end of this block.
     pub fn branch(&mut self, dst: Expression) {
         let index = self.new_instruction_index();
         self.push(Instruction::branch(index, dst));
+    }
+
+    /// Adds a conditional branch operation to the end of this block.
+    pub fn conditional_branch(&mut self, condition: Expression, dst: Expression) {
+        let index = self.new_instruction_index();
+        let op = Operation::conditional_branch(condition, dst);
+        self.push(Instruction::new(index, op));
     }
 
     /// Adds an intrinsic operation to the end of this block.
