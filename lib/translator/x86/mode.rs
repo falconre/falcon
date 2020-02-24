@@ -122,7 +122,13 @@ impl Mode {
                 }
             }
             x86_op_type::X86_OP_IMM => {
-                Ok(expr_const(operand.imm() as u64, operand.size as usize * 8))
+                // https://github.com/aquynh/capstone/issues/1586
+                let operand_size = if operand.size == 0 {
+                    8
+                } else {
+                    operand.size as usize * 8
+                };
+                Ok(expr_const(operand.imm() as u64, operand_size))
             }
             #[cfg(not(feature = "capstone4"))]
             x86_op_type::X86_OP_FP => Err("Unhandled operand".into()),

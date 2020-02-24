@@ -2758,7 +2758,11 @@ impl<'s> Semantics<'s> {
 
             // get operands
             let src = self.operand_load(&mut block, &detail.operands[1])?;
-            let order = self.operand_load(&mut block, &detail.operands[2])?;
+            let mut order = self.operand_load(&mut block, &detail.operands[2])?;
+
+            if order.bits() < src.bits() {
+                order = Expression::zext(src.bits(), order)?;
+            }
 
             let order0 = Expression::and(order.clone(), expr_const(3, order.bits()))?;
             let order1 = Expression::and(
@@ -2848,6 +2852,11 @@ impl<'s> Semantics<'s> {
             let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
             if rhs.bits() < lhs.bits() {
+                rhs = Expression::zext(lhs.bits(), rhs)?;
+            }
+
+            if rhs.bits() < lhs.bits() {
+                println!("0x{:x} {} {}", self.instruction().address, lhs, rhs);
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 

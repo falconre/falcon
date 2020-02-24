@@ -27,8 +27,17 @@ CODE = b"\xcd\x80"
 # mov eax, dword [gs:0x14]
 CODE = b"\x65\xa1\x14\x00\x00\x00"
 
-md = Cs(CS_ARCH_X86, CS_MODE_32)
+CODE = "\x66\x0f\x73\xfa\x07"
+md = Cs(CS_ARCH_X86, CS_MODE_64)
 md.detail = True
 d = md.disasm(CODE, 0x1000).next()
+print(d.mnemonic, d.op_str)
 
 
+
+from capstone import *
+CODE = b"\x66\x0f\x73\xfa\x07"
+md = Cs(CS_ARCH_X86, CS_MODE_64)
+md.detail = True
+d = list(md.disasm(CODE, 0x1000))[0]
+print(d.mnemonic, d.op_str, d.operands[1].size)
