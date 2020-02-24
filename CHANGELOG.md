@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.11] - 24-FEB-2020
+
+* Multiple x86 semantics fix-ups
+
 ## [0.4.10] - 15-FEB-2020
 
 * Update goblin to `0.2`
