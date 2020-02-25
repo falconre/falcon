@@ -145,7 +145,7 @@ impl Mode {
         let op = self.operand_value(operand, instruction)?;
 
         if operand.type_ == x86_op_type::X86_OP_MEM {
-            let temp = block.temp(operand.size as usize * 8);
+            let temp = Scalar::temp(instruction.address, operand.size as usize * 8);
             block.load(temp.clone(), op);
             return Ok(temp.into());
         }
@@ -178,8 +178,13 @@ impl Mode {
     }
 
     /// Convenience function to pop a value off the stack
-    pub fn pop_value(&self, block: &mut Block, bits: usize) -> Result<Expression> {
-        let temp = block.temp(bits);
+    pub fn pop_value(
+        &self,
+        block: &mut Block,
+        bits: usize,
+        instruction: &capstone::Instr,
+    ) -> Result<Expression> {
+        let temp = Scalar::temp(instruction.address, bits);
 
         block.load(temp.clone(), self.sp().into());
         block.assign(

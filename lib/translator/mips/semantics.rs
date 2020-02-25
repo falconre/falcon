@@ -853,7 +853,7 @@ pub fn lb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let temp = block.temp(8);
+        let temp = Scalar::temp(instruction.address, 8);
         block.load(temp.clone(), Expr::add(base, offset)?);
         block.assign(dst, Expr::sext(32, temp.into())?);
 
@@ -877,7 +877,7 @@ pub fn lbu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let temp = block.temp(8);
+        let temp = Scalar::temp(instruction.address, 8);
         block.load(temp.clone(), Expr::add(base, offset)?);
         block.assign(dst, Expr::zext(32, temp.into())?);
 
@@ -901,7 +901,7 @@ pub fn lh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let temp = block.temp(16);
+        let temp = Scalar::temp(instruction.address, 16);
         block.load(temp.clone(), Expr::add(base, offset)?);
         block.assign(dst, Expr::sext(32, temp.into())?);
 
@@ -925,7 +925,7 @@ pub fn lhu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let temp = block.temp(16);
+        let temp = Scalar::temp(instruction.address, 16);
         block.load(temp.clone(), Expr::add(base, offset)?);
         block.assign(dst, Expr::zext(32, temp.into())?);
 
@@ -1028,7 +1028,7 @@ pub fn lwl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let bytes_to_shift = Expr::and(expr_const(3, 32), address.clone())?;
         let bits_to_shift = Expr::shl(bytes_to_shift, expr_const(3, 32))?;
 
-        let tmp = block.temp(32);
+        let tmp = Scalar::temp(instruction.address, 32);
         block.load(tmp.clone(), address);
 
         // clear the dst register by shifting left then right
@@ -1075,7 +1075,7 @@ pub fn lwr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let mask = Expr::sub(mask_bit, expr_const(1, 32))?;
 
         // load our word from memory
-        let tmp = block.temp(32);
+        let tmp = Scalar::temp(instruction.address, 32);
         block.load(tmp.clone(), address);
 
         // we want to and this word with our mask to remove the high bits
@@ -1113,8 +1113,8 @@ pub fn madd(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let tmp0 = block.temp(64);
-        let tmp1 = block.temp(64);
+        let tmp0 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?,
@@ -1159,8 +1159,8 @@ pub fn maddu(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let tmp0 = block.temp(64);
-        let tmp1 = block.temp(64);
+        let tmp0 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?,
@@ -1373,8 +1373,8 @@ pub fn msub(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let tmp0 = block.temp(64);
-        let tmp1 = block.temp(64);
+        let tmp0 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?,
@@ -1419,8 +1419,8 @@ pub fn msubu(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let tmp0 = block.temp(64);
-        let tmp1 = block.temp(64);
+        let tmp0 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?,
@@ -1536,7 +1536,7 @@ pub fn mult(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let tmp = block.temp(64);
+        let tmp = Scalar::temp(instruction.address, 64);
         block.assign(
             tmp.clone(),
             Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?,
@@ -1569,7 +1569,7 @@ pub fn multu(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        let tmp = block.temp(64);
+        let tmp = Scalar::temp(instruction.address, 64);
         block.assign(
             tmp.clone(),
             Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?,
@@ -2080,7 +2080,7 @@ pub fn sra(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let block = control_flow_graph.new_block()?;
 
         // set up the mask to put the arithmetic in shift arithmetic right
-        let temp = block.temp(32);
+        let temp = Scalar::temp(instruction.address, 32);
         let expr = Expr::shl(
             Expr::sub(
                 expr_const(0, 32),
@@ -2115,7 +2115,7 @@ pub fn srav(
         let block = control_flow_graph.new_block()?;
 
         // set up the mask to put the arithmetic in shift arithmetic right
-        let temp = block.temp(32);
+        let temp = Scalar::temp(instruction.address, 32);
         let expr = Expr::shl(
             Expr::sub(
                 expr_const(0, 32),
@@ -2358,7 +2358,7 @@ pub fn swl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let address = Expr::add(base, offset)?;
 
         // load the value currently in memory
-        let tmp = block.temp(32);
+        let tmp = Scalar::temp(instruction.address, 32);
         block.load(
             tmp.clone(),
             Expr::and(expr_const(0xffff_fffc, 32), address.clone())?,
@@ -2424,7 +2424,7 @@ pub fn swr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let mask = Expr::sub(mask_bit, expr_const(1, 32))?;
 
         // load our word from memory
-        let tmp = block.temp(32);
+        let tmp = Scalar::temp(instruction.address, 32);
         block.load(tmp.clone(), address.clone());
 
         // zero out the words we're about to set in dst

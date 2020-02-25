@@ -25,6 +25,11 @@ impl Scalar {
         }
     }
 
+    /// Create a temporary `Scalar` with the given index and bitness.
+    pub fn temp(index: u64, bits: usize) -> Self {
+        Self::new(format!("temp_0x{:X}", index), bits)
+    }
+
     /// Gets the bitness of the `Scalar`.
     pub fn bits(&self) -> usize {
         self.bits
