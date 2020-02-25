@@ -2,7 +2,7 @@
 
 use crate::il::*;
 use num_bigint::{BigInt, BigUint, ToBigInt};
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
 use std::fmt;
 use std::ops::*;
 
@@ -107,12 +107,12 @@ impl Constant {
 
     /// Returns true if the value in this Constant is 0, false otherwise.
     pub fn is_zero(&self) -> bool {
-        self.value_u64().map(|v| v == 0).unwrap_or(false)
+        self.value.is_zero()
     }
 
     /// Returns true if the value in this constant is 1, false otherwise.
     pub fn is_one(&self) -> bool {
-        self.value_u64().map(|v| v == 1).unwrap_or(false)
+        self.value.is_one()
     }
 
     pub fn add(&self, rhs: &Constant) -> Result<Constant> {
