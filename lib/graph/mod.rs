@@ -144,6 +144,33 @@ where
         Ok(())
     }
 
+    /// Removes all unreachable vertices from this graph.
+    /// Unreachable means that there is no path from head to the vertex.
+    pub fn remove_unreachable_vertices(&mut self, head: usize) {
+        let mut unreachable_vertices: HashSet<usize> =
+            self.vertices.values().map(|v| v.index()).collect();
+        let mut queue: Vec<usize> = Vec::new();
+
+        queue.push(head);
+        unreachable_vertices.remove(&head);
+
+        while let Some(vertex) = queue.pop() {
+            self.successors
+                .get(&vertex)
+                .unwrap()
+                .iter()
+                .for_each(|succ| {
+                    if unreachable_vertices.remove(succ) {
+                        queue.push(*succ)
+                    }
+                });
+        }
+
+        unreachable_vertices
+            .iter()
+            .for_each(|vertex| self.remove_vertex(*vertex).unwrap());
+    }
+
     /// Removes an edge
     pub fn remove_edge(&mut self, head: usize, tail: usize) -> Result<()> {
         if !self.edges.contains_key(&(head, tail)) {
@@ -255,6 +282,22 @@ where
         }
 
         Ok(self.predecessors[&index].iter().cloned().collect())
+    }
+
+    /// Returns all vertices which don't have any predecessors in the graph.
+    pub fn vertices_without_predecessors(&self) -> Vec<&V> {
+        self.vertices
+            .values()
+            .filter(|v| self.predecessors.get(&v.index()).unwrap().is_empty())
+            .collect()
+    }
+
+    /// Returns all vertices which don't have any successors in the graph.
+    pub fn vertices_without_successors(&self) -> Vec<&V> {
+        self.vertices
+            .values()
+            .filter(|v| self.successors.get(&v.index()).unwrap().is_empty())
+            .collect()
     }
 
     // Compute the post order of all vertices in the graph
@@ -1013,5 +1056,42 @@ mod tests {
             graph.compute_topological_ordering(1).unwrap(),
             vec![1, 2, 5, 6, 3, 7, 4]
         );
+    }
+
+    #[test]
+    fn test_vertices_without_predecessors() {
+        let graph = create_test_graph();
+        let vertices = graph.vertices_without_predecessors();
+        assert_eq!(vertices, [graph.vertex(1).unwrap()]);
+    }
+
+    #[test]
+    fn test_vertices_without_successors() {
+        let graph = create_test_graph();
+        let vertices = graph.vertices_without_successors();
+        assert_eq!(vertices, [graph.vertex(6).unwrap()]);
+    }
+
+    #[test]
+    fn remove_unreachable_vertices() {
+        let mut graph = Graph::new();
+
+        // reachable
+        graph.insert_vertex(1).unwrap();
+        graph.insert_vertex(2).unwrap();
+        graph.insert_edge((1, 2)).unwrap();
+
+        // unreachable
+        graph.insert_vertex(3).unwrap();
+        graph.insert_vertex(4).unwrap();
+        graph.insert_vertex(5).unwrap();
+        graph.insert_edge((4, 5)).unwrap();
+        graph.insert_edge((4, 2)).unwrap();
+
+        graph.remove_unreachable_vertices(1);
+
+        assert_eq!(graph.num_vertices(), 2);
+        assert!(graph.has_vertex(1));
+        assert!(graph.has_vertex(2));
     }
 }
