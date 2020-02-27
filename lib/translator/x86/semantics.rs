@@ -39,8 +39,8 @@ impl<'s> Semantics<'s> {
     }
 
     /// Generates a temporary scalar unique to this instruction.
-    pub fn temp(&self, bits: usize) -> Scalar {
-        Scalar::temp(self.instruction.address, bits)
+    pub fn temp(&self, subindex: usize, bits: usize) -> Scalar {
+        Scalar::new(format!("temp_0x{:X}_{}", self.instruction.address, subindex), bits)
     }
 
     pub fn operand_load(&self, mut block: &mut Block, operand: &cs_x86_op) -> Result<Expression> {
@@ -426,7 +426,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
 
             // perform addition
             let addition = Expr::add(lhs.clone(), rhs.clone())?;
@@ -464,7 +464,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
 
             // perform addition
             block.assign(result.clone(), Expr::add(lhs.clone(), rhs.clone())?);
@@ -504,7 +504,7 @@ impl<'s> Semantics<'s> {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
             }
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
 
             // perform addition
             block.assign(result.clone(), Expr::and(lhs.clone(), rhs.clone())?);
@@ -768,7 +768,7 @@ impl<'s> Semantics<'s> {
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
-                let temp = self.temp(base.bits());
+                let temp = self.temp(0, base.bits());
                 block.assign(
                     temp.clone(),
                     Expr::zext(base.bits(), offset.clone().into())?,
@@ -776,7 +776,7 @@ impl<'s> Semantics<'s> {
                 offset = temp.into();
             }
 
-            let temp = self.temp(base.bits());
+            let temp = self.temp(0, base.bits());
             block.assign(temp.clone(), Expr::shr(base.into(), offset.into())?);
             block.assign(scalar("CF", 1), Expr::trun(1, temp.into())?);
 
@@ -815,7 +815,7 @@ impl<'s> Semantics<'s> {
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
-                let temp = self.temp(base.bits());
+                let temp = self.temp(0, base.bits());
                 block.assign(
                     temp.clone(),
                     Expr::zext(base.bits(), offset.clone().into())?,
@@ -824,7 +824,7 @@ impl<'s> Semantics<'s> {
             }
 
             // this handles the assign to CF
-            let temp = self.temp(base.bits());
+            let temp = self.temp(1, base.bits());
             block.assign(temp.clone(), Expr::shr(base.into(), offset.clone().into())?);
             block.assign(scalar("CF", 1), Expr::trun(1, temp.clone().into())?);
 
@@ -867,7 +867,7 @@ impl<'s> Semantics<'s> {
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
-                let temp = self.temp(base.bits());
+                let temp = self.temp(0, base.bits());
                 block.assign(
                     temp.clone(),
                     Expr::zext(base.bits(), offset.clone().into())?,
@@ -876,7 +876,7 @@ impl<'s> Semantics<'s> {
             }
 
             // this handles the assign to CF
-            let temp = self.temp(base.bits());
+            let temp = self.temp(1, base.bits());
             block.assign(
                 temp.clone(),
                 Expr::shr(base.clone().into(), offset.clone().into())?,
@@ -924,7 +924,7 @@ impl<'s> Semantics<'s> {
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
-                let temp = self.temp(base.bits());
+                let temp = self.temp(0, base.bits());
                 block.assign(
                     temp.clone(),
                     Expr::zext(base.bits(), offset.clone().into())?,
@@ -933,7 +933,7 @@ impl<'s> Semantics<'s> {
             }
 
             // this handles the assign to CF
-            let temp = self.temp(base.bits());
+            let temp = self.temp(1, base.bits());
             block.assign(
                 temp.clone(),
                 Expr::shr(base.clone().into(), offset.clone().into())?,
@@ -1518,8 +1518,8 @@ impl<'s> Semantics<'s> {
                 _ => return Err("invalid bit-width in x86 div".into()),
             };
 
-            let quotient = self.temp(divisor.bits());
-            let remainder = self.temp(divisor.bits());
+            let quotient = self.temp(0, divisor.bits());
+            let remainder = self.temp(1, divisor.bits());
 
             block.assign(
                 quotient.clone(),
@@ -1605,8 +1605,8 @@ impl<'s> Semantics<'s> {
                 _ => return Err("invalid bit-width in x86 div".into()),
             };
 
-            let quotient = self.temp(divisor.bits());
-            let remainder = self.temp(divisor.bits());
+            let quotient = self.temp(0, divisor.bits());
+            let remainder = self.temp(1, divisor.bits());
 
             block.assign(
                 quotient.clone(),
@@ -1703,7 +1703,7 @@ impl<'s> Semantics<'s> {
             // Perform multiplication
             let bit_width = multiplicand.bits() * 2;
 
-            let result = self.temp(bit_width);
+            let result = self.temp(0, bit_width);
             block.assign(
                 result.clone(),
                 Expr::mul(
@@ -2191,7 +2191,7 @@ impl<'s> Semantics<'s> {
         let head_index = {
             let block = control_flow_graph.new_block()?;
 
-            let temp = self.temp(bits_size);
+            let temp = self.temp(0, bits_size);
             block.load(temp.clone(), si.get()?);
             block.store(di.get()?, temp.into());
 
@@ -2322,7 +2322,7 @@ impl<'s> Semantics<'s> {
             };
 
             let bit_width = rhs.bits() * 2;
-            let result = self.temp(bit_width);
+            let result = self.temp(0, bit_width);
             let expr = Expr::mul(
                 Expr::zext(bit_width, lhs)?,
                 Expr::zext(bit_width, rhs.clone())?,
@@ -2393,7 +2393,7 @@ impl<'s> Semantics<'s> {
 
             let dst = self.operand_load(&mut block, &detail.operands[0])?;
 
-            let result = self.temp(dst.bits());
+            let result = self.temp(0, dst.bits());
 
             block.assign(
                 scalar("CF", 1),
@@ -2471,7 +2471,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
 
             if lhs.bits() != rhs.bits() {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
@@ -2542,7 +2542,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let temp = self.temp(lhs.bits());
+            let temp = self.temp(0, lhs.bits());
 
             block.assign(
                 temp.clone(),
@@ -2595,7 +2595,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let temp = self.temp(lhs.bits());
+            let temp = self.temp(0, lhs.bits());
 
             block.assign(
                 temp.clone(),
@@ -2648,7 +2648,7 @@ impl<'s> Semantics<'s> {
             let dst = self.get_register(detail.operands[0].reg())?;
             let src = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let temp = self.temp(dst.bits());
+            let temp = self.temp(0, dst.bits());
 
             block.assign(
                 temp.clone(),
@@ -2703,7 +2703,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let temp = self.temp(lhs.bits());
+            let temp = self.temp(0, lhs.bits());
 
             block.assign(
                 temp.clone(),
@@ -2821,7 +2821,7 @@ impl<'s> Semantics<'s> {
                 expr_const(0xffffffff, src.bits()),
             )?;
 
-            let temp = self.temp(detail.operands[0].size as usize * 8);
+            let temp = self.temp(0, detail.operands[0].size as usize * 8);
 
             block.assign(temp.clone(), result0);
             block.assign(
@@ -2932,12 +2932,12 @@ impl<'s> Semantics<'s> {
                     8,
                     Expression::shr(rhs.clone(), expr_const(i as u64 * 8, lhs.bits()))?,
                 )?;
-                let temp = self.temp(8);
+                let temp = self.temp(0, 8);
                 block.assign(temp.clone(), Expression::sub(ll, rr)?);
                 temp_vars.push(temp);
             }
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(1, lhs.bits());
             block.assign(result.clone(), expr_const(0, lhs.bits()));
             for i in 0..temp_vars.len() {
                 block.assign(
@@ -3057,7 +3057,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
             block.assign(result.clone(), expr_const(0, result.bits()));
             for i in 0..lhs.bits() / 16 {
                 let ll = Expression::and(
@@ -3104,7 +3104,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
             block.assign(result.clone(), expr_const(0, result.bits()));
             for i in 0..lhs.bits() / 32 {
                 let ll = Expression::and(
@@ -3398,7 +3398,7 @@ impl<'s> Semantics<'s> {
 
             // Do the SAR
             let expr = Expr::or(expr, Expr::shr(lhs.clone(), rhs.clone())?)?;
-            let temp = self.temp(lhs.bits());
+            let temp = self.temp(0, lhs.bits());
             block.assign(temp.clone(), expr);
 
             // OF is the last bit shifted out
@@ -3462,7 +3462,7 @@ impl<'s> Semantics<'s> {
             let mut block = control_flow_graph.new_block()?;
 
             // get operands
-            let temp = self.temp(8);
+            let temp = self.temp(0, 8);
             block.load(temp.clone(), di.get()?);
             let expr = Expr::sub(al.get()?, temp.clone().into())?;
 
@@ -3528,7 +3528,7 @@ impl<'s> Semantics<'s> {
             let mut block = control_flow_graph.new_block()?;
 
             // get operands
-            let temp = self.temp(16);
+            let temp = self.temp(0, 16);
             block.load(temp.clone(), di.get()?);
             let expr = Expr::sub(ax.get()?, temp.clone().into())?;
 
@@ -3942,7 +3942,7 @@ impl<'s> Semantics<'s> {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
             }
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
             block.assign(result.clone(), Expr::sub(lhs.clone(), rhs.clone())?);
 
             // calculate flags
@@ -4068,7 +4068,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
 
             // perform addition
             block.assign(result.clone(), Expr::add(lhs.clone(), rhs.clone())?);
@@ -4102,7 +4102,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let tmp = self.temp(lhs.bits());
+            let tmp = self.temp(0, lhs.bits());
             block.assign(tmp.clone(), lhs.clone());
 
             self.operand_store(&mut block, &detail.operands[0], rhs)?;
@@ -4132,7 +4132,7 @@ impl<'s> Semantics<'s> {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
             }
 
-            let result = self.temp(lhs.bits());
+            let result = self.temp(0, lhs.bits());
 
             // In the event lhs and rhs are the same, this is actually an
             // assignment of zero. Treat it as such.

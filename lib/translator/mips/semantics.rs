@@ -1114,7 +1114,7 @@ pub fn madd(
         let block = control_flow_graph.new_block()?;
 
         let tmp0 = Scalar::temp(instruction.address, 64);
-        let tmp1 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address + 1, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?,
@@ -1160,7 +1160,7 @@ pub fn maddu(
         let block = control_flow_graph.new_block()?;
 
         let tmp0 = Scalar::temp(instruction.address, 64);
-        let tmp1 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address + 1, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?,
@@ -1374,7 +1374,7 @@ pub fn msub(
         let block = control_flow_graph.new_block()?;
 
         let tmp0 = Scalar::temp(instruction.address, 64);
-        let tmp1 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address + 1, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?,
@@ -1420,7 +1420,7 @@ pub fn msubu(
         let block = control_flow_graph.new_block()?;
 
         let tmp0 = Scalar::temp(instruction.address, 64);
-        let tmp1 = Scalar::temp(instruction.address, 64);
+        let tmp1 = Scalar::temp(instruction.address + 1, 64);
         block.assign(
             tmp0.clone(),
             Expr::mul(Expr::zext(64, rs)?, Expr::zext(64, rt)?)?,
