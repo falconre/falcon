@@ -810,7 +810,7 @@ pub fn lbz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
         let ea = Expr::add(offset, base)?;
 
-        let temp = block.temp(8);
+        let temp = Scalar::temp(instruction.address, 8);
         block.load(temp.clone(), ea);
         block.assign(dst.clone(), Expression::zext(dst.bits(), temp.into())?);
 

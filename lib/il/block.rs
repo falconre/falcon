@@ -17,8 +17,6 @@ pub struct Block {
     index: usize,
     /// an internal counter for the next block-unique instruction.
     next_instruction_index: usize,
-    /// An internal counter for the next block-unique temporary variable.
-    next_temp_index: usize,
     /// The instructions for this block.
     instructions: Vec<Instruction>,
     /// The phi nodes for this block.
@@ -30,7 +28,6 @@ impl Block {
         Block {
             index: index,
             next_instruction_index: 0,
-            next_temp_index: 0,
             instructions: Vec::new(),
             phi_nodes: Vec::new(),
         }
@@ -141,13 +138,6 @@ impl Block {
         let mut clone = self.clone();
         clone.index = index;
         clone
-    }
-
-    /// Generates a temporary scalar unique to this block.
-    pub fn temp(&mut self, bits: usize) -> Scalar {
-        let next_index = self.next_temp_index;
-        self.next_temp_index = next_index + 1;
-        Scalar::new(format!("temp_{}.{}", self.index, next_index), bits)
     }
 
     /// Adds an assign operation to the end of this block.
