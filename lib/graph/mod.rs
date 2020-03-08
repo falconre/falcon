@@ -26,6 +26,22 @@ pub trait Edge: Clone + Sync {
     fn tail(&self) -> usize;
     /// A string to display in dot graphviz format.
     fn dot_label(&self) -> String;
+    // Style in dot graphviz format.
+    fn dot_style(&self) -> String {
+        "solid".to_string()
+    }
+    // Fill color in dot graphviz format.
+    fn dot_fill_color(&self) -> String {
+        "#000000".to_string()
+    }
+    // Font color in dot graphviz format.
+    fn dot_font_color(&self) -> String {
+        "#000000".to_string()
+    }
+    // Pen width in dot graphviz format.
+    fn dot_pen_width(&self) -> f64 {
+        1.0
+    }
 }
 
 /// An empty vertex for creating structures when data is not required
@@ -739,7 +755,12 @@ where
             .iter()
             .map(|e| {
                 let label = e.1.dot_label().replace("\n", "\\l");
-                format!("{} -> {} [label=\"{}\"];", e.1.head(), e.1.tail(), label)
+                let style = e.1.dot_style();
+                let fill_color = e.1.dot_fill_color();
+                let font_color = e.1.dot_font_color();
+                let pen_width = e.1.dot_pen_width();
+                format!("{} -> {} [label=\"{}\", style=\"{}\", color=\"{}\", fontcolor=\"{}\", penwidth=\"{}\"];",
+                        e.1.head(), e.1.tail(), label, style, fill_color, font_color, pen_width)
             })
             .collect::<Vec<String>>();
 
