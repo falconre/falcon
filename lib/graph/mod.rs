@@ -648,6 +648,34 @@ where
         dfs_is_acyclic(self, root, &mut permanent_marks, &mut temporary_marks)
     }
 
+    /// Determines if the graph is reducible.
+    pub fn is_reducible(&self, head: usize) -> Result<bool> {
+        // First, compute the set of back edges.
+        let mut back_edges: HashSet<(usize, usize)> = HashSet::new();
+        for (node, dominators) in self.compute_dominators(head)? {
+            for successor in &self.successors[&node] {
+                if dominators.contains(&successor) {
+                    back_edges.insert((node, *successor));
+                }
+            }
+        }
+
+        // Then build a graph without back edges, a.k.a. forward edges (FE) graph.
+        let mut fe_graph = Graph::new();
+        for (&index, _) in &self.vertices {
+            fe_graph.insert_vertex(NullVertex::new(index))?;
+        }
+        for (edge, _) in &self.edges {
+            if !back_edges.contains(edge) {
+                fe_graph.insert_edge(NullEdge::new(edge.0, edge.1))?;
+            }
+        }
+
+        // Graph is reducible iff the FE graph is acyclic and every node is reachable from head.
+        let every_node_is_reachable = fe_graph.unreachable_vertices(head)?.is_empty();
+        Ok(every_node_is_reachable && fe_graph.is_acyclic(head))
+    }
+
     /// Computes the topological ordering of all vertices in the graph
     pub fn compute_topological_ordering(&self, root: usize) -> Result<Vec<usize>> {
         let mut permanent_marks: HashSet<usize> = HashSet::new();
@@ -1218,5 +1246,47 @@ mod tests {
         };
 
         assert!(graph.is_acyclic(1));
+    }
+
+    #[test]
+    fn test_is_reducible_should_return_false_for_irreducible_graph() {
+        // Loop 2-3 with two loop entries 2 & 3 -> irreducible
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((1, 3)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((3, 2)).unwrap();
+
+            graph
+        };
+
+        assert_eq!(graph.is_reducible(1).unwrap(), false);
+    }
+
+    #[test]
+    fn test_is_reducible_should_return_true_for_reducible_graph() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap(); // loop header
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((2, 4)).unwrap();
+            graph.insert_edge((3, 1)).unwrap(); // back edge
+
+            graph
+        };
+
+        assert!(graph.is_reducible(1).unwrap());
     }
 }
