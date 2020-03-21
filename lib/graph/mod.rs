@@ -146,29 +146,11 @@ where
 
     /// Removes all unreachable vertices from this graph.
     /// Unreachable means that there is no path from head to the vertex.
-    pub fn remove_unreachable_vertices(&mut self, head: usize) {
-        let mut unreachable_vertices: HashSet<usize> =
-            self.vertices.values().map(|v| v.index()).collect();
-        let mut queue: Vec<usize> = Vec::new();
-
-        queue.push(head);
-        unreachable_vertices.remove(&head);
-
-        while let Some(vertex) = queue.pop() {
-            self.successors
-                .get(&vertex)
-                .unwrap()
-                .iter()
-                .for_each(|succ| {
-                    if unreachable_vertices.remove(succ) {
-                        queue.push(*succ)
-                    }
-                });
-        }
-
-        unreachable_vertices
+    pub fn remove_unreachable_vertices(&mut self, head: usize) -> Result<()> {
+        self.unreachable_vertices(head)?
             .iter()
             .for_each(|vertex| self.remove_vertex(*vertex).unwrap());
+        Ok(())
     }
 
     /// Removes an edge
@@ -298,6 +280,44 @@ where
             .values()
             .filter(|v| self.successors.get(&v.index()).unwrap().is_empty())
             .collect()
+    }
+
+    /// Computes the set of vertices unreachable from the given index.
+    pub fn unreachable_vertices(&self, index: usize) -> Result<HashSet<usize>> {
+        let reachable_vertices = self.reachable_vertices(index)?;
+        Ok(self
+            .vertices
+            .keys()
+            .filter(|index| !reachable_vertices.contains(&index))
+            .cloned()
+            .collect())
+    }
+
+    /// Computes the set of vertices reachable from the given index.
+    pub fn reachable_vertices(&self, index: usize) -> Result<HashSet<usize>> {
+        if !self.has_vertex(index) {
+            bail!("vertex does not exist");
+        }
+
+        let mut reachable_vertices: HashSet<usize> = HashSet::new();
+        let mut queue: Vec<usize> = Vec::new();
+
+        queue.push(index);
+        reachable_vertices.insert(index);
+
+        while let Some(vertex) = queue.pop() {
+            self.successors
+                .get(&vertex)
+                .unwrap()
+                .iter()
+                .for_each(|&succ| {
+                    if reachable_vertices.insert(succ) {
+                        queue.push(succ)
+                    }
+                });
+        }
+
+        Ok(reachable_vertices)
     }
 
     // Compute the post order of all vertices in the graph
@@ -1106,7 +1126,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_unreachable_vertices() {
+    fn test_remove_unreachable_vertices() {
         let mut graph = Graph::new();
 
         // reachable
@@ -1121,11 +1141,58 @@ mod tests {
         graph.insert_edge((4, 5)).unwrap();
         graph.insert_edge((4, 2)).unwrap();
 
-        graph.remove_unreachable_vertices(1);
+        graph.remove_unreachable_vertices(1).unwrap();
 
         assert_eq!(graph.num_vertices(), 2);
         assert!(graph.has_vertex(1));
         assert!(graph.has_vertex(2));
+    }
+
+    #[test]
+    fn test_reachable_vertices() {
+        let mut graph = Graph::new();
+
+        // reachable from 1
+        graph.insert_vertex(1).unwrap();
+        graph.insert_vertex(2).unwrap();
+        graph.insert_edge((1, 2)).unwrap();
+
+        // unreachable from 1
+        graph.insert_vertex(3).unwrap();
+        graph.insert_vertex(4).unwrap();
+        graph.insert_vertex(5).unwrap();
+        graph.insert_edge((4, 5)).unwrap();
+        graph.insert_edge((4, 2)).unwrap();
+
+        let reachable_vertices = graph.reachable_vertices(1).unwrap();
+
+        assert_eq!(reachable_vertices.len(), 2);
+        assert!(reachable_vertices.contains(&1));
+        assert!(reachable_vertices.contains(&2));
+    }
+
+    #[test]
+    fn test_unreachable_vertices() {
+        let mut graph = Graph::new();
+
+        // reachable from 1
+        graph.insert_vertex(1).unwrap();
+        graph.insert_vertex(2).unwrap();
+        graph.insert_edge((1, 2)).unwrap();
+
+        // unreachable from 1
+        graph.insert_vertex(3).unwrap();
+        graph.insert_vertex(4).unwrap();
+        graph.insert_vertex(5).unwrap();
+        graph.insert_edge((4, 5)).unwrap();
+        graph.insert_edge((4, 2)).unwrap();
+
+        let unreachable_vertices = graph.unreachable_vertices(1).unwrap();
+
+        assert_eq!(unreachable_vertices.len(), 3);
+        assert!(unreachable_vertices.contains(&3));
+        assert!(unreachable_vertices.contains(&4));
+        assert!(unreachable_vertices.contains(&5));
     }
 
     #[test]
