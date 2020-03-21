@@ -595,6 +595,39 @@ where
         Ok(graph)
     }
 
+    /// Determines if the graph is acyclic
+    pub fn is_acyclic(&self, root: usize) -> bool {
+        let mut permanent_marks: HashSet<usize> = HashSet::new();
+        let mut temporary_marks: HashSet<usize> = HashSet::new();
+
+        fn dfs_is_acyclic<V: Vertex, E: Edge>(
+            graph: &Graph<V, E>,
+            node: usize,
+            permanent_marks: &mut HashSet<usize>,
+            temporary_marks: &mut HashSet<usize>,
+        ) -> bool {
+            if permanent_marks.contains(&node) {
+                return true;
+            }
+            if temporary_marks.contains(&node) {
+                return false;
+            }
+
+            temporary_marks.insert(node);
+            if !graph.successors[&node].iter().all(|successor| {
+                dfs_is_acyclic(graph, *successor, permanent_marks, temporary_marks)
+            }) {
+                return false;
+            }
+            temporary_marks.remove(&node);
+
+            permanent_marks.insert(node);
+            true
+        }
+
+        dfs_is_acyclic(self, root, &mut permanent_marks, &mut temporary_marks)
+    }
+
     /// Computes the topological ordering of all vertices in the graph
     pub fn compute_topological_ordering(&self, root: usize) -> Result<Vec<usize>> {
         let mut permanent_marks: HashSet<usize> = HashSet::new();
@@ -1093,5 +1126,30 @@ mod tests {
         assert_eq!(graph.num_vertices(), 2);
         assert!(graph.has_vertex(1));
         assert!(graph.has_vertex(2));
+    }
+
+    #[test]
+    fn test_is_acyclic_should_return_false_for_cyclic_graph() {
+        let graph = create_test_graph();
+        assert_eq!(graph.is_acyclic(1), false);
+    }
+
+    #[test]
+    fn test_is_acyclic_should_return_true_for_acyclic_graph() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((1, 3)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+
+            graph
+        };
+
+        assert!(graph.is_acyclic(1));
     }
 }
