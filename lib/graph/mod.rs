@@ -77,6 +77,47 @@ impl Edge for NullEdge {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Loop {
+    header: usize,
+    nodes: BTreeSet<usize>,
+}
+
+impl Loop {
+    pub fn new(header: usize, nodes: BTreeSet<usize>) -> Self {
+        Self { header, nodes }
+    }
+
+    /// The set of nodes part of this loop
+    pub fn nodes(&self) -> &BTreeSet<usize> {
+        &self.nodes
+    }
+
+    /// The loop header node
+    pub fn header(&self) -> usize {
+        self.header
+    }
+
+    /// The set of loop tail nodes
+    pub fn tail(&self) -> BTreeSet<usize> {
+        let mut tail_nodes = self.nodes.clone();
+        tail_nodes.remove(&self.header);
+        tail_nodes
+    }
+
+    /// Returns `true` if this loop is nesting another loop.
+    pub fn is_nesting(&self, other: &Self) -> bool {
+        self.header != other.header && self.nodes.contains(&other.header)
+    }
+
+    /// Returns `true` if this loop and another loop are disjoint.
+    pub fn is_disjoint(&self, other: &Self) -> bool {
+        self.header != other.header
+            && !self.nodes.contains(&other.header)
+            && !other.nodes.contains(&self.header)
+    }
+}
+
 /// A directed graph.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Graph<V: Vertex, E: Edge> {
@@ -648,10 +689,12 @@ where
         dfs_is_acyclic(self, root, &mut permanent_marks, &mut temporary_marks)
     }
 
-    /// Determines if the graph is reducible.
-    pub fn is_reducible(&self, head: usize) -> Result<bool> {
-        // First, compute the set of back edges.
+    /// Computes the set of back edges
+    ///
+    /// Back edges are edges whose heads dominate their tails.
+    fn compute_back_edges(&self, head: usize) -> Result<HashSet<(usize, usize)>> {
         let mut back_edges: HashSet<(usize, usize)> = HashSet::new();
+
         for (node, dominators) in self.compute_dominators(head)? {
             for successor in &self.successors[&node] {
                 if dominators.contains(&successor) {
@@ -660,7 +703,14 @@ where
             }
         }
 
-        // Then build a graph without back edges, a.k.a. forward edges (FE) graph.
+        Ok(back_edges)
+    }
+
+    /// Determines if the graph is reducible.
+    pub fn is_reducible(&self, head: usize) -> Result<bool> {
+        let back_edges = self.compute_back_edges(head)?;
+
+        // Build a graph without back edges, a.k.a. forward edges (FE) graph.
         let mut fe_graph = Graph::new();
         for (&index, _) in &self.vertices {
             fe_graph.insert_vertex(NullVertex::new(index))?;
@@ -674,6 +724,36 @@ where
         // Graph is reducible iff the FE graph is acyclic and every node is reachable from head.
         let every_node_is_reachable = fe_graph.unreachable_vertices(head)?.is_empty();
         Ok(every_node_is_reachable && fe_graph.is_acyclic(head))
+    }
+
+    /// Computes the set of natural loops in the graph
+    pub fn compute_loops(&self, head: usize) -> Result<Vec<Loop>> {
+        let mut loops: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
+
+        // For each back edge compute the set of nodes part of the loop
+        for (tail, header) in self.compute_back_edges(head)? {
+            let nodes = loops.entry(header).or_default();
+            let mut queue: Vec<usize> = Vec::new();
+
+            nodes.insert(header);
+
+            if nodes.insert(tail) {
+                queue.push(tail);
+            }
+
+            while let Some(node) = queue.pop() {
+                for &predecessor in &self.predecessors[&node] {
+                    if nodes.insert(predecessor) {
+                        queue.push(predecessor);
+                    }
+                }
+            }
+        }
+
+        Ok(loops
+            .iter()
+            .map(|(&header, nodes)| Loop::new(header, nodes.clone()))
+            .collect())
     }
 
     /// Computes the topological ordering of all vertices in the graph
@@ -1288,5 +1368,119 @@ mod tests {
         };
 
         assert!(graph.is_reducible(1).unwrap());
+    }
+
+    #[test]
+    fn test_compute_loops_single_loop() {
+        let graph = create_test_graph();
+
+        let loops = graph.compute_loops(1).unwrap();
+
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0].header(), 2);
+        assert_eq!(loops[0].nodes(), &vec![2, 3, 4, 5].into_iter().collect());
+    }
+
+    #[test]
+    fn test_compute_loops_nested_loops() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+            graph.insert_vertex(5).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((3, 4)).unwrap();
+            graph.insert_edge((3, 2)).unwrap(); // back edge
+            graph.insert_edge((4, 5)).unwrap();
+            graph.insert_edge((4, 1)).unwrap(); // back edge
+
+            graph
+        };
+
+        let loops = graph.compute_loops(1).unwrap();
+
+        assert_eq!(loops.len(), 2);
+        assert!(loops.contains(&Loop::new(1, vec![1, 2, 3, 4].into_iter().collect())));
+        assert!(loops.contains(&Loop::new(2, vec![2, 3].into_iter().collect())));
+    }
+
+    #[test]
+    fn test_compute_loops_disjoint_loops() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+            graph.insert_vertex(5).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((2, 1)).unwrap(); // back edge
+            graph.insert_edge((3, 4)).unwrap();
+            graph.insert_edge((4, 5)).unwrap();
+            graph.insert_edge((4, 3)).unwrap(); // back edge
+
+            graph
+        };
+
+        let loops = graph.compute_loops(1).unwrap();
+
+        assert_eq!(loops.len(), 2);
+        assert!(loops.contains(&Loop::new(1, vec![1, 2].into_iter().collect())));
+        assert!(loops.contains(&Loop::new(3, vec![3, 4].into_iter().collect())));
+    }
+
+    #[test]
+    fn test_compute_loops_self_loop() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((2, 2)).unwrap(); // back edge
+
+            graph
+        };
+
+        let loops = graph.compute_loops(1).unwrap();
+
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0].header(), 2);
+        assert_eq!(loops[0].nodes(), &vec![2].into_iter().collect());
+    }
+
+    #[test]
+    fn test_compute_loops_should_combine_loops_with_same_header() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((1, 3)).unwrap();
+            graph.insert_edge((2, 1)).unwrap(); // back edge
+            graph.insert_edge((3, 1)).unwrap(); // back edge
+
+            graph
+        };
+
+        let loops = graph.compute_loops(1).unwrap();
+
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0].header(), 1);
+        assert_eq!(loops[0].nodes(), &vec![1, 2, 3].into_iter().collect());
     }
 }
