@@ -377,6 +377,33 @@ where
         Ok(reachable_vertices)
     }
 
+    /// Compute the pre order of all vertices in the graph
+    pub fn compute_pre_order(&self, root: usize) -> Result<Vec<usize>> {
+        if !self.has_vertex(root) {
+            bail!("vertex does not exist");
+        }
+
+        let mut visited: HashSet<usize> = HashSet::new();
+        let mut stack: Vec<usize> = Vec::new();
+        let mut order: Vec<usize> = Vec::new();
+
+        stack.push(root);
+
+        while let Some(node) = stack.pop() {
+            if !visited.insert(node) {
+                continue;
+            }
+
+            order.push(node);
+
+            for &successor in &self.successors[&node] {
+                stack.push(successor);
+            }
+        }
+
+        Ok(order)
+    }
+
     // Compute the post order of all vertices in the graph
     pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>> {
         let mut visited: HashSet<usize> = HashSet::new();
@@ -1043,6 +1070,15 @@ mod tests {
 
         // vertex 7 does not exist
         assert!(graph.successors(7).is_err());
+    }
+
+    #[test]
+    fn test_pre_order() {
+        let graph = create_test_graph();
+
+        assert_eq!(graph.compute_pre_order(1).unwrap(), vec![1, 2, 6, 4, 5, 3]);
+
+        assert_eq!(graph.compute_pre_order(5).unwrap(), vec![5, 2, 6, 4, 3]);
     }
 
     #[test]
