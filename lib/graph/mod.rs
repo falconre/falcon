@@ -622,6 +622,36 @@ where
         Ok(predecessors)
     }
 
+    /// Creates a DFS tree with NullVertex and NullEdge
+    pub fn compute_dfs_tree(&self, start_index: usize) -> Result<Graph<NullVertex, NullEdge>> {
+        if !self.has_vertex(start_index) {
+            bail!("vertex does not exist");
+        }
+
+        let mut tree = Graph::new();
+        let mut stack = Vec::new();
+
+        tree.insert_vertex(NullVertex::new(start_index))?;
+        for &successor in &self.successors[&start_index] {
+            stack.push((start_index, successor));
+        }
+
+        while let Some((pred, index)) = stack.pop() {
+            if tree.has_vertex(index) {
+                continue;
+            }
+
+            tree.insert_vertex(NullVertex::new(index))?;
+            tree.insert_edge(NullEdge::new(pred, index))?;
+
+            for &successor in &self.successors[&index] {
+                stack.push((index, successor));
+            }
+        }
+
+        Ok(tree)
+    }
+
     /// Creates an acyclic graph with NullVertex and NullEdge
     pub fn compute_acyclic(&self, start_index: usize) -> Result<Graph<NullVertex, NullEdge>> {
         let mut graph = Graph::new();
@@ -1490,5 +1520,50 @@ mod tests {
         assert_eq!(loops.len(), 1);
         assert_eq!(loops[0].header(), 1);
         assert_eq!(loops[0].nodes(), &vec![1, 2, 3].into_iter().collect());
+    }
+
+    #[test]
+    fn test_compute_dfs_tree() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+            graph.insert_vertex(5).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((1, 3)).unwrap();
+            graph.insert_edge((1, 4)).unwrap();
+            graph.insert_edge((2, 5)).unwrap();
+            graph.insert_edge((3, 2)).unwrap();
+
+            graph
+        };
+
+        let expected_tree = {
+            let mut tree = Graph::new();
+
+            // visit 1 -> stack [(1,2), (1,3), (1,4)]
+            tree.insert_vertex(NullVertex::new(1)).unwrap();
+            // visit 4 -> stack [(1,2), (1,3)]
+            tree.insert_vertex(NullVertex::new(4)).unwrap();
+            tree.insert_edge(NullEdge::new(1, 4)).unwrap();
+            // visit 3 -> stack [(1,2), (3,2)]
+            tree.insert_vertex(NullVertex::new(3)).unwrap();
+            tree.insert_edge(NullEdge::new(1, 3)).unwrap();
+            // visit 2 -> stack [(1,2), (2,5)]
+            tree.insert_vertex(NullVertex::new(2)).unwrap();
+            tree.insert_edge(NullEdge::new(3, 2)).unwrap();
+            // visit 5 -> stack [(1,2)]
+            tree.insert_vertex(NullVertex::new(5)).unwrap();
+            tree.insert_edge(NullEdge::new(2, 5)).unwrap();
+            // skip 2 -> stack []
+
+            tree
+        };
+
+        assert_eq!(expected_tree, graph.compute_dfs_tree(1).unwrap());
     }
 }
