@@ -2,7 +2,7 @@ FROM debian:stretch
  
 RUN apt-get update && \ 
     apt-get -y dist-upgrade && \ 
-    apt-get -y install curl gnupg2 && \ 
+    apt-get -y install curl gnupg2 apt-transport-https && \
     echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-4.0 main" >> /etc/apt/sources.list && \ 
     echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-4.0 main" >> /etc/apt/sources.list && \ 
     curl http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \ 

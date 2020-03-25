@@ -2,7 +2,7 @@ FROM ubuntu:xenial
 
 RUN apt-get update && \
     apt-get -y dist-upgrade && \
-    apt-get -y install wget && \
+    apt-get -y install wget apt-transport-https && \
     echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" >> /etc/apt/sources.list && \
     echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" >> /etc/apt/sources.list && \
     wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
