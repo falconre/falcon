@@ -571,66 +571,18 @@ where
             bail!("vertex {} not in graph", start_index);
         }
 
+        let dom_tree = self.compute_dominator_tree(start_index)?;
+        let dom_tree_pre_oder = dom_tree.compute_pre_order(start_index)?;
+
         let mut dominators: HashMap<usize, HashSet<usize>> = HashMap::new();
 
-        // add our start vertex to our dominator set
-        {
-            let mut set = HashSet::new();
-            set.insert(start_index);
-            dominators.insert(start_index, set);
-        }
-
-        // add all successors of start vertex to queue
-        let mut queue = VecDeque::new();
-        for successor in &self.successors[&start_index] {
-            queue.push_back(*successor);
-        }
-
-        let dag = self.compute_acyclic(start_index)?;
-        let predecessors = dag.compute_predecessors()?;
-
-        while !queue.is_empty() {
-            let vertex_index: usize = queue.pop_front().unwrap();
-
-            // are dominators for all predecessors of this block already set?
-            let mut predecessors_set = true;
-            for predecessor in &predecessors[&vertex_index] {
-                if !dominators.contains_key(predecessor) {
-                    if !queue.contains(predecessor) {
-                        queue.push_back(*predecessor);
-                    }
-                    predecessors_set = false;
-                }
+        for vertex in dom_tree_pre_oder {
+            let mut doms = HashSet::new();
+            doms.insert(vertex);
+            for pred in &dom_tree.predecessors[&vertex] {
+                doms.extend(&dominators[pred])
             }
-
-            if !predecessors_set {
-                queue.push_back(vertex_index);
-                continue;
-            }
-
-            // this vertex's dominators are the intersection of all
-            // immediate predecessors' dominators, plus itself
-            let mut doms: HashSet<usize> = match dag.predecessors[&vertex_index].iter().next() {
-                Some(predecessor) => dominators[predecessor].clone(),
-                None => HashSet::new(),
-            };
-
-            for predecessor in &self.predecessors[&vertex_index] {
-                if predecessors[&vertex_index].contains(predecessor) {
-                    doms = &doms & &dominators[predecessor];
-                }
-            }
-
-            doms.insert(vertex_index);
-
-            dominators.insert(vertex_index, doms.clone());
-
-            // add successors to the queue
-            for successor in &dag.successors[&vertex_index] {
-                if !queue.contains(successor) {
-                    queue.push_back(*successor);
-                }
-            }
+            dominators.insert(vertex, doms);
         }
 
         Ok(dominators)
