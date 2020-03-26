@@ -181,6 +181,7 @@ dependencies = [
  "log",
  "num-bigint",
  "num-traits",
+ "rustc-hash",
  "serde",
  "serde_derive",
  "serde_json",
