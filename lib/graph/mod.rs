@@ -863,9 +863,9 @@ where
     }
 
     /// Computes the topological ordering of all vertices in the graph
-    pub fn compute_topological_ordering(&self, root: usize) -> Result<Vec<usize>> {
-        let mut permanent_marks: HashSet<usize> = HashSet::new();
-        let mut temporary_marks: HashSet<usize> = HashSet::new();
+    pub fn compute_topological_ordering(&self) -> Result<Vec<usize>> {
+        let mut permanent_marks: HashSet<usize> = HashSet::default();
+        let mut temporary_marks: HashSet<usize> = HashSet::default();
         let mut order: Vec<usize> = Vec::new();
 
         fn dfs_walk<V: Vertex, E: Edge>(
@@ -892,13 +892,15 @@ where
             Ok(())
         }
 
-        dfs_walk(
-            self,
-            root,
-            &mut permanent_marks,
-            &mut temporary_marks,
-            &mut order,
-        )?;
+        for (&node, _) in &self.vertices {
+            dfs_walk(
+                self,
+                node,
+                &mut permanent_marks,
+                &mut temporary_marks,
+                &mut order,
+            )?;
+        }
 
         Ok(order.into_iter().rev().collect())
     }
@@ -1347,7 +1349,7 @@ mod tests {
     #[test]
     fn test_topological_ordering_should_return_error_for_cyclic_graph() {
         let graph = create_test_graph();
-        assert!(graph.compute_topological_ordering(1).is_err());
+        assert!(graph.compute_topological_ordering().is_err());
     }
 
     #[test]
@@ -1381,7 +1383,7 @@ mod tests {
         };
 
         assert_eq!(
-            graph.compute_topological_ordering(1).unwrap(),
+            graph.compute_topological_ordering().unwrap(),
             vec![1, 2, 5, 6, 3, 7, 4]
         );
     }
