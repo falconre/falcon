@@ -9,16 +9,16 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-base64 = "0.11"
-bitflags = "1.0"
-falcon_capstone = "0.4.0"
-error-chain = "0.12"
-goblin = "0.2"
-log = "0.4"
-num-bigint = {version="0.2", features=["serde"]}
-num-traits = "0.2.1"
-serde_derive = "1.0"
-serde_json = "1.0"
+base64 = "*"
+bitflags = "*"
+falcon_capstone = "*"
+error-chain = "*"
+goblin = "*"
+log = "*"
+num-bigint = {version="*", features=["serde"]}
+num-traits = "*"
+serde_derive = "*"
+serde_json = "*"
 serde = {version="1.0", features=["rc"]}
 
 [features]
