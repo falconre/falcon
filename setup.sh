@@ -1,7 +1,12 @@
 #!/bin/sh
-./dependencies.sh
+sudo ./dependencies.sh
 if [ $? -ne 0 ]; then
 	echo "Failed to install dependencies"
+	exit 1
+fi
+./get_rust.sh
+if [ $? -ne 0 ]; then
+	echo "Failed to install rust"
 	exit 1
 fi
 
