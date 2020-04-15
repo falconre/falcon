@@ -240,7 +240,6 @@ fn rol() {
     );
 }
 
-
 #[test]
 fn ror() {
     // ror r8, 0x11

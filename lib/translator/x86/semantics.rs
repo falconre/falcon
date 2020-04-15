@@ -40,7 +40,10 @@ impl<'s> Semantics<'s> {
 
     /// Generates a temporary scalar unique to this instruction.
     pub fn temp(&self, subindex: usize, bits: usize) -> Scalar {
-        Scalar::new(format!("temp_0x{:X}_{}", self.instruction.address, subindex), bits)
+        Scalar::new(
+            format!("temp_0x{:X}_{}", self.instruction.address, subindex),
+            bits,
+        )
     }
 
     pub fn operand_load(&self, mut block: &mut Block, operand: &cs_x86_op) -> Result<Expression> {
