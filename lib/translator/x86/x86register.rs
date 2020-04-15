@@ -1112,11 +1112,7 @@ impl X86Register {
 
     /// Returns true if this is a full-width register (i.e. eax, ebx, etc)
     pub fn is_full(&self) -> bool {
-        if self.capstone_reg == self.full_reg {
-            true
-        } else {
-            false
-        }
+        self.capstone_reg == self.full_reg
     }
 
     /// Returns the full-width register for this register
