@@ -602,32 +602,19 @@ where
         }
 
         // for every vertex
-        while !queue.is_empty() {
-            let vertex_index = queue.pop_front().unwrap();
+        while let Some(vertex_index) = queue.pop_front() {
+            let this_predecessors = predecessors.get(&vertex_index).unwrap().clone();
 
-            // for each predecessor of this vertex
-            let mut to_add: Vec<usize> = Vec::new();
-            {
-                let this_predecessors = &predecessors[&vertex_index];
-                for predecessor in &predecessors[&vertex_index] {
-                    // ensure each of this predecessor's predecessors are predecessors
-                    // of this vertex
-                    for pp in &predecessors[predecessor] {
-                        if !this_predecessors.contains(pp) {
-                            to_add.push(*pp);
-                        }
-                    }
+            for successor_index in &self.successors[&vertex_index] {
+                let successor_predecessors = predecessors.get_mut(&successor_index).unwrap();
+
+                let mut changed = false;
+                for predecessor in &this_predecessors {
+                    changed = changed | successor_predecessors.insert(*predecessor);
                 }
-            }
 
-            let this_predecessors = predecessors.get_mut(&vertex_index).unwrap();
-            for predecessor in &to_add {
-                this_predecessors.insert(*predecessor);
-            }
-
-            if !to_add.is_empty() {
-                for successor in &self.successors[&vertex_index] {
-                    queue.push_back(*successor);
+                if changed {
+                    queue.push_back(*successor_index);
                 }
             }
         }
