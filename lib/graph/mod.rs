@@ -2,6 +2,7 @@
 
 use std::cmp;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::fmt;
 
 use crate::error::*;
 
@@ -134,6 +135,32 @@ impl Loop {
             && !other.nodes.contains(&self.header)
     }
 }
+
+impl Vertex for Loop {
+    fn index(&self) -> usize {
+        self.header
+    }
+    fn dot_label(&self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl fmt::Display for Loop {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Loop 0x{:X}: {{", self.header)?;
+        let mut is_first = true;
+        for node in &self.nodes {
+            if !is_first {
+                write!(f, ", ")?;
+            }
+            write!(f, "0x{:X}", node)?;
+            is_first = false;
+        }
+        write!(f, "}}")
+    }
+}
+
+pub type LoopTree = Graph<Loop, NullEdge>;
 
 /// A directed graph.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -812,6 +839,28 @@ where
             .iter()
             .map(|(&header, nodes)| Loop::new(header, nodes.clone()))
             .collect())
+    }
+
+    /// Computes the loop tree of all natural loops in the graph
+    ///
+    /// If loop `l1` is nested in loop `l2`, `l1` is a child node of `l2` in the loop tree.
+    pub fn compute_loop_tree(&self, head: usize) -> Result<LoopTree> {
+        let mut tree = LoopTree::new();
+
+        let loops = self.compute_loops(head)?;
+        for l in &loops {
+            tree.insert_vertex(l.clone())?;
+        }
+
+        for l1 in &loops {
+            for l2 in &loops {
+                if l1.is_nesting(l2) {
+                    tree.insert_edge(NullEdge::new(l1.header(), l2.header()))?;
+                }
+            }
+        }
+
+        Ok(tree)
     }
 
     /// Computes the topological ordering of all vertices in the graph
@@ -1646,5 +1695,44 @@ mod tests {
         };
 
         assert_eq!(expected_tree, graph.compute_dfs_tree(1).unwrap());
+    }
+
+    #[test]
+    fn test_compute_loop_tree() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((2, 2)).unwrap(); // self loop
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((3, 1)).unwrap(); // back edge to 1
+            graph.insert_edge((3, 4)).unwrap();
+            graph.insert_edge((4, 4)).unwrap(); // self loop
+
+            graph
+        };
+
+        let expected_loop_tree = {
+            let mut tree = LoopTree::new();
+
+            tree.insert_vertex(Loop::new(1, vec![1, 2, 3].into_iter().collect()))
+                .unwrap();
+            tree.insert_vertex(Loop::new(2, vec![2].into_iter().collect()))
+                .unwrap();
+            tree.insert_vertex(Loop::new(4, vec![4].into_iter().collect()))
+                .unwrap();
+
+            tree.insert_edge(NullEdge::new(1, 2)).unwrap(); // loop 2 is nested in loop 1
+
+            tree
+        };
+
+        let loop_tree = graph.compute_loop_tree(1).unwrap();
+        assert_eq!(expected_loop_tree, loop_tree);
     }
 }
