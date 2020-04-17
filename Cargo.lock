@@ -164,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "falcon"
-version = "0.4.11"
+version = "0.4.12"
 dependencies = [
  "base64",
  "bitflags",
