@@ -1,5 +1,6 @@
 //! Implements a directed graph.
 
+use std::cmp;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 use crate::error::*;
@@ -377,6 +378,33 @@ where
         Ok(reachable_vertices)
     }
 
+    /// Compute the pre order of all vertices in the graph
+    pub fn compute_pre_order(&self, root: usize) -> Result<Vec<usize>> {
+        if !self.has_vertex(root) {
+            bail!("vertex does not exist");
+        }
+
+        let mut visited: HashSet<usize> = HashSet::new();
+        let mut stack: Vec<usize> = Vec::new();
+        let mut order: Vec<usize> = Vec::new();
+
+        stack.push(root);
+
+        while let Some(node) = stack.pop() {
+            if !visited.insert(node) {
+                continue;
+            }
+
+            order.push(node);
+
+            for &successor in &self.successors[&node] {
+                stack.push(successor);
+            }
+        }
+
+        Ok(order)
+    }
+
     // Compute the post order of all vertices in the graph
     pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>> {
         let mut visited: HashSet<usize> = HashSet::new();
@@ -454,42 +482,87 @@ where
         Ok(df)
     }
 
-    pub fn compute_immediate_dominators(
-        &self,
-        start_index: usize,
-    ) -> Result<HashMap<usize, usize>> {
-        let mut idoms: HashMap<usize, usize> = HashMap::new();
+    /// Computes immediate dominators for all vertices in the graph
+    ///
+    /// This implementation is based on the Semi-NCA algorithm described in:
+    /// Georgiadis, Loukas: Linear-Time Algorithms for Dominators and Related Problems (thesis)
+    /// https://www.cs.princeton.edu/research/techreps/TR-737-05
+    pub fn compute_immediate_dominators(&self, root: usize) -> Result<HashMap<usize, usize>> {
+        if !self.vertices.contains_key(&root) {
+            bail!("vertex {} not in graph", root);
+        }
 
-        let dominators = self.compute_dominators(start_index)?;
+        let dfs = self.compute_dfs_tree(root)?;
+        let dfs_pre_order = dfs.compute_pre_order(root)?;
 
-        for vertex in &self.vertices {
-            let vertex_index: usize = *vertex.0;
+        let dfs_parent = |vertex| dfs.predecessors[&vertex].iter().next().cloned();
 
-            let mut sdoms = dominators[&vertex_index].clone();
-            sdoms.remove(&vertex_index);
+        // DFS-numbering and reverse numbering (starting from 0 instead of 1 as in the paper)
+        let dfs_number: HashMap<usize, usize> = dfs_pre_order
+            .iter()
+            .enumerate()
+            .map(|(number, vertex)| (*vertex, number))
+            .collect();
+        let graph_number = &dfs_pre_order;
 
-            // find the strict dominator that dominates no other strict
-            // dominators
-            for sdom in &sdoms {
-                let mut is_idom = true;
-                for sdom2 in &sdoms {
-                    if sdom == sdom2 {
-                        continue;
-                    }
-                    if dominators[sdom2].contains(sdom) {
-                        is_idom = false;
-                        break;
-                    }
+        let mut ancestor: HashMap<usize, Option<usize>> = HashMap::new();
+        let mut label: HashMap<usize, usize> = HashMap::new();
+        for (&vertex, _) in &self.vertices {
+            ancestor.insert(vertex, None);
+            label.insert(vertex, dfs_number[&vertex]);
+        }
+
+        // Compute semidominators in reverse preorder (without root)
+        let mut semi = HashMap::new();
+        for &vertex in dfs_pre_order.iter().skip(1).rev() {
+            let mut min_semi = std::usize::MAX;
+
+            for &pred in &self.predecessors[&vertex] {
+                if ancestor[&pred].is_some() {
+                    compress(&mut ancestor, &mut label, pred);
                 }
+                min_semi = cmp::min(min_semi, label[&pred]);
+            }
 
-                if is_idom {
-                    idoms.insert(vertex_index, *sdom);
-                    break;
+            semi.insert(vertex, min_semi);
+            label.insert(vertex, min_semi);
+
+            ancestor.insert(vertex, dfs_parent(vertex));
+        }
+        let semi = semi;
+
+        fn compress(
+            ancestor: &mut HashMap<usize, Option<usize>>,
+            label: &mut HashMap<usize, usize>,
+            v: usize,
+        ) {
+            let u = ancestor[&v].unwrap();
+            if ancestor[&u].is_some() {
+                compress(ancestor, label, u);
+                if label[&u] < label[&v] {
+                    label.insert(v, label[&u]);
                 }
+                ancestor.insert(v, ancestor[&u]);
             }
         }
 
-        Ok(idoms)
+        // Compute immediate dominators in preorder (without root)
+        let mut idoms = HashMap::new();
+        for &vertex in dfs_pre_order.iter().skip(1) {
+            let mut idom = dfs_number[&dfs_parent(vertex).unwrap()];
+            while idom > semi[&vertex] {
+                idom = idoms[&idom];
+            }
+            idoms.insert(dfs_number[&vertex], idom);
+        }
+        let idoms = idoms;
+
+        // Translate idoms from DFS-numbering back to graph indices
+        let mut graph_idoms = HashMap::new();
+        for (vertex, idom) in idoms {
+            graph_idoms.insert(graph_number[vertex], graph_number[idom]);
+        }
+        Ok(graph_idoms)
     }
 
     /// Computes dominators for all vertices in the graph
@@ -620,6 +693,36 @@ where
         }
 
         Ok(predecessors)
+    }
+
+    /// Creates a DFS tree with NullVertex and NullEdge
+    pub fn compute_dfs_tree(&self, start_index: usize) -> Result<Graph<NullVertex, NullEdge>> {
+        if !self.has_vertex(start_index) {
+            bail!("vertex does not exist");
+        }
+
+        let mut tree = Graph::new();
+        let mut stack = Vec::new();
+
+        tree.insert_vertex(NullVertex::new(start_index))?;
+        for &successor in &self.successors[&start_index] {
+            stack.push((start_index, successor));
+        }
+
+        while let Some((pred, index)) = stack.pop() {
+            if tree.has_vertex(index) {
+                continue;
+            }
+
+            tree.insert_vertex(NullVertex::new(index))?;
+            tree.insert_edge(NullEdge::new(pred, index))?;
+
+            for &successor in &self.successors[&index] {
+                stack.push((index, successor));
+            }
+        }
+
+        Ok(tree)
     }
 
     /// Creates an acyclic graph with NullVertex and NullEdge
@@ -1016,6 +1119,15 @@ mod tests {
     }
 
     #[test]
+    fn test_pre_order() {
+        let graph = create_test_graph();
+
+        assert_eq!(graph.compute_pre_order(1).unwrap(), vec![1, 2, 6, 4, 5, 3]);
+
+        assert_eq!(graph.compute_pre_order(5).unwrap(), vec![5, 2, 6, 4, 3]);
+    }
+
+    #[test]
     fn test_post_order() {
         let graph = create_test_graph();
 
@@ -1106,7 +1218,7 @@ mod tests {
     }
 
     #[test]
-    fn test_immediate_dominators() {
+    fn test_immediate_dominators_graph1() {
         let graph = create_test_graph();
         let idoms = graph.compute_immediate_dominators(1).unwrap();
 
@@ -1116,6 +1228,53 @@ mod tests {
         assert_eq!(*idoms.get(&4).unwrap(), 2);
         assert_eq!(*idoms.get(&5).unwrap(), 2);
         assert_eq!(*idoms.get(&6).unwrap(), 2);
+    }
+
+    #[test]
+    fn test_immediate_dominators_graph2() {
+        //      |
+        //      v
+        // +--> 0
+        // |    |
+        // | +--+--+
+        // | |     |
+        // | v     v
+        // | 1     2 +-+
+        // | |     |   |
+        // | +--+--+   |
+        // |    |      |
+        // |    v      |
+        // +--+ 3      |
+        //      |      |
+        //      v      |
+        //      4 <----+
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(0).unwrap();
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+
+            graph.insert_edge((0, 1)).unwrap();
+            graph.insert_edge((0, 2)).unwrap();
+            graph.insert_edge((1, 3)).unwrap();
+            graph.insert_edge((2, 3)).unwrap();
+            graph.insert_edge((2, 4)).unwrap();
+            graph.insert_edge((3, 0)).unwrap();
+            graph.insert_edge((3, 4)).unwrap();
+
+            graph
+        };
+
+        let idoms = graph.compute_immediate_dominators(0).unwrap();
+
+        assert!(idoms.get(&0).is_none());
+        assert_eq!(*idoms.get(&1).unwrap(), 0);
+        assert_eq!(*idoms.get(&2).unwrap(), 0);
+        assert_eq!(*idoms.get(&3).unwrap(), 0);
+        assert_eq!(*idoms.get(&4).unwrap(), 0);
     }
 
     #[test]
@@ -1490,5 +1649,50 @@ mod tests {
         assert_eq!(loops.len(), 1);
         assert_eq!(loops[0].header(), 1);
         assert_eq!(loops[0].nodes(), &vec![1, 2, 3].into_iter().collect());
+    }
+
+    #[test]
+    fn test_compute_dfs_tree() {
+        let graph = {
+            let mut graph = Graph::new();
+
+            graph.insert_vertex(1).unwrap();
+            graph.insert_vertex(2).unwrap();
+            graph.insert_vertex(3).unwrap();
+            graph.insert_vertex(4).unwrap();
+            graph.insert_vertex(5).unwrap();
+
+            graph.insert_edge((1, 2)).unwrap();
+            graph.insert_edge((1, 3)).unwrap();
+            graph.insert_edge((1, 4)).unwrap();
+            graph.insert_edge((2, 5)).unwrap();
+            graph.insert_edge((3, 2)).unwrap();
+
+            graph
+        };
+
+        let expected_tree = {
+            let mut tree = Graph::new();
+
+            // visit 1 -> stack [(1,2), (1,3), (1,4)]
+            tree.insert_vertex(NullVertex::new(1)).unwrap();
+            // visit 4 -> stack [(1,2), (1,3)]
+            tree.insert_vertex(NullVertex::new(4)).unwrap();
+            tree.insert_edge(NullEdge::new(1, 4)).unwrap();
+            // visit 3 -> stack [(1,2), (3,2)]
+            tree.insert_vertex(NullVertex::new(3)).unwrap();
+            tree.insert_edge(NullEdge::new(1, 3)).unwrap();
+            // visit 2 -> stack [(1,2), (2,5)]
+            tree.insert_vertex(NullVertex::new(2)).unwrap();
+            tree.insert_edge(NullEdge::new(3, 2)).unwrap();
+            // visit 5 -> stack [(1,2)]
+            tree.insert_vertex(NullVertex::new(5)).unwrap();
+            tree.insert_edge(NullEdge::new(2, 5)).unwrap();
+            // skip 2 -> stack []
+
+            tree
+        };
+
+        assert_eq!(expected_tree, graph.compute_dfs_tree(1).unwrap());
     }
 }
