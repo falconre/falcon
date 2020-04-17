@@ -37,21 +37,10 @@
 //! # }
 //! ```
 
-extern crate base64;
-#[macro_use]
-extern crate bitflags;
 #[macro_use]
 extern crate error_chain;
-extern crate falcon_capstone;
-extern crate goblin;
-#[macro_use]
-extern crate log;
-extern crate num_bigint;
-extern crate num_traits;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 
 pub mod analysis;
 pub mod architecture;
