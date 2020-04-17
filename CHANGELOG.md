@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.12] - 17-APR-2020
+
+* emmanuel099 Multiple improvements to the graph library
+* emmanuel099 Natural loops detection
+* emmanuel099 Use Semi-NCA Algorithm in `compute_immediate_dominators`
+* anon8675309 Remove docker network dependency
+* anon8675309 Added scripts to get set up outside of Docker
+* Use instruction address as temporary scalar index
+
 ## [0.4.11] - 24-FEB-2020
 
 * Multiple x86 semantics fix-ups

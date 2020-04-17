@@ -19,6 +19,8 @@ mod value;
 
 pub use self::value::Value;
 
+use bitflags::bitflags;
+
 bitflags! {
     /// RWX permissions for memory.
     #[derive(Deserialize, Serialize)]
