@@ -1,8 +1,8 @@
 use crate::error::*;
-use crate::falcon_capstone::capstone;
-use crate::falcon_capstone::capstone_sys::ppc_reg;
 use crate::il::Expression as Expr;
 use crate::il::*;
+use falcon_capstone::capstone;
+use falcon_capstone::capstone_sys::ppc_reg;
 
 /// Struct for dealing with x86 registers
 pub struct PPCRegister {

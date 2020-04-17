@@ -1,10 +1,10 @@
 use crate::error::*;
-use crate::falcon_capstone::capstone_sys::{x86_op_type, x86_reg};
 use crate::il::Expression as Expr;
 use crate::il::*;
 use crate::translator::x86::x86register::{get_register, X86Register};
 use falcon_capstone::capstone;
 use falcon_capstone::capstone::cs_x86_op;
+use falcon_capstone::capstone_sys::{x86_op_type, x86_reg};
 
 /// Mode used by translators to pick the correct registers/operations
 #[derive(Clone, Debug)]

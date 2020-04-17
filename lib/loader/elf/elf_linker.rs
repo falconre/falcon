@@ -2,6 +2,7 @@ use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::Memory;
 use goblin;
+use log::warn;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
