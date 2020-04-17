@@ -2866,7 +2866,6 @@ impl<'s> Semantics<'s> {
             }
 
             if rhs.bits() < lhs.bits() {
-                println!("0x{:x} {} {}", self.instruction().address, lhs, rhs);
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 
