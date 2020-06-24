@@ -24,10 +24,7 @@ pub struct Section {
 impl Section {
     /// Create a new memory section.
     pub fn new(data: Vec<u8>, permissions: MemoryPermissions) -> Section {
-        Section {
-            data: data,
-            permissions: permissions,
-        }
+        Section { data, permissions }
     }
 
     /// Get this memory section's data.
@@ -40,9 +37,14 @@ impl Section {
         self.data.len()
     }
 
+    /// Return `true` if the data field is empty, `false` otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     /// Get the permissions of this memory section.
     pub fn permissions(&self) -> MemoryPermissions {
-        self.permissions.clone()
+        self.permissions
     }
 
     /// Truncate the data of this memory section.
@@ -62,7 +64,7 @@ impl Memory {
     /// Create a new backed memory module with the given endianness.
     pub fn new(endian: Endian) -> Memory {
         Memory {
-            endian: endian,
+            endian,
             sections: BTreeMap::new(),
         }
     }
@@ -78,11 +80,13 @@ impl Memory {
             Some(section_address) => Some(
                 self.sections
                     .get(&section_address)
-                    .expect(&format!(
-                        "Failed to get section at 0x{:x} in \
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Failed to get section at 0x{:x} in \
                          backing::Memory::permissions()",
-                        section_address
-                    ))
+                            section_address
+                        )
+                    })
                     .permissions(),
             ),
             None => None,
@@ -96,18 +100,22 @@ impl Memory {
                 *self
                     .sections
                     .get(&address)
-                    .expect(&format!(
-                        "Failed to get section at 0x{:x} in \
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Failed to get section at 0x{:x} in \
                          backing::Memory::permissions()",
-                        address
-                    ))
+                            address
+                        )
+                    })
                     .data()
                     .get(offset)
-                    .expect(&format!(
-                        "Failed to get offset 0x{:x} from 0x{:x} in \
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Failed to get offset 0x{:x} from 0x{:x} in \
                          backing::Memory::permissions()",
-                        offset, address
-                    )),
+                            offset, address
+                        )
+                    }),
             ),
             None => None,
         }
@@ -118,7 +126,7 @@ impl Memory {
     pub fn set32(&mut self, address: u64, value: u32) -> Result<()> {
         let (section_address, offset) = self
             .section_address_offset(address)
-            .expect(&format!("Address 0x{:x} has no section", address));
+            .unwrap_or_else(|| panic!("Address 0x{:x} has no section", address));
 
         let section = self.sections.get_mut(&section_address).unwrap();
 
@@ -236,35 +244,41 @@ impl Memory {
                     let new_length = (address - a) as usize;
                     self.sections
                         .get_mut(&a)
-                        .expect(&format!(
-                            "Failed to get section 0x{:x} in \
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "Failed to get section 0x{:x} in \
                              backing::Memory::set_memory(). This should never \
                              happen.",
-                            a
-                        ))
+                                a
+                            )
+                        })
                         .truncate(new_length);
                 } else {
                     let offset = address + data.len() as u64 - a;
                     let split = self
                         .sections
                         .get_mut(&a)
-                        .expect(&format!(
-                            "Failed to get section 0x{:x} in \
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "Failed to get section 0x{:x} in \
                              backing::Memory::set_memory(). This should \
                              never happen.",
-                            a
-                        ))
+                                a
+                            )
+                        })
                         .data
                         .split_off(offset as usize);
                     let permissions = self
                         .sections
                         .get(&a)
-                        .expect(&format!(
-                            "Failed to get section 0x{:x} in \
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "Failed to get section 0x{:x} in \
                              backing::Memory::set_memory(). This should \
                              never happen.",
-                            a
-                        ))
+                                a
+                            )
+                        })
                         .permissions();
                     self.sections.insert(
                         address + data.len() as u64,
@@ -279,7 +293,8 @@ impl Memory {
                     panic!(
                         "About to remove 0x{:x} from sections in \
                             backing::Memory::set_memory, but address does not
-                            exist"
+                            exist",
+                        a
                     );
                 }
                 self.sections.remove(&a);
@@ -301,12 +316,14 @@ impl Memory {
                 let permissions = self
                     .sections
                     .get(&a)
-                    .expect(&format!(
-                        "Failed to get section for 0x{:x} while updating \
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Failed to get section for 0x{:x} while updating \
                          permissions in backing::Memory::set_memory(). \
                          This should never happen.",
-                        a
-                    ))
+                            a
+                        )
+                    })
                     .permissions();
                 self.sections.remove(&a);
                 self.sections.insert(

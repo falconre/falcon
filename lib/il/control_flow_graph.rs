@@ -3,6 +3,7 @@
 use crate::il::*;
 use std::collections::BTreeMap;
 use std::fmt;
+use crate::graph;
 
 /// A directed graph of types `Block` and `Edge`.
 ///
@@ -14,7 +15,7 @@ use std::fmt;
 /// an instruction as its own `ControlFlowGraph`. `rep scasb` is a great example of when this
 /// pattern is helpful. Instructions in a `Block` will have one entry, and one exit. Explicitly
 /// declaring these makes merging `ControlFlowGraph`s easier.
-#[derive(Clone, Debug, Deserialize, Hash, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, Eq, PartialEq, Serialize, Default)]
 pub struct ControlFlowGraph {
     // The internal graph used to store our blocks.
     graph: graph::Graph<Block, Edge>,
@@ -258,7 +259,7 @@ impl ControlFlowGraph {
                 for edge in self.graph.edges_out(successor_index).unwrap() {
                     let head = merge_index;
                     let tail = edge.tail();
-                    let condition = edge.condition().clone();
+                    let condition = edge.condition();
                     let edge = Edge::new(head, tail, condition.cloned());
                     new_edges.push(edge);
                 }
@@ -389,16 +390,10 @@ impl ControlFlowGraph {
 impl fmt::Display for ControlFlowGraph {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for block in self.blocks() {
-            match writeln!(f, "{}", block) {
-                Err(e) => return Err(e),
-                Ok(_) => {}
-            }
+            writeln!(f, "{}", block)?;
         }
         for edge in self.edges() {
-            match writeln!(f, "edge {}", edge) {
-                Err(e) => return Err(e),
-                Ok(_) => {}
-            }
+            writeln!(f, "edge {}", edge)?;
         }
         Ok(())
     }

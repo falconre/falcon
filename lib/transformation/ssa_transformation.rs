@@ -69,7 +69,7 @@ fn insert_phi_nodes(function: &mut il::Function) -> Result<()> {
 fn scalars_mutated_in_block(block: &il::Block) -> HashSet<&il::Scalar> {
     block
         .instructions()
-        .into_iter()
+        .iter()
         .flat_map(|inst| inst.scalars_written().unwrap_or_default())
         .collect()
 }

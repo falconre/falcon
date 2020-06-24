@@ -20,7 +20,7 @@ impl Scalar {
     {
         Scalar {
             name: name.into(),
-            bits: bits,
+            bits,
             ssa: None,
         }
     }
@@ -42,7 +42,7 @@ impl Scalar {
 
     // Gets the SSA version of the `Scalar` or None if no SSA version is set.
     pub fn ssa(&self) -> Option<usize> {
-        self.ssa.clone()
+        self.ssa
     }
 
     // Sets the SSA version of the `Scalar`.

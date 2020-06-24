@@ -75,7 +75,7 @@ impl StackPointerOffset {
             IntermediateOffset::Value(value) => StackPointerOffset::Value(
                 value
                     .value_u64()
-                    .ok_or(ErrorKind::Analysis("Stack pointer was not u64".to_string()))?
+                    .ok_or_else(|| ErrorKind::Analysis("Stack pointer was not u64".to_string()))?
                     as isize,
             ),
         })
@@ -150,7 +150,7 @@ impl StackPointerOffsetAnalysis {
                             let expr =
                                 src.replace_scalar(&self.stack_pointer, &constant.clone().into())?;
                             if expr.all_constants() {
-                                IntermediateOffset::Value(eval(&expr)?.into())
+                                IntermediateOffset::Value(eval(&expr)?)
                             } else {
                                 IntermediateOffset::Top
                             }

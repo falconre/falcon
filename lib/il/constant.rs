@@ -3,6 +3,7 @@
 use crate::il::*;
 use num_bigint::{BigInt, BigUint, ToBigInt};
 use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
+use std::cmp::Ordering;
 use std::fmt;
 use std::ops::*;
 
@@ -26,7 +27,7 @@ impl Constant {
     pub fn new(value: u64, bits: usize) -> Constant {
         Constant {
             value: Constant::trim_value(BigUint::from_u64(value).unwrap(), bits),
-            bits: bits,
+            bits,
         }
     }
 
@@ -34,19 +35,17 @@ impl Constant {
     pub fn new_big(value: BigUint, bits: usize) -> Constant {
         Constant {
             value: Constant::trim_value(value, bits),
-            bits: bits,
+            bits,
         }
     }
 
     /// Crates a constant from a decimal string of the value
-    pub fn from_decimal_string(s: &String, bits: usize) -> Result<Constant> {
+    pub fn from_decimal_string(s: &str, bits: usize) -> Result<Constant> {
         let constant = Constant::new_big(s.parse()?, bits);
-        Ok(if constant.bits() < bits {
-            constant.zext(bits)?
-        } else if constant.bits() > bits {
-            constant.trun(bits)?
-        } else {
-            constant
+        Ok(match constant.bits().cmp(&bits) {
+            Ordering::Less => constant.zext(bits)?,
+            Ordering::Greater => constant.trun(bits)?,
+            Ordering::Equal => constant,
         })
     }
 
@@ -54,7 +53,7 @@ impl Constant {
     pub fn new_zero(bits: usize) -> Constant {
         Constant {
             value: BigUint::from_u64(0).unwrap(),
-            bits: bits,
+            bits,
         }
     }
 
@@ -72,8 +71,7 @@ impl Constant {
             let mask = mask - BigUint::from_i64(1).unwrap();
             let v = self.value.clone() ^ mask;
             let v = v + BigUint::from_u64(1).unwrap();
-            let v = BigInt::from_i64(-1).unwrap() * v.to_bigint().unwrap();
-            v
+            BigInt::from_i64(-1).unwrap() * v.to_bigint().unwrap()
         } else {
             self.value.to_bigint().unwrap()
         }
@@ -86,12 +84,10 @@ impl Constant {
 
     /// Sign-extend the constant out to 64-bits, and return it as an `i64`
     pub fn value_i64(&self) -> Option<i64> {
-        if self.bits() > 64 {
-            None
-        } else if self.bits() == 64 {
-            self.value.to_u64().map(|v| v as i64)
-        } else {
-            self.sext(64).ok()?.value.to_u64().map(|v| v as i64)
+        match self.bits().cmp(&64) {
+            Ordering::Greater => None,
+            Ordering::Equal => self.value.to_u64().map(|v| v as i64),
+            Ordering::Less => self.sext(64).ok()?.value.to_u64().map(|v| v as i64),
         }
     }
 
@@ -129,17 +125,15 @@ impl Constant {
     pub fn sub(&self, rhs: &Constant) -> Result<Constant> {
         if self.bits() != rhs.bits() {
             Err(ErrorKind::Sort.into())
+        } else if self.value < rhs.value {
+            let lhs = self.value.clone();
+            let lhs = lhs | (BigUint::from_u64(1).unwrap() << self.bits);
+            Ok(Constant::new_big(lhs - rhs.value.clone(), self.bits))
         } else {
-            if self.value < rhs.value {
-                let lhs = self.value.clone();
-                let lhs = lhs | (BigUint::from_u64(1).unwrap() << self.bits);
-                Ok(Constant::new_big(lhs - rhs.value.clone(), self.bits))
-            } else {
-                Ok(Constant::new_big(
-                    self.value.clone().sub(rhs.value.clone()),
-                    self.bits,
-                ))
-            }
+            Ok(Constant::new_big(
+                self.value.clone().sub(rhs.value.clone()),
+                self.bits,
+            ))
         }
     }
 
@@ -263,7 +257,7 @@ impl Constant {
                 .value
                 .to_usize()
                 .map(|bits| self.value.clone() << bits)
-                .unwrap_or(BigUint::from_u64(0).unwrap());
+                .unwrap_or_else(|| BigUint::from_u64(0).unwrap());
             Ok(Constant::new_big(r, self.bits))
         }
     }
@@ -276,7 +270,7 @@ impl Constant {
                 .value
                 .to_usize()
                 .map(|bits| self.value.clone() >> bits)
-                .unwrap_or(BigUint::from_u64(0).unwrap());
+                .unwrap_or_else(|| BigUint::from_u64(0).unwrap());
             Ok(Constant::new_big(r, self.bits))
         }
     }

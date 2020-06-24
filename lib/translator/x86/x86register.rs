@@ -4,7 +4,7 @@ use crate::il::*;
 use crate::translator::x86::mode::Mode;
 use falcon_capstone::capstone_sys::x86_reg;
 
-const X86REGISTERS: &'static [X86Register] = &[
+const X86REGISTERS: &[X86Register] = &[
     X86Register {
         name: "ah",
         capstone_reg: x86_reg::X86_REG_AH,
@@ -247,7 +247,7 @@ const X86REGISTERS: &'static [X86Register] = &[
     },
 ];
 
-const AMD64REGISTERS: &'static [X86Register] = &[
+const AMD64REGISTERS: &[X86Register] = &[
     X86Register {
         name: "ah",
         capstone_reg: x86_reg::X86_REG_AH,
@@ -1112,11 +1112,7 @@ impl X86Register {
 
     /// Returns true if this is a full-width register (i.e. eax, ebx, etc)
     pub fn is_full(&self) -> bool {
-        if self.capstone_reg == self.full_reg {
-            true
-        } else {
-            false
-        }
+        self.capstone_reg == self.full_reg
     }
 
     /// Returns the full-width register for this register

@@ -5,21 +5,21 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 /// Compute use definition chains for the given function.
-pub fn use_def<'r>(
-    function: &'r il::Function,
+pub fn use_def(
+    function: &il::Function,
 ) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     let mut ud = HashMap::new();
 
-    for (location, _) in &rd {
+    for location in rd.keys() {
         let defs = match location.function_location().apply(function).unwrap() {
             il::RefFunctionLocation::Instruction(_, ref instruction) => instruction
                 .operation()
                 .scalars_read()
                 .into_iter()
                 .fold(LocationSet::new(), |mut defs, scalar_read| {
-                    rd[&location].locations().into_iter().for_each(|rd| {
+                    rd[&location].locations().iter().for_each(|rd| {
                         rd.function_location()
                             .apply(function)
                             .unwrap()
@@ -42,27 +42,26 @@ pub fn use_def<'r>(
                     condition.scalars().into_iter().fold(
                         LocationSet::new(),
                         |mut defs, scalar_read| {
-                            rd[&location].locations().into_iter().for_each(|rd| {
-                                rd.function_location()
+                            rd[&location].locations().iter().for_each(|rd| {
+                                if let Some(scalars_written) = rd.function_location()
                                     .apply(function)
                                     .unwrap()
                                     .instruction()
                                     .unwrap()
                                     .operation()
-                                    .scalars_written()
-                                    .map(|scalars_written| {
+                                    .scalars_written() {
                                         scalars_written.into_iter().for_each(|scalar_written| {
                                             if scalar_written == scalar_read {
                                                 defs.insert(rd.clone());
                                             }
                                         })
-                                    });
+                                    }
                             });
                             defs
                         },
                     )
                 })
-                .unwrap_or(LocationSet::new()),
+                .unwrap_or_else(LocationSet::new),
             il::RefFunctionLocation::EmptyBlock(_) => LocationSet::new(),
         };
         ud.insert(location.clone(), defs);

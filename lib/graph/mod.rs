@@ -54,7 +54,7 @@ pub struct NullVertex {
 
 impl NullVertex {
     pub fn new(index: usize) -> NullVertex {
-        NullVertex { index: index }
+        NullVertex { index }
     }
 }
 
@@ -76,10 +76,7 @@ pub struct NullEdge {
 
 impl NullEdge {
     pub fn new(head: usize, tail: usize) -> NullEdge {
-        NullEdge {
-            head: head,
-            tail: tail,
-        }
+        NullEdge { head, tail }
     }
 }
 
@@ -163,7 +160,7 @@ impl fmt::Display for Loop {
 pub type LoopTree = Graph<Loop, NullEdge>;
 
 /// A directed graph.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Default)]
 pub struct Graph<V: Vertex, E: Edge> {
     vertices: BTreeMap<usize, V>,
     edges: BTreeMap<(usize, usize), E>,
@@ -534,7 +531,7 @@ where
 
         let mut ancestor: HashMap<usize, Option<usize>> = HashMap::new();
         let mut label: HashMap<usize, usize> = HashMap::new();
-        for (&vertex, _) in &self.vertices {
+        for &vertex in self.vertices.keys() {
             ancestor.insert(vertex, None);
             label.insert(vertex, dfs_number[&vertex]);
         }
@@ -662,7 +659,7 @@ where
 
                 let mut changed = false;
                 for predecessor in &this_predecessors {
-                    changed = changed | successor_predecessors.insert(*predecessor);
+                    changed |= successor_predecessors.insert(*predecessor);
                 }
 
                 if changed {
@@ -760,9 +757,9 @@ where
             }
 
             temporary_marks.insert(node);
-            if !graph.successors[&node].iter().all(|successor| {
-                dfs_is_acyclic(graph, *successor, permanent_marks, temporary_marks)
-            }) {
+            let successors_are_acyclic = graph.successors[&node].iter().all(|successor|
+                dfs_is_acyclic(graph, *successor, permanent_marks, temporary_marks));
+            if !successors_are_acyclic {
                 return false;
             }
             temporary_marks.remove(&node);
@@ -797,10 +794,10 @@ where
 
         // Build a graph without back edges, a.k.a. forward edges (FE) graph.
         let mut fe_graph = Graph::new();
-        for (&index, _) in &self.vertices {
-            fe_graph.insert_vertex(NullVertex::new(index))?;
+        for index in self.vertices.keys() {
+            fe_graph.insert_vertex(NullVertex::new(*index))?;
         }
-        for (edge, _) in &self.edges {
+        for edge in self.edges.keys() {
             if !back_edges.contains(edge) {
                 fe_graph.insert_edge(NullEdge::new(edge.0, edge.1))?;
             }
@@ -893,10 +890,10 @@ where
             Ok(())
         }
 
-        for (&node, _) in &self.vertices {
+        for node in self.vertices.keys() {
             dfs_walk(
                 self,
-                node,
+                *node,
                 &mut permanent_marks,
                 &mut temporary_marks,
                 &mut order,
@@ -923,26 +920,26 @@ where
     pub fn vertex(&self, index: usize) -> Result<&V> {
         self.vertices
             .get(&index)
-            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
     }
 
     // Fetches a mutable instance of a vertex.
     pub fn vertex_mut(&mut self, index: usize) -> Result<&mut V> {
         self.vertices
             .get_mut(&index)
-            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
     }
 
     pub fn edge(&self, head: usize, tail: usize) -> Result<&E> {
         self.edges
             .get(&(head, tail))
-            .ok_or(ErrorKind::GraphEdgeNotFound(head, tail).into())
+            .ok_or_else(|| ErrorKind::GraphEdgeNotFound(head, tail).into())
     }
 
     pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut E> {
         self.edges
             .get_mut(&(head, tail))
-            .ok_or(ErrorKind::GraphEdgeNotFound(head, tail).into())
+            .ok_or_else(|| ErrorKind::GraphEdgeNotFound(head, tail).into())
     }
 
     /// Get a reference to every `Edge` in the `Graph`.
@@ -969,7 +966,7 @@ where
                     .map(|succ| &self.edges[&(index, *succ)])
                     .collect()
             })
-            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
     }
 
     /// Return all edges in for a vertex
@@ -982,7 +979,7 @@ where
                     .map(|pred| &self.edges[&(*pred, index)])
                     .collect()
             })
-            .ok_or(ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
     }
 
     /// Returns a string in the graphviz format

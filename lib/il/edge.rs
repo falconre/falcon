@@ -13,7 +13,7 @@ use crate::il::*;
 use std::fmt;
 
 /// Edge between IL blocks
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Default)]
 pub struct Edge {
     head: usize,
     tail: usize,
@@ -24,9 +24,9 @@ pub struct Edge {
 impl Edge {
     pub(crate) fn new(head: usize, tail: usize, condition: Option<Expression>) -> Edge {
         Edge {
-            head: head,
-            tail: tail,
-            condition: condition,
+            head,
+            tail,
+            condition,
             comment: None,
         }
     }
@@ -65,7 +65,7 @@ impl Edge {
 impl fmt::Display for Edge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(ref comment) = self.comment {
-            write!(f, "// {}\n", comment)?
+            writeln!(f, "// {}", comment)?
         }
         if let Some(ref condition) = self.condition {
             write!(

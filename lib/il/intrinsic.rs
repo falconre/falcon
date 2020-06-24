@@ -27,10 +27,10 @@ impl Intrinsic {
         Intrinsic {
             mnemonic: mnemonic.into(),
             instruction_str: instruction_str.into(),
-            arguments: arguments,
-            written_expressions: written_expressions,
-            read_expressions: read_expressions,
-            bytes: bytes.clone(),
+            arguments,
+            written_expressions,
+            read_expressions,
+            bytes,
         }
     }
 
@@ -56,7 +56,7 @@ impl Intrinsic {
     /// undefined, and for soundness you should assume the intrinsic does
     /// anything.
     pub fn written_expressions(&self) -> Option<&[Expression]> {
-        self.written_expressions.as_ref().map(|x| x.as_slice())
+        self.written_expressions.as_deref()
     }
 
     /// Get a mutable reference to the expressions which are written by this
@@ -64,7 +64,7 @@ impl Intrinsic {
     ///
     /// Caveats for `written_expressions` apply here.
     pub fn written_expressions_mut(&mut self) -> Option<&mut [Expression]> {
-        self.written_expressions.as_mut().map(|x| x.as_mut_slice())
+        self.written_expressions.as_deref_mut()
     }
 
     /// Get the expressions which are read by this intrinsic.
@@ -73,7 +73,7 @@ impl Intrinsic {
     /// undefined, and for soundness you should assume the intrinsic reads
     /// any expression.
     pub fn read_expressions(&self) -> Option<&[Expression]> {
-        self.read_expressions.as_ref().map(|x| x.as_slice())
+        self.read_expressions.as_deref()
     }
 
     /// Get a mutable reference to the expressions which are read by this
@@ -81,7 +81,7 @@ impl Intrinsic {
     ///
     /// Caveats for `read_expressions` apply here.
     pub fn read_expressions_mut(&mut self) -> Option<&mut [Expression]> {
-        self.read_expressions.as_mut().map(|x| x.as_mut_slice())
+        self.read_expressions.as_deref_mut()
     }
 
     /// Get the scalars which are written by this intrinsic.
@@ -148,7 +148,7 @@ impl fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let bytes = self
             .bytes()
-            .into_iter()
+            .iter()
             .map(|byte| format!("{:02x}", byte))
             .collect::<Vec<String>>()
             .join("");

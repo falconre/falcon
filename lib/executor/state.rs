@@ -1,8 +1,9 @@
 //! A concrete state for execution over Falcon IL.
 
+use std::collections::BTreeMap;
+
 use crate::executor::successor::*;
 use crate::executor::*;
-use std::collections::BTreeMap;
 
 /// A concrete `State`.
 #[derive(Debug, Clone)]
@@ -16,7 +17,7 @@ impl State {
     pub fn new(memory: Memory) -> State {
         State {
             scalars: BTreeMap::new(),
-            memory: memory,
+            memory,
         }
     }
 
@@ -162,7 +163,7 @@ impl State {
                 )?;
                 match value {
                     Some(v) => {
-                        self.set_scalar(dst.name(), v.into());
+                        self.set_scalar(dst.name(), v);
                         Successor::new(self, SuccessorType::FallThrough)
                     }
                     None => {

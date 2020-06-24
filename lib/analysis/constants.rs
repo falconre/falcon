@@ -14,9 +14,7 @@ use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
 
 /// Compute constants for the given function
-pub fn constants<'r>(
-    function: &'r il::Function,
-) -> Result<HashMap<il::ProgramLocation, Constants>> {
+pub fn constants(function: &il::Function) -> Result<HashMap<il::ProgramLocation, Constants>> {
     let constants = fixed_point::fixed_point_forward(ConstantsAnalysis {}, function)?;
 
     // we're now going to remap constants, so each position holds the values of
@@ -24,7 +22,7 @@ pub fn constants<'r>(
 
     let mut result = HashMap::new();
 
-    for (location, _) in &constants {
+    for location in constants.keys() {
         let rfl = location.function_location().apply(function).unwrap();
         let rpl = il::RefProgramLocation::new(function, rfl);
         result.insert(
@@ -91,45 +89,49 @@ pub struct Constants {
 
 impl PartialOrd for Constants {
     fn partial_cmp(&self, other: &Constants) -> Option<Ordering> {
-        if self.constants.len() < other.constants.len() {
-            for (ls, lc) in self.constants.iter() {
-                if !other.constants.get(ls).map(|rc| lc <= rc).unwrap_or(false) {
-                    return None;
-                }
-            }
-            Some(Ordering::Less)
-        } else if self.constants.len() > other.constants.len() {
-            for (ls, lc) in other.constants.iter() {
-                if !self.constants.get(ls).map(|rc| lc <= rc).unwrap_or(false) {
-                    return None;
-                }
-            }
-            Some(Ordering::Greater)
-        } else {
-            let mut order = Ordering::Equal;
-            for (ls, lc) in &self.constants {
-                match other.constants.get(ls) {
-                    Some(rc) => {
-                        if lc < rc {
-                            if order <= Ordering::Equal {
-                                order = Ordering::Less;
-                            } else {
-                                return None;
-                            }
-                        } else if lc > rc {
-                            if order >= Ordering::Equal {
-                                order = Ordering::Greater;
-                            } else {
-                                return None;
-                            }
-                        }
-                    }
-                    None => {
+        match self.constants.len().cmp(&other.constants.len()) {
+            Ordering::Less => {
+                for (ls, lc) in self.constants.iter() {
+                    if !other.constants.get(ls).map(|rc| lc <= rc).unwrap_or(false) {
                         return None;
                     }
                 }
+                Some(Ordering::Less)
             }
-            Some(order)
+            Ordering::Greater => {
+                for (ls, lc) in other.constants.iter() {
+                    if !self.constants.get(ls).map(|rc| lc <= rc).unwrap_or(false) {
+                        return None;
+                    }
+                }
+                Some(Ordering::Greater)
+            }
+            Ordering::Equal => {
+                let mut order = Ordering::Equal;
+                for (ls, lc) in &self.constants {
+                    match other.constants.get(ls) {
+                        Some(rc) => {
+                            if lc < rc {
+                                if order <= Ordering::Equal {
+                                    order = Ordering::Less;
+                                } else {
+                                    return None;
+                                }
+                            } else if lc > rc {
+                                if order >= Ordering::Equal {
+                                    order = Ordering::Greater;
+                                } else {
+                                    return None;
+                                }
+                            }
+                        }
+                        None => {
+                            return None;
+                        }
+                    }
+                }
+                Some(order)
+            }
         }
     }
 }
@@ -213,7 +215,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
                 il::Operation::Assign { ref dst, ref src } => {
                     let constant = state
                         .eval(src)
-                        .map(|constant| Constant::Constant(constant))
+                        .map(Constant::Constant)
                         .unwrap_or(Constant::Top);
                     state.set_scalar(dst.clone(), constant);
                     state

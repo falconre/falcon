@@ -32,7 +32,7 @@ pub trait Architecture: Debug + Send + Sync {
 }
 
 /// The 64-bit X86 Architecture.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Amd64 {}
 
 impl Amd64 {
@@ -66,7 +66,7 @@ impl Architecture for Amd64 {
 }
 
 /// The 32-bit Mips Architecture.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Mips {}
 
 impl Mips {
@@ -100,7 +100,7 @@ impl Architecture for Mips {
 }
 
 /// The 32-bit Mipsel Architecture.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Mipsel {}
 
 impl Mipsel {
@@ -134,7 +134,7 @@ impl Architecture for Mipsel {
 }
 
 /// The 32-bit Mips Architecture.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Ppc {}
 
 impl Ppc {
@@ -168,7 +168,7 @@ impl Architecture for Ppc {
 }
 
 /// The 32-bit X86 Architecture.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct X86 {}
 
 impl X86 {

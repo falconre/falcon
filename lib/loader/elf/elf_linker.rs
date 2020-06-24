@@ -1,7 +1,6 @@
 use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::Memory;
-use goblin;
 use log::warn;
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -14,9 +13,9 @@ const DEFAULT_LIB_BASE: u64 = 0x4000_0000;
 const LIB_BASE_STEP: u64 = 0x0200_0000;
 
 // Some MIPS-specific DT entries. This will eventually land in Goblin.
-const DT_MIPS_LOCAL_GOTNO: u64 = 0x7000000a;
-const DT_MIPS_GOTSYM: u64 = 0x70000013;
-const DT_MIPS_SYMTABNO: u64 = 0x70000011;
+const DT_MIPS_LOCAL_GOTNO: u64 = 0x7000_000a;
+const DT_MIPS_GOTSYM: u64 = 0x7000_0013;
+const DT_MIPS_SYMTABNO: u64 = 0x7000_0011;
 
 /// A helper to build an ElfLinker using the builder pattern.
 #[derive(Clone, Debug)]
@@ -31,7 +30,7 @@ impl ElfLinkerBuilder {
     /// Create a new ElfLinker
     pub fn new(filename: PathBuf) -> ElfLinkerBuilder {
         ElfLinkerBuilder {
-            filename: filename,
+            filename,
             do_relocations: true,
             just_interpreter: false,
             ld_paths: None,
@@ -126,9 +125,9 @@ impl ElfLinker {
             symbols: BTreeMap::new(),
             next_lib_address: DEFAULT_LIB_BASE,
             user_functions: Vec::new(),
-            do_relocations: do_relocations,
-            just_interpreter: just_interpreter,
-            ld_paths: ld_paths,
+            do_relocations,
+            just_interpreter,
+            ld_paths,
         };
 
         elf_linker.load_elf(&filename, 0)?;
@@ -166,9 +165,9 @@ impl ElfLinker {
                         ld_path.to_path_buf().join(filename)
                     })
                     .find(|path| path.exists())
-                    .unwrap_or(filename.to_path_buf())
+                    .unwrap_or_else(|| filename.to_path_buf())
             })
-            .unwrap_or(filename.to_path_buf());
+            .unwrap_or_else(|| filename.to_path_buf());
 
         let elf = Elf::from_file_with_base_address(&path, base_address)?;
 
@@ -183,7 +182,7 @@ impl ElfLinker {
         self.loaded.insert(filename.clone(), elf);
 
         {
-            let ref elf = self.loaded[&filename];
+            let elf = &self.loaded[&filename];
 
             // Add its exported symbols to our symbols
             for symbol in elf.exported_symbols() {
@@ -253,9 +252,9 @@ impl ElfLinker {
                 let interpreter_filename = Path::new(interpreter_filename)
                     .file_name()
                     .and_then(|filename| filename.to_str())
-                    .ok_or(format!(
-                        "Failed to get filename portion of interpreter filename"
-                    ))?;
+                    .ok_or_else(
+                        || "Failed to get filename portion of interpreter filename".to_string()
+                    )?;
                 Some(self.loaded().get(interpreter_filename).ok_or(format!(
                     "Could not find interpreter {}",
                     interpreter_filename
@@ -270,7 +269,7 @@ impl ElfLinker {
     /// Perform x86-specific relocations
     fn relocations_x86(&mut self, filename: &str) -> Result<()> {
         // Process relocations
-        let ref elf = self.loaded[filename];
+        let elf = &self.loaded[filename];
         let dynsyms = elf.elf().dynsyms;
         let dynstrtab = elf.elf().dynstrtab;
         for reloc in elf
@@ -281,7 +280,7 @@ impl ElfLinker {
         {
             match reloc.r_type {
                 goblin::elf::reloc::R_386_32 => {
-                    let ref sym = dynsyms
+                    let sym = &dynsyms
                         .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
@@ -296,7 +295,7 @@ impl ElfLinker {
                     bail!("R_386_GOT32");
                 }
                 goblin::elf::reloc::R_386_PLT32 => {
-                    let ref sym = dynsyms
+                    let sym = &dynsyms
                         .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
@@ -311,7 +310,7 @@ impl ElfLinker {
                     bail!("R_386_COPY");
                 }
                 goblin::elf::reloc::R_386_GLOB_DAT => {
-                    let ref sym = dynsyms
+                    let sym = &dynsyms
                         .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];
@@ -326,7 +325,7 @@ impl ElfLinker {
                         .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_JMP_SLOT => {
-                    let ref sym = dynsyms
+                    let sym = &dynsyms
                         .get(reloc.r_sym)
                         .expect("Unable to resolve relocation symbol");
                     let sym_name = &dynstrtab[sym.st_name];

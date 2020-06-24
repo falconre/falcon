@@ -11,7 +11,7 @@ mod semantics;
 mod test;
 
 /// The MIPS translator.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Mips;
 
 impl Mips {
@@ -27,7 +27,7 @@ impl Translator for Mips {
 }
 
 /// This MIPSel translator.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Mipsel;
 
 impl Mipsel {
@@ -410,10 +410,7 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                 false_target: u64,
                 branch_condition: Expression,
             ) -> Result<()> {
-                block_graphs.push((
-                    address,
-                    conditional_graph(address, branch_condition.clone())?,
-                ));
+                block_graphs.push((address, conditional_graph(address, branch_condition)?));
 
                 let branch_condition = expr_scalar("branching_condition", 1);
 

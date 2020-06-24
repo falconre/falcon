@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 /// A representation of a program by `il::Function`
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct Program {
     // Mapping of function indices (not addresses) to `Function`.
     functions: BTreeMap<usize, RC<Function>>,

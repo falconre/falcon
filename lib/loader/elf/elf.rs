@@ -2,7 +2,6 @@ use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::Memory;
 use crate::memory::MemoryPermissions;
-use goblin;
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::Read;
@@ -24,7 +23,7 @@ impl Elf {
         let architecture = {
             let elf = goblin::elf::Elf::parse(&bytes).map_err(|_| "Not a valid elf")?;
 
-            let architecture = if elf.header.e_machine == goblin::elf::header::EM_386 {
+            if elf.header.e_machine == goblin::elf::header::EM_386 {
                 Box::new(X86::new())
             } else if elf.header.e_machine == goblin::elf::header::EM_MIPS {
                 match elf.header.endianness()? {
@@ -44,16 +43,14 @@ impl Elf {
                 Box::new(Amd64::new())
             } else {
                 bail!("Unsupported Architecture");
-            };
-
-            architecture
+            }
         };
 
         Ok(Elf {
-            base_address: base_address,
-            bytes: bytes,
+            base_address,
+            bytes,
             user_function_entries: Vec::new(),
-            architecture: architecture,
+            architecture,
         })
     }
 

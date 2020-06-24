@@ -26,8 +26,8 @@ impl Function {
     /// * `control_flow_graph` - A `ControlFlowGraph` capturing the semantics of this function.
     pub fn new(address: u64, control_flow_graph: ControlFlowGraph) -> Function {
         Function {
-            address: address,
-            control_flow_graph: control_flow_graph,
+            address,
+            control_flow_graph,
             name: None,
             index: None,
         }

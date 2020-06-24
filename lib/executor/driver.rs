@@ -25,10 +25,10 @@ impl Driver {
         architecture: RC<dyn Architecture>,
     ) -> Driver {
         Driver {
-            program: program,
-            location: location,
-            state: state,
-            architecture: architecture,
+            program,
+            location,
+            state,
+            architecture,
         }
     }
 
@@ -43,12 +43,12 @@ impl Driver {
                     SuccessorType::FallThrough => {
                         let locations = location.forward()?;
                         if locations.len() == 1 {
-                            return Ok(Driver::new(
+                            Ok(Driver::new(
                                 self.program.clone(),
                                 locations[0].clone().into(),
                                 successor.into(),
                                 self.architecture,
-                            ));
+                            ))
                         } else {
                             // every location should be an edge, and only one
                             // edge should be satisfiable
@@ -78,33 +78,31 @@ impl Driver {
                     }
                     SuccessorType::Branch(address) => {
                         match il::RefProgramLocation::from_address(&self.program, address) {
-                            Some(location) => {
-                                return Ok(Driver::new(
-                                    self.program.clone(),
-                                    location.into(),
-                                    successor.into(),
-                                    self.architecture,
-                                ))
-                            }
+                            Some(location) => Ok(Driver::new(
+                                self.program.clone(),
+                                location.into(),
+                                successor.into(),
+                                self.architecture,
+                            )),
                             None => {
                                 let state: State = successor.into();
                                 let function = self
                                     .architecture
                                     .translator()
                                     .translate_function(state.memory(), address)
-                                    .expect(&format!("Failed to lift function at 0x{:x}", address));
+                                    .unwrap_or_else(|e| panic!("Failed to lift function at 0x{:x}: {:?}", address, e));
                                 let mut program = self.program.clone();
                                 RC::make_mut(&mut program).add_function(function);
                                 let location: il::ProgramLocation =
                                     il::RefProgramLocation::from_address(&program, address)
                                         .ok_or("Failed to get location for newly lifted function")?
                                         .into();
-                                return Ok(Driver::new(
-                                    program.clone(),
+                                Ok(Driver::new(
+                                    program,
                                     location,
                                     state,
                                     self.architecture,
-                                ));
+                                ))
                             }
                         }
                     }
@@ -118,12 +116,12 @@ impl Driver {
             }
             il::RefFunctionLocation::Edge(_) => {
                 let locations = location.forward()?;
-                return Ok(Driver::new(
+                Ok(Driver::new(
                     self.program.clone(),
                     locations[0].clone().into(),
                     self.state,
                     self.architecture,
-                ));
+                ))
             }
             il::RefFunctionLocation::EmptyBlock(_) => {
                 let locations = location.forward()?;

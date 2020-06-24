@@ -58,12 +58,9 @@ pub fn dead_code_elimination(function: &il::Function) -> Result<il::Function> {
                         function,
                         il::RefFunctionLocation::Instruction(block, instruction),
                     );
-                    rd[&rpl.into()]
-                        .locations()
-                        .into_iter()
-                        .for_each(|location| {
-                            live.insert(location.function_location().clone());
-                        });
+                    rd[&rpl.into()].locations().iter().for_each(|location| {
+                        live.insert(location.function_location().clone());
+                    });
                 }
                 _ => {}
             }
@@ -93,8 +90,7 @@ pub fn dead_code_elimination(function: &il::Function) -> Result<il::Function> {
         .collect::<Vec<il::FunctionLocation>>();
 
     // Eliminate those instructions from our new function
-    let kill: Vec<il::FunctionLocation> =
-        kill.into_iter().map(|location| location.into()).collect();
+    let kill: Vec<il::FunctionLocation> = kill.into_iter().map(|location| location).collect();
 
     let mut dce_function = function.clone();
 
