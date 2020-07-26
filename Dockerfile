@@ -1,25 +1,35 @@
-FROM ubuntu:xenial
+FROM debian:buster
 
 RUN apt-get update && \
-    apt-get -y dist-upgrade && \
-    apt-get -y install wget apt-transport-https && \
-    echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" >> /etc/apt/sources.list && \
-    echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.9 main" >> /etc/apt/sources.list && \
-    wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
-    apt-get update && \
-    apt-get -y install build-essential \
-                       clang-3.9 \
-                       curl \
-                       llvm-3.9-dev \
-                       libcapstone3 \
-                       libcapstone-dev \
-                       libclang-3.9-dev \
-                       pkg-config && \
+    apt-get -y install \
+        build-essential \
+        clang \
+        llvm \
+        wget && \
     apt-get clean
 
-RUN curl https://sh.rustup.rs -sSf > /tmp/install.sh && \
-    chmod 755 /tmp/install.sh && \
-    /tmp/install.sh -y
+RUN mkdir /opt/capstone && \
+    cd /opt/capstone && \
+    wget https://github.com/aquynh/capstone/archive/4.0.2.tar.gz && \
+    tar xf 4.0.2.tar.gz && \
+    cd capstone-4.0.2 && \
+    make -j && \
+    make install
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+
+RUN set -eux; \
+    url="https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init"; \
+    wget "$url"; \
+    chmod +x rustup-init; \
+    ./rustup-init -y --no-modify-path; \
+    rm rustup-init; \
+    chmod -R a+w $RUSTUP_HOME $CARGO_HOME; \
+    rustup --version; \
+    cargo --version; \
+    rustc --version;
 
 SHELL ["/bin/bash", "-c"]
 

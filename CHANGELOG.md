@@ -1,5 +1,10 @@
 # Changelog
 
+## HEAD
+
+* oblivia-simplex Linting, falcon now passes cargo clippy --all
+* capstone4 is now the default capstone.
+
 ## [0.4.12] - 17-APR-2020
 
 * emmanuel099 Multiple improvements to the graph library
