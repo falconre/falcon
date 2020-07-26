@@ -8,7 +8,7 @@ impl Symbol {
     pub fn new<S: Into<String>>(name: S, address: u64) -> Symbol {
         Symbol {
             name: name.into(),
-            address: address,
+            address,
         }
     }
 

@@ -10,7 +10,7 @@ pub mod semantics;
 mod test;
 
 /// The MIPS translator.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Ppc;
 
 impl Ppc {

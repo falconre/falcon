@@ -14,10 +14,7 @@ pub(crate) struct Semantics<'s> {
 
 impl<'s> Semantics<'s> {
     pub fn new(mode: &'s Mode, instruction: &'s capstone::Instr) -> Semantics<'s> {
-        Semantics {
-            mode: mode,
-            instruction: instruction,
-        }
+        Semantics { mode, instruction }
     }
 
     pub fn instruction(&self) -> &capstone::Instr {
@@ -91,8 +88,8 @@ impl<'s> Semantics<'s> {
         lhs: Expression,
         rhs: Expression,
     ) -> Result<()> {
-        let expr0 = Expr::xor(lhs.clone().into(), rhs.clone().into())?;
-        let expr1 = Expr::xor(lhs.clone().into(), result.clone().into())?;
+        let expr0 = Expr::xor(lhs.clone(), rhs)?;
+        let expr1 = Expr::xor(lhs, result)?;
         let expr = Expr::and(expr0, expr1)?;
         let expr = Expr::shr(
             expr.clone(),
@@ -104,7 +101,7 @@ impl<'s> Semantics<'s> {
 
     /// Convenience function to set the cf based on result and lhs operand
     pub fn set_cf(&self, block: &mut Block, result: Expression, lhs: Expression) -> Result<()> {
-        let expr = Expr::cmpltu(lhs.clone().into(), result.clone().into())?;
+        let expr = Expr::cmpltu(lhs, result)?;
         block.assign(scalar("CF", 1), expr);
         Ok(())
     }
@@ -439,10 +436,10 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(&mut block, result.clone().into())?;
             self.set_sf(&mut block, result.clone().into())?;
-            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs.clone())?;
+            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs)?;
             block.assign(
                 scalar("CF", 1),
-                Expression::cmpltu(result.clone().into(), lhs.into())?,
+                Expression::cmpltu(result.clone().into(), lhs)?,
             );
 
             // store result
@@ -475,10 +472,10 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(&mut block, result.clone().into())?;
             self.set_sf(&mut block, result.clone().into())?;
-            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs.clone())?;
+            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs)?;
             block.assign(
                 scalar("CF", 1),
-                Expression::cmpltu(result.clone().into(), lhs.into())?,
+                Expression::cmpltu(result.clone().into(), lhs)?,
             );
 
             // store result
@@ -510,7 +507,7 @@ impl<'s> Semantics<'s> {
             let result = self.temp(0, lhs.bits());
 
             // perform addition
-            block.assign(result.clone(), Expr::and(lhs.clone(), rhs.clone())?);
+            block.assign(result.clone(), Expr::and(lhs, rhs)?);
 
             // calculate flags
             self.set_zf(&mut block, result.clone().into())?;
@@ -772,15 +769,12 @@ impl<'s> Semantics<'s> {
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
                 let temp = self.temp(0, base.bits());
-                block.assign(
-                    temp.clone(),
-                    Expr::zext(base.bits(), offset.clone().into())?,
-                );
+                block.assign(temp.clone(), Expr::zext(base.bits(), offset.clone())?);
                 offset = temp.into();
             }
 
             let temp = self.temp(0, base.bits());
-            block.assign(temp.clone(), Expr::shr(base.into(), offset.into())?);
+            block.assign(temp.clone(), Expr::shr(base, offset)?);
             block.assign(scalar("CF", 1), Expr::trun(1, temp.into())?);
 
             block.index()
@@ -819,20 +813,17 @@ impl<'s> Semantics<'s> {
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
                 let temp = self.temp(0, base.bits());
-                block.assign(
-                    temp.clone(),
-                    Expr::zext(base.bits(), offset.clone().into())?,
-                );
+                block.assign(temp.clone(), Expr::zext(base.bits(), offset.clone())?);
                 offset = temp.into();
             }
 
             // this handles the assign to CF
             let temp = self.temp(1, base.bits());
-            block.assign(temp.clone(), Expr::shr(base.into(), offset.clone().into())?);
+            block.assign(temp.clone(), Expr::shr(base, offset.clone())?);
             block.assign(scalar("CF", 1), Expr::trun(1, temp.clone().into())?);
 
-            let expr = Expr::xor(temp.clone().into(), expr_const(1, temp.clone().bits()))?;
-            let expr = Expr::shl(expr, offset.into())?;
+            let expr = Expr::xor(temp.clone().into(), expr_const(1, temp.bits()))?;
+            let expr = Expr::shl(expr, offset)?;
             self.operand_store(&mut block, &detail.operands[0], expr)?;
 
             block.index()
@@ -871,24 +862,18 @@ impl<'s> Semantics<'s> {
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
                 let temp = self.temp(0, base.bits());
-                block.assign(
-                    temp.clone(),
-                    Expr::zext(base.bits(), offset.clone().into())?,
-                );
+                block.assign(temp.clone(), Expr::zext(base.bits(), offset.clone())?);
                 offset = temp.into();
             }
 
             // this handles the assign to CF
             let temp = self.temp(1, base.bits());
-            block.assign(
-                temp.clone(),
-                Expr::shr(base.clone().into(), offset.clone().into())?,
-            );
-            block.assign(scalar("CF", 1), Expr::trun(1, temp.clone().into())?);
+            block.assign(temp.clone(), Expr::shr(base.clone(), offset.clone())?);
+            block.assign(scalar("CF", 1), Expr::trun(1, temp.into())?);
 
-            let expr = Expr::shl(expr_const(1, base.bits()), offset.into())?;
+            let expr = Expr::shl(expr_const(1, base.bits()), offset)?;
             let expr = Expr::xor(expr, expr_const(0xffff_ffff_ffff_ffff, base.bits()))?;
-            let expr = Expr::and(base.into(), expr)?;
+            let expr = Expr::and(base, expr)?;
 
             self.operand_store(&mut block, &detail.operands[0], expr)?;
 
@@ -928,23 +913,17 @@ impl<'s> Semantics<'s> {
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
                 let temp = self.temp(0, base.bits());
-                block.assign(
-                    temp.clone(),
-                    Expr::zext(base.bits(), offset.clone().into())?,
-                );
+                block.assign(temp.clone(), Expr::zext(base.bits(), offset.clone())?);
                 offset = temp.into();
             }
 
             // this handles the assign to CF
             let temp = self.temp(1, base.bits());
-            block.assign(
-                temp.clone(),
-                Expr::shr(base.clone().into(), offset.clone().into())?,
-            );
-            block.assign(scalar("CF", 1), Expr::trun(1, temp.clone().into())?);
+            block.assign(temp.clone(), Expr::shr(base.clone(), offset.clone())?);
+            block.assign(scalar("CF", 1), Expr::trun(1, temp.into())?);
 
-            let expr = Expr::shl(expr_const(1, base.bits()), offset.into())?;
-            let expr = Expr::or(base.into(), expr)?;
+            let expr = Expr::shl(expr_const(1, base.bits()), offset)?;
+            let expr = Expr::or(base, expr)?;
 
             self.operand_store(&mut block, &detail.operands[0], expr)?;
 
@@ -1029,7 +1008,7 @@ impl<'s> Semantics<'s> {
                                 expr_const(0x0000_0000_0000_ff00, 64),
                             )?,
                             Expr::and(
-                                Expr::shr(src.clone(), expr_const(56, 64))?,
+                                Expr::shr(src, expr_const(56, 64))?,
                                 expr_const(0x0000_0000_0000_00ff, 64),
                             )?,
                         )?,
@@ -1248,15 +1227,15 @@ impl<'s> Semantics<'s> {
             let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
             if rhs.bits() != lhs.bits() {
-                rhs = Expr::sext(lhs.bits(), rhs.into())?;
+                rhs = Expr::sext(lhs.bits(), rhs)?;
             }
 
             let expr = Expr::sub(lhs.clone(), rhs.clone())?;
 
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs.clone())?;
-            self.set_cf(&mut block, expr.clone(), lhs.clone())?;
+            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_cf(&mut block, expr, lhs)?;
 
             block.index()
         };
@@ -1287,15 +1266,15 @@ impl<'s> Semantics<'s> {
             let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
             if rhs.bits() != lhs.bits() {
-                rhs = Expr::sext(lhs.bits(), rhs.into())?;
+                rhs = Expr::sext(lhs.bits(), rhs)?;
             }
 
             let expr = Expr::sub(lhs.clone(), rhs.clone())?;
 
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs.clone())?;
-            self.set_cf(&mut block, expr.clone(), lhs.clone())?;
+            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_cf(&mut block, expr, lhs)?;
 
             block.index()
         };
@@ -1387,19 +1366,19 @@ impl<'s> Semantics<'s> {
 
             let result = Expr::sub(lhs.clone(), rhs.clone())?;
             self.set_sf(&mut block, result.clone())?;
-            self.set_of(&mut block, result.clone(), lhs.clone(), rhs.clone())?;
-            self.set_cf(&mut block, result.clone(), lhs.clone())?;
+            self.set_of(&mut block, result.clone(), lhs.clone(), rhs)?;
+            self.set_cf(&mut block, result, lhs.clone())?;
 
             block.index()
         };
 
-        let condition = Expr::cmpeq(dest.get()?, lhs.clone())?;
+        let condition = Expr::cmpeq(dest.get()?, lhs)?;
 
         control_flow_graph.conditional_edge(head_index, taken_index, condition.clone())?;
         control_flow_graph.conditional_edge(
             head_index,
             not_taken_index,
-            Expr::cmpeq(condition.clone(), expr_const(0, 1))?,
+            Expr::cmpeq(condition, expr_const(0, 1))?,
         )?;
         control_flow_graph.unconditional_edge(taken_index, tail_index)?;
         control_flow_graph.unconditional_edge(not_taken_index, tail_index)?;
@@ -1459,7 +1438,7 @@ impl<'s> Semantics<'s> {
 
             let dst = self.operand_load(&mut block, &detail.operands[0])?;
 
-            let expr = Expr::sub(dst.clone().into(), expr_const(1, dst.bits()))?;
+            let expr = Expr::sub(dst.clone(), expr_const(1, dst.bits()))?;
 
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr.clone())?;
@@ -1469,7 +1448,7 @@ impl<'s> Semantics<'s> {
                 dst.clone(),
                 expr_const(1, dst.bits()),
             )?;
-            self.set_cf(&mut block, expr.clone(), dst.clone())?;
+            self.set_cf(&mut block, expr.clone(), dst)?;
 
             self.operand_store(&mut block, &detail.operands[0], expr)?;
 
@@ -1761,10 +1740,7 @@ impl<'s> Semantics<'s> {
                 Expr::cmpneq(
                     Expr::trun(
                         bit_width / 2,
-                        Expr::shr(
-                            result.clone().into(),
-                            expr_const((bit_width / 2) as u64, bit_width),
-                        )?,
+                        Expr::shr(result.into(), expr_const((bit_width / 2) as u64, bit_width))?,
                     )?,
                     expr_const(0, bit_width / 2),
                 )?,
@@ -1788,7 +1764,7 @@ impl<'s> Semantics<'s> {
 
             let dst = self.operand_load(&mut block, &detail.operands[0])?;
 
-            let expr = Expr::add(dst.clone().into(), expr_const(1, dst.bits()))?;
+            let expr = Expr::add(dst.clone(), expr_const(1, dst.bits()))?;
 
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr.clone())?;
@@ -1798,7 +1774,7 @@ impl<'s> Semantics<'s> {
                 dst.clone(),
                 expr_const(1, dst.bits()),
             )?;
-            self.set_cf(&mut block, expr.clone(), dst.clone())?;
+            self.set_cf(&mut block, expr.clone(), dst)?;
 
             self.operand_store(&mut block, &detail.operands[0], expr)?;
 
@@ -2161,15 +2137,12 @@ impl<'s> Semantics<'s> {
             // Valid destinations are 64-bit memory location, 64-bit register,
             // and 128-bit xmm register. We're already good for 64-bit cases,
             // just need to zext for 128-bit case.
-            match detail.operands[0].type_ {
-                x86_op_type::X86_OP_REG => {
-                    // mov to 64-bit register
-                    let register = self.get_register(detail.operands[0].reg())?;
-                    if register.bits() == 128 {
-                        src = Expr::zext(128, src)?;
-                    }
+            if let x86_op_type::X86_OP_REG = detail.operands[0].type_ {
+                // mov to 64-bit register
+                let register = self.get_register(detail.operands[0].reg())?;
+                if register.bits() == 128 {
+                    src = Expr::zext(128, src)?;
                 }
-                _ => {}
             }
 
             self.operand_store(&mut block, &detail.operands[0], src)?;
@@ -2400,12 +2373,12 @@ impl<'s> Semantics<'s> {
 
             block.assign(
                 scalar("CF", 1),
-                Expr::cmpneq(dst.clone().into(), expr_const(0, dst.bits()))?,
+                Expr::cmpneq(dst.clone(), expr_const(0, dst.bits()))?,
             );
 
             block.assign(
                 result.clone(),
-                Expr::sub(expr_const(0, dst.bits()), dst.clone().into())?,
+                Expr::sub(expr_const(0, dst.bits()), dst.clone())?,
             );
 
             self.set_zf(&mut block, result.clone().into())?;
@@ -2414,10 +2387,10 @@ impl<'s> Semantics<'s> {
                 &mut block,
                 result.clone().into(),
                 expr_const(0, dst.bits()),
-                dst.clone().into(),
+                dst,
             )?;
 
-            self.operand_store(&mut block, &detail.operands[0], result.clone().into())?;
+            self.operand_store(&mut block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -2481,7 +2454,7 @@ impl<'s> Semantics<'s> {
             }
 
             // perform addition
-            block.assign(result.clone(), Expr::or(lhs.clone(), rhs.clone())?);
+            block.assign(result.clone(), Expr::or(lhs, rhs)?);
 
             // calculate flags
             self.set_zf(&mut block, result.clone().into())?;
@@ -2794,7 +2767,7 @@ impl<'s> Semantics<'s> {
                     // We need to multiply by 32
                     Expression::shl(order0, expr_const(5, src.bits()))?,
                 )?,
-                expr_const(0xffffffff, src.bits()),
+                expr_const(0xffff_ffff, src.bits()),
             )?;
 
             let result1 = Expression::and(
@@ -2803,7 +2776,7 @@ impl<'s> Semantics<'s> {
                     // We need to multiply by 32
                     Expression::shl(order1, expr_const(5, src.bits()))?,
                 )?,
-                expr_const(0xffffffff, src.bits()),
+                expr_const(0xffff_ffff, src.bits()),
             )?;
 
             let result2 = Expression::and(
@@ -2812,7 +2785,7 @@ impl<'s> Semantics<'s> {
                     // We need to multiply by 32
                     Expression::shl(order2, expr_const(5, src.bits()))?,
                 )?,
-                expr_const(0xffffffff, src.bits()),
+                expr_const(0xffff_ffff, src.bits()),
             )?;
 
             let result3 = Expression::and(
@@ -2821,7 +2794,7 @@ impl<'s> Semantics<'s> {
                     // We need to multiply by 32
                     Expression::shl(order3, expr_const(5, src.bits()))?,
                 )?,
-                expr_const(0xffffffff, src.bits()),
+                expr_const(0xffff_ffff, src.bits()),
             )?;
 
             let temp = self.temp(0, detail.operands[0].size as usize * 8);
@@ -2869,11 +2842,7 @@ impl<'s> Semantics<'s> {
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 
-            self.operand_store(
-                &mut block,
-                &detail.operands[0],
-                Expression::shl(lhs.clone(), rhs)?,
-            )?;
+            self.operand_store(&mut block, &detail.operands[0], Expression::shl(lhs, rhs)?)?;
 
             block.index()
         };
@@ -2898,11 +2867,7 @@ impl<'s> Semantics<'s> {
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 
-            self.operand_store(
-                &mut block,
-                &detail.operands[0],
-                Expression::shr(lhs.clone(), rhs)?,
-            )?;
+            self.operand_store(&mut block, &detail.operands[0], Expression::shr(lhs, rhs)?)?;
 
             block.index()
         };
@@ -2941,13 +2906,13 @@ impl<'s> Semantics<'s> {
 
             let result = self.temp(1, lhs.bits());
             block.assign(result.clone(), expr_const(0, lhs.bits()));
-            for i in 0..temp_vars.len() {
+            for (i, var) in temp_vars.iter().enumerate() {
                 block.assign(
                     result.clone(),
                     Expression::or(
                         result.clone().into(),
                         Expression::shl(
-                            Expression::zext(lhs.bits(), temp_vars[i].clone().into())?,
+                            Expression::zext(lhs.bits(), var.clone().into())?,
                             expr_const(i as u64 * 8, lhs.bits()),
                         )?,
                     )?,
@@ -3221,8 +3186,8 @@ impl<'s> Semantics<'s> {
             )?;
 
             let result = Expr::or(
-                Expr::shl(lhs.clone(), shift_left_bits.clone())?,
-                Expr::shr(lhs.clone(), shift_right_bits.clone())?,
+                Expr::shl(lhs.clone(), shift_left_bits)?,
+                Expr::shr(lhs, shift_right_bits)?,
             )?;
 
             // CF is the bit sent from one end to the other. In our case, it should be LSB of result
@@ -3257,7 +3222,7 @@ impl<'s> Semantics<'s> {
 
             // SF/ZF are unaffected
 
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(&mut block, &detail.operands[0], result)?;
 
             block.index()
         };
@@ -3297,8 +3262,8 @@ impl<'s> Semantics<'s> {
             )?;
 
             let result = Expr::or(
-                Expr::shl(lhs.clone(), shift_left_bits.clone())?,
-                Expr::shr(lhs.clone(), shift_right_bits.clone())?,
+                Expr::shl(lhs.clone(), shift_left_bits)?,
+                Expr::shr(lhs, shift_right_bits)?,
             )?;
 
             // CF is the bit sent from one end to the other. In our case, it should be MSB of result
@@ -3334,7 +3299,7 @@ impl<'s> Semantics<'s> {
             // SF/ZF are unaffected
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(&mut block, &detail.operands[0], result)?;
 
             block.index()
         };
@@ -3355,7 +3320,7 @@ impl<'s> Semantics<'s> {
             // let pf = Expr::trun(1, Expr::shr(2, ax.clone())?)?;
             // let af = Expr::trun(1, Expr::shr(4, ax.clone())?)?;
             let zf = Expr::trun(1, Expr::shr(expr_const(6, 16), ax.clone())?)?;
-            let sf = Expr::trun(1, Expr::shr(expr_const(7, 16), ax.clone())?)?;
+            let sf = Expr::trun(1, Expr::shr(expr_const(7, 16), ax)?)?;
 
             block.assign(scalar("CF", 1), cf);
             // block.assign(scalar("PF", 1), pf);
@@ -3399,7 +3364,7 @@ impl<'s> Semantics<'s> {
             let expr = Expr::mul(mask, expr)?;
 
             // Do the SAR
-            let expr = Expr::or(expr, Expr::shr(lhs.clone(), rhs.clone())?)?;
+            let expr = Expr::or(expr, Expr::shr(lhs.clone(), rhs)?)?;
             let temp = self.temp(0, lhs.bits());
             block.assign(temp.clone(), expr);
 
@@ -3408,7 +3373,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(&mut block, temp.clone().into())?;
             self.set_sf(&mut block, temp.clone().into())?;
-            self.set_cf(&mut block, temp.clone().into(), lhs.clone())?;
+            self.set_cf(&mut block, temp.clone().into(), lhs)?;
 
             self.operand_store(&mut block, &detail.operands[0], temp.into())?;
 
@@ -3441,8 +3406,8 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs.clone())?;
-            self.set_cf(&mut block, expr.clone(), lhs.clone())?;
+            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_cf(&mut block, expr.clone(), lhs)?;
 
             // store result
             self.operand_store(&mut block, &detail.operands[0], expr)?;
@@ -3471,8 +3436,8 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), al.get()?, temp.clone().into())?;
-            self.set_cf(&mut block, expr.clone(), al.get()?)?;
+            self.set_of(&mut block, expr.clone(), al.get()?, temp.into())?;
+            self.set_cf(&mut block, expr, al.get()?)?;
 
             block.index()
         };
@@ -3538,7 +3503,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(&mut block, expr.clone())?;
             self.set_sf(&mut block, expr.clone())?;
             self.set_of(&mut block, expr.clone(), ax.get()?, temp.clone().into())?;
-            self.set_cf(&mut block, expr.clone(), temp.clone().into())?;
+            self.set_cf(&mut block, expr, temp.into())?;
 
             block.index()
         };
@@ -3634,10 +3599,7 @@ impl<'s> Semantics<'s> {
                 )?,
             )?;
             // This shifts lhs left by (rhs - 1)
-            let cf = Expr::shl(
-                lhs.clone(),
-                Expr::sub(rhs.clone(), expr_const(1, rhs.bits()))?,
-            )?;
+            let cf = Expr::shl(lhs, Expr::sub(rhs.clone(), expr_const(1, rhs.bits()))?)?;
             // Apply mask
             let cf = Expr::trun(1, Expr::and(cf, non_zero_mask)?)?;
             block.assign(scalar("CF", 1), cf.clone());
@@ -3950,8 +3912,8 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(&mut block, result.clone().into())?;
             self.set_sf(&mut block, result.clone().into())?;
-            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs.clone())?;
-            self.set_cf(&mut block, result.clone().into(), lhs.clone())?;
+            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs)?;
+            self.set_cf(&mut block, result.clone().into(), lhs)?;
 
             // store result
             self.operand_store(&mut block, &detail.operands[0], result.into())?;
@@ -4021,7 +3983,7 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(&mut block, &detail.operands[0])?;
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
-            let expr = Expr::and(lhs.clone(), rhs.clone())?;
+            let expr = Expr::and(lhs, rhs)?;
 
             // calculate flags
             self.set_zf(&mut block, expr.clone())?;
@@ -4079,7 +4041,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(&mut block, result.clone().into())?;
             self.set_sf(&mut block, result.clone().into())?;
             self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs.clone())?;
-            self.set_cf(&mut block, result.clone().into(), lhs.clone())?;
+            self.set_cf(&mut block, result.clone().into(), lhs)?;
 
             // store result
             self.operand_store(&mut block, &detail.operands[0], result.into())?;
@@ -4105,7 +4067,7 @@ impl<'s> Semantics<'s> {
             let rhs = self.operand_load(&mut block, &detail.operands[1])?;
 
             let tmp = self.temp(0, lhs.bits());
-            block.assign(tmp.clone(), lhs.clone());
+            block.assign(tmp.clone(), lhs);
 
             self.operand_store(&mut block, &detail.operands[0], rhs)?;
             self.operand_store(&mut block, &detail.operands[1], tmp.into())?;
@@ -4141,7 +4103,7 @@ impl<'s> Semantics<'s> {
             if lhs == rhs {
                 block.assign(result.clone(), expr_const(0, result.bits()));
             } else {
-                block.assign(result.clone(), Expr::xor(lhs.clone(), rhs.clone())?);
+                block.assign(result.clone(), Expr::xor(lhs, rhs)?);
             }
 
             // calculate flags

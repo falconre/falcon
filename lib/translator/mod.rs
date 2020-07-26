@@ -95,10 +95,10 @@ impl BlockTranslationResult {
         successors: Vec<(u64, Option<Expression>)>,
     ) -> BlockTranslationResult {
         BlockTranslationResult {
-            instructions: instructions,
-            address: address,
-            length: length,
-            successors: successors,
+            instructions,
+            address,
+            length,
+            successors,
         }
     }
 
@@ -191,7 +191,7 @@ pub trait Translator {
             }
 
             let block_bytes = memory.get_bytes(block_address, DEFAULT_TRANSLATION_BLOCK_BYTES);
-            if block_bytes.len() == 0 {
+            if block_bytes.is_empty() {
                 let mut control_flow_graph = ControlFlowGraph::new();
                 let block_index = control_flow_graph.new_block()?.index();
                 control_flow_graph.set_entry(block_index)?;

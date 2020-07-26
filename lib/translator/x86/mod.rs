@@ -14,7 +14,7 @@ mod test;
 use self::mode::Mode;
 
 /// The X86 translator.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct X86;
 
 impl X86 {
@@ -30,7 +30,7 @@ impl Translator for X86 {
 }
 
 /// The Amd64 translator.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Amd64;
 
 impl Amd64 {

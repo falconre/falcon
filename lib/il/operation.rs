@@ -21,38 +21,36 @@ pub enum Operation {
     Nop,
 }
 
+impl Default for Operation {
+    fn default() -> Self {
+        Self::Nop
+    }
+}
+
 impl Operation {
     /// Create a new `Operation::Assign`.
     pub fn assign(dst: Scalar, src: Expression) -> Operation {
-        Operation::Assign { dst: dst, src: src }
+        Operation::Assign { dst, src }
     }
 
     /// Create a new `Operation::Store`.
     pub fn store(index: Expression, src: Expression) -> Operation {
-        Operation::Store {
-            index: index,
-            src: src,
-        }
+        Operation::Store { index, src }
     }
 
     /// Create a new `Operation::Load`.
     pub fn load(dst: Scalar, index: Expression) -> Operation {
-        Operation::Load {
-            dst: dst,
-            index: index,
-        }
+        Operation::Load { dst, index }
     }
 
     /// Create a new `Operation::Brc`.
     pub fn branch(target: Expression) -> Operation {
-        Operation::Branch { target: target }
+        Operation::Branch { target }
     }
 
     /// Create a new `Operation::Intrinsic`.
     pub fn intrinsic(intrinsic: Intrinsic) -> Operation {
-        Operation::Intrinsic {
-            intrinsic: intrinsic,
-        }
+        Operation::Intrinsic { intrinsic }
     }
 
     /// Create a new `Operation::Nop`

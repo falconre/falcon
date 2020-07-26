@@ -140,9 +140,9 @@ impl CallingConvention {
                 let return_type = ReturnAddressType::Stack(0);
 
                 CallingConvention {
-                    argument_registers: argument_registers,
-                    preserved_registers: preserved_registers,
-                    trashed_registers: trashed_registers,
+                    argument_registers,
+                    preserved_registers,
+                    trashed_registers,
                     stack_argument_offset: 8,
                     stack_argument_length: 8,
                     return_address_type: return_type,
@@ -166,8 +166,8 @@ impl CallingConvention {
 
                 CallingConvention {
                     argument_registers: Vec::new(),
-                    preserved_registers: preserved_registers,
-                    trashed_registers: trashed_registers,
+                    preserved_registers,
+                    trashed_registers,
                     stack_argument_offset: 4,
                     stack_argument_length: 4,
                     return_address_type: return_type,
@@ -218,9 +218,9 @@ impl CallingConvention {
                 let return_type = ReturnAddressType::Register(il::scalar("$ra", 32));
 
                 CallingConvention {
-                    argument_registers: argument_registers,
-                    preserved_registers: preserved_registers,
-                    trashed_registers: trashed_registers,
+                    argument_registers,
+                    preserved_registers,
+                    trashed_registers,
                     stack_argument_offset: 16,
                     stack_argument_length: 4,
                     return_address_type: return_type,
@@ -278,9 +278,9 @@ impl CallingConvention {
                 let return_type = ReturnAddressType::Register(il::scalar("r3", 32));
 
                 CallingConvention {
-                    argument_registers: argument_registers,
-                    preserved_registers: preserved_registers,
-                    trashed_registers: trashed_registers,
+                    argument_registers,
+                    preserved_registers,
+                    trashed_registers,
                     stack_argument_offset: 4,
                     stack_argument_length: 4,
                     return_address_type: return_type,

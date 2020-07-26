@@ -5,6 +5,7 @@ use crate::translator::x86::x86register::{get_register, X86Register};
 use falcon_capstone::capstone;
 use falcon_capstone::capstone::cs_x86_op;
 use falcon_capstone::capstone_sys::{x86_op_type, x86_reg};
+use std::cmp::Ordering;
 
 /// Mode used by translators to pick the correct registers/operations
 #[derive(Clone, Debug)]
@@ -60,8 +61,8 @@ impl Mode {
             }
             x86_op_type::X86_OP_MEM => {
                 let mem = operand.mem();
-                let base_capstone_reg = capstone::x86_reg::from(mem.base);
-                let index_capstone_reg = capstone::x86_reg::from(mem.index);
+                let base_capstone_reg = mem.base;
+                let index_capstone_reg = mem.index;
 
                 let base = match base_capstone_reg {
                     x86_reg::X86_REG_INVALID => None,
@@ -94,19 +95,21 @@ impl Mode {
                 };
 
                 // handle disp
-                let op = if op.is_some() {
-                    if mem.disp > 0 {
-                        Expr::add(op.unwrap(), expr_const(mem.disp as u64, self.bits()))?
-                    } else if mem.disp < 0 {
-                        Expr::sub(op.unwrap(), expr_const(mem.disp.abs() as u64, self.bits()))?
-                    } else {
-                        op.unwrap()
+                let op = if let Some(op) = op {
+                    match mem.disp.cmp(&0) {
+                        Ordering::Greater => {
+                            Expr::add(op, expr_const(mem.disp as u64, self.bits()))?
+                        }
+                        Ordering::Less => {
+                            Expr::sub(op, expr_const(mem.disp.abs() as u64, self.bits()))?
+                        }
+                        Ordering::Equal => op,
                     }
                 } else {
                     expr_const(mem.disp as u64, self.bits())
                 };
 
-                match x86_reg::from(mem.segment) {
+                match mem.segment {
                     x86_reg::X86_REG_INVALID => Ok(op),
                     x86_reg::X86_REG_CS
                     | x86_reg::X86_REG_DS
@@ -114,8 +117,7 @@ impl Mode {
                     | x86_reg::X86_REG_FS
                     | x86_reg::X86_REG_GS
                     | x86_reg::X86_REG_SS => {
-                        let segment_register =
-                            self.get_register(x86_reg::from(mem.segment))?.get()?;
+                        let segment_register = self.get_register(mem.segment)?.get()?;
                         Ok(Expr::add(segment_register, op)?)
                     }
                     _ => bail!("invalid segment register"),

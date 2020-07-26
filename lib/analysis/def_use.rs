@@ -12,15 +12,15 @@ pub fn def_use(function: &il::Function) -> Result<HashMap<il::ProgramLocation, L
 
     let mut du: HashMap<il::ProgramLocation, LocationSet> = HashMap::new();
 
-    for (location, _) in &rd {
-        du.entry(location.clone()).or_insert(LocationSet::new());
+    for location in rd.keys() {
+        du.entry(location.clone()).or_insert_with(LocationSet::new);
         match location.function_location().apply(function).unwrap() {
             il::RefFunctionLocation::Instruction(_, instruction) => instruction
                 .operation()
                 .scalars_read()
                 .into_iter()
                 .for_each(|scalar_read| {
-                    rd[&location].locations().into_iter().for_each(|rd| {
+                    rd[&location].locations().iter().for_each(|rd| {
                         rd.function_location()
                             .apply(function)
                             .unwrap()
@@ -32,35 +32,34 @@ pub fn def_use(function: &il::Function) -> Result<HashMap<il::ProgramLocation, L
                             .for_each(|scalar_written| {
                                 if scalar_written == scalar_read {
                                     du.entry(rd.clone())
-                                        .or_insert(LocationSet::new())
+                                        .or_insert_with(LocationSet::new)
                                         .insert(location.clone());
                                 }
                             })
                     })
                 }),
             il::RefFunctionLocation::Edge(ref edge) => {
-                edge.condition().map(|condition| {
+                if let Some(condition) = edge.condition() {
                     condition.scalars().into_iter().for_each(|scalar_read| {
-                        rd[&location].locations().into_iter().for_each(|rd| {
-                            rd.function_location()
+                        rd[&location].locations().iter().for_each(|rd| {
+                            if let Some(scalars_written) = rd.function_location()
                                 .apply(function)
                                 .unwrap()
                                 .instruction()
                                 .unwrap()
                                 .operation()
-                                .scalars_written()
-                                .map(|scalars_written| {
+                                .scalars_written() {
                                     scalars_written.into_iter().for_each(|scalar_written| {
                                         if scalar_written == scalar_read {
                                             du.entry(rd.clone())
-                                                .or_insert(LocationSet::new())
+                                                .or_insert_with(LocationSet::new)
                                                 .insert(location.clone());
                                         }
                                     })
-                                });
+                                }
                         })
                     })
-                });
+                }
             }
             il::RefFunctionLocation::EmptyBlock(_) => {}
         }

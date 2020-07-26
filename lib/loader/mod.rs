@@ -49,10 +49,7 @@ impl FunctionEntry {
     ///
     /// If no name is provided: `sup_{:X}` will be used to name the function.
     pub fn new(address: u64, name: Option<String>) -> FunctionEntry {
-        FunctionEntry {
-            address: address,
-            name: name,
-        }
+        FunctionEntry { address, name }
     }
 
     /// Get the address for this `FunctionEntry`.
@@ -62,7 +59,7 @@ impl FunctionEntry {
 
     /// Get the name for this `FunctionEntry`.
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(|s| s.as_str())
+        self.name.as_deref()
     }
 }
 
@@ -178,13 +175,10 @@ pub trait Loader: fmt::Debug + Send + Sync {
                     .iter()
                     .fold(Vec::new(), |mut call_targets, block| {
                         block.instructions().iter().for_each(|instruction| {
-                            match *instruction.operation() {
-                                il::Operation::Branch { ref target } => {
-                                    eval(target).ok().map(|constant| {
-                                        call_targets.push(constant.value_u64().unwrap())
-                                    });
+                            if let il::Operation::Branch {ref target} = *instruction.operation() {
+                                if let Ok(constant) = eval(target) {
+                                    call_targets.push(constant.value_u64().unwrap())
                                 }
-                                _ => {}
                             }
                         });
                         call_targets

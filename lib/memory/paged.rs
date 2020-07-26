@@ -67,7 +67,7 @@ where
     }
 
     fn load(&self, offset: usize) -> Option<&MemoryCell<V>> {
-        self.cells[offset].as_ref().clone()
+        self.cells[offset].as_ref()
     }
 
     pub fn permissions(&self) -> Option<&MemoryPermissions> {
@@ -119,7 +119,7 @@ where
     pub fn new(endian: Endian) -> Memory<V> {
         Memory {
             backing: None,
-            endian: endian,
+            endian,
             pages: HashMap::new(),
         }
     }
@@ -137,7 +137,7 @@ where
     pub fn new_with_backing(endian: Endian, backing: RC<backing::Memory>) -> Memory<V> {
         Memory {
             backing: Some(backing),
-            endian: endian,
+            endian,
             pages: HashMap::new(),
         }
     }
@@ -162,9 +162,9 @@ where
             RC::make_mut(
                 self.pages
                     .entry(page_address)
-                    .or_insert(RC::new(Page::new(PAGE_SIZE))),
+                    .or_insert_with(|| RC::new(Page::new(PAGE_SIZE))),
             )
-            .set_permissions(Some(permissions.clone()));
+            .set_permissions(Some(permissions));
             page_address += PAGE_SIZE as u64;
         }
     }

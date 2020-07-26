@@ -4,7 +4,7 @@ use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::collections::HashSet;
 
 /// A partially-ordered set of `RefProgramLocation` used in analyses
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LocationSet {
     pub locations: HashSet<il::ProgramLocation>,
 }
@@ -43,41 +43,37 @@ impl LocationSet {
 
 impl PartialOrd for LocationSet {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.locations.len() == other.locations.len() {
-            for rpl in &self.locations {
-                if !other.locations.contains(rpl) {
-                    return None;
+        match self.locations.len().cmp(&other.locations.len()) {
+            Ordering::Equal => {
+                for rpl in &self.locations {
+                    if !other.locations.contains(rpl) {
+                        return None;
+                    }
                 }
+                Some(Ordering::Equal)
             }
-            Some(Ordering::Equal)
-        } else if self.locations.len() < other.locations.len() {
-            for rpl in &self.locations {
-                if !other.locations.contains(rpl) {
-                    return None;
+            Ordering::Less => {
+                for rpl in &self.locations {
+                    if !other.locations.contains(rpl) {
+                        return None;
+                    }
                 }
+                Some(Ordering::Less)
             }
-            Some(Ordering::Less)
-        } else {
-            for rpl in &other.locations {
-                if !self.locations.contains(rpl) {
-                    return None;
+            Ordering::Greater => {
+                for rpl in &other.locations {
+                    if !self.locations.contains(rpl) {
+                        return None;
+                    }
                 }
+                Some(Ordering::Greater)
             }
-            Some(Ordering::Greater)
         }
     }
 }
 
 impl PartialEq for LocationSet {
     fn eq(&self, other: &Self) -> bool {
-        if let Some(ordering) = self.partial_cmp(other) {
-            if ordering == Ordering::Equal {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
+        Some(Ordering::Equal) == self.partial_cmp(other)
     }
 }

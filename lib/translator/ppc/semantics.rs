@@ -3,6 +3,7 @@ use crate::il::Expression as Expr;
 use crate::il::*;
 use falcon_capstone::capstone;
 use falcon_capstone::capstone_sys::ppc_reg;
+use std::cmp::Ordering;
 
 /// Struct for dealing with x86 registers
 pub struct PPCRegister {
@@ -31,7 +32,7 @@ impl PPCRegister {
     }
 }
 
-const PPC_REGISTERS: &'static [PPCRegister] = &[
+const PPC_REGISTERS: &[PPCRegister] = &[
     PPCRegister {
         name: "r0",
         capstone_reg: ppc_reg::PPC_REG_R0,
@@ -382,20 +383,21 @@ pub fn rlwinm_(
       zeros. All other bits are set to ones.
     */
 
-    let mask = if mb < me + 1 {
-        let mb = 32 - mb;
-        let me = 32 - me;
-        let mask = (1 << (mb - me)) - 1;
-        let mask = mask << me;
-        mask
-    } else if mb == me + 1 {
-        0xffff_ffff
-    } else {
-        let mb = 32 - mb;
-        let me = 32 - me;
-        let mask = (1 << (me - mb)) - 1;
-        let mask = mask << mb;
-        mask ^ 0xffff_ffff
+    let mask = match mb.cmp(&(me + 1)) {
+        Ordering::Less => {
+            let mb = 32 - mb;
+            let me = 32 - me;
+            let mask = (1 << (mb - me)) - 1;
+            mask << me
+        }
+        Ordering::Equal => 0xffff_ffff,
+        Ordering::Greater => {
+            let mb = 32 - mb;
+            let me = 32 - me;
+            let mask = (1 << (me - mb)) - 1;
+            let mask = mask << mb;
+            mask ^ 0xffff_ffff
+        }
     };
 
     let block_index = {
@@ -565,7 +567,7 @@ pub fn bclr(
 
             let true_index = {
                 let block = control_flow_graph.new_block()?;
-                block.branch(branch_target.clone());
+                block.branch(branch_target);
                 block.index()
             };
 
@@ -587,7 +589,7 @@ pub fn bclr(
 
             let true_index = {
                 let block = control_flow_graph.new_block()?;
-                block.branch(branch_target.clone());
+                block.branch(branch_target);
                 block.index()
             };
 
@@ -616,7 +618,7 @@ pub fn bclr(
 
             let true_index = {
                 let block = control_flow_graph.new_block()?;
-                block.branch(branch_target.clone());
+                block.branch(branch_target);
                 block.index()
             };
 
@@ -638,7 +640,7 @@ pub fn bclr(
 
             let true_index = {
                 let block = control_flow_graph.new_block()?;
-                block.branch(branch_target.clone());
+                block.branch(branch_target);
                 block.index()
             };
 
@@ -667,7 +669,7 @@ pub fn bclr(
 
             let true_index = {
                 let block = control_flow_graph.new_block()?;
-                block.branch(branch_target.clone());
+                block.branch(branch_target);
                 block.index()
             };
 
@@ -696,7 +698,7 @@ pub fn bclr(
 
             let true_index = {
                 let block = control_flow_graph.new_block()?;
-                block.branch(branch_target.clone());
+                block.branch(branch_target);
                 block.index()
             };
 
@@ -801,7 +803,7 @@ pub fn lbz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let base = get_register(detail.operands[1].mem().base)?.expression();
     let offset = detail.operands[1].mem().disp;
     let offset = expr_const(offset as u64, 32);
 
@@ -849,7 +851,7 @@ pub fn lwz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let base = get_register(detail.operands[1].mem().base)?.expression();
     let offset = detail.operands[1].mem().disp;
     let offset = expr_const(offset as u64, 32);
 
@@ -877,7 +879,7 @@ pub fn lwzu(
 
     // get operands
     let dst = get_register(detail.operands[0].reg())?.scalar();
-    let base = get_register(detail.operands[1].mem().base.into())?.scalar();
+    let base = get_register(detail.operands[1].mem().base)?.scalar();
     let offset = detail.operands[1].mem().disp;
     let offset = expr_const(offset as u64, 32);
 
@@ -909,7 +911,7 @@ pub fn lis(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
         let block = control_flow_graph.new_block()?;
 
         let src = Expression::or(
-            Expression::and(src.clone(), expr_const(0x0000ffff, 32))?,
+            Expression::and(src.clone(), expr_const(0x0000_ffff, 32))?,
             Expression::shl(src, expr_const(16, 32))?,
         )?;
 
@@ -1086,7 +1088,7 @@ pub fn stw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 
     // get operands
     let src = get_register(detail.operands[0].reg())?.expression();
-    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let base = get_register(detail.operands[1].mem().base)?.expression();
     let offset = detail.operands[1].mem().disp;
     let offset = expr_const(offset as u64, 32);
 
@@ -1113,7 +1115,7 @@ pub fn stmw(
     let detail = details(instruction)?;
 
     // get operands
-    let base = get_register(detail.operands[1].mem().base.into())?.expression();
+    let base = get_register(detail.operands[1].mem().base)?.expression();
     let offset = detail.operands[1].mem().disp;
     let mut offset = const_(offset as u64, 32);
 
@@ -1121,8 +1123,8 @@ pub fn stmw(
         let block = control_flow_graph.new_block()?;
 
         let mut start_register: Option<usize> = None;
-        for i in 0..PPC_REGISTERS.len() {
-            if PPC_REGISTERS[i].capstone_reg == detail.operands[0].reg() {
+        for (i, reg) in PPC_REGISTERS.iter().enumerate() {
+            if reg.capstone_reg == detail.operands[0].reg() {
                 start_register = Some(i);
                 break;
             }
@@ -1158,7 +1160,7 @@ pub fn stwu(
 
     // get operands
     let src = get_register(detail.operands[0].reg())?.expression();
-    let base = get_register(detail.operands[1].mem().base.into())?.scalar();
+    let base = get_register(detail.operands[1].mem().base)?.scalar();
     let offset = detail.operands[1].mem().disp;
     let offset = expr_const(offset as u64, 32);
 

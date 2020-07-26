@@ -4,10 +4,10 @@ use crate::il;
 use std::collections::HashMap;
 
 /// Compute reaching definitions for the given function.
-pub fn reaching_definitions<'r>(
-    function: &'r il::Function,
+pub fn reaching_definitions(
+    function: &il::Function,
 ) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
-    let rda = ReachingDefinitionsAnalysis { function: function };
+    let rda = ReachingDefinitionsAnalysis { function };
     fixed_point::fixed_point_forward(rda, function)
 }
 
@@ -36,7 +36,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinition
                     .for_each(|scalar_written| {
                         let kill: Vec<il::ProgramLocation> = state
                             .locations()
-                            .into_iter()
+                            .iter()
                             .filter(|location| {
                                 location
                                     .function_location()
@@ -64,7 +64,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinition
     fn join(&self, mut state0: LocationSet, state1: &LocationSet) -> Result<LocationSet> {
         state1
             .locations()
-            .into_iter()
+            .iter()
             .for_each(|location| state0.insert(location.clone()));
         Ok(state0)
     }

@@ -178,7 +178,7 @@ impl Expression {
             }
         }
 
-        let map = Map { f: f };
+        let map = Map { f };
 
         map.map(self)
     }
@@ -336,6 +336,7 @@ impl Expression {
     /// Create an addition `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same
+    #[allow(clippy::should_implement_trait)]
     pub fn add(lhs: Expression, rhs: Expression) -> Result<Expression> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Add(Box::new(lhs), Box::new(rhs)))
@@ -344,6 +345,7 @@ impl Expression {
     /// Create a subtraction `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(lhs: Expression, rhs: Expression) -> Result<Expression> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Sub(Box::new(lhs), Box::new(rhs)))
@@ -352,6 +354,7 @@ impl Expression {
     /// Create an unsigned multiplication `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
+    #[allow(clippy::should_implement_trait)]
     pub fn mul(lhs: Expression, rhs: Expression) -> Result<Expression> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Mul(Box::new(lhs), Box::new(rhs)))
@@ -416,6 +419,7 @@ impl Expression {
     /// Create a logical shift-left `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
+    #[allow(clippy::should_implement_trait)]
     pub fn shl(lhs: Expression, rhs: Expression) -> Result<Expression> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Shl(Box::new(lhs), Box::new(rhs)))
@@ -424,6 +428,7 @@ impl Expression {
     /// Create a logical shift-right `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
+    #[allow(clippy::should_implement_trait)]
     pub fn shr(lhs: Expression, rhs: Expression) -> Result<Expression> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Shr(Box::new(lhs), Box::new(rhs)))
@@ -549,7 +554,7 @@ impl Expression {
             Expression::shl(e.clone(), s.clone())?,
             Expression::shr(
                 e.clone(),
-                Expression::sub(expr_const(e.bits() as u64, e.bits()), s.clone())?,
+                Expression::sub(expr_const(e.bits() as u64, e.bits()), s)?,
             )?,
         )?)
     }

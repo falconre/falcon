@@ -13,7 +13,7 @@ use std::fmt;
 /// an `Instruction` manually. You should use the methods on `Block` which
 /// correspond to the `Operation` you wish to create, and the `Instruction`
 /// will be created automatically.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Default)]
 pub struct Instruction {
     operation: Operation,
     index: usize,
@@ -30,8 +30,8 @@ impl Instruction {
     /// that block.
     pub fn new(index: usize, operation: Operation) -> Instruction {
         Instruction {
-            operation: operation,
-            index: index,
+            operation,
+            index,
             comment: None,
             address: None,
         }
@@ -79,12 +79,7 @@ impl Instruction {
     /// You almost never want to call this function. You should use the
     /// `intrinsic` method on `il::Block` instead.
     pub fn intrinsic(index: usize, intrinsic: Intrinsic) -> Instruction {
-        Instruction::new(
-            index,
-            Operation::Intrinsic {
-                intrinsic: intrinsic,
-            },
-        )
+        Instruction::new(index, Operation::Intrinsic { intrinsic })
     }
 
     /// Create a new `Nop` instruction.
@@ -153,7 +148,7 @@ impl Instruction {
 
     /// Get the optional comment for this `Instruction`
     pub fn comment(&self) -> Option<&str> {
-        self.comment.as_ref().map(|s| s.as_str())
+        self.comment.as_deref()
     }
 
     /// Set the optional comment for this `Instruction`
@@ -168,7 +163,7 @@ impl Instruction {
     /// example, applying SSA to a `Function` will cause `Phi` instructions to be inserted, and
     /// these instructions will not have addresses.
     pub fn address(&self) -> Option<u64> {
-        self.address.clone()
+        self.address
     }
 
     /// Set the optional address for this `Instruction`
@@ -180,7 +175,7 @@ impl Instruction {
     pub(crate) fn clone_new_index(&self, index: usize) -> Instruction {
         Instruction {
             operation: self.operation.clone(),
-            index: index,
+            index,
             comment: self.comment.clone(),
             address: self.address,
         }

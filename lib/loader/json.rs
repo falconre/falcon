@@ -4,8 +4,6 @@ use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::*;
 use crate::memory::MemoryPermissions;
-use base64;
-use serde_json;
 use serde_json::Value;
 use std::fs::File;
 use std::io::Read;
@@ -92,10 +90,10 @@ impl Json {
         }
 
         Ok(Json {
-            function_entries: function_entries,
-            memory: memory,
-            architecture: architecture,
-            entry: entry,
+            function_entries,
+            memory,
+            architecture,
+            entry,
         })
     }
 }

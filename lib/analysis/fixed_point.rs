@@ -89,14 +89,12 @@ where
             };
             if force {
                 state = analysis.join(state, in_state)?;
-            } else {
-                if let Some(ordering) = ordering {
-                    bail!(
-                        "Found a state which was not >= previous state (it was {}) @ {}",
-                        ordering,
-                        location
-                    );
-                }
+            } else if let Some(ordering) = ordering {
+                bail!(
+                    "Found a state which was not >= previous state (it was {}) @ {}",
+                    ordering,
+                    location
+                );
             }
         }
 
@@ -191,14 +189,12 @@ where
             };
             if force {
                 state = analysis.join(state, in_state)?;
-            } else {
-                if let Some(ordering) = ordering {
-                    bail!(
-                        "Found a state which was not >= previous state (it was {}) @ {}",
-                        ordering,
-                        location
-                    );
-                }
+            } else if let Some(ordering) = ordering {
+                bail!(
+                    "Found a state which was not >= previous state (it was {}) @ {}",
+                    ordering,
+                    location
+                );
             }
         }
 

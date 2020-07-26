@@ -1,4 +1,5 @@
 //! ELF Linker/Loader
+#[allow(clippy::module_inception)]
 mod elf;
 mod elf_linker;
 
