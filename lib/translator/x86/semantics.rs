@@ -3263,9 +3263,12 @@ impl<'s> Semantics<'s> {
             // CF is the bit sent from one end to the other. In our case, it should be MSB of result
             block.assign(
                 scalar("CF", 1),
-                Expr::shr(
-                    result.clone(),
-                    expr_const(result.bits() as u64 - 1, result.bits()),
+                Expr::trun(
+                    1,
+                    Expr::shr(
+                        result.clone(),
+                        expr_const(result.bits() as u64 - 1, result.bits()),
+                    )?,
                 )?,
             );
 
