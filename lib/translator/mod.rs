@@ -18,16 +18,22 @@
 //! pay attention to the translators. The correct translator will be chosen
 //! automatically.
 
-use crate::error::*;
-use crate::il::*;
 use crate::memory::MemoryPermissions;
-use std::collections::{BTreeMap, VecDeque};
 
+mod block_translation_result;
 pub mod mips;
+mod options;
 pub mod ppc;
 pub mod x86;
 
-const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
+use crate::error::*;
+use crate::il;
+use crate::il::*;
+pub use block_translation_result::BlockTranslationResult;
+use falcon_capstone::capstone;
+pub use options::{Options, OptionsBuilder};
+use std::collections::{BTreeMap, VecDeque};
+pub(crate) const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
 
 /// This trait is used by the translator to continually find and lift bytes from an underlying
 /// memory model.
@@ -58,96 +64,41 @@ pub trait TranslationMemory {
     }
 }
 
-/// The result of translating a block from a native architecture.
-///
-/// # Native blocks translated to `ControlFlowGraph`
-///
-/// While a block on the native architecture may be a linear sequence of instructions,
-/// when lifted this block may actually contain loops, conditionally executed instructions,
-/// and a host of other oddness. Translators therefor return a `ControlFlowGraph` for the
-/// translation of a block. The *entry* and *exit* for this `ControlFlowGraph` should be
-/// set.
-#[derive(Clone, Debug)]
-pub struct BlockTranslationResult {
-    /// A vector of one `ControlFlowGraph` per instruction, which represents the
-    /// semantics of this block
-    instructions: Vec<(u64, ControlFlowGraph)>,
-    /// The address at which this block was translated
-    address: u64,
-    /// The length of this block in bytes as represented in the host architecture
-    length: usize,
-    /// Addresses of known successor blocks, and optional conditions to reach them
-    successors: Vec<(u64, Option<Expression>)>,
-}
+// A convenience function for turning unhandled instructions into intrinsics
+pub(crate) fn unhandled_intrinsic(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
 
-impl BlockTranslationResult {
-    /// Create a new `BlockTranslationResult`.
-    ///
-    /// # Parameters
-    /// * `instructions` - A Vec of address/`ControlFlowGraph` pairs, one per instruction.
-    /// * `address` - The address where this block was lifted.
-    /// * `length` - The length of the block in bytes.
-    /// * `successors` - Tuples of addresses and optional conditions for successors to this block.
-    pub fn new(
-        instructions: Vec<(u64, ControlFlowGraph)>,
-        address: u64,
-        length: usize,
-        successors: Vec<(u64, Option<Expression>)>,
-    ) -> BlockTranslationResult {
-        BlockTranslationResult {
-            instructions,
-            address,
-            length,
-            successors,
-        }
-    }
+        block.intrinsic(il::Intrinsic::new(
+            instruction.mnemonic.clone(),
+            format!("{} {}", instruction.mnemonic, instruction.op_str),
+            Vec::new(),
+            None,
+            None,
+            instruction.bytes.get(0..4).unwrap().to_vec(),
+        ));
 
-    /// Get the `ControlFlowGraph` for this `BlockTranslationResult`
-    pub fn instructions(&self) -> &Vec<(u64, ControlFlowGraph)> {
-        &self.instructions
-    }
+        block.index()
+    };
 
-    /// Get the address wherefrom this block was translated.
-    pub fn address(&self) -> u64 {
-        self.address
-    }
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
 
-    /// Get the length of this block in bytes.
-    pub fn length(&self) -> usize {
-        self.length
-    }
-
-    /// Get the successors for this block.
-    pub fn successors(&self) -> &Vec<(u64, Option<Expression>)> {
-        &self.successors
-    }
-
-    /// Return a single `ControlFlowGraph` for this block
-    pub fn blockify(&self) -> Result<ControlFlowGraph> {
-        let mut control_flow_graph = ControlFlowGraph::new();
-
-        let block_index = {
-            let block = control_flow_graph.new_block()?;
-            block.index()
-        };
-
-        control_flow_graph.set_entry(block_index)?;
-        control_flow_graph.set_exit(block_index)?;
-
-        for &(_, ref cfg) in &self.instructions {
-            control_flow_graph.append(&cfg)?;
-        }
-
-        control_flow_graph.merge()?;
-
-        Ok(control_flow_graph)
-    }
+    Ok(())
 }
 
 /// A generic translation trait, implemented by various architectures.
 pub trait Translator {
     /// Translates a basic block
-    fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult>;
+    fn translate_block(
+        &self,
+        bytes: &[u8],
+        address: u64,
+        options: &Options,
+    ) -> Result<BlockTranslationResult>;
 
     /// Translates a function
     fn translate_function(
@@ -155,7 +106,7 @@ pub trait Translator {
         memory: &dyn TranslationMemory,
         function_address: u64,
     ) -> Result<Function> {
-        self.translate_function_extended(memory, function_address, vec![])
+        self.translate_function_extended(memory, function_address, &Options::default())
     }
 
     /// Translates a function
@@ -165,7 +116,7 @@ pub trait Translator {
         &self,
         memory: &dyn TranslationMemory,
         function_address: u64,
-        manual_edges: Vec<(u64, u64, Option<Expression>)>,
+        options: &Options,
     ) -> Result<Function> {
         // Addresses of blocks pending translation
         let mut translation_queue: VecDeque<u64> = VecDeque::new();
@@ -175,12 +126,10 @@ pub trait Translator {
 
         translation_queue.push_front(function_address);
 
-        manual_edges
-            .iter()
-            .for_each(|(head_address, tail_address, _)| {
-                translation_queue.push_back(*head_address);
-                translation_queue.push_back(*tail_address);
-            });
+        options.manual_edges().iter().for_each(|manual_edge| {
+            translation_queue.push_back(manual_edge.head_address());
+            translation_queue.push_back(manual_edge.tail_address());
+        });
 
         // translate all blocks in the function
         while !translation_queue.is_empty() {
@@ -209,7 +158,8 @@ pub trait Translator {
             }
 
             // translate this block
-            let block_translation_result = self.translate_block(&block_bytes, block_address)?;
+            let block_translation_result =
+                self.translate_block(&block_bytes, block_address, options)?;
 
             // enqueue all successors
             for successor in block_translation_result.successors().iter() {
@@ -236,7 +186,8 @@ pub trait Translator {
             let mut block_entry = 0;
             let mut block_exit = 0;
             let mut previous_exit = None;
-            for &(address, ref instruction_graph) in block_translation_result.instructions.iter() {
+            for &(address, ref instruction_graph) in block_translation_result.instructions().iter()
+            {
                 // Have we already inserted this instruction?
                 let (entry, exit) = if instruction_indices.get(&address).is_some() {
                     instruction_indices[&address]
@@ -267,16 +218,16 @@ pub trait Translator {
         // Insert the edges
 
         // Start with edges for our manual edges
-        for (head_address, tail_address, condition) in manual_edges {
-            let (_, edge_head) = block_indices[&head_address];
-            let (edge_tail, _) = block_indices[&tail_address];
+        for manual_edge in options.manual_edges() {
+            let (_, edge_head) = block_indices[&manual_edge.head_address()];
+            let (edge_tail, _) = block_indices[&manual_edge.tail_address()];
 
             if control_flow_graph.edge(edge_head, edge_tail).is_ok() {
                 continue;
             }
 
-            if let Some(condition) = condition {
-                control_flow_graph.conditional_edge(edge_head, edge_tail, condition)?;
+            if let Some(condition) = manual_edge.condition() {
+                control_flow_graph.conditional_edge(edge_head, edge_tail, condition.clone())?;
             } else {
                 control_flow_graph.unconditional_edge(edge_head, edge_tail)?;
             }

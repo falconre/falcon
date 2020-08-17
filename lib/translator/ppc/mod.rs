@@ -2,7 +2,7 @@
 
 use crate::error::*;
 use crate::il::*;
-use crate::translator::{BlockTranslationResult, Translator};
+use crate::translator::{unhandled_intrinsic, BlockTranslationResult, Options, Translator};
 use falcon_capstone::capstone;
 
 pub mod semantics;
@@ -20,8 +20,13 @@ impl Ppc {
 }
 
 impl Translator for Ppc {
-    fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
-        translate_block(bytes, address)
+    fn translate_block(
+        &self,
+        bytes: &[u8],
+        address: u64,
+        options: &Options,
+    ) -> Result<BlockTranslationResult> {
+        translate_block(bytes, address, options)
     }
 }
 
@@ -38,7 +43,11 @@ pub fn nop(control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
     Ok(())
 }
 
-fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
+fn translate_block(
+    bytes: &[u8],
+    address: u64,
+    options: &Options,
+) -> Result<BlockTranslationResult> {
     let mode = capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN;
     let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_PPC, mode) {
         Ok(cs) => cs,
@@ -172,6 +181,9 @@ fn translate_block(bytes: &[u8], address: u64) -> Result<BlockTranslationResult>
                     semantics::subf(&mut instruction_graph, &instruction)
                 }
                 _ => {
+                    if options.unsupported_are_intrinsics() {
+                        unhandled_intrinsic(&mut instruction_graph, &instruction)?;
+                    }
                     let bytes = (0..4)
                         .map(|i| disassembly_bytes[i])
                         .map(|byte| format!("{:02x}", byte))
