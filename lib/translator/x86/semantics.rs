@@ -1819,14 +1819,15 @@ impl<'s> Semantics<'s> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
+            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let condition = self.cc_condition()?;
+
             // we only need to emit a conditional branch here if the destination
             // cannot be determined at translation time
             if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
-                let dst = self.operand_load(&mut block, &detail.operands[0])?;
-                let condition = self.cc_condition()?;
                 block.conditional_branch(condition, dst);
             } else {
-                block.nop();
+                block.placeholder(Operation::conditional_branch(condition, dst));
             }
 
             block.index()
@@ -1844,13 +1845,14 @@ impl<'s> Semantics<'s> {
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
+            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+
             // we only need to emit a brc here if the destination cannot be determined
             // at translation time
             if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
-                let dst = self.operand_load(&mut block, &detail.operands[0])?;
                 block.branch(dst);
             } else {
-                block.nop();
+                block.placeholder(Operation::branch(dst));
             }
 
             block.index()
