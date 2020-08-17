@@ -181,7 +181,7 @@ impl State {
             il::Operation::Intrinsic { ref intrinsic } => {
                 Err(ErrorKind::UnhandledIntrinsic(format!("{}", intrinsic)).into())
             }
-            il::Operation::Nop => Ok(Successor::new(self, SuccessorType::FallThrough)),
+            il::Operation::Nop { .. } => Ok(Successor::new(self, SuccessorType::FallThrough)),
             il::Operation::Conditional {
                 ref condition,
                 ref operation,

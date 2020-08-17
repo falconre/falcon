@@ -182,6 +182,16 @@ impl Block {
         let index = self.new_instruction_index();
         self.push(Instruction::nop(index));
     }
+
+    /// Create a new `Nop` instruction as placeholder for the given `Operation`.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `nop_placeholder` method on `il::Block` instead.
+    pub fn placeholder(&mut self, operation: Operation) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::placeholder(index, operation));
+    }
 }
 
 impl graph::Vertex for Block {

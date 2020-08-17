@@ -88,7 +88,16 @@ impl Instruction {
     /// You almost never want to call this function. You should use the
     /// `nop` method on `il::Block` instead.
     pub fn nop(index: usize) -> Instruction {
-        Instruction::new(index, Operation::Nop)
+        Instruction::new(index, Operation::nop())
+    }
+
+    /// Create a new `Nop` instruction as placeholder for the given `Operation`.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `nop_placeholder` method on `il::Block` instead.
+    pub fn placeholder(index: usize, operation: Operation) -> Instruction {
+        Instruction::new(index, Operation::placeholder(operation))
     }
 
     /// Create a new `Conditional` instruction.
