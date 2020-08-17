@@ -42,21 +42,23 @@ pub fn def_use(function: &il::Function) -> Result<HashMap<il::ProgramLocation, L
                 if let Some(condition) = edge.condition() {
                     condition.scalars().into_iter().for_each(|scalar_read| {
                         rd[&location].locations().iter().for_each(|rd| {
-                            if let Some(scalars_written) = rd.function_location()
+                            if let Some(scalars_written) = rd
+                                .function_location()
                                 .apply(function)
                                 .unwrap()
                                 .instruction()
                                 .unwrap()
                                 .operation()
-                                .scalars_written() {
-                                    scalars_written.into_iter().for_each(|scalar_written| {
-                                        if scalar_written == scalar_read {
-                                            du.entry(rd.clone())
-                                                .or_insert_with(LocationSet::new)
-                                                .insert(location.clone());
-                                        }
-                                    })
-                                }
+                                .scalars_written()
+                            {
+                                scalars_written.into_iter().for_each(|scalar_written| {
+                                    if scalar_written == scalar_read {
+                                        du.entry(rd.clone())
+                                            .or_insert_with(LocationSet::new)
+                                            .insert(location.clone());
+                                    }
+                                })
+                            }
                         })
                     })
                 }

@@ -175,7 +175,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
                     .iter()
                     .fold(Vec::new(), |mut call_targets, block| {
                         block.instructions().iter().for_each(|instruction| {
-                            if let il::Operation::Branch {ref target} = *instruction.operation() {
+                            if let il::Operation::Branch { ref target } = *instruction.operation() {
                                 if let Ok(constant) = eval(target) {
                                     call_targets.push(constant.value_u64().unwrap())
                                 }

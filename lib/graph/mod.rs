@@ -762,8 +762,9 @@ where
             }
 
             temporary_marks.insert(node);
-            let successors_are_acyclic = graph.successors[&node].iter().all(|successor|
-                dfs_is_acyclic(graph, *successor, permanent_marks, temporary_marks));
+            let successors_are_acyclic = graph.successors[&node].iter().all(|successor| {
+                dfs_is_acyclic(graph, *successor, permanent_marks, temporary_marks)
+            });
             if !successors_are_acyclic {
                 return false;
             }

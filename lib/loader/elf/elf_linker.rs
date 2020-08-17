@@ -252,9 +252,9 @@ impl ElfLinker {
                 let interpreter_filename = Path::new(interpreter_filename)
                     .file_name()
                     .and_then(|filename| filename.to_str())
-                    .ok_or_else(
-                        || "Failed to get filename portion of interpreter filename".to_string()
-                    )?;
+                    .ok_or_else(|| {
+                        "Failed to get filename portion of interpreter filename".to_string()
+                    })?;
                 Some(self.loaded().get(interpreter_filename).ok_or(format!(
                     "Could not find interpreter {}",
                     interpreter_filename
