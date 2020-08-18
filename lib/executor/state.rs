@@ -142,18 +142,18 @@ impl State {
 
     /// Execute an `il::Operation`, returning the post-execution `State`.
     pub fn execute(mut self, operation: &il::Operation) -> Result<Successor> {
-        Ok(match *operation {
+        match *operation {
             il::Operation::Assign { ref dst, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
                 self.set_scalar(dst.name(), src);
-                Successor::new(self, SuccessorType::FallThrough)
+                Ok(Successor::new(self, SuccessorType::FallThrough))
             }
             il::Operation::Store { ref index, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
                 let index = self.symbolize_and_eval(index)?;
                 self.memory
                     .store(index.value_u64().ok_or(ErrorKind::TooManyAddressBits)?, src)?;
-                Successor::new(self, SuccessorType::FallThrough)
+                Ok(Successor::new(self, SuccessorType::FallThrough))
             }
             il::Operation::Load { ref dst, ref index } => {
                 let index = self.symbolize_and_eval(index)?;
@@ -164,7 +164,7 @@ impl State {
                 match value {
                     Some(v) => {
                         self.set_scalar(dst.name(), v);
-                        Successor::new(self, SuccessorType::FallThrough)
+                        Ok(Successor::new(self, SuccessorType::FallThrough))
                     }
                     None => {
                         bail!("Got invalid concretized address {}", index);
@@ -173,15 +173,26 @@ impl State {
             }
             il::Operation::Branch { ref target } => {
                 let target = self.symbolize_and_eval(target)?;
-                Successor::new(
+                Ok(Successor::new(
                     self,
                     SuccessorType::Branch(target.value_u64().ok_or(ErrorKind::TooManyAddressBits)?),
-                )
+                ))
             }
             il::Operation::Intrinsic { ref intrinsic } => {
-                return Err(ErrorKind::UnhandledIntrinsic(format!("{}", intrinsic)).into());
+                Err(ErrorKind::UnhandledIntrinsic(format!("{}", intrinsic)).into())
             }
-            il::Operation::Nop => Successor::new(self, SuccessorType::FallThrough),
-        })
+            il::Operation::Nop { .. } => Ok(Successor::new(self, SuccessorType::FallThrough)),
+            il::Operation::Conditional {
+                ref condition,
+                ref operation,
+            } => {
+                let condition = self.symbolize_and_eval(condition)?;
+                if condition.is_zero() {
+                    Ok(Successor::new(self, SuccessorType::FallThrough))
+                } else {
+                    self.execute(operation)
+                }
+            }
+        }
     }
 }

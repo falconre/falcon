@@ -5,9 +5,7 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 /// Compute use definition chains for the given function.
-pub fn use_def(
-    function: &il::Function,
-) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
+pub fn use_def(function: &il::Function) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     let mut ud = HashMap::new();
@@ -43,19 +41,21 @@ pub fn use_def(
                         LocationSet::new(),
                         |mut defs, scalar_read| {
                             rd[&location].locations().iter().for_each(|rd| {
-                                if let Some(scalars_written) = rd.function_location()
+                                if let Some(scalars_written) = rd
+                                    .function_location()
                                     .apply(function)
                                     .unwrap()
                                     .instruction()
                                     .unwrap()
                                     .operation()
-                                    .scalars_written() {
-                                        scalars_written.into_iter().for_each(|scalar_written| {
-                                            if scalar_written == scalar_read {
-                                                defs.insert(rd.clone());
-                                            }
-                                        })
-                                    }
+                                    .scalars_written()
+                                {
+                                    scalars_written.into_iter().for_each(|scalar_written| {
+                                        if scalar_written == scalar_read {
+                                            defs.insert(rd.clone());
+                                        }
+                                    })
+                                }
                             });
                             defs
                         },

@@ -90,19 +90,19 @@ impl Driver {
                                     .architecture
                                     .translator()
                                     .translate_function(state.memory(), address)
-                                    .unwrap_or_else(|e| panic!("Failed to lift function at 0x{:x}: {:?}", address, e));
+                                    .unwrap_or_else(|e| {
+                                        panic!(
+                                            "Failed to lift function at 0x{:x}: {:?}",
+                                            address, e
+                                        )
+                                    });
                                 let mut program = self.program.clone();
                                 RC::make_mut(&mut program).add_function(function);
                                 let location: il::ProgramLocation =
                                     il::RefProgramLocation::from_address(&program, address)
                                         .ok_or("Failed to get location for newly lifted function")?
                                         .into();
-                                Ok(Driver::new(
-                                    program,
-                                    location,
-                                    state,
-                                    self.architecture,
-                                ))
+                                Ok(Driver::new(program, location, state, self.architecture))
                             }
                         }
                     }

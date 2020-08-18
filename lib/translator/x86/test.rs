@@ -4,7 +4,7 @@ use crate::executor::*;
 use crate::il;
 use crate::memory;
 use crate::translator::x86::Amd64;
-use crate::translator::Translator;
+use crate::translator::{Options, Translator};
 use crate::RC;
 
 fn init_amd64_driver<'d>(
@@ -85,7 +85,9 @@ fn lea() {
 
     let translator = Amd64::new();
 
-    let _ = translator.translate_block(&bytes, 0).unwrap();
+    let _ = translator
+        .translate_block(&bytes, 0, &Options::new())
+        .unwrap();
 }
 
 #[test]

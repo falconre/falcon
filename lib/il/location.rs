@@ -148,12 +148,14 @@ impl<'p> RefProgramLocation<'p> {
     /// This works by locating the location in the other `Program` based on
     /// `Function`, `Block`, and `Instruction` indices.
     pub fn migrate<'m>(&self, program: &'m Program) -> Result<RefProgramLocation<'m>> {
-        let function = program.function(self.function().index().unwrap()).ok_or_else(
-            || ErrorKind::ProgramLocationMigration(format!(
-                "Could not find function {}",
-                self.function.index().unwrap()
-            )),
-        )?;
+        let function = program
+            .function(self.function().index().unwrap())
+            .ok_or_else(|| {
+                ErrorKind::ProgramLocationMigration(format!(
+                    "Could not find function {}",
+                    self.function.index().unwrap()
+                ))
+            })?;
         let function_location = match self.function_location {
             RefFunctionLocation::Instruction(block, instruction) => {
                 let block = function.block(block.index())?;

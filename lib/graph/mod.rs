@@ -1,7 +1,8 @@
 //! Implements a directed graph.
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::cmp;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 
 use crate::error::*;
@@ -203,7 +204,7 @@ where
         self.vertices.remove(&index);
 
         // find all edges that deal with this vertex
-        let mut edges = HashSet::new();
+        let mut edges = FxHashSet::default();
         if let Some(successors) = self.successors.get(&index) {
             for successor in successors {
                 edges.insert((index, *successor));
@@ -370,7 +371,7 @@ where
     }
 
     /// Computes the set of vertices unreachable from the given index.
-    pub fn unreachable_vertices(&self, index: usize) -> Result<HashSet<usize>> {
+    pub fn unreachable_vertices(&self, index: usize) -> Result<FxHashSet<usize>> {
         let reachable_vertices = self.reachable_vertices(index)?;
         Ok(self
             .vertices
@@ -381,12 +382,12 @@ where
     }
 
     /// Computes the set of vertices reachable from the given index.
-    pub fn reachable_vertices(&self, index: usize) -> Result<HashSet<usize>> {
+    pub fn reachable_vertices(&self, index: usize) -> Result<FxHashSet<usize>> {
         if !self.has_vertex(index) {
             bail!("vertex does not exist");
         }
 
-        let mut reachable_vertices: HashSet<usize> = HashSet::new();
+        let mut reachable_vertices: FxHashSet<usize> = FxHashSet::default();
         let mut queue: Vec<usize> = Vec::new();
 
         queue.push(index);
@@ -413,7 +414,7 @@ where
             bail!("vertex does not exist");
         }
 
-        let mut visited: HashSet<usize> = HashSet::new();
+        let mut visited: FxHashSet<usize> = FxHashSet::default();
         let mut stack: Vec<usize> = Vec::new();
         let mut order: Vec<usize> = Vec::new();
 
@@ -436,13 +437,13 @@ where
 
     // Compute the post order of all vertices in the graph
     pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>> {
-        let mut visited: HashSet<usize> = HashSet::new();
+        let mut visited: FxHashSet<usize> = FxHashSet::default();
         let mut order: Vec<usize> = Vec::new();
 
         fn dfs_walk<V: Vertex, E: Edge>(
             graph: &Graph<V, E>,
             node: usize,
-            visited: &mut HashSet<usize>,
+            visited: &mut FxHashSet<usize>,
             order: &mut Vec<usize>,
         ) -> Result<()> {
             visited.insert(node);
@@ -464,11 +465,11 @@ where
     pub fn compute_dominance_frontiers(
         &self,
         start_index: usize,
-    ) -> Result<HashMap<usize, HashSet<usize>>> {
-        let mut df: HashMap<usize, HashSet<usize>> = HashMap::new();
+    ) -> Result<FxHashMap<usize, FxHashSet<usize>>> {
+        let mut df: FxHashMap<usize, FxHashSet<usize>> = FxHashMap::default();
 
         for vertex in &self.vertices {
-            df.insert(*vertex.0, HashSet::new());
+            df.insert(*vertex.0, FxHashSet::default());
         }
 
         let idoms = self.compute_immediate_dominators(start_index)?;
@@ -516,7 +517,7 @@ where
     /// This implementation is based on the Semi-NCA algorithm described in:
     /// Georgiadis, Loukas: Linear-Time Algorithms for Dominators and Related Problems (thesis)
     /// https://www.cs.princeton.edu/research/techreps/TR-737-05
-    pub fn compute_immediate_dominators(&self, root: usize) -> Result<HashMap<usize, usize>> {
+    pub fn compute_immediate_dominators(&self, root: usize) -> Result<FxHashMap<usize, usize>> {
         if !self.vertices.contains_key(&root) {
             bail!("vertex {} not in graph", root);
         }
@@ -527,22 +528,22 @@ where
         let dfs_parent = |vertex| dfs.predecessors[&vertex].iter().next().cloned();
 
         // DFS-numbering and reverse numbering (starting from 0 instead of 1 as in the paper)
-        let dfs_number: HashMap<usize, usize> = dfs_pre_order
+        let dfs_number: FxHashMap<usize, usize> = dfs_pre_order
             .iter()
             .enumerate()
             .map(|(number, vertex)| (*vertex, number))
             .collect();
         let graph_number = &dfs_pre_order;
 
-        let mut ancestor: HashMap<usize, Option<usize>> = HashMap::new();
-        let mut label: HashMap<usize, usize> = HashMap::new();
+        let mut ancestor: FxHashMap<usize, Option<usize>> = FxHashMap::default();
+        let mut label: FxHashMap<usize, usize> = FxHashMap::default();
         for &vertex in self.vertices.keys() {
             ancestor.insert(vertex, None);
             label.insert(vertex, dfs_number[&vertex]);
         }
 
         // Compute semidominators in reverse preorder (without root)
-        let mut semi = HashMap::new();
+        let mut semi = FxHashMap::default();
         for &vertex in dfs_pre_order.iter().skip(1).rev() {
             let mut min_semi = std::usize::MAX;
 
@@ -561,8 +562,8 @@ where
         let semi = semi;
 
         fn compress(
-            ancestor: &mut HashMap<usize, Option<usize>>,
-            label: &mut HashMap<usize, usize>,
+            ancestor: &mut FxHashMap<usize, Option<usize>>,
+            label: &mut FxHashMap<usize, usize>,
             v: usize,
         ) {
             let u = ancestor[&v].unwrap();
@@ -576,7 +577,7 @@ where
         }
 
         // Compute immediate dominators in preorder (without root)
-        let mut idoms = HashMap::new();
+        let mut idoms = FxHashMap::default();
         for &vertex in dfs_pre_order.iter().skip(1) {
             let mut idom = dfs_number[&dfs_parent(vertex).unwrap()];
             while idom > semi[&vertex] {
@@ -587,7 +588,7 @@ where
         let idoms = idoms;
 
         // Translate idoms from DFS-numbering back to graph indices
-        let mut graph_idoms = HashMap::new();
+        let mut graph_idoms = FxHashMap::default();
         for (vertex, idom) in idoms {
             graph_idoms.insert(graph_number[vertex], graph_number[idom]);
         }
@@ -595,7 +596,10 @@ where
     }
 
     /// Computes dominators for all vertices in the graph
-    pub fn compute_dominators(&self, start_index: usize) -> Result<HashMap<usize, HashSet<usize>>> {
+    pub fn compute_dominators(
+        &self,
+        start_index: usize,
+    ) -> Result<FxHashMap<usize, FxHashSet<usize>>> {
         if !self.vertices.contains_key(&start_index) {
             bail!("vertex {} not in graph", start_index);
         }
@@ -603,10 +607,10 @@ where
         let dom_tree = self.compute_dominator_tree(start_index)?;
         let dom_tree_pre_oder = dom_tree.compute_pre_order(start_index)?;
 
-        let mut dominators: HashMap<usize, HashSet<usize>> = HashMap::new();
+        let mut dominators: FxHashMap<usize, FxHashSet<usize>> = FxHashMap::default();
 
         for vertex in dom_tree_pre_oder {
-            let mut doms = HashSet::new();
+            let mut doms = FxHashSet::default();
             doms.insert(vertex);
             for pred in &dom_tree.predecessors[&vertex] {
                 doms.extend(&dominators[pred])
@@ -641,13 +645,13 @@ where
     /// graph, not just immediate predecessors.
     ///
     /// Given A -> B -> C, both A and B will be in the set for C.
-    pub fn compute_predecessors(&self) -> Result<HashMap<usize, HashSet<usize>>> {
-        let mut predecessors: HashMap<usize, HashSet<usize>> = HashMap::new();
+    pub fn compute_predecessors(&self) -> Result<FxHashMap<usize, FxHashSet<usize>>> {
+        let mut predecessors: FxHashMap<usize, FxHashSet<usize>> = FxHashMap::default();
         let mut queue: VecDeque<usize> = VecDeque::new();
 
         // initial population
         for vertex in &self.vertices {
-            let mut preds = HashSet::new();
+            let mut preds = FxHashSet::default();
             for predecessor in &self.predecessors[vertex.0] {
                 preds.insert(*predecessor);
             }
@@ -715,7 +719,7 @@ where
 
         let predecessors = self.compute_predecessors()?;
 
-        let mut visited = HashSet::new();
+        let mut visited = FxHashSet::default();
         let mut queue = VecDeque::new();
         queue.push_back(start_index);
 
@@ -745,14 +749,14 @@ where
 
     /// Determines if the graph is acyclic
     pub fn is_acyclic(&self, root: usize) -> bool {
-        let mut permanent_marks: HashSet<usize> = HashSet::new();
-        let mut temporary_marks: HashSet<usize> = HashSet::new();
+        let mut permanent_marks: FxHashSet<usize> = FxHashSet::default();
+        let mut temporary_marks: FxHashSet<usize> = FxHashSet::default();
 
         fn dfs_is_acyclic<V: Vertex, E: Edge>(
             graph: &Graph<V, E>,
             node: usize,
-            permanent_marks: &mut HashSet<usize>,
-            temporary_marks: &mut HashSet<usize>,
+            permanent_marks: &mut FxHashSet<usize>,
+            temporary_marks: &mut FxHashSet<usize>,
         ) -> bool {
             if permanent_marks.contains(&node) {
                 return true;
@@ -762,8 +766,9 @@ where
             }
 
             temporary_marks.insert(node);
-            let successors_are_acyclic = graph.successors[&node].iter().all(|successor|
-                dfs_is_acyclic(graph, *successor, permanent_marks, temporary_marks));
+            let successors_are_acyclic = graph.successors[&node].iter().all(|successor| {
+                dfs_is_acyclic(graph, *successor, permanent_marks, temporary_marks)
+            });
             if !successors_are_acyclic {
                 return false;
             }
@@ -779,8 +784,8 @@ where
     /// Computes the set of back edges
     ///
     /// Back edges are edges whose heads dominate their tails.
-    fn compute_back_edges(&self, head: usize) -> Result<HashSet<(usize, usize)>> {
-        let mut back_edges: HashSet<(usize, usize)> = HashSet::new();
+    fn compute_back_edges(&self, head: usize) -> Result<FxHashSet<(usize, usize)>> {
+        let mut back_edges: FxHashSet<(usize, usize)> = FxHashSet::default();
 
         for (node, dominators) in self.compute_dominators(head)? {
             for successor in &self.successors[&node] {
@@ -867,15 +872,15 @@ where
 
     /// Computes the topological ordering of all vertices in the graph
     pub fn compute_topological_ordering(&self) -> Result<Vec<usize>> {
-        let mut permanent_marks: HashSet<usize> = HashSet::default();
-        let mut temporary_marks: HashSet<usize> = HashSet::default();
+        let mut permanent_marks: FxHashSet<usize> = FxHashSet::default();
+        let mut temporary_marks: FxHashSet<usize> = FxHashSet::default();
         let mut order: Vec<usize> = Vec::new();
 
         fn dfs_walk<V: Vertex, E: Edge>(
             graph: &Graph<V, E>,
             node: usize,
-            permanent_marks: &mut HashSet<usize>,
-            temporary_marks: &mut HashSet<usize>,
+            permanent_marks: &mut FxHashSet<usize>,
+            temporary_marks: &mut FxHashSet<usize>,
             order: &mut Vec<usize>,
         ) -> Result<()> {
             if permanent_marks.contains(&node) {

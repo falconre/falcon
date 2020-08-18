@@ -16,14 +16,18 @@ pub enum Operation {
     Branch { target: Expression },
     /// Holds an Intrinsic for unmodellable instructions
     Intrinsic { intrinsic: Intrinsic },
-    /// An operation that does nothing, and allows for a placeholder
-    /// `Instuction`
-    Nop,
+    /// An operation that does nothing, and allows for a placeholder `Instruction`
+    Nop { placeholder: Option<Box<Operation>> },
+    /// Performs the nested operation only if the condition is non-zero.
+    Conditional {
+        condition: Expression,
+        operation: Box<Operation>,
+    },
 }
 
 impl Default for Operation {
     fn default() -> Self {
-        Self::Nop
+        Self::Nop { placeholder: None }
     }
 }
 
@@ -48,6 +52,11 @@ impl Operation {
         Operation::Branch { target }
     }
 
+    /// Create a new `Operation::Branch` wrapped in `Operation::Conditional`.
+    pub fn conditional_branch(condition: Expression, target: Expression) -> Operation {
+        Self::conditional(condition, Self::branch(target))
+    }
+
     /// Create a new `Operation::Intrinsic`.
     pub fn intrinsic(intrinsic: Intrinsic) -> Operation {
         Operation::Intrinsic { intrinsic }
@@ -55,7 +64,22 @@ impl Operation {
 
     /// Create a new `Operation::Nop`
     pub fn nop() -> Operation {
-        Operation::Nop
+        Operation::Nop { placeholder: None }
+    }
+
+    /// Create a new `Operation::Nop` as placeholder for the given `Operation`
+    pub fn placeholder(operation: Operation) -> Operation {
+        Operation::Nop {
+            placeholder: Some(Box::new(operation)),
+        }
+    }
+
+    /// Create a new `Operation::Conditional`.
+    pub fn conditional(condition: Expression, operation: Operation) -> Operation {
+        Operation::Conditional {
+            condition,
+            operation: Box::new(operation),
+        }
     }
 
     pub fn is_assign(&self) -> bool {
@@ -95,7 +119,14 @@ impl Operation {
 
     pub fn is_nop(&self) -> bool {
         match self {
-            Operation::Nop => true,
+            Operation::Nop { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_conditional(&self) -> bool {
+        match self {
+            Operation::Conditional { .. } => true,
             _ => false,
         }
     }
@@ -114,7 +145,22 @@ impl Operation {
             Operation::Load { ref index, .. } => Some(index.scalars()),
             Operation::Branch { ref target } => Some(target.scalars()),
             Operation::Intrinsic { ref intrinsic } => intrinsic.scalars_read(),
-            Operation::Nop => Some(Vec::new()),
+            Operation::Nop { .. } => Some(Vec::new()),
+            Operation::Conditional {
+                ref condition,
+                ref operation,
+            } => {
+                if let Some(scalars) = operation.scalars_read() {
+                    Some(
+                        scalars
+                            .into_iter()
+                            .chain(condition.scalars().into_iter())
+                            .collect(),
+                    )
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -135,7 +181,22 @@ impl Operation {
             Operation::Load { ref mut index, .. } => Some(index.scalars_mut()),
             Operation::Branch { ref mut target } => Some(target.scalars_mut()),
             Operation::Intrinsic { ref mut intrinsic } => intrinsic.scalars_read_mut(),
-            Operation::Nop => Some(Vec::new()),
+            Operation::Nop { .. } => Some(Vec::new()),
+            Operation::Conditional {
+                ref mut condition,
+                ref mut operation,
+            } => {
+                if let Some(scalars) = operation.scalars_read_mut() {
+                    Some(
+                        scalars
+                            .into_iter()
+                            .chain(condition.scalars_mut().into_iter())
+                            .collect(),
+                    )
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -145,7 +206,8 @@ impl Operation {
             Operation::Assign { ref dst, .. } | Operation::Load { ref dst, .. } => Some(vec![dst]),
             Operation::Store { .. } | Operation::Branch { .. } => Some(Vec::new()),
             Operation::Intrinsic { ref intrinsic } => intrinsic.scalars_written(),
-            Operation::Nop => Some(Vec::new()),
+            Operation::Nop { .. } => Some(Vec::new()),
+            Operation::Conditional { ref operation, .. } => operation.scalars_written(),
         }
     }
 
@@ -158,7 +220,10 @@ impl Operation {
             }
             Operation::Store { .. } | Operation::Branch { .. } => Some(Vec::new()),
             Operation::Intrinsic { ref mut intrinsic } => intrinsic.scalars_written_mut(),
-            Operation::Nop => Some(Vec::new()),
+            Operation::Nop { .. } => Some(Vec::new()),
+            Operation::Conditional {
+                ref mut operation, ..
+            } => operation.scalars_written_mut(),
         }
     }
 }
@@ -171,7 +236,11 @@ impl fmt::Display for Operation {
             Operation::Load { ref dst, ref index } => write!(f, "{} = [{}]", dst, index),
             Operation::Branch { ref target } => write!(f, "branch {}", target),
             Operation::Intrinsic { ref intrinsic } => write!(f, "intrinsic {}", intrinsic),
-            Operation::Nop => write!(f, "nop"),
+            Operation::Nop { .. } => write!(f, "nop"),
+            Operation::Conditional {
+                ref condition,
+                ref operation,
+            } => write!(f, "{} if {}", operation, condition),
         }
     }
 }

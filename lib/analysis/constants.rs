@@ -238,7 +238,11 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
                     }
                     state
                 }
-                il::Operation::Nop => state,
+                il::Operation::Nop { .. } => state,
+                il::Operation::Conditional { .. } => {
+                    state.top();
+                    state
+                }
             },
             None => state,
         };

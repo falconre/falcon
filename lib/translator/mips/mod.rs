@@ -3,7 +3,10 @@
 use crate::architecture::Endian;
 use crate::error::*;
 use crate::il::*;
-use crate::translator::{BlockTranslationResult, Translator, DEFAULT_TRANSLATION_BLOCK_BYTES};
+use crate::translator::{
+    unhandled_intrinsic, BlockTranslationResult, Options, Translator,
+    DEFAULT_TRANSLATION_BLOCK_BYTES,
+};
 use falcon_capstone::capstone;
 
 mod semantics;
@@ -21,8 +24,13 @@ impl Mips {
 }
 
 impl Translator for Mips {
-    fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
-        translate_block(bytes, address, Endian::Big)
+    fn translate_block(
+        &self,
+        bytes: &[u8],
+        address: u64,
+        options: &Options,
+    ) -> Result<BlockTranslationResult> {
+        translate_block(bytes, address, Endian::Big, options)
     }
 }
 
@@ -37,8 +45,13 @@ impl Mipsel {
 }
 
 impl Translator for Mipsel {
-    fn translate_block(&self, bytes: &[u8], address: u64) -> Result<BlockTranslationResult> {
-        translate_block(bytes, address, Endian::Little)
+    fn translate_block(
+        &self,
+        bytes: &[u8],
+        address: u64,
+        options: &Options,
+    ) -> Result<BlockTranslationResult> {
+        translate_block(bytes, address, Endian::Little, options)
     }
 }
 
@@ -91,7 +104,12 @@ fn conditional_graph(address: u64, branching_condition: Expression) -> Result<Co
     Ok(cfg)
 }
 
-fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTranslationResult> {
+fn translate_block(
+    bytes: &[u8],
+    address: u64,
+    endian: Endian,
+    options: &Options,
+) -> Result<BlockTranslationResult> {
     let mode = match endian {
         Endian::Big => capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN,
         Endian::Little => capstone::CS_MODE_32 | capstone::CS_MODE_LITTLE_ENDIAN,
@@ -389,16 +407,20 @@ fn translate_block(bytes: &[u8], address: u64, endian: Endian) -> Result<BlockTr
                     semantics::xori(&mut instruction_graph, &instruction)
                 }
                 _ => {
-                    let bytes = (0..4)
-                        .map(|i| disassembly_bytes[i])
-                        .map(|byte| format!("{:02x}", byte))
-                        .collect::<Vec<String>>()
-                        .join("");
-                    return Err(format!(
-                        "Unhandled instruction {} {} {} at 0x{:x}",
-                        bytes, instruction.mnemonic, instruction.op_str, instruction.address
-                    )
-                    .into());
+                    if options.unsupported_are_intrinsics() {
+                        unhandled_intrinsic(&mut instruction_graph, &instruction)
+                    } else {
+                        let bytes = (0..4)
+                            .map(|i| disassembly_bytes[i])
+                            .map(|byte| format!("{:02x}", byte))
+                            .collect::<Vec<String>>()
+                            .join("");
+                        return Err(format!(
+                            "Unhandled instruction {} {} {} at 0x{:x}",
+                            bytes, instruction.mnemonic, instruction.op_str, instruction.address
+                        )
+                        .into());
+                    }
                 }
             }?;
 
