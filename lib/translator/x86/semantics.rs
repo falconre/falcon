@@ -3191,13 +3191,7 @@ impl<'s> Semantics<'s> {
             )?;
 
             // CF is the bit sent from one end to the other. In our case, it should be LSB of result
-            block.assign(
-                scalar("CF", 1),
-                Expr::shr(
-                    result.clone(),
-                    expr_const(result.bits() as u64 - 1, result.bits()),
-                )?,
-            );
+            block.assign(scalar("CF", 1), Expr::trun(1, result.clone())?);
 
             // OF is XOR of two most-significant bits of result
             block.assign(
@@ -3269,9 +3263,12 @@ impl<'s> Semantics<'s> {
             // CF is the bit sent from one end to the other. In our case, it should be MSB of result
             block.assign(
                 scalar("CF", 1),
-                Expr::shr(
-                    result.clone(),
-                    expr_const(result.bits() as u64 - 1, result.bits()),
+                Expr::trun(
+                    1,
+                    Expr::shr(
+                        result.clone(),
+                        expr_const(result.bits() as u64 - 1, result.bits()),
+                    )?,
                 )?,
             );
 
