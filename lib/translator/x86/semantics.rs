@@ -1813,19 +1813,46 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
+    pub fn cjmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+        let detail = self.details()?;
+
+        let block_index = {
+            let mut block = control_flow_graph.new_block()?;
+
+            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let condition = self.cc_condition()?;
+
+            // we only need to emit a conditional branch here if the destination
+            // cannot be determined at translation time
+            if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
+                block.conditional_branch(condition, dst);
+            } else {
+                block.placeholder(Operation::conditional_branch(condition, dst));
+            }
+
+            block.index()
+        };
+
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
+
+        Ok(())
+    }
+
     pub fn jmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
+            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+
             // we only need to emit a brc here if the destination cannot be determined
             // at translation time
             if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
-                let dst = self.operand_load(&mut block, &detail.operands[0])?;
                 block.branch(dst);
             } else {
-                block.nop();
+                block.placeholder(Operation::branch(dst));
             }
 
             block.index()

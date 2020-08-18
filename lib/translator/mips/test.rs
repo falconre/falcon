@@ -2069,7 +2069,7 @@ fn nop() {
         .unwrap()
         .operation()
     {
-        Operation::Nop => Some(Operation::Nop),
+        Operation::Nop { .. } => Some(Operation::nop()),
         _ => None,
     };
 

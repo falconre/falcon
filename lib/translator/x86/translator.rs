@@ -159,7 +159,7 @@ pub(crate) fn translate_block(
                 | capstone::x86_insn::X86_INS_JNS
                 | capstone::x86_insn::X86_INS_JO
                 | capstone::x86_insn::X86_INS_JP
-                | capstone::x86_insn::X86_INS_JS => semantics.nop(&mut instruction_graph),
+                | capstone::x86_insn::X86_INS_JS => semantics.cjmp(&mut instruction_graph),
                 // unconditional jumps will only emit a brc if the destination is undetermined at
                 // translation time
                 capstone::x86_insn::X86_INS_JMP => semantics.jmp(&mut instruction_graph),

@@ -88,7 +88,25 @@ impl Instruction {
     /// You almost never want to call this function. You should use the
     /// `nop` method on `il::Block` instead.
     pub fn nop(index: usize) -> Instruction {
-        Instruction::new(index, Operation::Nop)
+        Instruction::new(index, Operation::nop())
+    }
+
+    /// Create a new `Nop` instruction as placeholder for the given `Operation`.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `nop_placeholder` method on `il::Block` instead.
+    pub fn placeholder(index: usize, operation: Operation) -> Instruction {
+        Instruction::new(index, Operation::placeholder(operation))
+    }
+
+    /// Create a new `Conditional` instruction.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `conditional_branch` method on `il::Block` instead.
+    pub fn conditional(index: usize, condition: Expression, operation: Operation) -> Instruction {
+        Instruction::new(index, Operation::conditional(condition, operation))
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Assign`
@@ -125,6 +143,11 @@ impl Instruction {
         } else {
             false
         }
+    }
+
+    /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Conditional`
+    pub fn is_conditional(&self) -> bool {
+        self.operation.is_conditional()
     }
 
     /// Get the `Operation` for this `Instruction`

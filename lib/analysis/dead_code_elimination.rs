@@ -101,7 +101,7 @@ pub fn dead_code_elimination(function: &il::Function) -> Result<il::Function> {
         *block
             .instruction_mut(instruction_index)
             .ok_or("Failed to find instruction")?
-            .operation_mut() = il::Operation::Nop;
+            .operation_mut() = il::Operation::nop();
     }
 
     Ok(dce_function)

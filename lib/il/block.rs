@@ -158,10 +158,17 @@ impl Block {
         self.push(Instruction::load(index, dst, address));
     }
 
-    /// Adds a conditional branch operation to the end of this block.
+    /// Adds an unconditional branch operation to the end of this block.
     pub fn branch(&mut self, dst: Expression) {
         let index = self.new_instruction_index();
         self.push(Instruction::branch(index, dst));
+    }
+
+    /// Adds a conditional branch operation to the end of this block.
+    pub fn conditional_branch(&mut self, condition: Expression, dst: Expression) {
+        let index = self.new_instruction_index();
+        let op = Operation::conditional_branch(condition, dst);
+        self.push(Instruction::new(index, op));
     }
 
     /// Adds an intrinsic operation to the end of this block.
@@ -174,6 +181,16 @@ impl Block {
     pub fn nop(&mut self) {
         let index = self.new_instruction_index();
         self.push(Instruction::nop(index));
+    }
+
+    /// Create a new `Nop` instruction as placeholder for the given `Operation`.
+    ///
+    /// # Warning
+    /// You almost never want to call this function. You should use the
+    /// `nop_placeholder` method on `il::Block` instead.
+    pub fn placeholder(&mut self, operation: Operation) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::placeholder(index, operation));
     }
 }
 
