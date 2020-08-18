@@ -203,15 +203,15 @@ where
         self.vertices.remove(&index);
 
         // find all edges that deal with this vertex
-        let mut edges = Vec::new();
+        let mut edges = HashSet::new();
         if let Some(successors) = self.successors.get(&index) {
             for successor in successors {
-                edges.push((index, *successor));
+                edges.insert((index, *successor));
             }
         };
         if let Some(predecessors) = self.predecessors.get(&index) {
             for predecessor in predecessors {
-                edges.push((*predecessor, index));
+                edges.insert((*predecessor, index));
             }
         };
 
@@ -1733,5 +1733,42 @@ mod tests {
 
         let loop_tree = graph.compute_loop_tree(1).unwrap();
         assert_eq!(expected_loop_tree, loop_tree);
+    }
+
+    #[test]
+    fn test_remove_vertex() {
+        // GIVEN
+        let mut graph = Graph::new();
+
+        graph.insert_vertex(1).unwrap();
+        graph.insert_vertex(2).unwrap();
+        graph.insert_vertex(3).unwrap();
+
+        graph.insert_edge((1, 2)).unwrap(); // ingoing
+        graph.insert_edge((2, 3)).unwrap(); // outgoing
+        graph.insert_edge((1, 3)).unwrap();
+
+        // WHEN
+        graph.remove_vertex(2).unwrap();
+
+        // THEN should have removed vertex 2 and ingoing/outgoing edges
+        assert_eq!(vec![&1, &3], graph.vertices());
+        assert_eq!(vec![&(1, 3)], graph.edges());
+    }
+
+    #[test]
+    fn test_remove_vertex_with_self_loop() {
+        // GIVEN
+        let mut graph = Graph::new();
+
+        graph.insert_vertex(1).unwrap();
+        graph.insert_edge((1, 1)).unwrap(); // self loop
+
+        // WHEN
+        graph.remove_vertex(1).unwrap();
+
+        // THEN should have removed vertex 1 and self loop
+        assert!(graph.vertices().is_empty());
+        assert!(graph.edges().is_empty());
     }
 }
