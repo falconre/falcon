@@ -235,9 +235,14 @@ where
         Ok(())
     }
 
+    /// Returns true if the edge with the given head and tail index exists in this graph
+    pub fn has_edge(&self, head: usize, tail: usize) -> bool {
+        self.edges.contains_key(&(head, tail))
+    }
+
     /// Removes an edge
     pub fn remove_edge(&mut self, head: usize, tail: usize) -> Result<()> {
-        if !self.edges.contains_key(&(head, tail)) {
+        if !self.has_edge(head, tail) {
             bail!("edge does not exist");
         }
 
