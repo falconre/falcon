@@ -18,7 +18,7 @@ Falcon is a formal binary analysis framework in Rust.
 
 * Several scripts to get you up-and-running with Falcon can be found in the `scripts/` directory.
 * Dependencies are capstone and clang.
-* Falcon works out of the box with capstone3. If you are using capstone4, make sure you build falcon with the `capstone4` feature.
+* Falcon works out of the box with capstone4.
 
 # Questions / Support
 
