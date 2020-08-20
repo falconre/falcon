@@ -128,6 +128,10 @@ impl OptionsBuilder {
         self.options.add_manual_edge(manual_edge);
         self
     }
+
+    pub fn build(self) -> Options {
+        self.options
+    }
 }
 
 impl default::Default for OptionsBuilder {
