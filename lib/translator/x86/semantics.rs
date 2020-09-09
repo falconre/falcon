@@ -1176,44 +1176,25 @@ impl<'s> Semantics<'s> {
     pub fn cmovcc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 
-        let head_index = {
-            let block = control_flow_graph.new_block()?;
-
-            // This nop allows us to find this instruction in traces, even when
-            // then false branch is taken and no instruction is executed.
-            block.nop();
-
-            block.index()
-        };
-
-        let tail_index = {
-            let block = control_flow_graph.new_block()?;
-
-            block.index()
-        };
-
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
+            let condition = self.cc_condition()?;
+
             let src = self.operand_load(&mut block, &detail.operands[1])?;
 
-            self.operand_store(&mut block, &detail.operands[0], src)?;
+            // Collect all store operations in a temporary block so that we can turn them into conditional operations
+            let mut tmp_block = Block::new(0);
+            self.operand_store(&mut tmp_block, &detail.operands[0], src)?;
+            for inst in tmp_block.instructions() {
+                block.conditional_operation(condition.clone(), inst.operation().clone());
+            }
 
             block.index()
         };
 
-        let condition = self.cc_condition()?;
-
-        control_flow_graph.conditional_edge(head_index, block_index, condition.clone())?;
-        control_flow_graph.conditional_edge(
-            head_index,
-            tail_index,
-            Expr::cmpeq(condition, expr_const(0, 1))?,
-        )?;
-        control_flow_graph.unconditional_edge(block_index, tail_index)?;
-
-        control_flow_graph.set_entry(head_index)?;
-        control_flow_graph.set_exit(tail_index)?;
+        control_flow_graph.set_entry(block_index)?;
+        control_flow_graph.set_exit(block_index)?;
 
         Ok(())
     }

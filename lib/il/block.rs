@@ -171,6 +171,12 @@ impl Block {
         self.push(Instruction::new(index, op));
     }
 
+    /// Adds a conditional operation to the end of this block.
+    pub fn conditional_operation(&mut self, condition: Expression, operation: Operation) {
+        let index = self.new_instruction_index();
+        self.push(Instruction::conditional(index, condition, operation));
+    }
+
     /// Adds an intrinsic operation to the end of this block.
     pub fn intrinsic(&mut self, intrinsic: Intrinsic) {
         let index = self.new_instruction_index();
