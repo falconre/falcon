@@ -2,7 +2,7 @@ use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::Memory;
 use crate::memory::MemoryPermissions;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -237,19 +237,16 @@ impl Loader for Elf {
     fn function_entries(&self) -> Result<Vec<FunctionEntry>> {
         let elf = self.elf();
 
-        let mut function_entries = Vec::new();
-
-        let mut functions_added: BTreeSet<u64> = BTreeSet::new();
+        let mut function_entries: BTreeMap<u64, FunctionEntry> = BTreeMap::new();
 
         // dynamic symbols
         for sym in &elf.dynsyms {
             if sym.is_function() && sym.st_value != 0 && sym.st_shndx > 0 {
                 let name = &elf.dynstrtab[sym.st_name];
-                function_entries.push(FunctionEntry::new(
-                    sym.st_value + self.base_address,
-                    Some(name.to_string()),
-                ));
-                functions_added.insert(sym.st_value);
+                function_entries.insert(
+                    sym.st_value,
+                    FunctionEntry::new(sym.st_value + self.base_address, Some(name.to_string())),
+                );
             }
         }
 
@@ -257,36 +254,38 @@ impl Loader for Elf {
         for sym in &elf.syms {
             if sym.is_function() && sym.st_value != 0 && sym.st_shndx > 0 {
                 let name = &elf.strtab[sym.st_name];
-                function_entries.push(FunctionEntry::new(
-                    sym.st_value + self.base_address,
-                    Some(name.to_string()),
-                ));
-                functions_added.insert(sym.st_value);
+                function_entries.insert(
+                    sym.st_value,
+                    FunctionEntry::new(sym.st_value + self.base_address, Some(name.to_string())),
+                );
             }
         }
 
-        if !functions_added.contains(&elf.header.e_entry) {
-            function_entries.push(FunctionEntry::new(
-                elf.header.e_entry + self.base_address,
-                None,
-            ));
+        if !function_entries.contains_key(&elf.header.e_entry) {
+            function_entries.insert(
+                elf.header.e_entry,
+                FunctionEntry::new(elf.header.e_entry + self.base_address, None),
+            );
         }
 
-        for user_function_entry in &self.user_function_entries {
-            if functions_added
-                .get(&(user_function_entry + self.base_address))
-                .is_some()
-            {
+        for &user_function_entry in &self.user_function_entries {
+            if function_entries.contains_key(&user_function_entry) {
                 continue;
             }
 
-            function_entries.push(FunctionEntry::new(
-                user_function_entry + self.base_address,
-                Some(format!("user_function_{:x}", user_function_entry)),
-            ));
+            function_entries.insert(
+                user_function_entry,
+                FunctionEntry::new(
+                    user_function_entry + self.base_address,
+                    Some(format!("user_function_{:x}", user_function_entry)),
+                ),
+            );
         }
 
-        Ok(function_entries)
+        Ok(function_entries
+            .into_iter()
+            .map(|(_, entry)| entry)
+            .collect())
     }
 
     fn program_entry(&self) -> u64 {
