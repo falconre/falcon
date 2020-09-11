@@ -3357,31 +3357,34 @@ impl<'s> Semantics<'s> {
                 rhs = Expr::zext(lhs.bits(), rhs)?;
             }
 
-            // Create the mask we apply if that lhs is signed
-            let mask = Expr::shl(expr_const(1, lhs.bits()), rhs.clone())?;
-            let mask = Expr::sub(mask, expr_const(1, lhs.bits()))?;
-            let mask = Expr::shl(
-                mask,
-                Expr::sub(expr_const(lhs.bits() as u64, lhs.bits()), rhs.clone())?,
-            )?;
-
-            // Multiple the mask by the sign bit
-            let expr = Expr::shr(lhs.clone(), expr_const(lhs.bits() as u64 - 1, lhs.bits()))?;
-            let expr = Expr::mul(mask, expr)?;
-
             // Do the SAR
-            let expr = Expr::or(expr, Expr::shr(lhs.clone(), rhs)?)?;
-            let temp = self.temp(0, lhs.bits());
-            block.assign(temp.clone(), expr);
+            let expr = Expr::ashr(lhs.clone(), rhs.clone())?;
+
+            // CF is the last bit shifted out
+            // This will give us a bit mask if rhs is not equal to zero
+            let non_zero_mask = Expr::sub(
+                expr_const(0, rhs.bits()),
+                Expr::zext(
+                    rhs.bits(),
+                    Expr::cmpneq(rhs.clone(), expr_const(0, rhs.bits()))?,
+                )?,
+            )?;
+            // This shifts lhs right by (rhs - 1)
+            let cf = Expr::shr(
+                lhs.clone(),
+                Expr::sub(rhs.clone(), expr_const(1, rhs.bits()))?,
+            )?;
+            // Apply mask
+            let cf = Expr::trun(1, Expr::and(cf, non_zero_mask)?)?;
+            block.assign(scalar("CF", 1), cf);
 
             // OF is the last bit shifted out
             block.assign(scalar("OF", 1), expr_const(0, 1));
 
-            self.set_zf(&mut block, temp.clone().into())?;
-            self.set_sf(&mut block, temp.clone().into())?;
-            self.set_cf(&mut block, temp.clone().into(), lhs)?;
+            self.set_zf(&mut block, expr.clone().into())?;
+            self.set_sf(&mut block, expr.clone().into())?;
 
-            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+            self.operand_store(&mut block, &detail.operands[0], expr.into())?;
 
             block.index()
         };
