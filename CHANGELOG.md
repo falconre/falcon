@@ -2,7 +2,9 @@
 
 ## HEAD
 
-* bswap operand width is not dependent on disassembly mode
+* bswap operand width is not dependent on disassembly mode.
+* Fixed a bug in il::ControlFlowGraph::merge that sometimes caused invalid
+graphs to be generated.
 
 ## [0.5.0]
 

@@ -225,6 +225,15 @@ impl ControlFlowGraph {
                     None => bail!("successor not found"),
                 };
 
+                // If this is the entry vertex, we will not merge
+                if self
+                    .entry()
+                    .map(|entry| entry == successor)
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
+
                 // If this successor is already being merged, skip it
                 if blocks_being_merged.contains(&successor) {
                     continue;
@@ -343,7 +352,7 @@ impl ControlFlowGraph {
             bail!("entry/exit not set on control flow graph");
         }
 
-        // our entry and exit our no longer valid
+        // our entry and exit are no longer valid
         self.entry = None;
         self.exit = None;
 

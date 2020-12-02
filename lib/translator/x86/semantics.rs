@@ -1014,7 +1014,7 @@ impl<'s> Semantics<'s> {
                         )?,
                     )?,
                 )?,
-                _ => bail!("Unsupported number of bits for bswap instruction")
+                _ => bail!("Unsupported number of bits for bswap instruction"),
             };
 
             self.operand_store(&mut block, &detail.operands[0], expr)?;
