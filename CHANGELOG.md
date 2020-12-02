@@ -2,6 +2,20 @@
 
 ## HEAD
 
+## [0.5.0]
+
+### Fixes
+
+* When shifting constants left by very large values, num-bigint would sometimes
+allocate too much memory and crash. We check for this now, and set the result to
+0.
+
+### Breaking
+* Added lifter options
+* Nop takes a placeholder instruction
+* Added Conditional operation
+* Added feature "sanity-checks" to abort early on creation of likely bad IL.
+    Used to help check possible lifter errors.
 * oblivia-simplex Linting, falcon now passes cargo clippy --all
 * capstone4 is now the default capstone.
 
@@ -35,7 +49,8 @@
 * emmanuel099 Drop dedup from scalars and scalars_mut #56
 
 ## [0.4.7] - 08-JAN-2020
-* Added support for capstone4, thanks to github.com/wuggen. Capstone4 support is guarded behind the feature "capstone4".
+* Added support for capstone4, thanks to github.com/wuggen. Capstone4 support is
+guarded behind the feature "capstone4".
 * Minor touchups for new warnings as rust compiler evolves.
 
 ## [0.4.6] - 02-NOV-2019

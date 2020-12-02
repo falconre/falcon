@@ -253,10 +253,22 @@ impl Constant {
         if self.bits() != rhs.bits() {
             Err(ErrorKind::Sort.into())
         } else {
+            // If, for some reason, an analysis generates a very large shift
+            // value (for example << 0xFFFFFFFF_FFFFFFFF:64), this will cause
+            // the bigint library to attempt gigantic memory allocations, and
+            // crash. We have a basic sanity check here to just set the value
+            // to 0 if we are shifting left by a value greater than the variable
+            // width, which is the correct behavior.
             let r = rhs
                 .value
                 .to_usize()
-                .map(|bits| self.value.clone() << bits)
+                .map(|bits| {
+                    if bits as usize >= self.bits() {
+                        BigUint::from_u64(0).unwrap()
+                    } else {
+                        self.value.clone() << bits
+                    }
+                })
                 .unwrap_or_else(|| BigUint::from_u64(0).unwrap());
             Ok(Constant::new_big(r, self.bits))
         }

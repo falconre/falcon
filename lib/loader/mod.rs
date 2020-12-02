@@ -128,7 +128,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     /// catastrophic errors should cause this function call to fail.
     fn program_verbose(
         &self,
-        options: &Options
+        options: &Options,
     ) -> std::result::Result<(il::Program, Vec<(FunctionEntry, Error)>), Error> {
         // Get out architecture-specific translator
         let translator = self.architecture().translator();
@@ -175,7 +175,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     /// Works in a similar manner to `program_recursive`
     fn program_recursive_verbose(
         &self,
-        options: &Options
+        options: &Options,
     ) -> std::result::Result<(il::Program, Vec<(FunctionEntry, Error)>), Error> {
         fn call_targets(function: &il::Function) -> Result<Vec<u64>> {
             let call_targets =
