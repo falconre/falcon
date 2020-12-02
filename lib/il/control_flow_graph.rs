@@ -280,10 +280,7 @@ impl ControlFlowGraph {
     /// set, which should be the case for all conformant translators. You can
     /// also append to an empty ControlFlowGraph.
     pub fn append(&mut self, other: &ControlFlowGraph) -> Result<()> {
-        let is_empty = match self.graph.num_vertices() {
-            0 => true,
-            _ => false,
-        };
+        let is_empty = self.graph.num_vertices() == 0;
 
         if !is_empty && (self.entry().is_none() || self.exit().is_none()) {
             return Err("entry/exit not set for dest ControlFlowGraph::append".into());

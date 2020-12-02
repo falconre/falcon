@@ -44,10 +44,7 @@ pub enum StackPointerOffset {
 
 impl StackPointerOffset {
     pub fn is_top(&self) -> bool {
-        match self {
-            StackPointerOffset::Top => true,
-            _ => false,
-        }
+        matches!(self, StackPointerOffset::Top)
     }
 
     pub fn is_value(&self) -> bool {
@@ -55,10 +52,7 @@ impl StackPointerOffset {
     }
 
     pub fn is_bototm(&self) -> bool {
-        match self {
-            StackPointerOffset::Bottom => true,
-            _ => false,
-        }
+        matches!(self, StackPointerOffset::Bottom)
     }
 
     pub fn value(&self) -> Option<isize> {

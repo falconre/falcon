@@ -111,38 +111,22 @@ impl Instruction {
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Assign`
     pub fn is_assign(&self) -> bool {
-        if let Operation::Assign { .. } = self.operation {
-            true
-        } else {
-            false
-        }
+        matches!(self.operation, Operation::Assign {..})
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Store`
     pub fn is_store(&self) -> bool {
-        if let Operation::Store { .. } = self.operation {
-            true
-        } else {
-            false
-        }
+        matches!(self.operation, Operation::Store {..})
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Load`
     pub fn is_load(&self) -> bool {
-        if let Operation::Load { .. } = self.operation {
-            true
-        } else {
-            false
-        }
+        matches!(self.operation, Operation::Load {..})
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Brc`
     pub fn is_branch(&self) -> bool {
-        if let Operation::Branch { .. } = self.operation {
-            true
-        } else {
-            false
-        }
+        matches!(self.operation, Operation::Branch {..})
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Conditional`
