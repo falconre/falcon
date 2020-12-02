@@ -945,8 +945,8 @@ impl<'s> Semantics<'s> {
             // get operands
             let src = self.operand_load(&mut block, &detail.operands[0])?;
 
-            let expr = match self.mode {
-                Mode::X86 => Expr::or(
+            let expr = match src.bits() {
+                32 => Expr::or(
                     Expr::or(
                         Expr::and(
                             Expr::shl(src.clone(), expr_const(24, 32))?,
@@ -968,7 +968,7 @@ impl<'s> Semantics<'s> {
                         )?,
                     )?,
                 )?,
-                Mode::Amd64 => Expr::or(
+                64 => Expr::or(
                     Expr::or(
                         Expr::or(
                             Expr::and(
@@ -1014,6 +1014,7 @@ impl<'s> Semantics<'s> {
                         )?,
                     )?,
                 )?,
+                _ => bail!("Unsupported number of bits for bswap instruction")
             };
 
             self.operand_store(&mut block, &detail.operands[0], expr)?;

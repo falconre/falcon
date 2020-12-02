@@ -2,6 +2,8 @@
 
 ## HEAD
 
+* bswap operand width is not dependent on disassembly mode
+
 ## [0.5.0]
 
 ### Fixes
