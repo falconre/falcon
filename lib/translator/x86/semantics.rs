@@ -1817,25 +1817,50 @@ impl<'s> Semantics<'s> {
     pub fn cjmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let detail = self.details()?;
 
+        let head_index = {
+            let block = control_flow_graph.new_block()?;
+
+            // This nop allows us to find this instruction in traces, even when
+            // then false branch is taken and no instruction is executed.
+            block.nop();
+
+            block.index()
+        };
+
+        let tail_index = {
+            let block = control_flow_graph.new_block()?;
+
+            block.index()
+        };
+
         let block_index = {
             let mut block = control_flow_graph.new_block()?;
 
             let dst = self.operand_load(&mut block, &detail.operands[0])?;
-            let condition = self.cc_condition()?;
 
             // we only need to emit a conditional branch here if the destination
             // cannot be determined at translation time
             if detail.operands[0].type_ != x86_op_type::X86_OP_IMM {
-                block.conditional_branch(condition, dst);
+                block.branch(dst);
             } else {
-                block.placeholder(Operation::conditional_branch(condition, dst));
+                block.placeholder(Operation::branch(dst));
             }
 
             block.index()
         };
 
-        control_flow_graph.set_entry(block_index)?;
-        control_flow_graph.set_exit(block_index)?;
+        let condition = self.cc_condition()?;
+
+        control_flow_graph.conditional_edge(head_index, block_index, condition.clone())?;
+        control_flow_graph.conditional_edge(
+            head_index,
+            tail_index,
+            Expr::cmpeq(condition, expr_const(0, 1))?,
+        )?;
+        control_flow_graph.unconditional_edge(block_index, tail_index)?;
+
+        control_flow_graph.set_entry(head_index)?;
+        control_flow_graph.set_exit(tail_index)?;
 
         Ok(())
     }
