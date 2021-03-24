@@ -11,7 +11,7 @@ use crate::il;
 use crate::memory::MemoryPermissions;
 use crate::translator::TranslationMemory;
 use std::collections::BTreeMap;
-use std::collections::Bound::Included;
+use std::ops::Bound::Included;
 
 /// A section of backed memory. Essentially a vector of type `u8` with
 /// permissions.
