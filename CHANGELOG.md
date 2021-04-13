@@ -1,25 +1,29 @@
 # Changelog
 
-## HEAD
+## [0.5.1]
 
+### Breaking
+
+* Pulled the "Conditional Operation" feature we were going to implement in 0.5.0.
+
+### Fixes
+
+* Remove duplicated function entries.
 * bswap operand width is not dependent on disassembly mode.
 * Fixed a bug in il::ControlFlowGraph::merge that sometimes caused invalid
 graphs to be generated.
 
-## [0.5.0]
+## [0.5.0] (Yanked)
 
 ### Fixes
 
-* When shifting constants left by very large values, num-bigint would sometimes
-allocate too much memory and crash. We check for this now, and set the result to
-0.
+* When shifting constants left by very large values, num-bigint would sometimes allocate too much memory and crash. We check for this now, and set the result to 0.
 
 ### Breaking
 * Added lifter options
 * Nop takes a placeholder instruction
 * Added Conditional operation
-* Added feature "sanity-checks" to abort early on creation of likely bad IL.
-    Used to help check possible lifter errors.
+* Added feature "sanity-checks" to abort early on creation of likely bad IL. Used to help check possible lifter errors.
 * oblivia-simplex Linting, falcon now passes cargo clippy --all
 * capstone4 is now the default capstone.
 

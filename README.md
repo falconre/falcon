@@ -22,6 +22,6 @@ Falcon is a formal binary analysis framework in Rust.
 
 # Questions / Support
 
-* There is an infrequently checked IRC channel at irc.freenode.net#rust-falcon.
-* There is a more frequently checked [Gitter](https://gitter.im/rust-falcon/Lobby).
+* We have a [Gitter](https://gitter.im/rust-falcon/Lobby). This is the most reliable way to contact us.
 * You can also find me in the Binary Ninja slack under the name "endeavor".
+* There is an infrequently checked IRC channel at irc.freenode.net#rust-falcon.
