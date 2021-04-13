@@ -100,15 +100,6 @@ impl Instruction {
         Instruction::new(index, Operation::placeholder(operation))
     }
 
-    /// Create a new `Conditional` instruction.
-    ///
-    /// # Warning
-    /// You almost never want to call this function. You should use the
-    /// `conditional_branch` method on `il::Block` instead.
-    pub fn conditional(index: usize, condition: Expression, operation: Operation) -> Instruction {
-        Instruction::new(index, Operation::conditional(condition, operation))
-    }
-
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Assign`
     pub fn is_assign(&self) -> bool {
         matches!(self.operation, Operation::Assign {..})
@@ -127,11 +118,6 @@ impl Instruction {
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Brc`
     pub fn is_branch(&self) -> bool {
         matches!(self.operation, Operation::Branch {..})
-    }
-
-    /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Conditional`
-    pub fn is_conditional(&self) -> bool {
-        self.operation.is_conditional()
     }
 
     /// Get the `Operation` for this `Instruction`

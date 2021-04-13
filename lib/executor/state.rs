@@ -182,17 +182,6 @@ impl State {
                 Err(ErrorKind::UnhandledIntrinsic(format!("{}", intrinsic)).into())
             }
             il::Operation::Nop { .. } => Ok(Successor::new(self, SuccessorType::FallThrough)),
-            il::Operation::Conditional {
-                ref condition,
-                ref operation,
-            } => {
-                let condition = self.symbolize_and_eval(condition)?;
-                if condition.is_zero() {
-                    Ok(Successor::new(self, SuccessorType::FallThrough))
-                } else {
-                    self.execute(operation)
-                }
-            }
         }
     }
 }
