@@ -65,27 +65,27 @@ impl Operation {
     }
 
     pub fn is_assign(&self) -> bool {
-        matches!(self, Operation::Assign {..})
+        matches!(self, Operation::Assign { .. })
     }
 
     pub fn is_store(&self) -> bool {
-        matches!(self, Operation::Store {..})
+        matches!(self, Operation::Store { .. })
     }
 
     pub fn is_load(&self) -> bool {
-        matches!(self, Operation::Load {..})
+        matches!(self, Operation::Load { .. })
     }
 
     pub fn is_branch(&self) -> bool {
-        matches!(self, Operation::Branch {..})
+        matches!(self, Operation::Branch { .. })
     }
 
     pub fn is_intrinsic(&self) -> bool {
-        matches!(self, Operation::Intrinsic {..})
+        matches!(self, Operation::Intrinsic { .. })
     }
 
     pub fn is_nop(&self) -> bool {
-        matches!(self, Operation::Nop {..})
+        matches!(self, Operation::Nop { .. })
     }
 
     /// Get each `Scalar` read by this `Operation`.

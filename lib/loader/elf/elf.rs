@@ -261,12 +261,9 @@ impl Loader for Elf {
             }
         }
 
-        if !function_entries.contains_key(&elf.header.e_entry) {
-            function_entries.insert(
-                elf.header.e_entry,
-                FunctionEntry::new(elf.header.e_entry + self.base_address, None),
-            );
-        }
+        function_entries
+            .entry(elf.header.e_entry)
+            .or_insert_with(|| FunctionEntry::new(elf.header.e_entry + self.base_address, None));
 
         for &user_function_entry in &self.user_function_entries {
             if function_entries.contains_key(&user_function_entry) {

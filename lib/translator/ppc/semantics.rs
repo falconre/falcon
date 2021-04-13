@@ -6,7 +6,7 @@ use falcon_capstone::capstone_sys::ppc_reg;
 use std::cmp::Ordering;
 
 /// Struct for dealing with x86 registers
-pub struct PPCRegister {
+pub struct PpcRegister {
     name: &'static str,
     // The capstone enum value for this register.
     capstone_reg: ppc_reg,
@@ -14,7 +14,7 @@ pub struct PPCRegister {
     bits: usize,
 }
 
-impl PPCRegister {
+impl PpcRegister {
     // pub fn bits(&self) -> usize {
     //     self.bits
     // }
@@ -32,208 +32,208 @@ impl PPCRegister {
     }
 }
 
-const PPC_REGISTERS: &[PPCRegister] = &[
-    PPCRegister {
+const PPC_REGISTERS: &[PpcRegister] = &[
+    PpcRegister {
         name: "r0",
         capstone_reg: ppc_reg::PPC_REG_R0,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r1",
         capstone_reg: ppc_reg::PPC_REG_R1,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r2",
         capstone_reg: ppc_reg::PPC_REG_R2,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r3",
         capstone_reg: ppc_reg::PPC_REG_R3,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r4",
         capstone_reg: ppc_reg::PPC_REG_R4,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r5",
         capstone_reg: ppc_reg::PPC_REG_R5,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r6",
         capstone_reg: ppc_reg::PPC_REG_R6,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r7",
         capstone_reg: ppc_reg::PPC_REG_R7,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r8",
         capstone_reg: ppc_reg::PPC_REG_R8,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r9",
         capstone_reg: ppc_reg::PPC_REG_R9,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r10",
         capstone_reg: ppc_reg::PPC_REG_R10,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r11",
         capstone_reg: ppc_reg::PPC_REG_R11,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r12",
         capstone_reg: ppc_reg::PPC_REG_R12,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r13",
         capstone_reg: ppc_reg::PPC_REG_R13,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r14",
         capstone_reg: ppc_reg::PPC_REG_R14,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r15",
         capstone_reg: ppc_reg::PPC_REG_R15,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r16",
         capstone_reg: ppc_reg::PPC_REG_R16,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r17",
         capstone_reg: ppc_reg::PPC_REG_R17,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r18",
         capstone_reg: ppc_reg::PPC_REG_R18,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r19",
         capstone_reg: ppc_reg::PPC_REG_R19,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r20",
         capstone_reg: ppc_reg::PPC_REG_R20,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r21",
         capstone_reg: ppc_reg::PPC_REG_R21,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r22",
         capstone_reg: ppc_reg::PPC_REG_R22,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r23",
         capstone_reg: ppc_reg::PPC_REG_R23,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r24",
         capstone_reg: ppc_reg::PPC_REG_R24,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r25",
         capstone_reg: ppc_reg::PPC_REG_R25,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r26",
         capstone_reg: ppc_reg::PPC_REG_R26,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r27",
         capstone_reg: ppc_reg::PPC_REG_R27,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r28",
         capstone_reg: ppc_reg::PPC_REG_R28,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r29",
         capstone_reg: ppc_reg::PPC_REG_R29,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r30",
         capstone_reg: ppc_reg::PPC_REG_R30,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "r31",
         capstone_reg: ppc_reg::PPC_REG_R31,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr0",
         capstone_reg: ppc_reg::PPC_REG_CR0,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr1",
         capstone_reg: ppc_reg::PPC_REG_CR1,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr2",
         capstone_reg: ppc_reg::PPC_REG_CR2,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr3",
         capstone_reg: ppc_reg::PPC_REG_CR3,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr4",
         capstone_reg: ppc_reg::PPC_REG_CR4,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr5",
         capstone_reg: ppc_reg::PPC_REG_CR5,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr6",
         capstone_reg: ppc_reg::PPC_REG_CR6,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "cr7",
         capstone_reg: ppc_reg::PPC_REG_CR7,
         bits: 32,
     },
-    PPCRegister {
+    PpcRegister {
         name: "ctr",
         capstone_reg: ppc_reg::PPC_REG_CTR,
         bits: 32,
@@ -241,7 +241,7 @@ const PPC_REGISTERS: &[PPCRegister] = &[
 ];
 
 /// Takes a capstone register enum and returns a `MIPSRegister`
-pub fn get_register(capstone_id: ppc_reg) -> Result<&'static PPCRegister> {
+pub fn get_register(capstone_id: ppc_reg) -> Result<&'static PpcRegister> {
     for register in PPC_REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
             return Ok(&register);

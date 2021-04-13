@@ -370,12 +370,6 @@ impl fmt::Display for Constant {
     }
 }
 
-impl Into<Expression> for Constant {
-    fn into(self) -> Expression {
-        Expression::constant(self)
-    }
-}
-
 #[test]
 fn constant_add() {
     assert_eq!(

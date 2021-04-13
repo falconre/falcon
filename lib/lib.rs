@@ -54,6 +54,7 @@ pub mod translator;
 
 #[cfg(not(feature = "thread_safe"))]
 use std::rc::Rc;
+#[allow(clippy::upper_case_acronyms)]
 #[cfg(not(feature = "thread_safe"))]
 pub type RC<T> = Rc<T>;
 

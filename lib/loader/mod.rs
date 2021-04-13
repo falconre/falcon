@@ -97,7 +97,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     fn function_extended(&self, address: u64, options: &Options) -> Result<il::Function> {
         let translator = self.architecture().translator();
         let memory = self.memory()?;
-        Ok(translator.translate_function_extended(&memory, address, options)?)
+        translator.translate_function_extended(&memory, address, options)
     }
 
     /// Cast loader to `Any`
@@ -177,7 +177,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
         &self,
         options: &Options,
     ) -> std::result::Result<(il::Program, Vec<(FunctionEntry, Error)>), Error> {
-        fn call_targets(function: &il::Function) -> Result<Vec<u64>> {
+        fn call_targets(function: &il::Function) -> Vec<u64> {
             let call_targets =
                 function
                     .blocks()
@@ -192,7 +192,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
                         });
                         call_targets
                     });
-            Ok(call_targets)
+            call_targets
         }
 
         let (mut program, mut translation_errors) = self.program_verbose(options)?;
@@ -226,12 +226,9 @@ pub trait Loader: fmt::Debug + Send + Sync {
                 let addresses = functions
                     .into_iter()
                     .fold(HashSet::new(), |mut targets, function| {
-                        call_targets(function)
-                            .unwrap()
-                            .into_iter()
-                            .for_each(|target| {
-                                targets.insert(target);
-                            });
+                        call_targets(function).into_iter().for_each(|target| {
+                            targets.insert(target);
+                        });
                         targets
                     })
                     .into_iter()

@@ -102,22 +102,22 @@ impl Instruction {
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Assign`
     pub fn is_assign(&self) -> bool {
-        matches!(self.operation, Operation::Assign {..})
+        matches!(self.operation, Operation::Assign { .. })
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Store`
     pub fn is_store(&self) -> bool {
-        matches!(self.operation, Operation::Store {..})
+        matches!(self.operation, Operation::Store { .. })
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Load`
     pub fn is_load(&self) -> bool {
-        matches!(self.operation, Operation::Load {..})
+        matches!(self.operation, Operation::Load { .. })
     }
 
     /// Returns `true` if the `Operation` for this `Instruction` is `Operation::Brc`
     pub fn is_branch(&self) -> bool {
-        matches!(self.operation, Operation::Branch {..})
+        matches!(self.operation, Operation::Branch { .. })
     }
 
     /// Get the `Operation` for this `Instruction`
