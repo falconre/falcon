@@ -535,14 +535,14 @@ impl Expression {
             )?
         };
 
-        Ok(Expression::or(
+        Expression::or(
             expr,
             Expression::ite(
                 Expression::cmplts(lhs.clone(), expr_const(0, lhs.bits()))?,
                 mask,
                 expr_const(0, lhs.bits()),
             )?,
-        )?)
+        )
     }
 
     /// Perform a left-rotation
@@ -550,13 +550,25 @@ impl Expression {
     /// This is a pseudo-expression, and emits an expression with
     /// sub-expressions
     pub fn rotl(e: Expression, s: Expression) -> Result<Expression> {
-        Ok(Expression::or(
+        Expression::or(
             Expression::shl(e.clone(), s.clone())?,
             Expression::shr(
                 e.clone(),
                 Expression::sub(expr_const(e.bits() as u64, e.bits()), s)?,
             )?,
-        )?)
+        )
+    }
+}
+
+impl From<Scalar> for Expression {
+    fn from(scalar: Scalar) -> Expression {
+        Expression::Scalar(scalar)
+    }
+}
+
+impl From<Constant> for Expression {
+    fn from(constant: Constant) -> Expression {
+        Expression::Constant(constant)
     }
 }
 

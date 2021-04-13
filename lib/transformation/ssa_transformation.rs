@@ -156,7 +156,7 @@ impl ScalarVersioning {
             .copied()
     }
 
-    fn new_version(&mut self, scalar: &il::Scalar) -> Option<usize> {
+    fn new_version(&mut self, scalar: &il::Scalar) -> usize {
         let count = self.counter.entry(scalar.name().to_string()).or_insert(1);
         let version = *count;
         *count += 1;
@@ -164,15 +164,15 @@ impl ScalarVersioning {
         let versions = self.scoped_versions.last_mut().unwrap();
         versions.insert(scalar.name().to_string(), version);
 
-        Some(version)
+        version
     }
 }
 
-trait SSARename {
+trait SsaRename {
     fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()>;
 }
 
-impl SSARename for il::Expression {
+impl SsaRename for il::Expression {
     fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
         for scalar in self.scalars_mut() {
             scalar.set_ssa(versioning.get_version(scalar));
@@ -182,7 +182,7 @@ impl SSARename for il::Expression {
     }
 }
 
-impl SSARename for il::Instruction {
+impl SsaRename for il::Instruction {
     fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
         // rename all read scalars
         if let Some(mut scalars_read) = self.scalars_read_mut() {
@@ -194,7 +194,7 @@ impl SSARename for il::Instruction {
         // introduce new SSA names for written scalars
         if let Some(mut scalar_written) = self.scalar_written_mut() {
             for scalar in scalar_written.iter_mut() {
-                scalar.set_ssa(versioning.new_version(scalar));
+                scalar.set_ssa(Some(versioning.new_version(scalar)));
             }
         }
 
@@ -202,12 +202,12 @@ impl SSARename for il::Instruction {
     }
 }
 
-impl SSARename for il::Block {
+impl SsaRename for il::Block {
     fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
         // introduce new SSA names for phi node outputs
         for phi_node in self.phi_nodes_mut() {
             let scalar = phi_node.out_mut();
-            scalar.set_ssa(versioning.new_version(scalar));
+            scalar.set_ssa(Some(versioning.new_version(scalar)));
         }
 
         for inst in self.instructions_mut() {
@@ -218,7 +218,7 @@ impl SSARename for il::Block {
     }
 }
 
-impl SSARename for il::ControlFlowGraph {
+impl SsaRename for il::ControlFlowGraph {
     fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
         let entry = self.entry().ok_or("CFG entry must be set")?;
 
@@ -271,7 +271,7 @@ impl SSARename for il::ControlFlowGraph {
     }
 }
 
-impl SSARename for il::Function {
+impl SsaRename for il::Function {
     fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
         self.control_flow_graph_mut().rename_scalars(versioning)
     }

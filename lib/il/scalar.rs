@@ -1,6 +1,5 @@
 //! A `Scalar` is a variable which holds a single value.
 
-use crate::il::*;
 use std::fmt;
 
 /// A `Scalar` is a variable which holds a single value.
@@ -65,11 +64,5 @@ impl Scalar {
 impl fmt::Display for Scalar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.identifier())
-    }
-}
-
-impl Into<Expression> for Scalar {
-    fn into(self) -> Expression {
-        Expression::scalar(self)
     }
 }

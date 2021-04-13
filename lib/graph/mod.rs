@@ -388,9 +388,8 @@ where
         }
 
         let mut reachable_vertices: FxHashSet<usize> = FxHashSet::default();
-        let mut queue: Vec<usize> = Vec::new();
+        let mut queue: Vec<usize> = vec![index];
 
-        queue.push(index);
         reachable_vertices.insert(index);
 
         while let Some(vertex) = queue.pop() {
@@ -1025,10 +1024,11 @@ where
             })
             .collect::<Vec<String>>();
 
-        let mut options = Vec::new();
-        options.push("graph [fontname = \"Courier New\", splines=\"polyline\"]");
-        options.push("node [fontname = \"Courier New\"]");
-        options.push("edge [fontname = \"Courier New\"]");
+        let options = vec![
+            "graph [fontname = \"Courier New\", splines=\"polyline\"]",
+            "node [fontname = \"Courier New\"]",
+            "edge [fontname = \"Courier New\"]",
+        ];
 
         format!(
             "digraph G {{\n{}\n\n{}\n{}\n}}",

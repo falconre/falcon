@@ -5,7 +5,7 @@ use falcon_capstone::capstone;
 use falcon_capstone::capstone_sys::mips_reg;
 
 /// Struct for dealing with x86 registers
-pub struct MIPSRegister {
+pub struct MipsRegister {
     name: &'static str,
     // The capstone enum value for this register.
     capstone_reg: mips_reg,
@@ -13,7 +13,7 @@ pub struct MIPSRegister {
     bits: usize,
 }
 
-impl MIPSRegister {
+impl MipsRegister {
     // pub fn bits(&self) -> usize {
     //     self.bits
     // }
@@ -35,172 +35,172 @@ impl MIPSRegister {
     }
 }
 
-const MIPSREGISTERS: &[MIPSRegister] = &[
-    MIPSRegister {
+const MIPS_REGISTERS: &[MipsRegister] = &[
+    MipsRegister {
         name: "$zero",
         capstone_reg: mips_reg::MIPS_REG_0,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$at",
         capstone_reg: mips_reg::MIPS_REG_1,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$v0",
         capstone_reg: mips_reg::MIPS_REG_2,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$v1",
         capstone_reg: mips_reg::MIPS_REG_3,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$a0",
         capstone_reg: mips_reg::MIPS_REG_4,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$a1",
         capstone_reg: mips_reg::MIPS_REG_5,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$a2",
         capstone_reg: mips_reg::MIPS_REG_6,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$a3",
         capstone_reg: mips_reg::MIPS_REG_7,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t0",
         capstone_reg: mips_reg::MIPS_REG_8,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t1",
         capstone_reg: mips_reg::MIPS_REG_9,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t2",
         capstone_reg: mips_reg::MIPS_REG_10,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t3",
         capstone_reg: mips_reg::MIPS_REG_11,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t4",
         capstone_reg: mips_reg::MIPS_REG_12,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t5",
         capstone_reg: mips_reg::MIPS_REG_13,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t6",
         capstone_reg: mips_reg::MIPS_REG_14,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t7",
         capstone_reg: mips_reg::MIPS_REG_15,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s0",
         capstone_reg: mips_reg::MIPS_REG_16,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s1",
         capstone_reg: mips_reg::MIPS_REG_17,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s2",
         capstone_reg: mips_reg::MIPS_REG_18,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s3",
         capstone_reg: mips_reg::MIPS_REG_19,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s4",
         capstone_reg: mips_reg::MIPS_REG_20,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s5",
         capstone_reg: mips_reg::MIPS_REG_21,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s6",
         capstone_reg: mips_reg::MIPS_REG_22,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$s7",
         capstone_reg: mips_reg::MIPS_REG_23,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t8",
         capstone_reg: mips_reg::MIPS_REG_24,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$t9",
         capstone_reg: mips_reg::MIPS_REG_25,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$k0",
         capstone_reg: mips_reg::MIPS_REG_26,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$k1",
         capstone_reg: mips_reg::MIPS_REG_27,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$gp",
         capstone_reg: mips_reg::MIPS_REG_28,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$sp",
         capstone_reg: mips_reg::MIPS_REG_29,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$fp",
         capstone_reg: mips_reg::MIPS_REG_30,
         bits: 32,
     },
-    MIPSRegister {
+    MipsRegister {
         name: "$ra",
         capstone_reg: mips_reg::MIPS_REG_31,
         bits: 32,
     },
 ];
 
-/// Takes a capstone register enum and returns a `MIPSRegister`
-pub fn get_register(capstone_id: mips_reg) -> Result<&'static MIPSRegister> {
-    for register in MIPSREGISTERS.iter() {
+/// Takes a capstone register enum and returns a `MipsRegister`
+pub fn get_register(capstone_id: mips_reg) -> Result<&'static MipsRegister> {
+    for register in MIPS_REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
             return Ok(&register);
         }

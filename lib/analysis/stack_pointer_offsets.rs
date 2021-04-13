@@ -16,8 +16,8 @@ use std::collections::HashMap;
 
 /// Determine offset of stack pointer from program entry at each place in the
 /// program.
-pub fn stack_pointer_offsets<'f>(
-    function: &'f il::Function,
+pub fn stack_pointer_offsets(
+    function: &il::Function,
     architecture: &dyn Architecture,
 ) -> Result<HashMap<il::ProgramLocation, StackPointerOffset>> {
     let spoa = StackPointerOffsetAnalysis {
@@ -28,8 +28,8 @@ pub fn stack_pointer_offsets<'f>(
 
 /// Returns true if there is a valid StackPointerOffset value for every location
 /// in the function.
-pub fn perfect<'f>(
-    stack_pointer_offsets: &HashMap<il::RefProgramLocation<'f>, StackPointerOffset>,
+pub fn perfect(
+    stack_pointer_offsets: &HashMap<il::RefProgramLocation, StackPointerOffset>,
 ) -> bool {
     stack_pointer_offsets.iter().all(|(_, spo)| spo.is_value())
 }

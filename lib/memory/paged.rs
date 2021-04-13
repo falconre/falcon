@@ -264,22 +264,20 @@ where
         // our write, truncating it to the appropriate size, and rewriting it
         let address_after_write = address + (value.bits() / 8) as u64;
 
-        let value_to_write = if let Some(cell) = self.load_cell(address_after_write) {
-            if let MemoryCell::Backref(backref_address) = *cell {
-                let backref_value = self
-                    .load_cell(backref_address)
-                    .ok_or("Backref cell pointed to null cell")?
-                    .value()
-                    .ok_or("Backref cell pointed to cell without value")?;
-                // furthest most address backref value reaches
-                let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
-                // how many bits are left after our write
-                let left_bits = ((backref_furthest_address - address_after_write) * 8) as usize;
-                // load that value
-                self.load(address_after_write, left_bits)?
-            } else {
-                None
-            }
+        let value_to_write = if let Some(MemoryCell::Backref(backref_address)) =
+            self.load_cell(address_after_write)
+        {
+            let backref_value = self
+                .load_cell(*backref_address)
+                .ok_or("Backref cell pointed to null cell")?
+                .value()
+                .ok_or("Backref cell pointed to cell without value")?;
+            // furthest most address backref value reaches
+            let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
+            // how many bits are left after our write
+            let left_bits = ((backref_furthest_address - address_after_write) * 8) as usize;
+            // load that value
+            self.load(address_after_write, left_bits)?
         } else {
             None
         };
@@ -289,22 +287,19 @@ where
         }
 
         // handle values we overwrite before this write
-        let value_to_write = if let Some(cell) = self.load_cell(address) {
-            if let MemoryCell::Backref(backref_address) = *cell {
-                let backref_value = self.load_cell(backref_address).unwrap().value().unwrap();
+        let value_to_write =
+            if let Some(MemoryCell::Backref(backref_address)) = self.load_cell(address) {
+                let backref_value = self.load_cell(*backref_address).unwrap().value().unwrap();
                 // furthest most address backref value reaches
                 let backref_furthest_address = backref_address + (backref_value.bits() / 8) as u64;
                 // how many bits are we about to overwrite
                 let overwrite_bits = (backref_furthest_address - address) * 8;
                 // how many bits are left over
                 let left_bits = backref_value.bits() - overwrite_bits as usize;
-                Some((backref_address, self.load(backref_address, left_bits)?))
+                Some((*backref_address, self.load(*backref_address, left_bits)?))
             } else {
                 None
-            }
-        } else {
-            None
-        };
+            };
 
         if let Some(value_to_write) = value_to_write {
             self.store_no_backref(value_to_write.0, value_to_write.1.unwrap());

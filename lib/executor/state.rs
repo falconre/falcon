@@ -137,7 +137,7 @@ impl State {
     /// concrete value.
     pub fn symbolize_and_eval(&self, expression: &il::Expression) -> Result<il::Constant> {
         let expression = self.symbolize_expression(expression)?;
-        Ok(eval(&expression)?)
+        eval(&expression)
     }
 
     /// Execute an `il::Operation`, returning the post-execution `State`.
@@ -183,5 +183,11 @@ impl State {
             }
             il::Operation::Nop { .. } => Ok(Successor::new(self, SuccessorType::FallThrough)),
         }
+    }
+}
+
+impl From<Successor> for State {
+    fn from(successor: Successor) -> State {
+        successor.state
     }
 }
