@@ -1,12 +1,19 @@
 # Changelog
 
-## HEAD
+## [0.5.1]
 
+### Breaking
+
+* Pulled the "Conditional Operation" feature we were going to implement in 0.5.0.
+
+### Fixes
+
+* Remove duplicated function entries.
 * bswap operand width is not dependent on disassembly mode.
 * Fixed a bug in il::ControlFlowGraph::merge that sometimes caused invalid
 graphs to be generated.
 
-## [0.5.0]
+## [0.5.0] (Yanked)
 
 ### Fixes
 
