@@ -15,7 +15,7 @@ jobs:
           tar xf 4.0.2.tar.gz
           cd capstone-4.0.2
           make -j 8
-          make install
+          sudo make install
       - uses: actions-rs/toolchain@v1
         with:
             toolchain: stable
