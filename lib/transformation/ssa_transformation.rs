@@ -380,8 +380,8 @@ mod tests {
 
         let mut versioning = ScalarVersioning::new();
         versioning.start_new_scope();
-        versioning.new_version(&il::scalar("x", 64)).unwrap();
-        versioning.new_version(&il::scalar("y", 64)).unwrap();
+        versioning.new_version(&il::scalar("x", 64));
+        versioning.new_version(&il::scalar("y", 64));
         expression.rename_scalars(&mut versioning).unwrap();
 
         // Expected: x_1 + y_1 * x_1
@@ -417,7 +417,7 @@ mod tests {
 
         let mut versioning = ScalarVersioning::new();
         versioning.start_new_scope();
-        versioning.new_version(&il::scalar("x", 64)).unwrap();
+        versioning.new_version(&il::scalar("x", 64));
         instruction.rename_scalars(&mut versioning).unwrap();
 
         // Expected: x_2 := x_1
@@ -435,7 +435,7 @@ mod tests {
 
         let mut versioning = ScalarVersioning::new();
         versioning.start_new_scope();
-        versioning.new_version(&il::scalar("x", 64)).unwrap();
+        versioning.new_version(&il::scalar("x", 64));
         instruction.rename_scalars(&mut versioning).unwrap();
 
         // Expected: x_2 := [x_1]
@@ -453,7 +453,7 @@ mod tests {
 
         let mut versioning = ScalarVersioning::new();
         versioning.start_new_scope();
-        versioning.new_version(&il::scalar("x", 64)).unwrap();
+        versioning.new_version(&il::scalar("x", 64));
         instruction.rename_scalars(&mut versioning).unwrap();
 
         // Expected: [x_1] := x_1
@@ -470,7 +470,7 @@ mod tests {
 
         let mut versioning = ScalarVersioning::new();
         versioning.start_new_scope();
-        versioning.new_version(&il::scalar("x", 64)).unwrap();
+        versioning.new_version(&il::scalar("x", 64));
         instruction.rename_scalars(&mut versioning).unwrap();
 
         // Expected: brc x_1
