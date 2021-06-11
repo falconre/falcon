@@ -31,7 +31,7 @@ use crate::il;
 use crate::il::*;
 pub use block_translation_result::BlockTranslationResult;
 use falcon_capstone::capstone;
-pub use options::{Options, OptionsBuilder};
+pub use options::{ManualEdge, Options, OptionsBuilder};
 use std::collections::{BTreeMap, VecDeque};
 pub(crate) const DEFAULT_TRANSLATION_BLOCK_BYTES: usize = 64;
 
