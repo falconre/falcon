@@ -76,27 +76,24 @@ impl Memory {
 
     /// Get the permissions at the given address.
     pub fn permissions(&self, address: u64) -> Option<MemoryPermissions> {
-        match self.section_address(address) {
-            Some(section_address) => Some(
-                self.sections
-                    .get(&section_address)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Failed to get section at 0x{:x} in \
+        self.section_address(address).map(|section_address| {
+            self.sections
+                .get(&section_address)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Failed to get section at 0x{:x} in \
                          backing::Memory::permissions()",
-                            section_address
-                        )
-                    })
-                    .permissions(),
-            ),
-            None => None,
-        }
+                        section_address
+                    )
+                })
+                .permissions()
+        })
     }
 
     /// Get the `u8` value at the given address.
     pub fn get8(&self, address: u64) -> Option<u8> {
-        match self.section_address_offset(address) {
-            Some((address, offset)) => Some(
+        self.section_address_offset(address)
+            .map(|(address, offset)| {
                 *self
                     .sections
                     .get(&address)
@@ -115,10 +112,8 @@ impl Memory {
                          backing::Memory::permissions()",
                             offset, address
                         )
-                    }),
-            ),
-            None => None,
-        }
+                    })
+            })
     }
 
     /// Set the 32-bit value at the given address, allowing the memory model
@@ -348,10 +343,8 @@ impl Memory {
     }
 
     fn section_address_offset(&self, address: u64) -> Option<(u64, usize)> {
-        match self.section_address(address) {
-            Some(section_address) => Some((section_address, (address - section_address) as usize)),
-            None => None,
-        }
+        self.section_address(address)
+            .map(|section_address| (section_address, (address - section_address) as usize))
     }
 }
 
