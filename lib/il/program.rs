@@ -57,10 +57,7 @@ impl Program {
     /// A `Function` index is assigned by `Program` and is not the address where the `Function`
     /// was discovered.
     pub fn function(&self, index: usize) -> Option<&Function> {
-        match self.functions.get(&index) {
-            Some(f) => Some(f),
-            None => None,
-        }
+        self.functions.get(&index).map(|f| f.as_ref())
     }
 
     /// Add a `Function` to the `Program`.
