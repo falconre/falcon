@@ -43,6 +43,7 @@ pub enum Expression {
     Xor(Box<Expression>, Box<Expression>),
     Shl(Box<Expression>, Box<Expression>),
     Shr(Box<Expression>, Box<Expression>),
+    #[cfg(feature = "il-expression-ashr")]
     AShr(Box<Expression>, Box<Expression>),
 
     Cmpeq(Box<Expression>, Box<Expression>),
@@ -74,8 +75,9 @@ impl Expression {
             | Expression::Or(ref lhs, _)
             | Expression::Xor(ref lhs, _)
             | Expression::Shl(ref lhs, _)
-            | Expression::Shr(ref lhs, _)
-            | Expression::AShr(ref lhs, _) => lhs.bits(),
+            | Expression::Shr(ref lhs, _) => lhs.bits(),
+            #[cfg(feature = "il-expression-ashr")]
+            Expression::AShr(ref lhs, _) => lhs.bits(),
             Expression::Cmpeq(_, _)
             | Expression::Cmpneq(_, _)
             | Expression::Cmplts(_, _)
@@ -157,6 +159,7 @@ impl Expression {
                         Expression::Shr(ref lhs, ref rhs) => {
                             Expression::shr(self.map(lhs)?, self.map(rhs)?)?
                         }
+                        #[cfg(feature = "il-expression-ashr")]
                         Expression::AShr(ref lhs, ref rhs) => {
                             Expression::ashr(self.map(lhs)?, self.map(rhs)?)?
                         }
@@ -221,11 +224,12 @@ impl Expression {
             | Expression::Xor(ref lhs, ref rhs)
             | Expression::Shl(ref lhs, ref rhs)
             | Expression::Shr(ref lhs, ref rhs)
-            | Expression::AShr(ref lhs, ref rhs)
             | Expression::Cmpeq(ref lhs, ref rhs)
             | Expression::Cmpneq(ref lhs, ref rhs)
             | Expression::Cmplts(ref lhs, ref rhs)
             | Expression::Cmpltu(ref lhs, ref rhs) => lhs.all_constants() && rhs.all_constants(),
+            #[cfg(feature = "il-expression-ashr")]
+            Expression::AShr(ref lhs, ref rhs) => lhs.all_constants() && rhs.all_constants(),
             Expression::Zext(_, ref rhs)
             | Expression::Sext(_, ref rhs)
             | Expression::Trun(_, ref rhs) => rhs.all_constants(),
@@ -253,11 +257,15 @@ impl Expression {
             | Expression::Xor(ref lhs, ref rhs)
             | Expression::Shl(ref lhs, ref rhs)
             | Expression::Shr(ref lhs, ref rhs)
-            | Expression::AShr(ref lhs, ref rhs)
             | Expression::Cmpeq(ref lhs, ref rhs)
             | Expression::Cmpneq(ref lhs, ref rhs)
             | Expression::Cmplts(ref lhs, ref rhs)
             | Expression::Cmpltu(ref lhs, ref rhs) => {
+                scalars.append(&mut lhs.scalars());
+                scalars.append(&mut rhs.scalars());
+            }
+            #[cfg(feature = "il-expression-ashr")]
+            Expression::AShr(ref lhs, ref rhs) => {
                 scalars.append(&mut lhs.scalars());
                 scalars.append(&mut rhs.scalars());
             }
@@ -293,11 +301,15 @@ impl Expression {
             | Expression::Xor(ref mut lhs, ref mut rhs)
             | Expression::Shl(ref mut lhs, ref mut rhs)
             | Expression::Shr(ref mut lhs, ref mut rhs)
-            | Expression::AShr(ref mut lhs, ref mut rhs)
             | Expression::Cmpeq(ref mut lhs, ref mut rhs)
             | Expression::Cmpneq(ref mut lhs, ref mut rhs)
             | Expression::Cmplts(ref mut lhs, ref mut rhs)
             | Expression::Cmpltu(ref mut lhs, ref mut rhs) => {
+                scalars.append(&mut lhs.scalars_mut());
+                scalars.append(&mut rhs.scalars_mut());
+            }
+            #[cfg(feature = "il-expression-ashr")]
+            Expression::AShr(ref mut lhs, ref mut rhs) => {
                 scalars.append(&mut lhs.scalars_mut());
                 scalars.append(&mut rhs.scalars_mut());
             }
@@ -446,9 +458,33 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
+    #[cfg(feature = "il-expression-ashr")]
     pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::AShr(Box::new(lhs), Box::new(rhs)))
+    }
+
+    /// Create an arithmetic shift-right `Expression`.
+    /// # Error
+    /// The sort of the lhs and the rhs are not the same.
+    #[allow(clippy::should_implement_trait)]
+    #[cfg(not(feature = "il-expression-ashr"))]
+    pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression> {
+        Expression::ensure_sort(&lhs, &rhs)?;
+
+        // Create the mask we apply if that lhs is signed
+        let mask = Expression::shl(expr_const(1, lhs.bits()), rhs.clone())?;
+        let mask = Expression::sub(mask, expr_const(1, lhs.bits()))?;
+        let mask = Expression::shl(
+            mask,
+            Expression::sub(expr_const(lhs.bits() as u64, lhs.bits()), rhs.clone())?,
+        )?;
+
+        // Multiple the mask by the sign bit
+        let expr = Expression::shr(lhs.clone(), expr_const(lhs.bits() as u64 - 1, lhs.bits()))?;
+        let expr = Expression::mul(mask, expr)?;
+
+        Expression::or(expr, Expression::shr(lhs, rhs)?)
     }
 
     /// Create an equals comparison `Expression`.
@@ -606,6 +642,7 @@ impl fmt::Display for Expression {
             Expression::Xor(ref lhs, ref rhs) => write!(f, "({} ^ {})", lhs, rhs),
             Expression::Shl(ref lhs, ref rhs) => write!(f, "({} << {})", lhs, rhs),
             Expression::Shr(ref lhs, ref rhs) => write!(f, "({} >> {})", lhs, rhs),
+            #[cfg(feature = "il-expression-ashr")]
             Expression::AShr(ref lhs, ref rhs) => write!(f, "({} >>> {})", lhs, rhs),
             Expression::Cmpeq(ref lhs, ref rhs) => write!(f, "({} == {})", lhs, rhs),
             Expression::Cmpneq(ref lhs, ref rhs) => write!(f, "({} != {})", lhs, rhs),
