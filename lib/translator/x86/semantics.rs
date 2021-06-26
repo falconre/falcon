@@ -259,8 +259,8 @@ impl<'s> Semantics<'s> {
 
         let terminating_index = control_flow_graph.new_block()?.index();
 
-        let entry = control_flow_graph.entry().clone().unwrap();
-        let exit = control_flow_graph.exit().clone().unwrap();
+        let entry = control_flow_graph.entry().unwrap();
+        let exit = control_flow_graph.exit().unwrap();
 
         // head -> entry
         // head -> terminating
@@ -346,8 +346,8 @@ impl<'s> Semantics<'s> {
 
         let terminating_index = control_flow_graph.new_block()?.index();
 
-        let entry = control_flow_graph.entry().clone().unwrap();
-        let exit = control_flow_graph.exit().clone().unwrap();
+        let entry = control_flow_graph.entry().unwrap();
+        let exit = control_flow_graph.exit().unwrap();
 
         // head -> entry
         // head -> terminating
