@@ -569,6 +569,9 @@ impl Expression {
     ///
     /// This is a pseudo-expression, and emits an expression with
     /// sub-expressions
+    /// 
+    #[cfg(not(feature = "il-expression-ashr"))]
+    #[deprecated(since="0.5.2", note="Please use ashr in anticipation of the new Expression::Ashr type in 0.6")]
     pub fn sra(lhs: Expression, rhs: Expression) -> Result<Expression> {
         if lhs.bits() != rhs.bits() {
             return Err(ErrorKind::Sort.into());

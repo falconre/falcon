@@ -1072,7 +1072,7 @@ pub fn srawi(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        block.assign(dst, Expression::sra(lhs, rhs)?);
+        block.assign(dst, Expression::ashr(lhs, rhs)?);
 
         block.index()
     };

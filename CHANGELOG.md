@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.2]
+
+* Introduction of Expression::Ashr. This expression-type exists behind a feature flag until 0.6.0, and the existing Expression::sra method will now generate deprecation warnings.
+
 ## [0.5.1]
 
 ### Breaking
