@@ -65,6 +65,74 @@ impl Architecture for Amd64 {
     }
 }
 
+/// The little-endian AArch64 architecture.
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
+pub struct AArch64 {}
+
+impl AArch64 {
+    pub fn new() -> AArch64 {
+        AArch64 {}
+    }
+}
+
+impl Architecture for AArch64 {
+    fn name(&self) -> &str {
+        &"aarch64"
+    }
+    fn endian(&self) -> Endian {
+        Endian::Little
+    }
+    fn translator(&self) -> Box<dyn translator::Translator> {
+        Box::new(translator::aarch64::AArch64::new())
+    }
+    fn calling_convention(&self) -> CallingConvention {
+        CallingConvention::new(CallingConventionType::AArch64)
+    }
+    fn stack_pointer(&self) -> il::Scalar {
+        il::scalar("sp", 64)
+    }
+    fn word_size(&self) -> usize {
+        64
+    }
+    fn box_clone(&self) -> Box<dyn Architecture> {
+        Box::new(self.clone())
+    }
+}
+
+/// The big-endian AArch64 architecture.
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
+pub struct AArch64Eb {}
+
+impl AArch64Eb {
+    pub fn new() -> AArch64Eb {
+        AArch64Eb {}
+    }
+}
+
+impl Architecture for AArch64Eb {
+    fn name(&self) -> &str {
+        &"aarch64eb"
+    }
+    fn endian(&self) -> Endian {
+        Endian::Big
+    }
+    fn translator(&self) -> Box<dyn translator::Translator> {
+        Box::new(translator::aarch64::AArch64Eb::new())
+    }
+    fn calling_convention(&self) -> CallingConvention {
+        CallingConvention::new(CallingConventionType::AArch64)
+    }
+    fn stack_pointer(&self) -> il::Scalar {
+        il::scalar("sp", 64)
+    }
+    fn word_size(&self) -> usize {
+        64
+    }
+    fn box_clone(&self) -> Box<dyn Architecture> {
+        Box::new(self.clone())
+    }
+}
+
 /// The 32-bit Mips Architecture.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Mips {}

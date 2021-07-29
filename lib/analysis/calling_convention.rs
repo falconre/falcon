@@ -6,6 +6,7 @@ use std::collections::HashSet;
 /// Available type of calling conventions
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CallingConventionType {
+    AArch64,
     Amd64SystemV,
     Cdecl,
     MipsSystemV,
@@ -108,6 +109,45 @@ impl CallingConvention {
     /// `CallingConventionType`.
     pub fn new(typ: CallingConventionType) -> CallingConvention {
         match typ {
+            CallingConventionType::AArch64 => {
+                // TODO
+                let argument_registers = vec![
+                    il::scalar("r0", 32),
+                    il::scalar("r1", 32),
+                    il::scalar("r2", 32),
+                    il::scalar("r3", 32),
+                ];
+                let mut preserved_registers = HashSet::new();
+                preserved_registers.insert(il::scalar("r4", 32));
+                preserved_registers.insert(il::scalar("r5", 32));
+                preserved_registers.insert(il::scalar("r6", 32));
+                preserved_registers.insert(il::scalar("r7", 32));
+                preserved_registers.insert(il::scalar("r8", 32));
+                preserved_registers.insert(il::scalar("r9", 32));
+                preserved_registers.insert(il::scalar("r10", 32));
+                preserved_registers.insert(il::scalar("r11", 32));
+                preserved_registers.insert(il::scalar("r15", 32));
+
+                let mut trashed_registers = HashSet::new();
+                trashed_registers.insert(il::scalar("r0", 64));
+                trashed_registers.insert(il::scalar("r1", 64));
+                trashed_registers.insert(il::scalar("r2", 64));
+                trashed_registers.insert(il::scalar("r3", 64));
+                trashed_registers.insert(il::scalar("r12", 64));
+                trashed_registers.insert(il::scalar("r14", 64));
+
+                let return_type = ReturnAddressType::Register(il::scalar("pc", 32));
+
+                CallingConvention {
+                    argument_registers: argument_registers,
+                    preserved_registers: preserved_registers,
+                    trashed_registers: trashed_registers,
+                    stack_argument_offset: 0,
+                    stack_argument_length: 4,
+                    return_address_type: return_type,
+                    return_register: il::scalar("r0", 32),
+                }
+            }
             CallingConventionType::Amd64SystemV => {
                 let argument_registers = vec![
                     il::scalar("rdi", 64),
