@@ -41,6 +41,15 @@ impl Elf {
                 }
             } else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
                 Box::new(Amd64::new())
+            } else if elf.header.e_machine == goblin::elf::header::EM_AARCH64 {
+                match elf.header.endianness()? {
+                    goblin::container::Endian::Big => {
+                        Box::new(AArch64Eb::new()) as Box<dyn Architecture>
+                    }
+                    goblin::container::Endian::Little => {
+                        Box::new(AArch64::new()) as Box<dyn Architecture>
+                    }
+                }
             } else {
                 bail!("Unsupported Architecture");
             }
