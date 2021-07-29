@@ -24,6 +24,7 @@ fn init_driver_block<'d>(
     const NOP: u32 = 0xd503201f;
     let bytes: Vec<u8> = instruction_words
         .iter()
+        .chain(Some(&NOP))
         // The following code can be rewritten as `encoding.to_le_bytes()
         // .into_iter()` in Rust 2021 but not in Rust 2018
         .map(|encoding| IntoIterator::into_iter(encoding.to_le_bytes()))

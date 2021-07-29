@@ -29,4 +29,104 @@ pub(super) fn unhandled_intrinsic(
     Ok(())
 }
 
+fn operand_load(block: &mut il::Block, opr: &bad64::Operand) -> Result<il::Expression> {
+    // TODO: Consider `unsupported_are_intrinsics`
+    match opr {
+        bad64::Operand::Reg { reg, arrspec: None } => get_register(*reg)?.get(),
+        bad64::Operand::Imm32 { .. }
+        | bad64::Operand::Imm64 { .. }
+        | bad64::Operand::FImm32(_)
+        | bad64::Operand::ShiftReg { .. }
+        | bad64::Operand::QualReg { .. }
+        | bad64::Operand::Reg {
+            arrspec: Some(_), ..
+        }
+        | bad64::Operand::MultiReg { .. }
+        | bad64::Operand::SysReg(_)
+        | bad64::Operand::MemReg(_)
+        | bad64::Operand::MemOffset { .. }
+        | bad64::Operand::MemPreIdx { .. }
+        | bad64::Operand::MemPostIdxReg(_)
+        | bad64::Operand::MemPostIdxImm { .. }
+        | bad64::Operand::MemExt { .. }
+        | bad64::Operand::Label(_)
+        | bad64::Operand::ImplSpec { .. }
+        | bad64::Operand::Cond(_)
+        | bad64::Operand::Name(_)
+        | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+    }
+}
+
+fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Expression) -> Result<()> {
+    // TODO: Consider `unsupported_are_intrinsics`
+    match opr {
+        bad64::Operand::Reg { reg, arrspec: None } => get_register(*reg)?.set(block, value),
+        bad64::Operand::Imm32 { .. }
+        | bad64::Operand::Imm64 { .. }
+        | bad64::Operand::FImm32(_)
+        | bad64::Operand::ShiftReg { .. }
+        | bad64::Operand::QualReg { .. }
+        | bad64::Operand::Reg {
+            arrspec: Some(_), ..
+        }
+        | bad64::Operand::MultiReg { .. }
+        | bad64::Operand::SysReg(_)
+        | bad64::Operand::MemReg(_)
+        | bad64::Operand::MemOffset { .. }
+        | bad64::Operand::MemPreIdx { .. }
+        | bad64::Operand::MemPostIdxReg(_)
+        | bad64::Operand::MemPostIdxImm { .. }
+        | bad64::Operand::MemExt { .. }
+        | bad64::Operand::Label(_)
+        | bad64::Operand::ImplSpec { .. }
+        | bad64::Operand::Cond(_)
+        | bad64::Operand::Name(_)
+        | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+    }
+}
+
+pub(super) fn add(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let lhs = operand_load(block, &instruction.operands()[1])?;
+        let rhs = operand_load(block, &instruction.operands()[2])?;
+
+        // perform operation
+        let src = il::Expression::add(lhs, rhs)?;
+
+        // store result
+        operand_store(block, &instruction.operands()[0], src)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn nop(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    _instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        block.nop();
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
 // TODO: Rest of the instructions

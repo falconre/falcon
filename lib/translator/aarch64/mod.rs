@@ -86,12 +86,13 @@ fn translate_block(
 
         let mut instruction_graph = ControlFlowGraph::new();
         match instruction.op() {
+            bad64::Op::ADD => semantics::add(&mut instruction_graph, &instruction),
+            bad64::Op::NOP => semantics::nop(&mut instruction_graph, &instruction),
             bad64::Op::ABS
             | bad64::Op::ADC
             | bad64::Op::ADCLB
             | bad64::Op::ADCLT
             | bad64::Op::ADCS
-            | bad64::Op::ADD
             | bad64::Op::ADDG
             | bad64::Op::ADDHN
             | bad64::Op::ADDHN2
@@ -679,7 +680,6 @@ fn translate_block(
             | bad64::Op::NGC
             | bad64::Op::NGCS
             | bad64::Op::NMATCH
-            | bad64::Op::NOP
             | bad64::Op::NOR
             | bad64::Op::NORS
             | bad64::Op::NOT
