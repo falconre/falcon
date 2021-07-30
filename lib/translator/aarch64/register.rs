@@ -23,6 +23,10 @@ impl AArch64Register {
         self.name
     }
 
+    pub fn bits(&self) -> usize {
+        self.bits
+    }
+
     /// Returns true if this is a full-width register (i.e. eax, ebx, etc)
     pub fn is_full(&self) -> bool {
         self.bad64_reg == self.bad64_full_reg

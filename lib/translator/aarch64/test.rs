@@ -174,6 +174,203 @@ fn add_xn() {
 }
 
 #[test]
+fn add_xn_lsl() {
+    // add x0, xzr, x0, lsl #28
+    let instruction_words = &[0x8b0073e0];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x0", const_(0xbeef000000, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xeef0000000000000);
+}
+
+#[test]
+fn add_xn_lsr() {
+    // add x0, xzr, x0, lsr #24
+    let instruction_words = &[0x8b4063e0];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x0", const_(0x12345678u64.wrapping_neg(), 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x000000ffffffffed);
+}
+
+#[test]
+fn add_xn_asr() {
+    // add x0, xzr, x0, asr #24
+    let instruction_words = &[0x8b8063e0];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x0", const_(0x12345678u64.wrapping_neg(), 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffffffffffffed);
+}
+
+// TODO: test `ror` shift
+
+#[test]
+fn add_xn_sxtx() {
+    // add x0, x1, x0, sxtx #0x3
+    let instruction_words = &[0x8b20ec20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0x1111444422228888, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x888a222111144440);
+}
+
+#[test]
+fn add_xn_xn_sxtx() {
+    // add x0, x1, x0, sxtx #0x3
+    let instruction_words = &[0x8b20ec20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0x1111444422228888, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x888a222111144440);
+}
+
+#[test]
+fn add_xn_wn_sxtw() {
+    // add x0, x1, w0, sxtw #0x3
+    let instruction_words = &[0x8b20cc20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0x11114444ffff8888, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xfffffffffffc4440);
+}
+
+#[test]
+fn add_xn_wn_sxth() {
+    // add x0, x1, w0, sxth #0x3
+    let instruction_words = &[0x8b20ac20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0xffff00000000fedc, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xfffffffffffff6e0);
+}
+
+#[test]
+fn add_xn_wn_sxtb() {
+    // add x0, x1, w0, sxtb #0x3
+    let instruction_words = &[0x8b208c20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0xffff00000000fedc, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xfffffffffffffee0);
+}
+
+#[test]
+fn add_xn_uxtx() {
+    // add x0, x1, x0, uxtx #0x3
+    let instruction_words = &[0x8b206c20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0x1111444422228888, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x888a222111144440);
+}
+
+#[test]
+fn add_xn_uxtw() {
+    // add x0, x1, w0, uxtw #0x3
+    let instruction_words = &[0x8b204c20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0x11114444ffff8888, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x00000007fffc4440);
+}
+
+#[test]
+fn add_xn_uxth() {
+    // add x0, x1, w0, uxth #0x3
+    let instruction_words = &[0x8b202c20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0xffff00000000fedc, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x000000000007f6e0);
+}
+
+#[test]
+fn add_xn_uxtb() {
+    // add x0, x1, w0, uxtb #0x3
+    let instruction_words = &[0x8b200c20];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0xffff00000000fedc, 64)),
+            ("x1", const_(0, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x00000000000006e0);
+}
+
+#[test]
 fn b() {
     //   b 1f
     //   mov x3, #2
