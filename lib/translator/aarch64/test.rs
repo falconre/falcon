@@ -173,4 +173,43 @@ fn add_xn() {
     assert_eq!(result.value_u64().unwrap(), u64::MAX.wrapping_add(42));
 }
 
+#[test]
+fn b() {
+    //   b 1f
+    //   mov x3, #2
+    // 1:
+    let instruction_words = &[0x14000002, 0xd2800043];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x3", const_(1, 64))],
+        Memory::new(Endian::Big),
+        "x3",
+    );
+    assert_eq!(result.value_u64().unwrap(), 1);
+}
+
+#[test]
+fn bl_ret() {
+    //   b 1f
+    // 0:
+    //   mov x25, #2
+    //   ret
+    // 1:
+    //   mov x25, #1
+    //   bl 0b
+    //   add x25, #8
+    let instruction_words = &[
+        0x14000003, 0xd2800059, 0xd65f03c0, 0xd2800039, 0x97fffffd, 0x91002339,
+    ];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x25", const_(42, 64))],
+        Memory::new(Endian::Big),
+        "x25",
+    );
+    assert_eq!(result.value_u64().unwrap(), 10);
+}
+
 // TODO: rest of the instructions

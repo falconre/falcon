@@ -87,7 +87,11 @@ fn translate_block(
         let mut instruction_graph = ControlFlowGraph::new();
         match instruction.op() {
             bad64::Op::ADD => semantics::add(&mut instruction_graph, &instruction),
+            bad64::Op::B => semantics::b(&mut instruction_graph, &instruction),
+            bad64::Op::BL => semantics::bl(&mut instruction_graph, &instruction),
+            bad64::Op::MOV => semantics::mov(&mut instruction_graph, &instruction),
             bad64::Op::NOP => semantics::nop(&mut instruction_graph, &instruction),
+            bad64::Op::RET => semantics::ret(&mut instruction_graph, &instruction),
             bad64::Op::ABS
             | bad64::Op::ADC
             | bad64::Op::ADCLB
@@ -132,7 +136,6 @@ fn translate_block(
             | bad64::Op::AUTIZA
             | bad64::Op::AUTIZB
             | bad64::Op::AXFLAG
-            | bad64::Op::B
             | bad64::Op::BCAX
             | bad64::Op::BDEP
             | bad64::Op::BEXT
@@ -154,7 +157,6 @@ fn translate_block(
             | bad64::Op::BICS
             | bad64::Op::BIF
             | bad64::Op::BIT
-            | bad64::Op::BL
             | bad64::Op::BLR
             | bad64::Op::BLRAA
             | bad64::Op::BLRAAZ
@@ -658,7 +660,6 @@ fn translate_block(
             | bad64::Op::MLA
             | bad64::Op::MLS
             | bad64::Op::MNEG
-            | bad64::Op::MOV
             | bad64::Op::MOVI
             | bad64::Op::MOVK
             | bad64::Op::MOVN
@@ -734,7 +735,6 @@ fn translate_block(
             | bad64::Op::RDFFR
             | bad64::Op::RDFFRS
             | bad64::Op::RDVL
-            | bad64::Op::RET
             | bad64::Op::RETAA
             | bad64::Op::RETAB
             | bad64::Op::REV
@@ -1254,7 +1254,8 @@ fn translate_block(
                     )
                 } else {
                     Err(format!(
-                        "Unhandled instruction {:#x} ({}) at {:#x}",
+                        "Unhandled op {:?} of instruction {:#x} ({}) at {:#x}",
+                        instruction.op(),
                         instruction.opcode(),
                         instruction,
                         instruction.address()
