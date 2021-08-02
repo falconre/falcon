@@ -86,12 +86,33 @@ fn translate_block(
 
         let mut instruction_graph = ControlFlowGraph::new();
         match instruction.op() {
+            // Terminating
+            bad64::Op::B => {
+                semantics::b(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                )?;
+                break;
+            }
+            bad64::Op::RET => {
+                semantics::ret(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                )?;
+                break;
+            }
+            // TODO: handle other terminating instructions like B_??, ERET?, CBNZ,
+            //       CBZ, TBNZ, TBZ
+
+            // Non-terminating
             bad64::Op::ADD => semantics::add(&mut instruction_graph, &instruction),
-            bad64::Op::B => semantics::b(&mut instruction_graph, &instruction),
             bad64::Op::BL => semantics::bl(&mut instruction_graph, &instruction),
             bad64::Op::MOV => semantics::mov(&mut instruction_graph, &instruction),
             bad64::Op::NOP => semantics::nop(&mut instruction_graph, &instruction),
-            bad64::Op::RET => semantics::ret(&mut instruction_graph, &instruction),
             bad64::Op::ABS
             | bad64::Op::ADC
             | bad64::Op::ADCLB
@@ -1265,13 +1286,8 @@ fn translate_block(
             }
         }?;
 
-        match instruction.op() {
-            // TODO: handle branching instructions
-            _ => {
-                instruction_graph.set_address(Some(instruction.address()));
-                block_graphs.push((instruction.address(), instruction_graph));
-            }
-        }
+        instruction_graph.set_address(Some(instruction.address()));
+        block_graphs.push((instruction.address(), instruction_graph));
 
         length += 4;
         offset += 4;

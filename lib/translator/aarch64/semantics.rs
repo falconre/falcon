@@ -410,22 +410,32 @@ pub(super) fn add(
 }
 
 pub(super) fn b(
-    control_flow_graph: &mut il::ControlFlowGraph,
+    mut instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
 ) -> Result<()> {
+    let dst;
+
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = instruction_graph.new_block()?;
 
         // get operands
-        let dst = operand_load(block, &instruction.operands()[0], 64)?;
-
-        block.branch(dst);
+        dst = operand_load(block, &instruction.operands()[0], 64)?
+            .get_constant()
+            .expect("branch target is not constant")
+            .value_u64()
+            .expect("branch target does not fit in 64 bits");
 
         block.index()
     };
+    instruction_graph.set_entry(block_index)?;
+    instruction_graph.set_exit(block_index)?;
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    instruction_graph.set_address(Some(instruction.address()));
+    block_graphs.push((instruction.address(), instruction_graph));
+
+    successors.push((dst, None));
 
     Ok(())
 }
@@ -497,19 +507,23 @@ pub(super) fn nop(
 }
 
 pub(super) fn ret(
-    control_flow_graph: &mut il::ControlFlowGraph,
-    _instruction: &bad64::Instruction,
+    mut instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    _successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = instruction_graph.new_block()?;
 
         block.branch(expr!("x30"));
 
         block.index()
     };
+    instruction_graph.set_entry(block_index)?;
+    instruction_graph.set_exit(block_index)?;
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    instruction_graph.set_address(Some(instruction.address()));
+    block_graphs.push((instruction.address(), instruction_graph));
 
     Ok(())
 }
