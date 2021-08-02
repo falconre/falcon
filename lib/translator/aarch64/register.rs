@@ -41,18 +41,7 @@ impl AArch64Register {
     ///
     /// This handles things like `x0`/`w0`.
     pub fn get(&self) -> Result<Expression> {
-        if matches!(
-            self.bad64_reg,
-            Reg::XZR
-                | Reg::WZR
-                | Reg::VZR
-                | Reg::BZR
-                | Reg::HZR
-                | Reg::SZR
-                | Reg::DZR
-                | Reg::QZR
-                | Reg::ZZR
-        ) {
+        if matches!(self.bad64_reg, Reg::XZR | Reg::WZR) {
             Ok(expr_const(0, self.bits))
         } else if self.is_full() {
             Ok(expr_scalar(self.name, self.bits))
@@ -174,7 +163,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "v28", bad64_reg: Reg::V28, bad64_full_reg: Reg::V28, bits: 128 },
     AArch64Register { name: "v29", bad64_reg: Reg::V29, bad64_full_reg: Reg::V29, bits: 128 },
     AArch64Register { name: "v30", bad64_reg: Reg::V30, bad64_full_reg: Reg::V30, bits: 128 },
-    AArch64Register { name: "vzr", bad64_reg: Reg::VZR, bad64_full_reg: Reg::VZR, bits: 128 },
+    AArch64Register { name: "v31", bad64_reg: Reg::VZR, bad64_full_reg: Reg::VZR, bits: 128 },
     AArch64Register { name: "v31", bad64_reg: Reg::V31, bad64_full_reg: Reg::V31, bits: 128 },
     AArch64Register { name: "b0", bad64_reg: Reg::B0, bad64_full_reg: Reg::V0, bits: 8 },
     AArch64Register { name: "b1", bad64_reg: Reg::B1, bad64_full_reg: Reg::V1, bits: 8 },
@@ -207,7 +196,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "b28", bad64_reg: Reg::B28, bad64_full_reg: Reg::V28, bits: 8 },
     AArch64Register { name: "b29", bad64_reg: Reg::B29, bad64_full_reg: Reg::V29, bits: 8 },
     AArch64Register { name: "b30", bad64_reg: Reg::B30, bad64_full_reg: Reg::V30, bits: 8 },
-    AArch64Register { name: "bzr", bad64_reg: Reg::BZR, bad64_full_reg: Reg::VZR, bits: 8 },
+    AArch64Register { name: "b31", bad64_reg: Reg::BZR, bad64_full_reg: Reg::VZR, bits: 8 },
     AArch64Register { name: "b31", bad64_reg: Reg::B31, bad64_full_reg: Reg::V31, bits: 8 },
     AArch64Register { name: "h0", bad64_reg: Reg::H0, bad64_full_reg: Reg::V0, bits: 16 },
     AArch64Register { name: "h1", bad64_reg: Reg::H1, bad64_full_reg: Reg::V1, bits: 16 },
@@ -240,7 +229,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "h28", bad64_reg: Reg::H28, bad64_full_reg: Reg::V28, bits: 16 },
     AArch64Register { name: "h29", bad64_reg: Reg::H29, bad64_full_reg: Reg::V29, bits: 16 },
     AArch64Register { name: "h30", bad64_reg: Reg::H30, bad64_full_reg: Reg::V30, bits: 16 },
-    AArch64Register { name: "hzr", bad64_reg: Reg::HZR, bad64_full_reg: Reg::VZR, bits: 16 },
+    AArch64Register { name: "h31", bad64_reg: Reg::HZR, bad64_full_reg: Reg::VZR, bits: 16 },
     AArch64Register { name: "h31", bad64_reg: Reg::H31, bad64_full_reg: Reg::V31, bits: 16 },
     AArch64Register { name: "s0", bad64_reg: Reg::S0, bad64_full_reg: Reg::V0, bits: 32 },
     AArch64Register { name: "s1", bad64_reg: Reg::S1, bad64_full_reg: Reg::V1, bits: 32 },
@@ -273,7 +262,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "s28", bad64_reg: Reg::S28, bad64_full_reg: Reg::V28, bits: 32 },
     AArch64Register { name: "s29", bad64_reg: Reg::S29, bad64_full_reg: Reg::V29, bits: 32 },
     AArch64Register { name: "s30", bad64_reg: Reg::S30, bad64_full_reg: Reg::V30, bits: 32 },
-    AArch64Register { name: "szr", bad64_reg: Reg::SZR, bad64_full_reg: Reg::VZR, bits: 32 },
+    AArch64Register { name: "s31", bad64_reg: Reg::SZR, bad64_full_reg: Reg::VZR, bits: 32 },
     AArch64Register { name: "s31", bad64_reg: Reg::S31, bad64_full_reg: Reg::V31, bits: 32 },
     AArch64Register { name: "d0", bad64_reg: Reg::D0, bad64_full_reg: Reg::V0, bits: 64 },
     AArch64Register { name: "d1", bad64_reg: Reg::D1, bad64_full_reg: Reg::V1, bits: 64 },
@@ -306,7 +295,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "d28", bad64_reg: Reg::D28, bad64_full_reg: Reg::V28, bits: 64 },
     AArch64Register { name: "d29", bad64_reg: Reg::D29, bad64_full_reg: Reg::V29, bits: 64 },
     AArch64Register { name: "d30", bad64_reg: Reg::D30, bad64_full_reg: Reg::V30, bits: 64 },
-    AArch64Register { name: "dzr", bad64_reg: Reg::DZR, bad64_full_reg: Reg::VZR, bits: 64 },
+    AArch64Register { name: "d31", bad64_reg: Reg::DZR, bad64_full_reg: Reg::VZR, bits: 64 },
     AArch64Register { name: "d31", bad64_reg: Reg::D31, bad64_full_reg: Reg::V31, bits: 64 },
     AArch64Register { name: "q0", bad64_reg: Reg::Q0, bad64_full_reg: Reg::V0, bits: 128 },
     AArch64Register { name: "q1", bad64_reg: Reg::Q1, bad64_full_reg: Reg::V1, bits: 128 },
@@ -339,7 +328,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "q28", bad64_reg: Reg::Q28, bad64_full_reg: Reg::V28, bits: 128 },
     AArch64Register { name: "q29", bad64_reg: Reg::Q29, bad64_full_reg: Reg::V29, bits: 128 },
     AArch64Register { name: "q30", bad64_reg: Reg::Q30, bad64_full_reg: Reg::V30, bits: 128 },
-    AArch64Register { name: "qzr", bad64_reg: Reg::QZR, bad64_full_reg: Reg::VZR, bits: 128 },
+    AArch64Register { name: "q31", bad64_reg: Reg::QZR, bad64_full_reg: Reg::VZR, bits: 128 },
     AArch64Register { name: "q31", bad64_reg: Reg::Q31, bad64_full_reg: Reg::V31, bits: 128 },
     // FIXME: SVE registers have an implementation-defined width
     AArch64Register { name: "z0", bad64_reg: Reg::Z0, bad64_full_reg: Reg::Z0, bits: 128 },
@@ -373,7 +362,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "z28", bad64_reg: Reg::Z28, bad64_full_reg: Reg::Z28, bits: 128 },
     AArch64Register { name: "z29", bad64_reg: Reg::Z29, bad64_full_reg: Reg::Z29, bits: 128 },
     AArch64Register { name: "z30", bad64_reg: Reg::Z30, bad64_full_reg: Reg::Z30, bits: 128 },
-    AArch64Register { name: "zzr", bad64_reg: Reg::ZZR, bad64_full_reg: Reg::ZZR, bits: 128 },
+    AArch64Register { name: "z31", bad64_reg: Reg::ZZR, bad64_full_reg: Reg::ZZR, bits: 128 },
     AArch64Register { name: "z31", bad64_reg: Reg::Z31, bad64_full_reg: Reg::Z31, bits: 128 },
     AArch64Register { name: "p0", bad64_reg: Reg::P0, bad64_full_reg: Reg::P0, bits: 16 },
     AArch64Register { name: "p1", bad64_reg: Reg::P1, bad64_full_reg: Reg::P1, bits: 16 },
