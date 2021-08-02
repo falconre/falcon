@@ -56,6 +56,19 @@ fn operand_load(
     // TODO: Consider `unsupported_are_intrinsics`
     match opr {
         bad64::Operand::Reg { reg, arrspec: None } => get_register(*reg)?.get(),
+        bad64::Operand::Reg {
+            reg,
+            arrspec: Some(arrspec),
+        } => {
+            let reg = get_register(*reg)?;
+            let reg_value = reg.get()?;
+            assert_eq!(reg.bits(), 128);
+
+            let (shift, width) = arr_spec_offset_width(&arrspec);
+
+            let value = il::Expression::shr(reg_value, il::expr_const(shift as u64, reg.bits()))?;
+            Ok(resize_zext(width, value))
+        }
         bad64::Operand::Imm32 { imm, shift } => maybe_shift(
             il::expr_const(imm_to_u64(imm) as u32 as u64, 32),
             shift.as_ref(),
@@ -72,9 +85,6 @@ fn operand_load(
         bad64::Operand::Label(imm) => Ok(il::expr_const(imm_to_u64(imm), 64)),
         bad64::Operand::FImm32(_)
         | bad64::Operand::QualReg { .. }
-        | bad64::Operand::Reg {
-            arrspec: Some(_), ..
-        }
         | bad64::Operand::MultiReg { .. }
         | bad64::Operand::SysReg(_)
         | bad64::Operand::MemReg(_)
@@ -94,6 +104,63 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
     // TODO: Consider `unsupported_are_intrinsics`
     match opr {
         bad64::Operand::Reg { reg, arrspec: None } => get_register(*reg)?.set(block, value),
+        bad64::Operand::Reg {
+            reg,
+            arrspec: Some(arrspec),
+        } => {
+            let reg = get_register(*reg)?;
+            assert_eq!(reg.bits(), 128);
+
+            let (shift, width) = arr_spec_offset_width(&arrspec);
+            let is_indexed = is_arr_spec_indexed(&arrspec);
+
+            if is_indexed {
+                // Replace only the selected element. First mask the unselected
+                // bits of the old value...
+                let masked_lower = if shift > 0 {
+                    assert!(shift < reg.bits());
+                    Some(il::Expression::zext(
+                        reg.bits(),
+                        il::Expression::trun(shift, reg.get()?)?,
+                    )?)
+                } else {
+                    None
+                };
+                let masked_upper = if shift + width < reg.bits() {
+                    Some(il::Expression::shl(
+                        il::Expression::shr(
+                            reg.get()?,
+                            il::expr_const((shift + width) as u64, reg.bits()),
+                        )?,
+                        il::expr_const((shift + width) as u64, reg.bits()),
+                    )?)
+                } else {
+                    None
+                };
+                let masked = match (masked_lower, masked_upper) {
+                    (Some(x), Some(y)) => il::Expression::or(x, y)?,
+                    (Some(x), None) | (None, Some(x)) => x,
+                    (None, None) => return reg.set(block, resize_zext(reg.bits(), value)),
+                };
+
+                // Shift the new value into the desired place...
+                let replacement = if value.bits() <= width {
+                    value
+                } else {
+                    il::Expression::trun(width, value)?
+                };
+                let replacement = il::Expression::shl(
+                    resize_zext(reg.bits(), replacement),
+                    il::expr_const(shift as u64, reg.bits()),
+                )?;
+
+                // And construct the final value.
+                reg.set(block, il::Expression::or(masked, replacement)?)
+            } else {
+                // Replace the whole with zero extension
+                reg.set(block, resize_zext(reg.bits(), value))
+            }
+        }
         bad64::Operand::ShiftReg { .. }
         | bad64::Operand::Imm32 { .. }
         | bad64::Operand::Imm64 { .. }
@@ -101,9 +168,6 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
             bail!("Can't store to operand `{}`", opr)
         }
         bad64::Operand::QualReg { .. }
-        | bad64::Operand::Reg {
-            arrspec: Some(_), ..
-        }
         | bad64::Operand::MultiReg { .. }
         | bad64::Operand::SysReg(_)
         | bad64::Operand::MemReg(_)
@@ -123,6 +187,24 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
 fn operand_storing_width(opr: &bad64::Operand) -> Result<usize> {
     match opr {
         bad64::Operand::Reg { reg, arrspec: None } => Ok(get_register(*reg)?.bits()),
+        bad64::Operand::Reg {
+            reg,
+            arrspec: Some(arr_spec),
+        } => match arr_spec {
+            bad64::ArrSpec::Full(_) => Ok(get_register(*reg)?.bits()),
+            bad64::ArrSpec::TwoDoubles(_) | bad64::ArrSpec::OneDouble(_) => Ok(64),
+            bad64::ArrSpec::FourSingles(_)
+            | bad64::ArrSpec::TwoSingles(_)
+            | bad64::ArrSpec::OneSingle(_) => Ok(32),
+            bad64::ArrSpec::EightHalves(_)
+            | bad64::ArrSpec::FourHalves(_)
+            | bad64::ArrSpec::TwoHalves(_)
+            | bad64::ArrSpec::OneHalf(_) => Ok(16),
+            bad64::ArrSpec::SixteenBytes(_)
+            | bad64::ArrSpec::EightBytes(_)
+            | bad64::ArrSpec::FourBytes(_)
+            | bad64::ArrSpec::OneByte(_) => Ok(8),
+        },
         bad64::Operand::ShiftReg { .. }
         | bad64::Operand::Imm32 { .. }
         | bad64::Operand::Imm64 { .. }
@@ -130,9 +212,6 @@ fn operand_storing_width(opr: &bad64::Operand) -> Result<usize> {
             bail!("Can't store to operand `{}`", opr)
         }
         bad64::Operand::QualReg { .. }
-        | bad64::Operand::Reg {
-            arrspec: Some(_), ..
-        }
         | bad64::Operand::MultiReg { .. }
         | bad64::Operand::SysReg(_)
         | bad64::Operand::MemReg(_)
@@ -146,6 +225,71 @@ fn operand_storing_width(opr: &bad64::Operand) -> Result<usize> {
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
         | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+    }
+}
+
+fn is_arr_spec_indexed(bad64_arrspec: &bad64::ArrSpec) -> bool {
+    match bad64_arrspec {
+        bad64::ArrSpec::Full(i)
+        | bad64::ArrSpec::TwoDoubles(i)
+        | bad64::ArrSpec::FourSingles(i)
+        | bad64::ArrSpec::EightHalves(i)
+        | bad64::ArrSpec::SixteenBytes(i)
+        | bad64::ArrSpec::OneDouble(i)
+        | bad64::ArrSpec::TwoSingles(i)
+        | bad64::ArrSpec::FourHalves(i)
+        | bad64::ArrSpec::EightBytes(i)
+        | bad64::ArrSpec::OneSingle(i)
+        | bad64::ArrSpec::TwoHalves(i)
+        | bad64::ArrSpec::FourBytes(i)
+        | bad64::ArrSpec::OneHalf(i)
+        | bad64::ArrSpec::OneByte(i) => i.is_some(),
+    }
+}
+
+fn arr_spec_offset_width(bad64_arrspec: &bad64::ArrSpec) -> (usize, usize) {
+    match *bad64_arrspec {
+        bad64::ArrSpec::Full(_)
+        | bad64::ArrSpec::TwoDoubles(None)
+        | bad64::ArrSpec::FourSingles(None)
+        | bad64::ArrSpec::EightHalves(None)
+        | bad64::ArrSpec::SixteenBytes(None) => (0, 128),
+
+        bad64::ArrSpec::OneDouble(None)
+        | bad64::ArrSpec::TwoSingles(None)
+        | bad64::ArrSpec::FourHalves(None)
+        | bad64::ArrSpec::EightBytes(None) => (0, 64),
+
+        bad64::ArrSpec::OneSingle(None)
+        | bad64::ArrSpec::TwoHalves(None)
+        | bad64::ArrSpec::FourBytes(None) => (0, 32),
+
+        bad64::ArrSpec::OneHalf(None) => (0, 16),
+
+        bad64::ArrSpec::OneByte(None) => (0, 8),
+
+        bad64::ArrSpec::TwoDoubles(Some(i)) | bad64::ArrSpec::OneDouble(Some(i)) => {
+            (i as usize * 64, 64)
+        }
+        bad64::ArrSpec::FourSingles(Some(i))
+        | bad64::ArrSpec::TwoSingles(Some(i))
+        | bad64::ArrSpec::OneSingle(Some(i)) => (i as usize * 32, 32),
+        bad64::ArrSpec::EightHalves(Some(i))
+        | bad64::ArrSpec::FourHalves(Some(i))
+        | bad64::ArrSpec::TwoHalves(Some(i))
+        | bad64::ArrSpec::OneHalf(Some(i)) => (i as usize * 16, 16),
+        bad64::ArrSpec::SixteenBytes(Some(i))
+        | bad64::ArrSpec::EightBytes(Some(i))
+        | bad64::ArrSpec::FourBytes(Some(i))
+        | bad64::ArrSpec::OneByte(Some(i)) => (i as usize * 8, 8),
+    }
+}
+
+fn resize_zext(bits: usize, value: il::Expression) -> il::Expression {
+    match bits.cmp(&value.bits()) {
+        std::cmp::Ordering::Equal => value,
+        std::cmp::Ordering::Greater => il::Expression::zext(bits, value).unwrap(),
+        std::cmp::Ordering::Less => il::Expression::trun(bits, value).unwrap(),
     }
 }
 

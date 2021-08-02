@@ -409,4 +409,23 @@ fn bl_ret() {
     assert_eq!(result.value_u64().unwrap(), 10);
 }
 
+#[test]
+fn mov_velem() {
+    // mov v31.d[0], x0
+    // mov v31.b[6], v31.b[2]
+    // mov w29, v31.s[1]
+    let instruction_words = &[0x4e081c1f, 0x6e0d17ff, 0x0e0c3ffd];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0x62d8ced391ba44f3, 64)),
+            ("v31", const_(0x51aad564c6b04cbd, 128)),
+        ],
+        Memory::new(Endian::Big),
+        "x29",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x0000000062baced3);
+}
+
 // TODO: rest of the instructions
