@@ -113,6 +113,7 @@ fn translate_block(
             bad64::Op::BL => semantics::bl(&mut instruction_graph, &instruction),
             bad64::Op::MOV => semantics::mov(&mut instruction_graph, &instruction),
             bad64::Op::NOP => semantics::nop(&mut instruction_graph, &instruction),
+            bad64::Op::SUB => semantics::sub(&mut instruction_graph, &instruction),
             bad64::Op::ABS
             | bad64::Op::ADC
             | bad64::Op::ADCLB
@@ -1075,7 +1076,6 @@ fn translate_block(
             | bad64::Op::STZ2G
             | bad64::Op::STZG
             | bad64::Op::STZGM
-            | bad64::Op::SUB
             | bad64::Op::SUBG
             | bad64::Op::SUBHN
             | bad64::Op::SUBHN2

@@ -428,4 +428,22 @@ fn mov_velem() {
     assert_eq!(result.value_u64().unwrap(), 0x0000000062baced3);
 }
 
+#[test]
+fn sub_xn() {
+    // sub x0, x1, x2
+    let instruction_words = &[0xcb020020];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x0", const_(0x67eccf9f6c8e4aee, 64)),
+            ("x1", const_(0x297feae8ee50966c, 64)),
+            ("x2", const_(0x968855acc9024e5c, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x92f7953c254e4810);
+}
+
 // TODO: rest of the instructions

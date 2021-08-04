@@ -528,4 +528,31 @@ pub(super) fn ret(
     Ok(())
 }
 
-// TODO: Rest of the instructions
+pub(super) fn sub(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let lhs = operand_load(block, &instruction.operands()[1], bits)?;
+        let rhs = operand_load(block, &instruction.operands()[2], bits)?;
+
+        // perform operation
+        let src = il::Expression::sub(lhs, rhs)?;
+
+        // store result
+        operand_store(block, &instruction.operands()[0], src)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+// TODO: Rest of the owl
