@@ -9,7 +9,8 @@ use crate::RC;
 #[macro_use]
 macro_rules! backing {
     ($e: expr) => {{
-        let v: Vec<u8> = $e.to_vec();
+        let words: &[u32] = $e;
+        let v: Vec<u8> = words.iter().map(|w| w.to_le_bytes()).flatten().collect();
         let mut b = memory::backing::Memory::new(Endian::Big);
         b.set_memory(0, v, memory::MemoryPermissions::EXECUTE);
         b
@@ -388,25 +389,38 @@ fn b() {
 
 #[test]
 fn bl_ret() {
-    //   b 1f
-    // 0:
-    //   mov x25, #2
-    //   ret
-    // 1:
-    //   mov x25, #1
-    //   bl 0b
-    //   add x25, #8
-    let instruction_words = &[
-        0x14000003, 0xd2800059, 0xd65f03c0, 0xd2800039, 0x97fffffd, 0x91002339,
-    ];
+    //    mov x25, #1
+    //    bl 0f
+    //    add x25, x25, #8
+    //    nop
+    //  0:
+    //    mov x25, #2
+    //    ret
+    let instruction_words =
+        backing!(&[0xd2800039, 0x94000003, 0x91002339, 0xd503201f, 0xd2800059, 0xd65f03c0]);
 
-    let result = get_scalar(
-        instruction_words,
-        vec![("x25", const_(42, 64))],
-        Memory::new(Endian::Big),
-        "x25",
+    let driver = init_driver_function(instruction_words, vec![("x25", const_(42, 64))]);
+
+    let driver = step_to(driver, 0xc);
+
+    assert_eq!(
+        driver
+            .state()
+            .get_scalar("x25")
+            .unwrap()
+            .value_u64()
+            .unwrap(),
+        10
     );
-    assert_eq!(result.value_u64().unwrap(), 10);
+    assert_eq!(
+        driver
+            .state()
+            .get_scalar("x30")
+            .unwrap()
+            .value_u64()
+            .unwrap(),
+        8
+    );
 }
 
 #[test]
