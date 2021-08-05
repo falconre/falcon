@@ -8,6 +8,18 @@ macro_rules! scalar {
         // the link register
         il::scalar("x30", 64)
     };
+    ("n") => {
+        il::scalar("n", 1)
+    };
+    ("z") => {
+        il::scalar("z", 1)
+    };
+    ("c") => {
+        il::scalar("c", 1)
+    };
+    ("v") => {
+        il::scalar("v", 1)
+    };
     ($x:literal) => {
         compile_error!(concat!($x, " is not a well-known register"))
     };
@@ -500,6 +512,50 @@ pub(super) fn add(
 
         // store result
         operand_store(block, &instruction.operands()[0], src)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn adds(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let lhs = operand_load(block, &instruction.operands()[1], bits)?;
+        let rhs = operand_load(block, &instruction.operands()[2], bits)?;
+
+        // perform operation
+        let result = il::Expression::add(lhs.clone(), rhs.clone())?;
+
+        let unsigned_sum = il::Expression::add(
+            il::Expression::zext(72, lhs.clone())?,
+            il::Expression::zext(72, rhs.clone())?,
+        )?;
+        let signed_sum = il::Expression::add(
+            il::Expression::sext(72, lhs)?,
+            il::Expression::sext(72, rhs)?,
+        )?;
+        let n = il::Expression::cmplts(result.clone(), il::expr_const(0, bits))?;
+        let z = il::Expression::cmpeq(result.clone(), il::expr_const(0, bits))?;
+        let c = il::Expression::cmpneq(il::Expression::zext(72, result.clone())?, unsigned_sum)?;
+        let v = il::Expression::cmpneq(il::Expression::sext(72, result.clone())?, signed_sum)?;
+
+        // store result
+        operand_store(block, &instruction.operands()[0], result)?;
+        block.assign(scalar!("n"), n);
+        block.assign(scalar!("z"), z);
+        block.assign(scalar!("c"), c);
+        block.assign(scalar!("v"), v);
 
         block.index()
     };
@@ -1069,6 +1125,50 @@ pub(super) fn sub(
 
         // store result
         operand_store(block, &instruction.operands()[0], src)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn subs(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let lhs = operand_load(block, &instruction.operands()[1], bits)?;
+        let rhs = operand_load(block, &instruction.operands()[2], bits)?;
+
+        // perform operation
+        let result = il::Expression::sub(lhs.clone(), rhs.clone())?;
+
+        let unsigned_sum = il::Expression::sub(
+            il::Expression::zext(72, lhs.clone())?,
+            il::Expression::zext(72, rhs.clone())?,
+        )?;
+        let signed_sum = il::Expression::sub(
+            il::Expression::sext(72, lhs)?,
+            il::Expression::sext(72, rhs)?,
+        )?;
+        let n = il::Expression::cmplts(result.clone(), il::expr_const(0, bits))?;
+        let z = il::Expression::cmpeq(result.clone(), il::expr_const(0, bits))?;
+        let c = il::Expression::cmpneq(il::Expression::zext(72, result.clone())?, unsigned_sum)?;
+        let v = il::Expression::cmpneq(il::Expression::sext(72, result.clone())?, signed_sum)?;
+
+        // store result
+        operand_store(block, &instruction.operands()[0], result)?;
+        block.assign(scalar!("n"), n);
+        block.assign(scalar!("z"), z);
+        block.assign(scalar!("c"), c);
+        block.assign(scalar!("v"), v);
 
         block.index()
     };

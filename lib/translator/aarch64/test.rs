@@ -380,6 +380,69 @@ fn add_xn_uxtb() {
 }
 
 #[test]
+fn adds_xn() {
+    // adds x0, x1, x2
+    let instruction_words = &[0xab020020];
+
+    for ((lhs, rhs), (n, z, c, v)) in [
+        ((0xffffffffffffffffu64, 0x0000000000000001u64), (0, 1, 1, 0)),
+        ((0x0000000000000000, 0x0000000000000000), (0, 1, 0, 0)),
+        ((0xcf5f3a38fad546ee, 0x6bdcb93bd7ac49a5), (0, 0, 1, 0)),
+        ((0x0000000000000001, 0x0000000000000002), (0, 0, 0, 0)),
+        ((0x7fffffffffffffff, 0x0000000000000001), (1, 0, 0, 1)),
+    ] {
+        dbg!((lhs, rhs), (n, z, c, v));
+
+        let sum = lhs.wrapping_add(rhs);
+        assert_eq!(n, (0 > sum as i64) as u64);
+        assert_eq!(z, (sum == 0) as u64);
+        assert_eq!(c, lhs.checked_add(rhs).is_none() as u64);
+        assert_eq!(v, (lhs as i64).checked_add(rhs as i64).is_none() as u64);
+
+        // TODO: can we somehow get multiple values by one call?
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "x0",
+        );
+        assert_eq!(result.value_u64().unwrap(), sum);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "n",
+        );
+        assert_eq!(result.value_u64().unwrap(), n);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "z",
+        );
+        assert_eq!(result.value_u64().unwrap(), z);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "c",
+        );
+        assert_eq!(result.value_u64().unwrap(), c);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "v",
+        );
+        assert_eq!(result.value_u64().unwrap(), v);
+    }
+}
+
+#[test]
 fn ldp_xn_xn() {
     let mut memory = Memory::new(Endian::Big);
     memory
@@ -1079,6 +1142,68 @@ fn sub_xn() {
         "x0",
     );
     assert_eq!(result.value_u64().unwrap(), 0x92f7953c254e4810);
+}
+
+#[test]
+fn subs_xn() {
+    // subs x0, x1, x2
+    let instruction_words = &[0xeb020020];
+
+    for ((lhs, rhs), (n, z, c, v)) in [
+        ((0xffffffffffffffffu64, 0x0000000000000001u64), (1, 0, 0, 0)),
+        ((0x0000000000000000, 0x0000000000000000), (0, 1, 0, 0)),
+        ((0xcf5f3a38fad546ee, 0x6bdcb93bd7ac49a5), (0, 0, 0, 1)),
+        ((0x0000000000000001, 0x0000000000000002), (1, 0, 1, 0)),
+    ] {
+        dbg!((lhs, rhs), (n, z, c, v));
+
+        let sum = lhs.wrapping_sub(rhs);
+        assert_eq!(n, (0 > sum as i64) as u64);
+        assert_eq!(z, (sum == 0) as u64);
+        assert_eq!(c, lhs.checked_sub(rhs).is_none() as u64);
+        assert_eq!(v, (lhs as i64).checked_sub(rhs as i64).is_none() as u64);
+
+        // TODO: can we somehow get multiple values by one call?
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "x0",
+        );
+        assert_eq!(result.value_u64().unwrap(), sum);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "n",
+        );
+        assert_eq!(result.value_u64().unwrap(), n);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "z",
+        );
+        assert_eq!(result.value_u64().unwrap(), z);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "c",
+        );
+        assert_eq!(result.value_u64().unwrap(), c);
+
+        let result = get_scalar(
+            instruction_words,
+            vec![("x1", const_(lhs, 64)), ("x2", const_(rhs, 64))],
+            Memory::new(Endian::Big),
+            "v",
+        );
+        assert_eq!(result.value_u64().unwrap(), v);
+    }
 }
 
 // TODO: rest of the instructions
