@@ -755,6 +755,25 @@ fn ldrsb_wn_xn() {
 }
 
 #[test]
+fn ldur_xn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300 + 3, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+
+    // ldur x15, [x9, #3]
+    let instruction_words = &[0xf840312f];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xdeadbeef12345678);
+}
+
+#[test]
 fn b() {
     //   b 1f
     //   mov x3, #2
@@ -895,6 +914,24 @@ fn strh_wn_xn() {
 
     let memory = driver.state().memory();
     assert_eq!(memval(memory, 0xeed85f2300, 64), 0x56780000_00000000);
+}
+
+#[test]
+fn stur_wn_xn() {
+    // stur xzr, [x9, #3]; stur w15, [x9, #3]; nop
+    let instruction_words = &[0xf800313f, 0xb800312f, 0xd503201f];
+
+    let driver = init_driver_function(
+        backing!(instruction_words),
+        vec![
+            ("x15", const_(0xdeadbeef12345678, 64)),
+            ("x9", const_(0xeed85f2300, 64)),
+        ],
+    );
+    let driver = step_to(driver, 0x8);
+
+    let memory = driver.state().memory();
+    assert_eq!(memval(memory, 0xeed85f2300 + 3, 64), 0x12345678_00000000);
 }
 
 #[test]

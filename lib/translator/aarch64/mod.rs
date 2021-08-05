@@ -117,11 +117,20 @@ fn translate_block(
             bad64::Op::LDRSW => semantics::ldrsw(&mut instruction_graph, &instruction),
             bad64::Op::LDRSB => semantics::ldrsb(&mut instruction_graph, &instruction),
             bad64::Op::LDRSH => semantics::ldrsh(&mut instruction_graph, &instruction),
+            bad64::Op::LDUR => semantics::ldr(&mut instruction_graph, &instruction),
+            bad64::Op::LDURB => semantics::ldrb(&mut instruction_graph, &instruction),
+            bad64::Op::LDURH => semantics::ldrh(&mut instruction_graph, &instruction),
+            bad64::Op::LDURSW => semantics::ldrsw(&mut instruction_graph, &instruction),
+            bad64::Op::LDURSB => semantics::ldrsb(&mut instruction_graph, &instruction),
+            bad64::Op::LDURSH => semantics::ldrsh(&mut instruction_graph, &instruction),
             bad64::Op::MOV => semantics::mov(&mut instruction_graph, &instruction),
             bad64::Op::NOP => semantics::nop(&mut instruction_graph, &instruction),
             bad64::Op::STR => semantics::str(&mut instruction_graph, &instruction),
             bad64::Op::STRB => semantics::strb(&mut instruction_graph, &instruction),
             bad64::Op::STRH => semantics::strh(&mut instruction_graph, &instruction),
+            bad64::Op::STUR => semantics::str(&mut instruction_graph, &instruction),
+            bad64::Op::STURB => semantics::strb(&mut instruction_graph, &instruction),
+            bad64::Op::STURH => semantics::strh(&mut instruction_graph, &instruction),
             bad64::Op::SUB => semantics::sub(&mut instruction_graph, &instruction),
             bad64::Op::ABS
             | bad64::Op::ADC
@@ -663,12 +672,6 @@ fn translate_block(
             | bad64::Op::LDUMINL
             | bad64::Op::LDUMINLB
             | bad64::Op::LDUMINLH
-            | bad64::Op::LDUR
-            | bad64::Op::LDURB
-            | bad64::Op::LDURH
-            | bad64::Op::LDURSB
-            | bad64::Op::LDURSH
-            | bad64::Op::LDURSW
             | bad64::Op::LDXP
             | bad64::Op::LDXR
             | bad64::Op::LDXRB
@@ -1066,9 +1069,6 @@ fn translate_block(
             | bad64::Op::STUMINL
             | bad64::Op::STUMINLB
             | bad64::Op::STUMINLH
-            | bad64::Op::STUR
-            | bad64::Op::STURB
-            | bad64::Op::STURH
             | bad64::Op::STXP
             | bad64::Op::STXR
             | bad64::Op::STXRB
