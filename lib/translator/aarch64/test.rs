@@ -660,6 +660,101 @@ fn ldr_xn_xn_wn_uxtw_shift() {
 }
 
 #[test]
+fn ldrsw_xn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+
+    // ldrsw x15, [x9]
+    let instruction_words = &[0xb980012f];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffffffdeadbeef);
+}
+
+#[test]
+fn ldrsh_xn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+
+    // ldrsh x15, [x9]
+    let instruction_words = &[0x7980012f];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffffffffffdead);
+}
+
+#[test]
+fn ldrsb_xn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+
+    // ldrsb x15, [x9]
+    let instruction_words = &[0x3980012f];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffffffffffffde);
+}
+
+#[test]
+fn ldrsh_wn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+
+    // ldrsh w15, [x9]
+    let instruction_words = &[0x79c0012f];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffdead);
+}
+
+#[test]
+fn ldrsb_wn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+
+    // ldrsb w15, [x9]
+    let instruction_words = &[0x39c0012f];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffffde);
+}
+
+#[test]
 fn b() {
     //   b 1f
     //   mov x3, #2

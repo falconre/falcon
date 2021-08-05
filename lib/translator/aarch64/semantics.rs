@@ -670,6 +670,103 @@ pub(super) fn ldrh(
     Ok(())
 }
 
+pub(super) fn ldrsb(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        let temp = temp0(instruction, 8);
+        block.load(temp.clone(), address);
+
+        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp))?;
+
+        // store result
+        operand_store(block, &instruction.operands()[0], extended)?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn ldrsh(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        let temp = temp0(instruction, 16);
+        block.load(temp.clone(), address);
+
+        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp))?;
+
+        // store result
+        operand_store(block, &instruction.operands()[0], extended)?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn ldrsw(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        assert_eq!(bits, 64);
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        let temp = temp0(instruction, 32);
+        block.load(temp.clone(), address);
+
+        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp))?;
+
+        // store result
+        operand_store(block, &instruction.operands()[0], extended)?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
 pub(super) fn mov(
     control_flow_graph: &mut il::ControlFlowGraph,
     instruction: &bad64::Instruction,
