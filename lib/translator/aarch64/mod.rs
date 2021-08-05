@@ -96,6 +96,15 @@ fn translate_block(
                 )?;
                 break;
             }
+            bad64::Op::BR => {
+                semantics::br(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                )?;
+                break;
+            }
             bad64::Op::RET => {
                 semantics::ret(
                     instruction_graph,
@@ -112,6 +121,7 @@ fn translate_block(
             bad64::Op::ADD => semantics::add(&mut instruction_graph, &instruction),
             bad64::Op::ADDS => semantics::adds(&mut instruction_graph, &instruction),
             bad64::Op::BL => semantics::bl(&mut instruction_graph, &instruction),
+            bad64::Op::BLR => semantics::blr(&mut instruction_graph, &instruction),
             bad64::Op::LDAR => semantics::ldar(&mut instruction_graph, &instruction),
             bad64::Op::LDARB => semantics::ldarb(&mut instruction_graph, &instruction),
             bad64::Op::LDARH => semantics::ldarh(&mut instruction_graph, &instruction),
@@ -227,12 +237,10 @@ fn translate_block(
             | bad64::Op::BICS
             | bad64::Op::BIF
             | bad64::Op::BIT
-            | bad64::Op::BLR
             | bad64::Op::BLRAA
             | bad64::Op::BLRAAZ
             | bad64::Op::BLRAB
             | bad64::Op::BLRABZ
-            | bad64::Op::BR
             | bad64::Op::BRAA
             | bad64::Op::BRAAZ
             | bad64::Op::BRAB

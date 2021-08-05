@@ -979,6 +979,53 @@ fn bl_ret() {
 }
 
 #[test]
+fn blr() {
+    //   blr x1
+    //   mov x3, #2
+    // 1:
+    //   add x3, x3, #4
+    let instruction_words = &[0xd63f0020, 0xd2800043, 0x91001063];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![
+            ("x1", const_(8, 64)),
+            ("x3", const_(1, 64)),
+            ("x30", const_(4, 64)),
+        ],
+        Memory::new(Endian::Big),
+        "x3",
+    );
+    assert_eq!(result.value_u64().unwrap(), 5);
+}
+
+#[test]
+fn br() {
+    //   br x1
+    //   mov x3, #2
+    // 1:
+    //   add x3, x3, #4
+    //   nop
+    let instruction_words = &[0xd61f0020, 0xd2800043, 0x91001063, 0xd503201f];
+
+    let driver = init_driver_function(
+        backing!(instruction_words),
+        vec![("x1", const_(8, 64)), ("x3", const_(1, 64))],
+    );
+    let driver = step_to(driver, 0xc);
+
+    assert_eq!(
+        driver
+            .state()
+            .get_scalar("x3")
+            .unwrap()
+            .value_u64()
+            .unwrap(),
+        5
+    );
+}
+
+#[test]
 fn mov_velem() {
     // mov v31.d[0], x0
     // mov v31.b[6], v31.b[2]

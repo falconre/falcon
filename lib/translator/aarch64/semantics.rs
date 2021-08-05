@@ -597,6 +597,31 @@ pub(super) fn b(
     Ok(())
 }
 
+pub(super) fn br(
+    mut instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    _successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = instruction_graph.new_block()?;
+
+        // get operands
+        let dst = operand_load(block, &instruction.operands()[0], 64)?;
+
+        block.branch(dst);
+
+        block.index()
+    };
+    instruction_graph.set_entry(block_index)?;
+    instruction_graph.set_exit(block_index)?;
+
+    instruction_graph.set_address(Some(instruction.address()));
+    block_graphs.push((instruction.address(), instruction_graph));
+
+    Ok(())
+}
+
 pub(super) fn bl(
     control_flow_graph: &mut il::ControlFlowGraph,
     instruction: &bad64::Instruction,
@@ -621,6 +646,8 @@ pub(super) fn bl(
 
     Ok(())
 }
+
+pub(super) use bl as blr;
 
 fn temp0(instruction: &bad64::Instruction, bits: usize) -> il::Scalar {
     il::Scalar::temp(instruction.address(), bits)
