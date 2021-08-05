@@ -53,13 +53,21 @@ impl AArch64Register {
     /// Sets the value of this register.
     ///
     /// This handles things like `x0`/`w0`.
+    ///
+    /// If `value` is short, it will be zero-extended.
     pub fn set(&self, block: &mut Block, value: Expression) -> Result<()> {
         if self.is_full() {
+            assert!(value.bits() <= self.bits);
+            let value = if value.bits() == self.bits {
+                value
+            } else {
+                Expression::zext(self.bits, value)?
+            };
             block.assign(scalar(self.name, self.bits), value);
             Ok(())
         } else {
             let full_reg = self.get_full()?;
-            full_reg.set(block, Expression::zext(full_reg.bits, value)?)
+            full_reg.set(block, value)
         }
     }
 }

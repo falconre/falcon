@@ -91,6 +91,11 @@ impl Constant {
         }
     }
 
+    /// Get the value of this `Constant` if it is a `u128`.
+    pub(crate) fn value_u128(&self) -> Option<u128> {
+        self.value.to_u128()
+    }
+
     /// Get the value of this `Constant` if it is a `BigUint`.
     pub fn value(&self) -> &BigUint {
         &self.value

@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::il;
-use crate::translator::aarch64::register::get_register;
+use crate::translator::aarch64::register::{get_register, AArch64Register};
 
 /// Get the scalar for a well-known register.
 macro_rules! scalar {
@@ -50,7 +50,7 @@ pub(super) fn unhandled_intrinsic(
 /// Only supports non-memory operands.
 /// `out_bits` is only used for zero/sign-extension modifier.
 fn operand_load(
-    block: &mut il::Block,
+    _block: &mut il::Block,
     opr: &bad64::Operand,
     out_bits: usize,
 ) -> Result<il::Expression> {
@@ -182,6 +182,106 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
         | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+    }
+}
+
+/// Only supports non-memory operands.
+/// `out_bits` is only used for zero/sign-extension modifier.
+fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOperandSideeffect)> {
+    let (address_expr, sideeffect) = match opr {
+        bad64::Operand::MemReg(reg) => (get_register(*reg)?.get()?, MemOperandSideeffect::None),
+        bad64::Operand::MemOffset {
+            reg,
+            offset,
+            mul_vl: false,
+            arrspec: None,
+        } => {
+            let reg = get_register(*reg)?;
+            let offset = il::expr_const(imm_to_u64(offset), 64);
+            let indexed_address = il::Expression::add(reg.clone().get()?, offset)?;
+            (indexed_address, MemOperandSideeffect::None)
+        }
+        bad64::Operand::MemPreIdx { reg, imm } => {
+            let reg = get_register(*reg)?;
+            let imm = il::expr_const(imm_to_u64(imm), 64);
+            let indexed_address = il::Expression::add(reg.clone().get()?, imm)?;
+            (
+                indexed_address.clone(),
+                MemOperandSideeffect::Assign(reg, indexed_address),
+            )
+        }
+        bad64::Operand::MemPostIdxReg([reg, reg_offset]) => {
+            // TODO: Test this using `LD1R`
+            let reg = get_register(*reg)?;
+            let reg_offset = get_register(*reg_offset)?.get()?;
+            let indexed_address = il::Expression::add(reg.get()?, reg_offset)?;
+            (
+                reg.get()?,
+                MemOperandSideeffect::Assign(reg, indexed_address),
+            )
+        }
+        bad64::Operand::MemPostIdxImm { reg, imm } => {
+            let reg = get_register(*reg)?;
+            let imm = il::expr_const(imm_to_u64(imm), 64);
+            let indexed_address = il::Expression::add(reg.get()?, imm)?;
+            (
+                reg.get()?,
+                MemOperandSideeffect::Assign(reg, indexed_address),
+            )
+        }
+        bad64::Operand::MemExt {
+            regs: [reg, reg_offset],
+            shift: shift_,
+            arrspec: None,
+        } => {
+            let reg = get_register(*reg)?.get()?;
+            let reg_offset = if let Some(shift_) = shift_ {
+                shift(get_register(*reg_offset)?.get()?, shift_, 64)?
+            } else {
+                get_register(*reg_offset)?.get()?
+            };
+            let indexed_address = il::Expression::add(reg, reg_offset)?;
+            (indexed_address, MemOperandSideeffect::None)
+        }
+
+        bad64::Operand::MemOffset { mul_vl: true, .. }
+        | bad64::Operand::MemOffset {
+            arrspec: Some(_), ..
+        }
+        | bad64::Operand::MemExt {
+            arrspec: Some(_), ..
+        } => bail!("Unsupported operand: `{}`", opr),
+
+        bad64::Operand::Reg { .. }
+        | bad64::Operand::Imm32 { .. }
+        | bad64::Operand::Imm64 { .. }
+        | bad64::Operand::ShiftReg { .. }
+        | bad64::Operand::FImm32(_)
+        | bad64::Operand::QualReg { .. }
+        | bad64::Operand::MultiReg { .. }
+        | bad64::Operand::SysReg(_)
+        | bad64::Operand::ImplSpec { .. }
+        | bad64::Operand::Cond(_)
+        | bad64::Operand::Label(_)
+        | bad64::Operand::Name(_)
+        | bad64::Operand::StrImm { .. } => unreachable!("Memory operand is expected here"),
+    };
+
+    Ok((address_expr, sideeffect))
+}
+
+#[must_use]
+enum MemOperandSideeffect {
+    None,
+    Assign(&'static AArch64Register, il::Expression),
+}
+
+impl MemOperandSideeffect {
+    fn apply(self, block: &mut il::Block) -> Result<()> {
+        if let MemOperandSideeffect::Assign(scalar, value) = self {
+            scalar.set(block, value)?;
+        }
+        Ok(())
     }
 }
 
@@ -466,6 +566,110 @@ pub(super) fn bl(
     Ok(())
 }
 
+fn temp0(instruction: &bad64::Instruction, bits: usize) -> il::Scalar {
+    il::Scalar::temp(instruction.address(), bits)
+}
+
+pub(super) fn ldr(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let temp = temp0(instruction, bits);
+        block.load(temp.clone(), address);
+
+        // store result
+        operand_store(
+            block,
+            &instruction.operands()[0],
+            il::Expression::Scalar(temp),
+        )?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn ldrb(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        let temp = temp0(instruction, 8);
+        block.load(temp.clone(), address);
+
+        // store result
+        operand_store(
+            block,
+            &instruction.operands()[0],
+            il::Expression::Scalar(temp),
+        )?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn ldrh(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        let temp = temp0(instruction, 16);
+        block.load(temp.clone(), address);
+
+        // store result
+        operand_store(
+            block,
+            &instruction.operands()[0],
+            il::Expression::Scalar(temp),
+        )?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
 pub(super) fn mov(
     control_flow_graph: &mut il::ControlFlowGraph,
     instruction: &bad64::Instruction,
@@ -525,6 +729,88 @@ pub(super) fn ret(
 
     instruction_graph.set_address(Some(instruction.address()));
     block_graphs.push((instruction.address(), instruction_graph));
+
+    Ok(())
+}
+
+pub(super) fn str(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let value = operand_load(block, &instruction.operands()[0], bits)?;
+
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        block.store(address, value);
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn strb(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let value = operand_load(block, &instruction.operands()[0], 32)?;
+
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        block.store(address, il::Expression::trun(8, value)?);
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn strh(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let value = operand_load(block, &instruction.operands()[0], 32)?;
+
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
+
+        // perform operation
+        block.store(address, il::Expression::trun(16, value)?);
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
 
     Ok(())
 }

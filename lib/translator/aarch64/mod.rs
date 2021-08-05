@@ -111,8 +111,14 @@ fn translate_block(
             // Non-terminating
             bad64::Op::ADD => semantics::add(&mut instruction_graph, &instruction),
             bad64::Op::BL => semantics::bl(&mut instruction_graph, &instruction),
+            bad64::Op::LDR => semantics::ldr(&mut instruction_graph, &instruction),
+            bad64::Op::LDRB => semantics::ldrb(&mut instruction_graph, &instruction),
+            bad64::Op::LDRH => semantics::ldrh(&mut instruction_graph, &instruction),
             bad64::Op::MOV => semantics::mov(&mut instruction_graph, &instruction),
             bad64::Op::NOP => semantics::nop(&mut instruction_graph, &instruction),
+            bad64::Op::STR => semantics::str(&mut instruction_graph, &instruction),
+            bad64::Op::STRB => semantics::strb(&mut instruction_graph, &instruction),
+            bad64::Op::STRH => semantics::strh(&mut instruction_graph, &instruction),
             bad64::Op::SUB => semantics::sub(&mut instruction_graph, &instruction),
             bad64::Op::ABS
             | bad64::Op::ADC
@@ -586,11 +592,8 @@ fn translate_block(
             | bad64::Op::LDNT1W
             | bad64::Op::LDP
             | bad64::Op::LDPSW
-            | bad64::Op::LDR
             | bad64::Op::LDRAA
             | bad64::Op::LDRAB
-            | bad64::Op::LDRB
-            | bad64::Op::LDRH
             | bad64::Op::LDRSB
             | bad64::Op::LDRSH
             | bad64::Op::LDRSW
@@ -1030,9 +1033,6 @@ fn translate_block(
             | bad64::Op::STNT1H
             | bad64::Op::STNT1W
             | bad64::Op::STP
-            | bad64::Op::STR
-            | bad64::Op::STRB
-            | bad64::Op::STRH
             | bad64::Op::STSET
             | bad64::Op::STSETB
             | bad64::Op::STSETH
