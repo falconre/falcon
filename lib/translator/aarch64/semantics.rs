@@ -570,6 +570,97 @@ fn temp0(instruction: &bad64::Instruction, bits: usize) -> il::Scalar {
     il::Scalar::temp(instruction.address(), bits)
 }
 
+fn temp1(instruction: &bad64::Instruction, bits: usize) -> il::Scalar {
+    il::Scalar::temp(instruction.address() + 1, bits)
+}
+
+pub(super) fn ldp(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[2])?;
+
+        // perform operation
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let temp0 = temp0(instruction, bits);
+        let temp1 = temp1(instruction, bits);
+        block.load(temp0.clone(), address.clone());
+        block.load(
+            temp1.clone(),
+            il::Expression::add(address, il::expr_const(bits as u64 / 8, 64))?,
+        );
+
+        // store result
+        operand_store(
+            block,
+            &instruction.operands()[0],
+            il::Expression::Scalar(temp0),
+        )?;
+        operand_store(
+            block,
+            &instruction.operands()[1],
+            il::Expression::Scalar(temp1),
+        )?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
+pub(super) fn ldpsw(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operand
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[2])?;
+
+        // perform operation
+        let temp0 = temp0(instruction, 32);
+        let temp1 = temp1(instruction, 32);
+        block.load(temp0.clone(), address.clone());
+        block.load(
+            temp1.clone(),
+            il::Expression::add(address, il::expr_const(4, 64))?,
+        );
+
+        // store result
+        operand_store(
+            block,
+            &instruction.operands()[0],
+            il::Expression::sext(64, il::Expression::Scalar(temp0))?,
+        )?;
+        operand_store(
+            block,
+            &instruction.operands()[1],
+            il::Expression::sext(64, il::Expression::Scalar(temp1))?,
+        )?;
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
+
+    Ok(())
+}
+
 // TODO: Memory ordering
 pub(super) use {
     ldr as ldar, ldr as ldlar, ldrb as ldarb, ldrb as ldlarb, ldrh as ldarh, ldrh as ldlarh,
@@ -831,6 +922,39 @@ pub(super) fn ret(
 
     instruction_graph.set_address(Some(instruction.address()));
     block_graphs.push((instruction.address(), instruction_graph));
+
+    Ok(())
+}
+
+pub(super) fn stp(
+    control_flow_graph: &mut il::ControlFlowGraph,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    let block_index = {
+        let block = control_flow_graph.new_block()?;
+
+        // get operands
+        let bits = operand_storing_width(&instruction.operands()[0])?;
+        let value0 = operand_load(block, &instruction.operands()[0], bits)?;
+        let value1 = operand_load(block, &instruction.operands()[1], bits)?;
+
+        let (address, sideeffect) = mem_operand_address(&instruction.operands()[2])?;
+
+        // perform operation
+        block.store(address.clone(), value0);
+        block.store(
+            il::Expression::add(address, il::expr_const(bits as u64 / 8, 64))?,
+            value1,
+        );
+
+        // write-back
+        sideeffect.apply(block)?;
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index)?;
+    control_flow_graph.set_exit(block_index)?;
 
     Ok(())
 }

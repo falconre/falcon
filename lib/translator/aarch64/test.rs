@@ -380,6 +380,96 @@ fn add_xn_uxtb() {
 }
 
 #[test]
+fn ldp_xn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+    memory
+        .store(0xeed85f2308, const_(0xfa5c9e60ce124c27, 64))
+        .unwrap();
+
+    // ldp x15, x3, [x9]
+    let instruction_words = &[0xa9400d2f];
+
+    // TODO: can we somehow get multiple values by one call?
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory.clone(),
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xdeadbeef12345678);
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x3",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xfa5c9e60ce124c27);
+}
+
+#[test]
+fn ldp_wn_wn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+
+    // ldp w15, w3, [x9]
+    let instruction_words = &[0x29400d2f];
+
+    // TODO: can we somehow get multiple values by one call?
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory.clone(),
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xdeadbeef);
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x3",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x12345678);
+}
+
+#[test]
+fn ldpsw_xn_xn() {
+    let mut memory = Memory::new(Endian::Big);
+    memory
+        .store(0xeed85f2300, const_(0xdeadbeef12345678, 64))
+        .unwrap();
+    memory
+        .store(0xeed85f2308, const_(0xfa5c9e60ce124c27, 64))
+        .unwrap();
+
+    // ldpsw x15, x3, [x9]
+    let instruction_words = &[0x69400d2f];
+
+    // TODO: can we somehow get multiple values by one call?
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory.clone(),
+        "x15",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffffffdeadbeef);
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x9", const_(0xeed85f2300, 64))],
+        memory,
+        "x3",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0x12345678);
+}
+
+#[test]
 fn ldr_xn_xn() {
     let mut memory = Memory::new(Endian::Big);
     memory
@@ -842,6 +932,45 @@ fn mov_velem() {
         "x29",
     );
     assert_eq!(result.value_u64().unwrap(), 0x0000000062baced3);
+}
+
+#[test]
+fn stp_xn_xn() {
+    // stp x15, x28, [x9]; nop
+    let instruction_words = &[0xa900712f, 0xd503201f];
+
+    let driver = init_driver_function(
+        backing!(instruction_words),
+        vec![
+            ("x15", const_(0xdeadbeef12345678, 64)),
+            ("x28", const_(0x5d90e16ef8ea43ce, 64)),
+            ("x9", const_(0xeed85f2300, 64)),
+        ],
+    );
+    let driver = step_to(driver, 0x4);
+
+    let memory = driver.state().memory();
+    assert_eq!(memval(memory, 0xeed85f2300, 64), 0xdeadbeef12345678);
+    assert_eq!(memval(memory, 0xeed85f2308, 64), 0x5d90e16ef8ea43ce);
+}
+
+#[test]
+fn stp_wn_wn() {
+    // stp w15, w28, [x9]; nop
+    let instruction_words = &[0x2900712f, 0xd503201f];
+
+    let driver = init_driver_function(
+        backing!(instruction_words),
+        vec![
+            ("x15", const_(0xdeadbeef12345678, 64)),
+            ("x28", const_(0x5d90e16ef8ea43ce, 64)),
+            ("x9", const_(0xeed85f2300, 64)),
+        ],
+    );
+    let driver = step_to(driver, 0x4);
+
+    let memory = driver.state().memory();
+    assert_eq!(memval(memory, 0xeed85f2300, 64), 0x12345678f8ea43ce);
 }
 
 #[test]
