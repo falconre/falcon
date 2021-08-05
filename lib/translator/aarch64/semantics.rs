@@ -47,6 +47,7 @@ pub(super) fn unhandled_intrinsic(
     Ok(())
 }
 
+/// Only supports non-memory operands.
 /// `out_bits` is only used for zero/sign-extension modifier.
 fn operand_load(
     block: &mut il::Block,
@@ -87,16 +88,16 @@ fn operand_load(
         | bad64::Operand::QualReg { .. }
         | bad64::Operand::MultiReg { .. }
         | bad64::Operand::SysReg(_)
-        | bad64::Operand::MemReg(_)
-        | bad64::Operand::MemOffset { .. }
-        | bad64::Operand::MemPreIdx { .. }
-        | bad64::Operand::MemPostIdxReg(_)
-        | bad64::Operand::MemPostIdxImm { .. }
-        | bad64::Operand::MemExt { .. }
         | bad64::Operand::ImplSpec { .. }
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
         | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+        bad64::Operand::MemReg(_)
+        | bad64::Operand::MemOffset { .. }
+        | bad64::Operand::MemPreIdx { .. }
+        | bad64::Operand::MemPostIdxReg(_)
+        | bad64::Operand::MemPostIdxImm { .. }
+        | bad64::Operand::MemExt { .. } => unreachable!("Memory operand is unexpected here"),
     }
 }
 
