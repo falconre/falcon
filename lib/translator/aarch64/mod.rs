@@ -147,6 +147,15 @@ fn translate_block(
             bad64::Op::STLURB => semantics::stlrb(&mut instruction_graph, &instruction),
             bad64::Op::STLURH => semantics::stlrh(&mut instruction_graph, &instruction),
             bad64::Op::SUB => semantics::sub(&mut instruction_graph, &instruction),
+
+            // Prefetch
+            bad64::Op::PRFB
+            | bad64::Op::PRFD
+            | bad64::Op::PRFH
+            | bad64::Op::PRFM
+            | bad64::Op::PRFUM
+            | bad64::Op::PRFW => semantics::nop(&mut instruction_graph, &instruction),
+
             bad64::Op::ABS
             | bad64::Op::ADC
             | bad64::Op::ADCLB
@@ -750,12 +759,6 @@ fn translate_block(
             | bad64::Op::PMULLB
             | bad64::Op::PMULLT
             | bad64::Op::PNEXT
-            | bad64::Op::PRFB
-            | bad64::Op::PRFD
-            | bad64::Op::PRFH
-            | bad64::Op::PRFM
-            | bad64::Op::PRFUM
-            | bad64::Op::PRFW
             | bad64::Op::PSB
             | bad64::Op::PSSBB
             | bad64::Op::PTEST
