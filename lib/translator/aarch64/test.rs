@@ -6,7 +6,6 @@ use crate::memory;
 use crate::translator::aarch64::*;
 use crate::RC;
 
-#[macro_use]
 macro_rules! backing {
     ($e: expr) => {{
         let words: &[u32] = $e;
