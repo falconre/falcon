@@ -570,6 +570,11 @@ fn temp0(instruction: &bad64::Instruction, bits: usize) -> il::Scalar {
     il::Scalar::temp(instruction.address(), bits)
 }
 
+// TODO: Memory ordering
+pub(super) use {
+    ldr as ldar, ldr as ldlar, ldrb as ldarb, ldrb as ldlarb, ldrh as ldarh, ldrh as ldlarh,
+};
+
 pub(super) fn ldr(
     control_flow_graph: &mut il::ControlFlowGraph,
     instruction: &bad64::Instruction,
@@ -829,6 +834,11 @@ pub(super) fn ret(
 
     Ok(())
 }
+
+// TODO: Memory ordering
+pub(super) use {
+    str as stlr, str as stllr, strb as stlrb, strb as stllrb, strh as stlrh, strh as stllrh,
+};
 
 pub(super) fn str(
     control_flow_graph: &mut il::ControlFlowGraph,
