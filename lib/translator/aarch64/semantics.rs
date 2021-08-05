@@ -661,6 +661,9 @@ pub(super) fn ldpsw(
     Ok(())
 }
 
+// TODO: Cache hint
+pub(super) use ldp as ldnp;
+
 // TODO: Memory ordering
 pub(super) use {
     ldr as ldar, ldr as ldlar, ldrb as ldarb, ldrb as ldlarb, ldrh as ldarh, ldrh as ldlarh,
@@ -958,6 +961,9 @@ pub(super) fn stp(
 
     Ok(())
 }
+
+// TODO: Cache hint
+pub(super) use stp as stnp;
 
 // TODO: Memory ordering
 pub(super) use {
