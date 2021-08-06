@@ -1089,6 +1089,56 @@ fn br() {
 }
 
 #[test]
+fn cbnz() {
+    //   mov x0, #45
+    //   cbnz x4, 1f
+    //   mov x0, #44
+    // 1:
+    let instruction_words = &[0xd28005a0, 0xb5000044, 0xd2800580];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(0, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 44);
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(!0u64, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 45);
+}
+
+#[test]
+fn cbz() {
+    //   mov x0, #45
+    //   cbz x4, 1f
+    //   mov x0, #44
+    // 1:
+    let instruction_words = &[0xd28005a0, 0xb4000044, 0xd2800580];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(0, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 45);
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(!0u64, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 44);
+}
+
+#[test]
 fn mov_velem() {
     // mov v31.d[0], x0
     // mov v31.b[6], v31.b[2]
@@ -1314,6 +1364,56 @@ fn subs_xn() {
         );
         assert_eq!(result.value_u64().unwrap(), v);
     }
+}
+
+#[test]
+fn tbnz() {
+    //   mov x0, #45
+    //   tbnz x4, #16, 1f
+    //   mov x0, #44
+    // 1:
+    let instruction_words = &[0xd28005a0, 0x37800044, 0xd2800580];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(0xdeacbeef, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 44);
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(0xdeadbeef, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 45);
+}
+
+#[test]
+fn tbz() {
+    //   mov x0, #45
+    //   tbz w4, #16, 1f
+    //   mov x0, #44
+    // 1:
+    let instruction_words = &[0xd28005a0, 0x36800044, 0xd2800580];
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(0xdeacbeef, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 45);
+
+    let result = get_scalar(
+        instruction_words,
+        vec![("x4", const_(0xdeadbeef, 64))],
+        Memory::new(Endian::Big),
+        "x0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 44);
 }
 
 // TODO: rest of the instructions

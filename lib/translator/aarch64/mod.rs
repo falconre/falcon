@@ -135,6 +135,42 @@ fn translate_block(
                 )?;
                 break;
             }
+            bad64::Op::CBNZ => {
+                semantics::cbnz(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                )?;
+                break;
+            }
+            bad64::Op::CBZ => {
+                semantics::cbz(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                )?;
+                break;
+            }
+            bad64::Op::TBNZ => {
+                semantics::tbnz(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                )?;
+                break;
+            }
+            bad64::Op::TBZ => {
+                semantics::tbz(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                )?;
+                break;
+            }
             bad64::Op::RET => {
                 semantics::ret(
                     instruction_graph,
@@ -144,8 +180,7 @@ fn translate_block(
                 )?;
                 break;
             }
-            // TODO: handle other terminating instructions like ERET?, CBNZ,
-            //       CBZ, TBNZ, TBZ
+            // TODO: handle other terminating instructions like ERET?
 
             // Non-terminating
             bad64::Op::ADD => semantics::add(&mut instruction_graph, &instruction),
@@ -307,8 +342,6 @@ fn translate_block(
             | bad64::Op::CASPA
             | bad64::Op::CASPAL
             | bad64::Op::CASPL
-            | bad64::Op::CBNZ
-            | bad64::Op::CBZ
             | bad64::Op::CCMN
             | bad64::Op::CCMP
             | bad64::Op::CDOT
@@ -1135,9 +1168,7 @@ fn translate_block(
             | bad64::Op::SYS
             | bad64::Op::SYSL
             | bad64::Op::TBL
-            | bad64::Op::TBNZ
             | bad64::Op::TBX
-            | bad64::Op::TBZ
             | bad64::Op::TCANCEL
             | bad64::Op::TCOMMIT
             | bad64::Op::TLBI

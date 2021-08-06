@@ -113,6 +113,39 @@ fn operand_load(
     }
 }
 
+/// Get an immediate operand of type `u64`. Will panic if it's not an immediate
+/// operand. A signed immediate is bit-cast to an unsigned one.
+///
+/// **Shifted immediates aren't supported.**
+fn operand_imm_u64(opr: &bad64::Operand) -> u64 {
+    match opr {
+        bad64::Operand::Imm32 { imm, shift: None } | bad64::Operand::Imm64 { imm, shift: None } => {
+            imm_to_u64(imm)
+        }
+        bad64::Operand::Imm32 { shift: Some(_), .. }
+        | bad64::Operand::Imm64 { shift: Some(_), .. } => {
+            unreachable!("unshifted immediate expected")
+        }
+        bad64::Operand::Reg { .. }
+        | bad64::Operand::ShiftReg { .. }
+        | bad64::Operand::FImm32(_)
+        | bad64::Operand::QualReg { .. }
+        | bad64::Operand::MultiReg { .. }
+        | bad64::Operand::SysReg(_)
+        | bad64::Operand::MemReg(_)
+        | bad64::Operand::MemOffset { .. }
+        | bad64::Operand::MemPreIdx { .. }
+        | bad64::Operand::MemPostIdxReg(_)
+        | bad64::Operand::MemPostIdxImm { .. }
+        | bad64::Operand::MemExt { .. }
+        | bad64::Operand::Label(_)
+        | bad64::Operand::ImplSpec { .. }
+        | bad64::Operand::Cond(_)
+        | bad64::Operand::Name(_)
+        | bad64::Operand::StrImm { .. } => unreachable!("immediate expected"),
+    }
+}
+
 fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Expression) -> Result<()> {
     // TODO: Consider `unsupported_are_intrinsics`
     match opr {
@@ -712,6 +745,96 @@ pub(super) fn bl(
 
 pub(super) use bl as blr;
 
+fn cbz_cbnz_tbz_tbnz(
+    mut instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
+    branch_if_zero: bool,
+    test_bit: bool,
+) -> Result<()> {
+    let (dst, mut cond_true, mut cond_false);
+
+    let opr_value = 0;
+    let opr_bit = test_bit.then(|| 1);
+    let opr_target = [1, 2][test_bit as usize];
+
+    let block_index = {
+        let block = instruction_graph.new_block()?;
+
+        // get operands
+        dst = operand_load(block, &instruction.operands()[opr_target], 64)?
+            .get_constant()
+            .expect("branch target is not constant")
+            .value_u64()
+            .expect("branch target does not fit in 64 bits");
+
+        let bits = operand_storing_width(&instruction.operands()[opr_value])?;
+        let value = operand_load(block, &instruction.operands()[opr_value], bits)?;
+
+        let value = if let Some(opr_bit) = opr_bit {
+            // specific bit
+            let bit = operand_imm_u64(&instruction.operands()[opr_bit]);
+            assert!(bit < bits as u64);
+            il::Expression::and(value, il::expr_const(1 << bit, bits))?
+        } else {
+            // any bit set
+            value
+        };
+
+        cond_true = il::Expression::cmpneq(value.clone(), il::expr_const(0, bits))?;
+        cond_false = il::Expression::cmpeq(value, il::expr_const(0, bits))?;
+
+        if branch_if_zero {
+            std::mem::swap(&mut cond_true, &mut cond_false);
+        }
+
+        block.index()
+    };
+    instruction_graph.set_entry(block_index)?;
+    instruction_graph.set_exit(block_index)?;
+
+    instruction_graph.set_address(Some(instruction.address()));
+    block_graphs.push((instruction.address(), instruction_graph));
+
+    successors.push((dst, Some(cond_true)));
+    successors.push((instruction.address() + 4, Some(cond_false)));
+
+    Ok(())
+}
+
+pub(super) fn cbnz(
+    instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    cbz_cbnz_tbz_tbnz(
+        instruction_graph,
+        block_graphs,
+        successors,
+        instruction,
+        false,
+        false,
+    )
+}
+
+pub(super) fn cbz(
+    instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    cbz_cbnz_tbz_tbnz(
+        instruction_graph,
+        block_graphs,
+        successors,
+        instruction,
+        true,
+        false,
+    )
+}
+
 fn temp0(instruction: &bad64::Instruction, bits: usize) -> il::Scalar {
     il::Scalar::temp(instruction.address(), bits)
 }
@@ -1267,6 +1390,38 @@ pub(super) fn subs(
     control_flow_graph.set_exit(block_index)?;
 
     Ok(())
+}
+
+pub(super) fn tbnz(
+    instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    cbz_cbnz_tbz_tbnz(
+        instruction_graph,
+        block_graphs,
+        successors,
+        instruction,
+        false,
+        true,
+    )
+}
+
+pub(super) fn tbz(
+    instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
+) -> Result<()> {
+    cbz_cbnz_tbz_tbnz(
+        instruction_graph,
+        block_graphs,
+        successors,
+        instruction,
+        true,
+        true,
+    )
 }
 
 // TODO: Rest of the owl
