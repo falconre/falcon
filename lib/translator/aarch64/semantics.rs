@@ -597,6 +597,69 @@ pub(super) fn b(
     Ok(())
 }
 
+pub(super) fn b_cc(
+    mut instruction_graph: il::ControlFlowGraph,
+    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    successors: &mut Vec<(u64, Option<il::Expression>)>,
+    instruction: &bad64::Instruction,
+    cond: u8,
+) -> Result<()> {
+    let (dst, cond_true_false);
+
+    if (cond & 0b1110) == 0b1110 {
+        return b(instruction_graph, block_graphs, successors, instruction);
+    }
+
+    let block_index = {
+        let block = instruction_graph.new_block()?;
+
+        // get operands
+        dst = operand_load(block, &instruction.operands()[0], 64)?
+            .get_constant()
+            .expect("branch target is not constant")
+            .value_u64()
+            .expect("branch target does not fit in 64 bits");
+
+        // condition
+        let cond_true = match (cond & 0b1110) >> 1 {
+            0b000 => expr!("z"),
+            0b001 => expr!("c"),
+            0b010 => expr!("n"),
+            0b011 => expr!("v"),
+            0b100 => il::Expression::and(
+                expr!("c"),
+                il::Expression::cmpneq(expr!("z"), il::expr_const(1, 1))?,
+            )?,
+            0b101 => il::Expression::cmpeq(expr!("n"), expr!("v"))?,
+            0b110 => il::Expression::and(
+                il::Expression::cmpeq(expr!("n"), expr!("v"))?,
+                il::Expression::cmpneq(expr!("z"), il::expr_const(1, 1))?,
+            )?,
+            0b111 => unreachable!(), // handled above
+            0b1000.. => unreachable!(),
+        };
+        let cond_false = il::Expression::cmpneq(cond_true.clone(), il::expr_const(1, 1))?;
+        cond_true_false = if (cond & 1) != 0 && cond != 0b1111 {
+            (cond_false, cond_true)
+        } else {
+            (cond_true, cond_false)
+        };
+
+        block.index()
+    };
+    instruction_graph.set_entry(block_index)?;
+    instruction_graph.set_exit(block_index)?;
+
+    instruction_graph.set_address(Some(instruction.address()));
+    block_graphs.push((instruction.address(), instruction_graph));
+
+    let (cond_true, cond_false) = cond_true_false;
+    successors.push((dst, Some(cond_true)));
+    successors.push((instruction.address() + 4, Some(cond_false)));
+
+    Ok(())
+}
+
 pub(super) fn br(
     mut instruction_graph: il::ControlFlowGraph,
     block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,

@@ -85,6 +85,20 @@ fn translate_block(
         };
 
         let mut instruction_graph = ControlFlowGraph::new();
+
+        macro_rules! b_cc {
+            ($cond:expr; break) => {{
+                semantics::b_cc(
+                    instruction_graph,
+                    &mut block_graphs,
+                    &mut successors,
+                    &instruction,
+                    $cond,
+                )?;
+                break;
+            }};
+        }
+
         match instruction.op() {
             // Terminating
             bad64::Op::B => {
@@ -96,6 +110,22 @@ fn translate_block(
                 )?;
                 break;
             }
+            bad64::Op::B_AL => b_cc!(0b1110; break),
+            bad64::Op::B_CC => b_cc!(0b0011; break),
+            bad64::Op::B_CS => b_cc!(0b0010; break),
+            bad64::Op::B_EQ => b_cc!(0b0000; break),
+            bad64::Op::B_GE => b_cc!(0b1010; break),
+            bad64::Op::B_GT => b_cc!(0b1100; break),
+            bad64::Op::B_HI => b_cc!(0b1000; break),
+            bad64::Op::B_LE => b_cc!(0b1101; break),
+            bad64::Op::B_LS => b_cc!(0b1001; break),
+            bad64::Op::B_LT => b_cc!(0b1011; break),
+            bad64::Op::B_MI => b_cc!(0b0100; break),
+            bad64::Op::B_NE => b_cc!(0b0001; break),
+            bad64::Op::B_NV => b_cc!(0b1111; break),
+            bad64::Op::B_PL => b_cc!(0b0101; break),
+            bad64::Op::B_VC => b_cc!(0b0111; break),
+            bad64::Op::B_VS => b_cc!(0b0110; break),
             bad64::Op::BR => {
                 semantics::br(
                     instruction_graph,
@@ -114,7 +144,7 @@ fn translate_block(
                 )?;
                 break;
             }
-            // TODO: handle other terminating instructions like B_??, ERET?, CBNZ,
+            // TODO: handle other terminating instructions like ERET?, CBNZ,
             //       CBZ, TBNZ, TBZ
 
             // Non-terminating
@@ -260,22 +290,6 @@ fn translate_block(
             | bad64::Op::BSL1N
             | bad64::Op::BSL2N
             | bad64::Op::BTI
-            | bad64::Op::B_AL
-            | bad64::Op::B_CC
-            | bad64::Op::B_CS
-            | bad64::Op::B_EQ
-            | bad64::Op::B_GE
-            | bad64::Op::B_GT
-            | bad64::Op::B_HI
-            | bad64::Op::B_LE
-            | bad64::Op::B_LS
-            | bad64::Op::B_LT
-            | bad64::Op::B_MI
-            | bad64::Op::B_NE
-            | bad64::Op::B_NV
-            | bad64::Op::B_PL
-            | bad64::Op::B_VC
-            | bad64::Op::B_VS
             | bad64::Op::CADD
             | bad64::Op::CAS
             | bad64::Op::CASA

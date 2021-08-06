@@ -943,6 +943,69 @@ fn b() {
 }
 
 #[test]
+fn b_cc() {
+    #[allow(unused_variables)]
+    let conds: [(u32, fn([u64; 4]) -> bool); 16] = [
+        (0b0000, |[n, z, c, v]| z == 1),              // EQ
+        (0b0001, |[n, z, c, v]| z == 0),              // NE
+        (0b0010, |[n, z, c, v]| c == 1),              // CS or HS
+        (0b0011, |[n, z, c, v]| c == 0),              // CC or LO
+        (0b0100, |[n, z, c, v]| n == 1),              // MI
+        (0b0101, |[n, z, c, v]| n == 0),              // PL
+        (0b0110, |[n, z, c, v]| v == 1),              // VS
+        (0b0111, |[n, z, c, v]| v == 0),              // VC
+        (0b1000, |[n, z, c, v]| c == 1 && z == 0),    // HI
+        (0b1001, |[n, z, c, v]| !(c == 1 && z == 0)), // LS
+        (0b1010, |[n, z, c, v]| n == v),              // GE
+        (0b1011, |[n, z, c, v]| n != v),              // LT
+        (0b1100, |[n, z, c, v]| z == 0 && n == v),    // GT
+        (0b1101, |[n, z, c, v]| !(z == 0 && n == v)), // LE
+        (0b1110, |[n, z, c, v]| true),                // AL
+        (0b1111, |[n, z, c, v]| true),                // NV
+    ];
+
+    for (cond, cond_fn) in conds {
+        for nzcv in 0..16 {
+            let [n, z, c, v] = [
+                ((nzcv & 0b0001) != 0) as u64,
+                ((nzcv & 0b0010) != 0) as u64,
+                ((nzcv & 0b0100) != 0) as u64,
+                ((nzcv & 0b1000) != 0) as u64,
+            ];
+
+            let expected = cond_fn([n, z, c, v]);
+
+            println!(
+                "[n,z,c,v] = {:?}, cond = {:#06b}, expected = {:?}",
+                [n, z, c, v],
+                cond,
+                expected
+            );
+
+            //   mov x0, #45
+            //   b.XX 1f
+            //   mov x0, #44
+            // 1:
+            let instruction_words = &[0xd28005a0, 0x54000040 | cond, 0xd2800580];
+
+            let result = get_scalar(
+                instruction_words,
+                vec![
+                    ("n", const_(n, 1)),
+                    ("z", const_(z, 1)),
+                    ("c", const_(c, 1)),
+                    ("v", const_(v, 1)),
+                ],
+                Memory::new(Endian::Big),
+                "x0",
+            );
+
+            assert_eq!(result.value_u64().unwrap(), [44, 45][expected as usize]);
+        }
+    }
+}
+
+#[test]
 fn bl_ret() {
     //    mov x25, #1
     //    bl 0f
