@@ -36,7 +36,7 @@ macro_rules! expr {
     };
 }
 
-// A convenience function for turning unhandled instructions into intrinsics
+/// A convenience function for turning unhandled instructions into intrinsics
 pub(super) fn unhandled_intrinsic(
     bytes: &[u8],
     control_flow_graph: &mut il::ControlFlowGraph,
@@ -52,6 +52,27 @@ pub(super) fn unhandled_intrinsic(
             None,
             None,
             bytes.to_vec(),
+        ));
+
+        block.index()
+    };
+
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
+}
+
+/// A convenience function for turning undefined instructions into intrinsics
+pub(super) fn undefined_intrinsic(bytes: u32, control_flow_graph: &mut il::ControlFlowGraph) {
+    let block_index = {
+        let block = control_flow_graph.new_block().unwrap();
+
+        block.intrinsic(il::Intrinsic::new(
+            ".word",
+            format!(".word {:#x}", bytes),
+            Vec::new(),
+            None,
+            None,
+            bytes.to_le_bytes().to_vec(),
         ));
 
         block.index()

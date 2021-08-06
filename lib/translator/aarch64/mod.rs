@@ -80,7 +80,32 @@ fn translate_block(
         let disassembly_bytes = &bytes[offset..];
         let instruction = if let [b0, b1, b2, b3, ..] = *disassembly_bytes {
             let encoding = u32::from_le_bytes([b0, b1, b2, b3]);
-            bad64::decode(encoding, address + offset as u64)?
+            let instruction_address = address + offset as u64;
+            let result = bad64::decode(encoding, instruction_address);
+
+            if options.unsupported_are_intrinsics() {
+                // Known undefined instructions will terminate the flow
+                // TODO: `unsupported_are_intrinsics` might not be the right option
+                match &result {
+                    Err(
+                        bad64::DecodeError::Reserved(_)
+                        | bad64::DecodeError::Unallocated(_)
+                        | bad64::DecodeError::Undefined(_),
+                    ) => {
+                        let mut instruction_graph = ControlFlowGraph::new();
+
+                        semantics::undefined_intrinsic(encoding, &mut instruction_graph);
+
+                        instruction_graph.set_address(Some(instruction_address));
+                        block_graphs.push((instruction_address, instruction_graph));
+
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
+            result?
         } else {
             return Err("Short read".into());
         };
