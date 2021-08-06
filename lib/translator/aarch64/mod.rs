@@ -4,7 +4,6 @@ use crate::architecture::Endian;
 use crate::error::*;
 use crate::il::*;
 use crate::translator::{BlockTranslationResult, Options, Translator};
-use std::result::Result as StdResult;
 
 mod register;
 mod semantics;
@@ -116,95 +115,106 @@ fn translate_block(
         const NON_TERMINATING: bool = false;
 
         macro_rules! instr {
-            ($ident:ident; Ok(TERMINATING)) => {{
-                semantics::$ident(&mut instruction_graph, &mut successors, &instruction)
-                    .map(|_| TERMINATING)
+            ($ident:ident, TERMINATING) => {{
+                (
+                    semantics::$ident(&mut instruction_graph, &mut successors, &instruction),
+                    TERMINATING,
+                )
             }};
-            (b_cc($cond:expr); Ok(TERMINATING)) => {{
-                semantics::b_cc(&mut instruction_graph, &mut successors, &instruction, $cond)
-                    .map(|_| TERMINATING)
+            (b_cc($cond:expr), TERMINATING) => {{
+                (
+                    semantics::b_cc(&mut instruction_graph, &mut successors, &instruction, $cond),
+                    TERMINATING,
+                )
             }};
 
-            ($ident:ident; Ok(NON_TERMINATING)) => {{
-                semantics::$ident(&mut instruction_graph, &instruction).map(|_| NON_TERMINATING)
+            ($ident:ident, NON_TERMINATING) => {{
+                (
+                    semantics::$ident(&mut instruction_graph, &instruction),
+                    NON_TERMINATING,
+                )
             }};
         }
 
-        let instruction_translate_result: StdResult<bool, UnsupportedError> = match instruction.op()
-        {
+        let (instruction_translate_result, terminating) = match instruction.op() {
             // Terminating
-            bad64::Op::B => instr!(b; Ok(TERMINATING)),
-            bad64::Op::B_AL => instr!(b_cc(0b1110); Ok(TERMINATING)),
-            bad64::Op::B_CC => instr!(b_cc(0b0011); Ok(TERMINATING)),
-            bad64::Op::B_CS => instr!(b_cc(0b0010); Ok(TERMINATING)),
-            bad64::Op::B_EQ => instr!(b_cc(0b0000); Ok(TERMINATING)),
-            bad64::Op::B_GE => instr!(b_cc(0b1010); Ok(TERMINATING)),
-            bad64::Op::B_GT => instr!(b_cc(0b1100); Ok(TERMINATING)),
-            bad64::Op::B_HI => instr!(b_cc(0b1000); Ok(TERMINATING)),
-            bad64::Op::B_LE => instr!(b_cc(0b1101); Ok(TERMINATING)),
-            bad64::Op::B_LS => instr!(b_cc(0b1001); Ok(TERMINATING)),
-            bad64::Op::B_LT => instr!(b_cc(0b1011); Ok(TERMINATING)),
-            bad64::Op::B_MI => instr!(b_cc(0b0100); Ok(TERMINATING)),
-            bad64::Op::B_NE => instr!(b_cc(0b0001); Ok(TERMINATING)),
-            bad64::Op::B_NV => instr!(b_cc(0b1111); Ok(TERMINATING)),
-            bad64::Op::B_PL => instr!(b_cc(0b0101); Ok(TERMINATING)),
-            bad64::Op::B_VC => instr!(b_cc(0b0111); Ok(TERMINATING)),
-            bad64::Op::B_VS => instr!(b_cc(0b0110); Ok(TERMINATING)),
-            bad64::Op::BR => instr!(br; Ok(TERMINATING)),
-            bad64::Op::CBNZ => instr!(cbnz; Ok(TERMINATING)),
-            bad64::Op::CBZ => instr!(cbz; Ok(TERMINATING)),
-            bad64::Op::TBNZ => instr!(tbnz; Ok(TERMINATING)),
-            bad64::Op::TBZ => instr!(tbz; Ok(TERMINATING)),
-            bad64::Op::RET => instr!(ret; Ok(TERMINATING)),
-            // TODO: handle other terminating instructions like ERET?
+            bad64::Op::B => instr!(b, TERMINATING),
+            bad64::Op::B_AL => instr!(b_cc(0b1110), TERMINATING),
+            bad64::Op::B_CC => instr!(b_cc(0b0011), TERMINATING),
+            bad64::Op::B_CS => instr!(b_cc(0b0010), TERMINATING),
+            bad64::Op::B_EQ => instr!(b_cc(0b0000), TERMINATING),
+            bad64::Op::B_GE => instr!(b_cc(0b1010), TERMINATING),
+            bad64::Op::B_GT => instr!(b_cc(0b1100), TERMINATING),
+            bad64::Op::B_HI => instr!(b_cc(0b1000), TERMINATING),
+            bad64::Op::B_LE => instr!(b_cc(0b1101), TERMINATING),
+            bad64::Op::B_LS => instr!(b_cc(0b1001), TERMINATING),
+            bad64::Op::B_LT => instr!(b_cc(0b1011), TERMINATING),
+            bad64::Op::B_MI => instr!(b_cc(0b0100), TERMINATING),
+            bad64::Op::B_NE => instr!(b_cc(0b0001), TERMINATING),
+            bad64::Op::B_NV => instr!(b_cc(0b1111), TERMINATING),
+            bad64::Op::B_PL => instr!(b_cc(0b0101), TERMINATING),
+            bad64::Op::B_VC => instr!(b_cc(0b0111), TERMINATING),
+            bad64::Op::B_VS => instr!(b_cc(0b0110), TERMINATING),
+            bad64::Op::BR => instr!(br, TERMINATING),
+            bad64::Op::CBNZ => instr!(cbnz, TERMINATING),
+            bad64::Op::CBZ => instr!(cbz, TERMINATING),
+            bad64::Op::TBNZ => instr!(tbnz, TERMINATING),
+            bad64::Op::TBZ => instr!(tbz, TERMINATING),
+            bad64::Op::RET => instr!(ret, TERMINATING),
+
+            bad64::Op::BRK
+            | bad64::Op::ERET
+            | bad64::Op::ERETAA
+            | bad64::Op::ERETAB
+            | bad64::Op::UDF => (Err(unsupported()), TERMINATING),
 
             // Non-terminating
-            bad64::Op::ADD => instr!(add; Ok(NON_TERMINATING)),
-            bad64::Op::ADDS => instr!(adds; Ok(NON_TERMINATING)),
-            bad64::Op::BL => instr!(bl; Ok(NON_TERMINATING)),
-            bad64::Op::BLR => instr!(blr; Ok(NON_TERMINATING)),
-            bad64::Op::LDAR => instr!(ldar; Ok(NON_TERMINATING)),
-            bad64::Op::LDARB => instr!(ldarb; Ok(NON_TERMINATING)),
-            bad64::Op::LDARH => instr!(ldarh; Ok(NON_TERMINATING)),
-            bad64::Op::LDLAR => instr!(ldlar; Ok(NON_TERMINATING)),
-            bad64::Op::LDLARB => instr!(ldlarb; Ok(NON_TERMINATING)),
-            bad64::Op::LDLARH => instr!(ldlarh; Ok(NON_TERMINATING)),
-            bad64::Op::LDP => instr!(ldp; Ok(NON_TERMINATING)),
-            bad64::Op::LDNP => instr!(ldnp; Ok(NON_TERMINATING)),
-            bad64::Op::LDPSW => instr!(ldpsw; Ok(NON_TERMINATING)),
-            bad64::Op::LDR => instr!(ldr; Ok(NON_TERMINATING)),
-            bad64::Op::LDRB => instr!(ldrb; Ok(NON_TERMINATING)),
-            bad64::Op::LDRH => instr!(ldrh; Ok(NON_TERMINATING)),
-            bad64::Op::LDRSW => instr!(ldrsw; Ok(NON_TERMINATING)),
-            bad64::Op::LDRSB => instr!(ldrsb; Ok(NON_TERMINATING)),
-            bad64::Op::LDRSH => instr!(ldrsh; Ok(NON_TERMINATING)),
-            bad64::Op::LDUR => instr!(ldr; Ok(NON_TERMINATING)),
-            bad64::Op::LDURB => instr!(ldrb; Ok(NON_TERMINATING)),
-            bad64::Op::LDURH => instr!(ldrh; Ok(NON_TERMINATING)),
-            bad64::Op::LDURSW => instr!(ldrsw; Ok(NON_TERMINATING)),
-            bad64::Op::LDURSB => instr!(ldrsb; Ok(NON_TERMINATING)),
-            bad64::Op::LDURSH => instr!(ldrsh; Ok(NON_TERMINATING)),
-            bad64::Op::MOV => instr!(mov; Ok(NON_TERMINATING)),
-            bad64::Op::NOP => instr!(nop; Ok(NON_TERMINATING)),
-            bad64::Op::STP => instr!(stp; Ok(NON_TERMINATING)),
-            bad64::Op::STNP => instr!(stnp; Ok(NON_TERMINATING)),
-            bad64::Op::STR => instr!(str; Ok(NON_TERMINATING)),
-            bad64::Op::STRB => instr!(strb; Ok(NON_TERMINATING)),
-            bad64::Op::STRH => instr!(strh; Ok(NON_TERMINATING)),
-            bad64::Op::STUR => instr!(str; Ok(NON_TERMINATING)),
-            bad64::Op::STURB => instr!(strb; Ok(NON_TERMINATING)),
-            bad64::Op::STURH => instr!(strh; Ok(NON_TERMINATING)),
-            bad64::Op::STLLR => instr!(stllr; Ok(NON_TERMINATING)),
-            bad64::Op::STLLRB => instr!(stllrb; Ok(NON_TERMINATING)),
-            bad64::Op::STLLRH => instr!(stllrh; Ok(NON_TERMINATING)),
-            bad64::Op::STLR => instr!(stlr; Ok(NON_TERMINATING)),
-            bad64::Op::STLRB => instr!(stlrb; Ok(NON_TERMINATING)),
-            bad64::Op::STLRH => instr!(stlrh; Ok(NON_TERMINATING)),
-            bad64::Op::STLUR => instr!(stlr; Ok(NON_TERMINATING)),
-            bad64::Op::STLURB => instr!(stlrb; Ok(NON_TERMINATING)),
-            bad64::Op::STLURH => instr!(stlrh; Ok(NON_TERMINATING)),
-            bad64::Op::SUB => instr!(sub; Ok(NON_TERMINATING)),
-            bad64::Op::SUBS => instr!(subs; Ok(NON_TERMINATING)),
+            bad64::Op::ADD => instr!(add, NON_TERMINATING),
+            bad64::Op::ADDS => instr!(adds, NON_TERMINATING),
+            bad64::Op::BL => instr!(bl, NON_TERMINATING),
+            bad64::Op::BLR => instr!(blr, NON_TERMINATING),
+            bad64::Op::LDAR => instr!(ldar, NON_TERMINATING),
+            bad64::Op::LDARB => instr!(ldarb, NON_TERMINATING),
+            bad64::Op::LDARH => instr!(ldarh, NON_TERMINATING),
+            bad64::Op::LDLAR => instr!(ldlar, NON_TERMINATING),
+            bad64::Op::LDLARB => instr!(ldlarb, NON_TERMINATING),
+            bad64::Op::LDLARH => instr!(ldlarh, NON_TERMINATING),
+            bad64::Op::LDP => instr!(ldp, NON_TERMINATING),
+            bad64::Op::LDNP => instr!(ldnp, NON_TERMINATING),
+            bad64::Op::LDPSW => instr!(ldpsw, NON_TERMINATING),
+            bad64::Op::LDR => instr!(ldr, NON_TERMINATING),
+            bad64::Op::LDRB => instr!(ldrb, NON_TERMINATING),
+            bad64::Op::LDRH => instr!(ldrh, NON_TERMINATING),
+            bad64::Op::LDRSW => instr!(ldrsw, NON_TERMINATING),
+            bad64::Op::LDRSB => instr!(ldrsb, NON_TERMINATING),
+            bad64::Op::LDRSH => instr!(ldrsh, NON_TERMINATING),
+            bad64::Op::LDUR => instr!(ldr, NON_TERMINATING),
+            bad64::Op::LDURB => instr!(ldrb, NON_TERMINATING),
+            bad64::Op::LDURH => instr!(ldrh, NON_TERMINATING),
+            bad64::Op::LDURSW => instr!(ldrsw, NON_TERMINATING),
+            bad64::Op::LDURSB => instr!(ldrsb, NON_TERMINATING),
+            bad64::Op::LDURSH => instr!(ldrsh, NON_TERMINATING),
+            bad64::Op::MOV => instr!(mov, NON_TERMINATING),
+            bad64::Op::NOP => instr!(nop, NON_TERMINATING),
+            bad64::Op::STP => instr!(stp, NON_TERMINATING),
+            bad64::Op::STNP => instr!(stnp, NON_TERMINATING),
+            bad64::Op::STR => instr!(str, NON_TERMINATING),
+            bad64::Op::STRB => instr!(strb, NON_TERMINATING),
+            bad64::Op::STRH => instr!(strh, NON_TERMINATING),
+            bad64::Op::STUR => instr!(str, NON_TERMINATING),
+            bad64::Op::STURB => instr!(strb, NON_TERMINATING),
+            bad64::Op::STURH => instr!(strh, NON_TERMINATING),
+            bad64::Op::STLLR => instr!(stllr, NON_TERMINATING),
+            bad64::Op::STLLRB => instr!(stllrb, NON_TERMINATING),
+            bad64::Op::STLLRH => instr!(stllrh, NON_TERMINATING),
+            bad64::Op::STLR => instr!(stlr, NON_TERMINATING),
+            bad64::Op::STLRB => instr!(stlrb, NON_TERMINATING),
+            bad64::Op::STLRH => instr!(stlrh, NON_TERMINATING),
+            bad64::Op::STLUR => instr!(stlr, NON_TERMINATING),
+            bad64::Op::STLURB => instr!(stlrb, NON_TERMINATING),
+            bad64::Op::STLURH => instr!(stlrh, NON_TERMINATING),
+            bad64::Op::SUB => instr!(sub, NON_TERMINATING),
+            bad64::Op::SUBS => instr!(subs, NON_TERMINATING),
 
             // Prefetch
             bad64::Op::PRFB
@@ -212,7 +222,7 @@ fn translate_block(
             | bad64::Op::PRFH
             | bad64::Op::PRFM
             | bad64::Op::PRFUM
-            | bad64::Op::PRFW => instr!(nop; Ok(NON_TERMINATING)),
+            | bad64::Op::PRFW => instr!(nop, NON_TERMINATING),
 
             bad64::Op::ABS
             | bad64::Op::ADC
@@ -286,7 +296,6 @@ fn translate_block(
             | bad64::Op::BRAAZ
             | bad64::Op::BRAB
             | bad64::Op::BRABZ
-            | bad64::Op::BRK
             | bad64::Op::BRKA
             | bad64::Op::BRKAS
             | bad64::Op::BRKB
@@ -403,9 +412,6 @@ fn translate_block(
             | bad64::Op::EORS
             | bad64::Op::EORTB
             | bad64::Op::EORV
-            | bad64::Op::ERET
-            | bad64::Op::ERETAA
-            | bad64::Op::ERETAB
             | bad64::Op::ESB
             | bad64::Op::EXT
             | bad64::Op::EXTR
@@ -1180,7 +1186,6 @@ fn translate_block(
             | bad64::Op::UBFM
             | bad64::Op::UBFX
             | bad64::Op::UCVTF
-            | bad64::Op::UDF
             | bad64::Op::UDIV
             | bad64::Op::UDIVR
             | bad64::Op::UDOT
@@ -1298,17 +1303,11 @@ fn translate_block(
             | bad64::Op::XTN2
             | bad64::Op::YIELD
             | bad64::Op::ZIP1
-            | bad64::Op::ZIP2 => Err(unsupported()),
+            | bad64::Op::ZIP2 => (Err(unsupported()), NON_TERMINATING),
         };
 
         match instruction_translate_result {
-            Ok(terminating) => {
-                if terminating {
-                    instruction_graph.set_address(Some(instruction.address()));
-                    block_graphs.push((instruction.address(), instruction_graph));
-                    break;
-                }
-            }
+            Ok(()) => {}
             Err(UnsupportedError(_)) => {
                 if options.unsupported_are_intrinsics() {
                     semantics::unhandled_intrinsic(
@@ -1330,6 +1329,10 @@ fn translate_block(
 
         instruction_graph.set_address(Some(instruction.address()));
         block_graphs.push((instruction.address(), instruction_graph));
+
+        if terminating == TERMINATING {
+            break;
+        }
 
         length += 4;
         offset += 4;
