@@ -1367,6 +1367,24 @@ fn subs_xn() {
 }
 
 #[test]
+fn str_qn_xn() {
+    // str q15, [x9]; nop
+    let instruction_words = &[0x3d80012f, 0xd503201f];
+
+    let driver = init_driver_function(
+        backing!(instruction_words),
+        vec![
+            ("v15", const_(0xdeadbeef12345678, 128)),
+            ("x9", const_(0xeed85f2300, 64)),
+        ],
+    );
+    let driver = step_to(driver, 0x4);
+
+    let memory = driver.state().memory();
+    assert_eq!(memval(memory, 0xeed85f2300, 128), 0xdeadbeef12345678);
+}
+
+#[test]
 fn tbnz() {
     //   mov x0, #45
     //   tbnz x4, #16, 1f

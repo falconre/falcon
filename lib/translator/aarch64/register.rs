@@ -50,7 +50,13 @@ impl AArch64Register {
         } else if self.is_full() {
             expr_scalar(self.name, self.bits)
         } else {
-            Expression::trun(self.bits, self.get_full().get()).unwrap()
+            let full_reg_scalar = self.get_full().get();
+            if full_reg_scalar.bits() == self.bits {
+                full_reg_scalar
+            } else {
+                assert!(full_reg_scalar.bits() > self.bits);
+                Expression::trun(self.bits, full_reg_scalar).unwrap()
+            }
         }
     }
 
