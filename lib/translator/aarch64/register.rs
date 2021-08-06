@@ -1,7 +1,9 @@
 use bad64::Reg;
 
-use crate::error::*;
 use crate::il::*;
+use crate::translator::aarch64::{unsupported, UnsupportedError};
+
+type Result<T> = std::result::Result<T, UnsupportedError>;
 
 /// Struct for dealing with AArch64 registers
 pub struct AArch64Register {
@@ -33,20 +35,22 @@ impl AArch64Register {
     }
 
     /// Returns the full-width register for this register
-    pub fn get_full(&self) -> Result<&'static AArch64Register> {
-        get_register(self.bad64_full_reg)
+    pub fn get_full(&self) -> &'static AArch64Register {
+        get_register(self.bad64_full_reg).expect(
+            "full register of a supported register should be supported as well, but it wasn't",
+        )
     }
 
     /// Returns an expression which evaluates to the value of the register.
     ///
     /// This handles things like `x0`/`w0`.
-    pub fn get(&self) -> Result<Expression> {
+    pub fn get(&self) -> Expression {
         if matches!(self.bad64_reg, Reg::XZR | Reg::WZR) {
-            Ok(expr_const(0, self.bits))
+            expr_const(0, self.bits)
         } else if self.is_full() {
-            Ok(expr_scalar(self.name, self.bits))
+            expr_scalar(self.name, self.bits)
         } else {
-            Expression::trun(self.bits, self.get_full()?.get()?)
+            Expression::trun(self.bits, self.get_full().get()).unwrap()
         }
     }
 
@@ -55,19 +59,18 @@ impl AArch64Register {
     /// This handles things like `x0`/`w0`.
     ///
     /// If `value` is short, it will be zero-extended.
-    pub fn set(&self, block: &mut Block, value: Expression) -> Result<()> {
+    pub fn set(&self, block: &mut Block, value: Expression) {
         if self.is_full() {
             assert!(value.bits() <= self.bits);
             let value = if value.bits() == self.bits {
                 value
             } else {
-                Expression::zext(self.bits, value)?
+                Expression::zext(self.bits, value).unwrap()
             };
             block.assign(scalar(self.name, self.bits), value);
-            Ok(())
         } else {
-            let full_reg = self.get_full()?;
-            full_reg.set(block, value)
+            let full_reg = self.get_full();
+            full_reg.set(block, value);
         }
     }
 }
@@ -406,12 +409,13 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "p31", bad64_reg: Reg::P31, bad64_full_reg: Reg::P31, bits: 16 },
 ];
 
-/// Takes a capstone register enum and returns a `AArch64Register`
-pub fn get_register(bad64_reg: Reg) -> Result<&'static AArch64Register> {
+/// Takes a `bad64` register enum and returns a `AArch64Register`
+pub(super) fn get_register(bad64_reg: Reg) -> Result<&'static AArch64Register> {
     for register in AARCH64_REGISTERS.iter() {
         if register.bad64_reg == bad64_reg {
             return Ok(&register);
         }
     }
-    Err("Could not find register".into())
+
+    Err(unsupported())
 }

@@ -1,6 +1,10 @@
-use crate::error::Result;
 use crate::il;
-use crate::translator::aarch64::register::{get_register, AArch64Register};
+use crate::translator::aarch64::{
+    register::{get_register, AArch64Register},
+    unsupported, UnsupportedError,
+};
+
+type Result<T> = std::result::Result<T, UnsupportedError>;
 
 /// Get the scalar for a well-known register.
 macro_rules! scalar {
@@ -37,9 +41,9 @@ pub(super) fn unhandled_intrinsic(
     bytes: &[u8],
     control_flow_graph: &mut il::ControlFlowGraph,
     instruction: &bad64::Instruction,
-) -> Result<()> {
+) {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         block.intrinsic(il::Intrinsic::new(
             instruction.op().to_string(),
@@ -53,10 +57,8 @@ pub(super) fn unhandled_intrinsic(
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
-
-    Ok(())
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 }
 
 /// Only supports non-memory operands.
@@ -66,20 +68,20 @@ fn operand_load(
     opr: &bad64::Operand,
     out_bits: usize,
 ) -> Result<il::Expression> {
-    // TODO: Consider `unsupported_are_intrinsics`
     match opr {
-        bad64::Operand::Reg { reg, arrspec: None } => get_register(*reg)?.get(),
+        bad64::Operand::Reg { reg, arrspec: None } => Ok(get_register(*reg)?.get()),
         bad64::Operand::Reg {
             reg,
             arrspec: Some(arrspec),
         } => {
             let reg = get_register(*reg)?;
-            let reg_value = reg.get()?;
+            let reg_value = reg.get();
             assert_eq!(reg.bits(), 128);
 
             let (shift, width) = arr_spec_offset_width(&arrspec);
 
-            let value = il::Expression::shr(reg_value, il::expr_const(shift as u64, reg.bits()))?;
+            let value =
+                il::Expression::shr(reg_value, il::expr_const(shift as u64, reg.bits())).unwrap();
             Ok(resize_zext(width, value))
         }
         bad64::Operand::Imm32 { imm, shift } => maybe_shift(
@@ -93,7 +95,7 @@ fn operand_load(
             out_bits,
         ),
         bad64::Operand::ShiftReg { reg, shift: shift_ } => {
-            shift(get_register(*reg)?.get()?, shift_, out_bits)
+            shift(get_register(*reg)?.get(), shift_, out_bits)
         }
         bad64::Operand::Label(imm) => Ok(il::expr_const(imm_to_u64(imm), 64)),
         bad64::Operand::FImm32(_)
@@ -103,7 +105,7 @@ fn operand_load(
         | bad64::Operand::ImplSpec { .. }
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
-        | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+        | bad64::Operand::StrImm { .. } => Err(unsupported()),
         bad64::Operand::MemReg(_)
         | bad64::Operand::MemOffset { .. }
         | bad64::Operand::MemPreIdx { .. }
@@ -147,7 +149,6 @@ fn operand_imm_u64(opr: &bad64::Operand) -> u64 {
 }
 
 fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Expression) -> Result<()> {
-    // TODO: Consider `unsupported_are_intrinsics`
     match opr {
         bad64::Operand::Reg { reg, arrspec: None } => get_register(*reg)?.set(block, value),
         bad64::Operand::Reg {
@@ -165,53 +166,61 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
                 // bits of the old value...
                 let masked_lower = if shift > 0 {
                     assert!(shift < reg.bits());
-                    Some(il::Expression::zext(
-                        reg.bits(),
-                        il::Expression::trun(shift, reg.get()?)?,
-                    )?)
+                    Some(
+                        il::Expression::zext(
+                            reg.bits(),
+                            il::Expression::trun(shift, reg.get()).unwrap(),
+                        )
+                        .unwrap(),
+                    )
                 } else {
                     None
                 };
                 let masked_upper = if shift + width < reg.bits() {
-                    Some(il::Expression::shl(
-                        il::Expression::shr(
-                            reg.get()?,
+                    Some(
+                        il::Expression::shl(
+                            il::Expression::shr(
+                                reg.get(),
+                                il::expr_const((shift + width) as u64, reg.bits()),
+                            )
+                            .unwrap(),
                             il::expr_const((shift + width) as u64, reg.bits()),
-                        )?,
-                        il::expr_const((shift + width) as u64, reg.bits()),
-                    )?)
+                        )
+                        .unwrap(),
+                    )
                 } else {
                     None
                 };
                 let masked = match (masked_lower, masked_upper) {
-                    (Some(x), Some(y)) => il::Expression::or(x, y)?,
+                    (Some(x), Some(y)) => il::Expression::or(x, y).unwrap(),
                     (Some(x), None) | (None, Some(x)) => x,
-                    (None, None) => return reg.set(block, resize_zext(reg.bits(), value)),
+                    (None, None) => return Ok(reg.set(block, resize_zext(reg.bits(), value))),
                 };
 
                 // Shift the new value into the desired place...
                 let replacement = if value.bits() <= width {
                     value
                 } else {
-                    il::Expression::trun(width, value)?
+                    il::Expression::trun(width, value).unwrap()
                 };
                 let replacement = il::Expression::shl(
                     resize_zext(reg.bits(), replacement),
                     il::expr_const(shift as u64, reg.bits()),
-                )?;
+                )
+                .unwrap();
 
                 // And construct the final value.
-                reg.set(block, il::Expression::or(masked, replacement)?)
+                reg.set(block, il::Expression::or(masked, replacement).unwrap());
             } else {
                 // Replace the whole with zero extension
-                reg.set(block, resize_zext(reg.bits(), value))
+                reg.set(block, resize_zext(reg.bits(), value));
             }
         }
         bad64::Operand::ShiftReg { .. }
         | bad64::Operand::Imm32 { .. }
         | bad64::Operand::Imm64 { .. }
         | bad64::Operand::FImm32(_) => {
-            bail!("Can't store to operand `{}`", opr)
+            panic!("Can't store to operand `{}`", opr)
         }
         bad64::Operand::QualReg { .. }
         | bad64::Operand::MultiReg { .. }
@@ -226,15 +235,16 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
         | bad64::Operand::ImplSpec { .. }
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
-        | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+        | bad64::Operand::StrImm { .. } => return Err(unsupported()),
     }
+    Ok(())
 }
 
 /// Only supports non-memory operands.
 /// `out_bits` is only used for zero/sign-extension modifier.
 fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOperandSideeffect)> {
     let (address_expr, sideeffect) = match opr {
-        bad64::Operand::MemReg(reg) => (get_register(*reg)?.get()?, MemOperandSideeffect::None),
+        bad64::Operand::MemReg(reg) => (get_register(*reg)?.get(), MemOperandSideeffect::None),
         bad64::Operand::MemOffset {
             reg,
             offset,
@@ -243,13 +253,13 @@ fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOpera
         } => {
             let reg = get_register(*reg)?;
             let offset = il::expr_const(imm_to_u64(offset), 64);
-            let indexed_address = il::Expression::add(reg.clone().get()?, offset)?;
+            let indexed_address = il::Expression::add(reg.clone().get(), offset).unwrap();
             (indexed_address, MemOperandSideeffect::None)
         }
         bad64::Operand::MemPreIdx { reg, imm } => {
             let reg = get_register(*reg)?;
             let imm = il::expr_const(imm_to_u64(imm), 64);
-            let indexed_address = il::Expression::add(reg.clone().get()?, imm)?;
+            let indexed_address = il::Expression::add(reg.clone().get(), imm).unwrap();
             (
                 indexed_address.clone(),
                 MemOperandSideeffect::Assign(reg, indexed_address),
@@ -258,19 +268,19 @@ fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOpera
         bad64::Operand::MemPostIdxReg([reg, reg_offset]) => {
             // TODO: Test this using `LD1R`
             let reg = get_register(*reg)?;
-            let reg_offset = get_register(*reg_offset)?.get()?;
-            let indexed_address = il::Expression::add(reg.get()?, reg_offset)?;
+            let reg_offset = get_register(*reg_offset)?.get();
+            let indexed_address = il::Expression::add(reg.get(), reg_offset).unwrap();
             (
-                reg.get()?,
+                reg.get(),
                 MemOperandSideeffect::Assign(reg, indexed_address),
             )
         }
         bad64::Operand::MemPostIdxImm { reg, imm } => {
             let reg = get_register(*reg)?;
             let imm = il::expr_const(imm_to_u64(imm), 64);
-            let indexed_address = il::Expression::add(reg.get()?, imm)?;
+            let indexed_address = il::Expression::add(reg.get(), imm).unwrap();
             (
-                reg.get()?,
+                reg.get(),
                 MemOperandSideeffect::Assign(reg, indexed_address),
             )
         }
@@ -279,13 +289,13 @@ fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOpera
             shift: shift_,
             arrspec: None,
         } => {
-            let reg = get_register(*reg)?.get()?;
+            let reg = get_register(*reg)?.get();
             let reg_offset = if let Some(shift_) = shift_ {
-                shift(get_register(*reg_offset)?.get()?, shift_, 64)?
+                shift(get_register(*reg_offset)?.get(), shift_, 64)?
             } else {
-                get_register(*reg_offset)?.get()?
+                get_register(*reg_offset)?.get()
             };
-            let indexed_address = il::Expression::add(reg, reg_offset)?;
+            let indexed_address = il::Expression::add(reg, reg_offset).unwrap();
             (indexed_address, MemOperandSideeffect::None)
         }
 
@@ -295,7 +305,7 @@ fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOpera
         }
         | bad64::Operand::MemExt {
             arrspec: Some(_), ..
-        } => bail!("Unsupported operand: `{}`", opr),
+        } => return Err(unsupported()),
 
         bad64::Operand::Reg { .. }
         | bad64::Operand::Imm32 { .. }
@@ -322,11 +332,10 @@ enum MemOperandSideeffect {
 }
 
 impl MemOperandSideeffect {
-    fn apply(self, block: &mut il::Block) -> Result<()> {
+    fn apply(self, block: &mut il::Block) {
         if let MemOperandSideeffect::Assign(scalar, value) = self {
-            scalar.set(block, value)?;
+            scalar.set(block, value);
         }
-        Ok(())
     }
 }
 
@@ -355,7 +364,7 @@ fn operand_storing_width(opr: &bad64::Operand) -> Result<usize> {
         | bad64::Operand::Imm32 { .. }
         | bad64::Operand::Imm64 { .. }
         | bad64::Operand::FImm32(_) => {
-            bail!("Can't store to operand `{}`", opr)
+            panic!("Can't store to operand `{}`", opr)
         }
         bad64::Operand::QualReg { .. }
         | bad64::Operand::MultiReg { .. }
@@ -370,7 +379,7 @@ fn operand_storing_width(opr: &bad64::Operand) -> Result<usize> {
         | bad64::Operand::ImplSpec { .. }
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
-        | bad64::Operand::StrImm { .. } => bail!("Unsupported operand: `{}`", opr),
+        | bad64::Operand::StrImm { .. } => Err(unsupported()),
     }
 }
 
@@ -458,12 +467,20 @@ fn shift(
 ) -> Result<il::Expression> {
     let (unsigned, len, shift_amount) = match *bad64_shift {
         // ShiftReg
-        bad64::Shift::LSL(amount) => return lsl(value, il::expr_const(amount.into(), out_bits)),
-        bad64::Shift::LSR(amount) => return lsr(value, il::expr_const(amount.into(), out_bits)),
-        bad64::Shift::ASR(amount) => return asr(value, il::expr_const(amount.into(), out_bits)),
-        bad64::Shift::ROR(amount) => return ror(value, il::expr_const(amount.into(), out_bits)),
+        bad64::Shift::LSL(amount) => {
+            return Ok(lsl(value, il::expr_const(amount.into(), out_bits)))
+        }
+        bad64::Shift::LSR(amount) => {
+            return Ok(lsr(value, il::expr_const(amount.into(), out_bits)))
+        }
+        bad64::Shift::ASR(amount) => {
+            return Ok(asr(value, il::expr_const(amount.into(), out_bits)))
+        }
+        bad64::Shift::ROR(amount) => {
+            return Ok(ror(value, il::expr_const(amount.into(), out_bits)))
+        }
         // AdvSIMDExpandImm with `op == 0 && cmode == 110x`
-        bad64::Shift::MSL(amount) => bail!("Unsupported MSL shifting in operand"),
+        bad64::Shift::MSL(_amount) => return Err(unsupported()),
         // ExtendReg
         bad64::Shift::SXTB(amount) => (false, 8, amount),
         bad64::Shift::SXTH(amount) => (false, 16, amount),
@@ -476,49 +493,51 @@ fn shift(
     };
 
     let extended = if len < value.bits() {
-        il::Expression::trun(len, value)?
+        il::Expression::trun(len, value).unwrap()
     } else {
         value
     };
     let extended = if len < out_bits {
         if unsigned {
-            il::Expression::zext(out_bits, extended)?
+            il::Expression::zext(out_bits, extended).unwrap()
         } else {
-            il::Expression::sext(out_bits, extended)?
+            il::Expression::sext(out_bits, extended).unwrap()
         }
     } else {
         extended
     };
 
-    il::Expression::shl(extended, il::expr_const(shift_amount.into(), out_bits))
+    Ok(il::Expression::shl(extended, il::expr_const(shift_amount.into(), out_bits)).unwrap())
 }
 
 /// Logical shift left
-fn lsl(value: il::Expression, shift: il::Expression) -> Result<il::Expression> {
-    il::Expression::shl(value, shift)
+fn lsl(value: il::Expression, shift: il::Expression) -> il::Expression {
+    il::Expression::shl(value, shift).unwrap()
 }
 
 /// Logical shift right
-fn lsr(value: il::Expression, shift: il::Expression) -> Result<il::Expression> {
-    il::Expression::shr(value, shift)
+fn lsr(value: il::Expression, shift: il::Expression) -> il::Expression {
+    il::Expression::shr(value, shift).unwrap()
 }
 
 /// Arithmetic shift right
-fn asr(value: il::Expression, shift: il::Expression) -> Result<il::Expression> {
-    il::Expression::sra(value, shift)
+fn asr(value: il::Expression, shift: il::Expression) -> il::Expression {
+    il::Expression::sra(value, shift).unwrap()
 }
 
 /// Rotate right
-fn ror(value: il::Expression, shift: il::Expression) -> Result<il::Expression> {
+fn ror(value: il::Expression, shift: il::Expression) -> il::Expression {
     let shift_right_bits = shift;
     let shift_left_bits = il::Expression::sub(
         il::expr_const(value.bits() as u64, value.bits()),
         shift_right_bits.clone(),
-    )?;
-    il::Expression::or(
-        il::Expression::shl(value.clone(), shift_left_bits)?,
-        il::Expression::shr(value, shift_right_bits)?,
     )
+    .unwrap();
+    il::Expression::or(
+        il::Expression::shl(value.clone(), shift_left_bits).unwrap(),
+        il::Expression::shr(value, shift_right_bits).unwrap(),
+    )
+    .unwrap()
 }
 
 fn imm_to_u64(imm: &bad64::Imm) -> u64 {
@@ -533,7 +552,7 @@ pub(super) fn add(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -541,7 +560,7 @@ pub(super) fn add(
         let rhs = operand_load(block, &instruction.operands()[2], bits)?;
 
         // perform operation
-        let src = il::Expression::add(lhs, rhs)?;
+        let src = il::Expression::add(lhs, rhs).unwrap();
 
         // store result
         operand_store(block, &instruction.operands()[0], src)?;
@@ -549,8 +568,8 @@ pub(super) fn add(
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -560,7 +579,7 @@ pub(super) fn adds(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -568,20 +587,31 @@ pub(super) fn adds(
         let rhs = operand_load(block, &instruction.operands()[2], bits)?;
 
         // perform operation
-        let result = il::Expression::add(lhs.clone(), rhs.clone())?;
+        let result = il::Expression::add(lhs.clone(), rhs.clone()).unwrap();
 
         let unsigned_sum = il::Expression::add(
-            il::Expression::zext(72, lhs.clone())?,
-            il::Expression::zext(72, rhs.clone())?,
-        )?;
+            il::Expression::zext(72, lhs.clone()).unwrap(),
+            il::Expression::zext(72, rhs.clone()).unwrap(),
+        )
+        .unwrap();
         let signed_sum = il::Expression::add(
-            il::Expression::sext(72, lhs)?,
-            il::Expression::sext(72, rhs)?,
-        )?;
-        let n = il::Expression::cmplts(result.clone(), il::expr_const(0, bits))?;
-        let z = il::Expression::cmpeq(result.clone(), il::expr_const(0, bits))?;
-        let c = il::Expression::cmpneq(il::Expression::zext(72, result.clone())?, unsigned_sum)?;
-        let v = il::Expression::cmpneq(il::Expression::sext(72, result.clone())?, signed_sum)?;
+            il::Expression::sext(72, lhs).unwrap(),
+            il::Expression::sext(72, rhs).unwrap(),
+        )
+        .unwrap();
+
+        let n = il::Expression::cmplts(result.clone(), il::expr_const(0, bits)).unwrap();
+        let z = il::Expression::cmpeq(result.clone(), il::expr_const(0, bits)).unwrap();
+        let c = il::Expression::cmpneq(
+            il::Expression::zext(72, result.clone()).unwrap(),
+            unsigned_sum,
+        )
+        .unwrap();
+        let v = il::Expression::cmpneq(
+            il::Expression::sext(72, result.clone()).unwrap(),
+            signed_sum,
+        )
+        .unwrap();
 
         // store result
         operand_store(block, &instruction.operands()[0], result)?;
@@ -593,22 +623,21 @@ pub(super) fn adds(
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
 
 pub(super) fn b(
-    mut instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let dst;
 
     let block_index = {
-        let block = instruction_graph.new_block()?;
+        let block = instruction_graph.new_block().unwrap();
 
         // get operands
         dst = operand_load(block, &instruction.operands()[0], 64)?
@@ -619,11 +648,8 @@ pub(super) fn b(
 
         block.index()
     };
-    instruction_graph.set_entry(block_index)?;
-    instruction_graph.set_exit(block_index)?;
-
-    instruction_graph.set_address(Some(instruction.address()));
-    block_graphs.push((instruction.address(), instruction_graph));
+    instruction_graph.set_entry(block_index).unwrap();
+    instruction_graph.set_exit(block_index).unwrap();
 
     successors.push((dst, None));
 
@@ -631,8 +657,7 @@ pub(super) fn b(
 }
 
 pub(super) fn b_cc(
-    mut instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
     cond: u8,
@@ -640,11 +665,11 @@ pub(super) fn b_cc(
     let (dst, cond_true_false);
 
     if (cond & 0b1110) == 0b1110 {
-        return b(instruction_graph, block_graphs, successors, instruction);
+        return b(instruction_graph, successors, instruction);
     }
 
     let block_index = {
-        let block = instruction_graph.new_block()?;
+        let block = instruction_graph.new_block().unwrap();
 
         // get operands
         dst = operand_load(block, &instruction.operands()[0], 64)?
@@ -661,17 +686,19 @@ pub(super) fn b_cc(
             0b011 => expr!("v"),
             0b100 => il::Expression::and(
                 expr!("c"),
-                il::Expression::cmpneq(expr!("z"), il::expr_const(1, 1))?,
-            )?,
-            0b101 => il::Expression::cmpeq(expr!("n"), expr!("v"))?,
+                il::Expression::cmpneq(expr!("z"), il::expr_const(1, 1)).unwrap(),
+            )
+            .unwrap(),
+            0b101 => il::Expression::cmpeq(expr!("n"), expr!("v")).unwrap(),
             0b110 => il::Expression::and(
-                il::Expression::cmpeq(expr!("n"), expr!("v"))?,
-                il::Expression::cmpneq(expr!("z"), il::expr_const(1, 1))?,
-            )?,
+                il::Expression::cmpeq(expr!("n"), expr!("v")).unwrap(),
+                il::Expression::cmpneq(expr!("z"), il::expr_const(1, 1)).unwrap(),
+            )
+            .unwrap(),
             0b111 => unreachable!(), // handled above
             0b1000.. => unreachable!(),
         };
-        let cond_false = il::Expression::cmpneq(cond_true.clone(), il::expr_const(1, 1))?;
+        let cond_false = il::Expression::cmpneq(cond_true.clone(), il::expr_const(1, 1)).unwrap();
         cond_true_false = if (cond & 1) != 0 && cond != 0b1111 {
             (cond_false, cond_true)
         } else {
@@ -680,11 +707,8 @@ pub(super) fn b_cc(
 
         block.index()
     };
-    instruction_graph.set_entry(block_index)?;
-    instruction_graph.set_exit(block_index)?;
-
-    instruction_graph.set_address(Some(instruction.address()));
-    block_graphs.push((instruction.address(), instruction_graph));
+    instruction_graph.set_entry(block_index).unwrap();
+    instruction_graph.set_exit(block_index).unwrap();
 
     let (cond_true, cond_false) = cond_true_false;
     successors.push((dst, Some(cond_true)));
@@ -694,13 +718,12 @@ pub(super) fn b_cc(
 }
 
 pub(super) fn br(
-    mut instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     _successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = instruction_graph.new_block()?;
+        let block = instruction_graph.new_block().unwrap();
 
         // get operands
         let dst = operand_load(block, &instruction.operands()[0], 64)?;
@@ -709,11 +732,8 @@ pub(super) fn br(
 
         block.index()
     };
-    instruction_graph.set_entry(block_index)?;
-    instruction_graph.set_exit(block_index)?;
-
-    instruction_graph.set_address(Some(instruction.address()));
-    block_graphs.push((instruction.address(), instruction_graph));
+    instruction_graph.set_entry(block_index).unwrap();
+    instruction_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -723,7 +743,7 @@ pub(super) fn bl(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let dst = operand_load(block, &instruction.operands()[0], 64)?;
@@ -737,8 +757,8 @@ pub(super) fn bl(
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -746,8 +766,7 @@ pub(super) fn bl(
 pub(super) use bl as blr;
 
 fn cbz_cbnz_tbz_tbnz(
-    mut instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
     branch_if_zero: bool,
@@ -760,7 +779,7 @@ fn cbz_cbnz_tbz_tbnz(
     let opr_target = [1, 2][test_bit as usize];
 
     let block_index = {
-        let block = instruction_graph.new_block()?;
+        let block = instruction_graph.new_block().unwrap();
 
         // get operands
         dst = operand_load(block, &instruction.operands()[opr_target], 64)?
@@ -776,14 +795,14 @@ fn cbz_cbnz_tbz_tbnz(
             // specific bit
             let bit = operand_imm_u64(&instruction.operands()[opr_bit]);
             assert!(bit < bits as u64);
-            il::Expression::and(value, il::expr_const(1 << bit, bits))?
+            il::Expression::and(value, il::expr_const(1 << bit, bits)).unwrap()
         } else {
             // any bit set
             value
         };
 
-        cond_true = il::Expression::cmpneq(value.clone(), il::expr_const(0, bits))?;
-        cond_false = il::Expression::cmpeq(value, il::expr_const(0, bits))?;
+        cond_true = il::Expression::cmpneq(value.clone(), il::expr_const(0, bits)).unwrap();
+        cond_false = il::Expression::cmpeq(value, il::expr_const(0, bits)).unwrap();
 
         if branch_if_zero {
             std::mem::swap(&mut cond_true, &mut cond_false);
@@ -791,11 +810,8 @@ fn cbz_cbnz_tbz_tbnz(
 
         block.index()
     };
-    instruction_graph.set_entry(block_index)?;
-    instruction_graph.set_exit(block_index)?;
-
-    instruction_graph.set_address(Some(instruction.address()));
-    block_graphs.push((instruction.address(), instruction_graph));
+    instruction_graph.set_entry(block_index).unwrap();
+    instruction_graph.set_exit(block_index).unwrap();
 
     successors.push((dst, Some(cond_true)));
     successors.push((instruction.address() + 4, Some(cond_false)));
@@ -804,35 +820,19 @@ fn cbz_cbnz_tbz_tbnz(
 }
 
 pub(super) fn cbnz(
-    instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
 ) -> Result<()> {
-    cbz_cbnz_tbz_tbnz(
-        instruction_graph,
-        block_graphs,
-        successors,
-        instruction,
-        false,
-        false,
-    )
+    cbz_cbnz_tbz_tbnz(instruction_graph, successors, instruction, false, false)
 }
 
 pub(super) fn cbz(
-    instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
 ) -> Result<()> {
-    cbz_cbnz_tbz_tbnz(
-        instruction_graph,
-        block_graphs,
-        successors,
-        instruction,
-        true,
-        false,
-    )
+    cbz_cbnz_tbz_tbnz(instruction_graph, successors, instruction, true, false)
 }
 
 fn temp0(instruction: &bad64::Instruction, bits: usize) -> il::Scalar {
@@ -848,7 +848,7 @@ pub(super) fn ldp(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let (address, sideeffect) = mem_operand_address(&instruction.operands()[2])?;
@@ -860,7 +860,7 @@ pub(super) fn ldp(
         block.load(temp0.clone(), address.clone());
         block.load(
             temp1.clone(),
-            il::Expression::add(address, il::expr_const(bits as u64 / 8, 64))?,
+            il::Expression::add(address, il::expr_const(bits as u64 / 8, 64)).unwrap(),
         );
 
         // store result
@@ -876,13 +876,13 @@ pub(super) fn ldp(
         )?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -892,7 +892,7 @@ pub(super) fn ldpsw(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let (address, sideeffect) = mem_operand_address(&instruction.operands()[2])?;
@@ -903,29 +903,29 @@ pub(super) fn ldpsw(
         block.load(temp0.clone(), address.clone());
         block.load(
             temp1.clone(),
-            il::Expression::add(address, il::expr_const(4, 64))?,
+            il::Expression::add(address, il::expr_const(4, 64)).unwrap(),
         );
 
         // store result
         operand_store(
             block,
             &instruction.operands()[0],
-            il::Expression::sext(64, il::Expression::Scalar(temp0))?,
+            il::Expression::sext(64, il::Expression::Scalar(temp0)).unwrap(),
         )?;
         operand_store(
             block,
             &instruction.operands()[1],
-            il::Expression::sext(64, il::Expression::Scalar(temp1))?,
+            il::Expression::sext(64, il::Expression::Scalar(temp1)).unwrap(),
         )?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -943,7 +943,7 @@ pub(super) fn ldr(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
@@ -961,13 +961,13 @@ pub(super) fn ldr(
         )?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -977,7 +977,7 @@ pub(super) fn ldrb(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
@@ -994,13 +994,13 @@ pub(super) fn ldrb(
         )?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1010,7 +1010,7 @@ pub(super) fn ldrh(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
@@ -1027,13 +1027,13 @@ pub(super) fn ldrh(
         )?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1043,7 +1043,7 @@ pub(super) fn ldrsb(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1053,19 +1053,19 @@ pub(super) fn ldrsb(
         let temp = temp0(instruction, 8);
         block.load(temp.clone(), address);
 
-        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp))?;
+        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp)).unwrap();
 
         // store result
         operand_store(block, &instruction.operands()[0], extended)?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1075,7 +1075,7 @@ pub(super) fn ldrsh(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1085,19 +1085,19 @@ pub(super) fn ldrsh(
         let temp = temp0(instruction, 16);
         block.load(temp.clone(), address);
 
-        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp))?;
+        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp)).unwrap();
 
         // store result
         operand_store(block, &instruction.operands()[0], extended)?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1107,7 +1107,7 @@ pub(super) fn ldrsw(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operand
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1118,19 +1118,19 @@ pub(super) fn ldrsw(
         let temp = temp0(instruction, 32);
         block.load(temp.clone(), address);
 
-        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp))?;
+        let extended = il::Expression::sext(bits, il::Expression::Scalar(temp)).unwrap();
 
         // store result
         operand_store(block, &instruction.operands()[0], extended)?;
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1140,7 +1140,7 @@ pub(super) fn mov(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1152,8 +1152,8 @@ pub(super) fn mov(
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1163,37 +1163,33 @@ pub(super) fn nop(
     _instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         block.nop();
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
 
 pub(super) fn ret(
-    mut instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     _successors: &mut Vec<(u64, Option<il::Expression>)>,
-    instruction: &bad64::Instruction,
+    _instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = instruction_graph.new_block()?;
+        let block = instruction_graph.new_block().unwrap();
 
         block.branch(expr!("x30"));
 
         block.index()
     };
-    instruction_graph.set_entry(block_index)?;
-    instruction_graph.set_exit(block_index)?;
-
-    instruction_graph.set_address(Some(instruction.address()));
-    block_graphs.push((instruction.address(), instruction_graph));
+    instruction_graph.set_entry(block_index).unwrap();
+    instruction_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1203,7 +1199,7 @@ pub(super) fn stp(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1215,18 +1211,18 @@ pub(super) fn stp(
         // perform operation
         block.store(address.clone(), value0);
         block.store(
-            il::Expression::add(address, il::expr_const(bits as u64 / 8, 64))?,
+            il::Expression::add(address, il::expr_const(bits as u64 / 8, 64)).unwrap(),
             value1,
         );
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1244,7 +1240,7 @@ pub(super) fn str(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1256,13 +1252,13 @@ pub(super) fn str(
         block.store(address, value);
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1272,7 +1268,7 @@ pub(super) fn strb(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let value = operand_load(block, &instruction.operands()[0], 32)?;
@@ -1280,16 +1276,16 @@ pub(super) fn strb(
         let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
 
         // perform operation
-        block.store(address, il::Expression::trun(8, value)?);
+        block.store(address, il::Expression::trun(8, value).unwrap());
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1299,7 +1295,7 @@ pub(super) fn strh(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let value = operand_load(block, &instruction.operands()[0], 32)?;
@@ -1307,16 +1303,16 @@ pub(super) fn strh(
         let (address, sideeffect) = mem_operand_address(&instruction.operands()[1])?;
 
         // perform operation
-        block.store(address, il::Expression::trun(16, value)?);
+        block.store(address, il::Expression::trun(16, value).unwrap());
 
         // write-back
-        sideeffect.apply(block)?;
+        sideeffect.apply(block);
 
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1326,7 +1322,7 @@ pub(super) fn sub(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1334,7 +1330,7 @@ pub(super) fn sub(
         let rhs = operand_load(block, &instruction.operands()[2], bits)?;
 
         // perform operation
-        let src = il::Expression::sub(lhs, rhs)?;
+        let src = il::Expression::sub(lhs, rhs).unwrap();
 
         // store result
         operand_store(block, &instruction.operands()[0], src)?;
@@ -1342,8 +1338,8 @@ pub(super) fn sub(
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
@@ -1353,7 +1349,7 @@ pub(super) fn subs(
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
-        let block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block().unwrap();
 
         // get operands
         let bits = operand_storing_width(&instruction.operands()[0])?;
@@ -1361,20 +1357,30 @@ pub(super) fn subs(
         let rhs = operand_load(block, &instruction.operands()[2], bits)?;
 
         // perform operation
-        let result = il::Expression::sub(lhs.clone(), rhs.clone())?;
+        let result = il::Expression::sub(lhs.clone(), rhs.clone()).unwrap();
 
         let unsigned_sum = il::Expression::sub(
-            il::Expression::zext(72, lhs.clone())?,
-            il::Expression::zext(72, rhs.clone())?,
-        )?;
+            il::Expression::zext(72, lhs.clone()).unwrap(),
+            il::Expression::zext(72, rhs.clone()).unwrap(),
+        )
+        .unwrap();
         let signed_sum = il::Expression::sub(
-            il::Expression::sext(72, lhs)?,
-            il::Expression::sext(72, rhs)?,
-        )?;
-        let n = il::Expression::cmplts(result.clone(), il::expr_const(0, bits))?;
-        let z = il::Expression::cmpeq(result.clone(), il::expr_const(0, bits))?;
-        let c = il::Expression::cmpneq(il::Expression::zext(72, result.clone())?, unsigned_sum)?;
-        let v = il::Expression::cmpneq(il::Expression::sext(72, result.clone())?, signed_sum)?;
+            il::Expression::sext(72, lhs).unwrap(),
+            il::Expression::sext(72, rhs).unwrap(),
+        )
+        .unwrap();
+        let n = il::Expression::cmplts(result.clone(), il::expr_const(0, bits)).unwrap();
+        let z = il::Expression::cmpeq(result.clone(), il::expr_const(0, bits)).unwrap();
+        let c = il::Expression::cmpneq(
+            il::Expression::zext(72, result.clone()).unwrap(),
+            unsigned_sum,
+        )
+        .unwrap();
+        let v = il::Expression::cmpneq(
+            il::Expression::sext(72, result.clone()).unwrap(),
+            signed_sum,
+        )
+        .unwrap();
 
         // store result
         operand_store(block, &instruction.operands()[0], result)?;
@@ -1386,42 +1392,26 @@ pub(super) fn subs(
         block.index()
     };
 
-    control_flow_graph.set_entry(block_index)?;
-    control_flow_graph.set_exit(block_index)?;
+    control_flow_graph.set_entry(block_index).unwrap();
+    control_flow_graph.set_exit(block_index).unwrap();
 
     Ok(())
 }
 
 pub(super) fn tbnz(
-    instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
 ) -> Result<()> {
-    cbz_cbnz_tbz_tbnz(
-        instruction_graph,
-        block_graphs,
-        successors,
-        instruction,
-        false,
-        true,
-    )
+    cbz_cbnz_tbz_tbnz(instruction_graph, successors, instruction, false, true)
 }
 
 pub(super) fn tbz(
-    instruction_graph: il::ControlFlowGraph,
-    block_graphs: &mut Vec<(u64, il::ControlFlowGraph)>,
+    instruction_graph: &mut il::ControlFlowGraph,
     successors: &mut Vec<(u64, Option<il::Expression>)>,
     instruction: &bad64::Instruction,
 ) -> Result<()> {
-    cbz_cbnz_tbz_tbnz(
-        instruction_graph,
-        block_graphs,
-        successors,
-        instruction,
-        true,
-        true,
-    )
+    cbz_cbnz_tbz_tbnz(instruction_graph, successors, instruction, true, true)
 }
 
 // TODO: Rest of the owl

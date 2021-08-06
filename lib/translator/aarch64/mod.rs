@@ -4,6 +4,7 @@ use crate::architecture::Endian;
 use crate::error::*;
 use crate::il::*;
 use crate::translator::{BlockTranslationResult, Options, Translator};
+use std::result::Result as StdResult;
 
 mod register;
 mod semantics;
@@ -86,149 +87,99 @@ fn translate_block(
 
         let mut instruction_graph = ControlFlowGraph::new();
 
-        macro_rules! b_cc {
-            ($cond:expr; break) => {{
-                semantics::b_cc(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                    $cond,
-                )?;
-                break;
+        const TERMINATING: bool = true;
+        const NON_TERMINATING: bool = false;
+
+        macro_rules! instr {
+            ($ident:ident; Ok(TERMINATING)) => {{
+                semantics::$ident(&mut instruction_graph, &mut successors, &instruction)
+                    .map(|_| TERMINATING)
+            }};
+            (b_cc($cond:expr); Ok(TERMINATING)) => {{
+                semantics::b_cc(&mut instruction_graph, &mut successors, &instruction, $cond)
+                    .map(|_| TERMINATING)
+            }};
+
+            ($ident:ident; Ok(NON_TERMINATING)) => {{
+                semantics::$ident(&mut instruction_graph, &instruction).map(|_| NON_TERMINATING)
             }};
         }
 
-        match instruction.op() {
+        let instruction_translate_result: StdResult<bool, UnsupportedError> = match instruction.op()
+        {
             // Terminating
-            bad64::Op::B => {
-                semantics::b(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                )?;
-                break;
-            }
-            bad64::Op::B_AL => b_cc!(0b1110; break),
-            bad64::Op::B_CC => b_cc!(0b0011; break),
-            bad64::Op::B_CS => b_cc!(0b0010; break),
-            bad64::Op::B_EQ => b_cc!(0b0000; break),
-            bad64::Op::B_GE => b_cc!(0b1010; break),
-            bad64::Op::B_GT => b_cc!(0b1100; break),
-            bad64::Op::B_HI => b_cc!(0b1000; break),
-            bad64::Op::B_LE => b_cc!(0b1101; break),
-            bad64::Op::B_LS => b_cc!(0b1001; break),
-            bad64::Op::B_LT => b_cc!(0b1011; break),
-            bad64::Op::B_MI => b_cc!(0b0100; break),
-            bad64::Op::B_NE => b_cc!(0b0001; break),
-            bad64::Op::B_NV => b_cc!(0b1111; break),
-            bad64::Op::B_PL => b_cc!(0b0101; break),
-            bad64::Op::B_VC => b_cc!(0b0111; break),
-            bad64::Op::B_VS => b_cc!(0b0110; break),
-            bad64::Op::BR => {
-                semantics::br(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                )?;
-                break;
-            }
-            bad64::Op::CBNZ => {
-                semantics::cbnz(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                )?;
-                break;
-            }
-            bad64::Op::CBZ => {
-                semantics::cbz(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                )?;
-                break;
-            }
-            bad64::Op::TBNZ => {
-                semantics::tbnz(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                )?;
-                break;
-            }
-            bad64::Op::TBZ => {
-                semantics::tbz(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                )?;
-                break;
-            }
-            bad64::Op::RET => {
-                semantics::ret(
-                    instruction_graph,
-                    &mut block_graphs,
-                    &mut successors,
-                    &instruction,
-                )?;
-                break;
-            }
+            bad64::Op::B => instr!(b; Ok(TERMINATING)),
+            bad64::Op::B_AL => instr!(b_cc(0b1110); Ok(TERMINATING)),
+            bad64::Op::B_CC => instr!(b_cc(0b0011); Ok(TERMINATING)),
+            bad64::Op::B_CS => instr!(b_cc(0b0010); Ok(TERMINATING)),
+            bad64::Op::B_EQ => instr!(b_cc(0b0000); Ok(TERMINATING)),
+            bad64::Op::B_GE => instr!(b_cc(0b1010); Ok(TERMINATING)),
+            bad64::Op::B_GT => instr!(b_cc(0b1100); Ok(TERMINATING)),
+            bad64::Op::B_HI => instr!(b_cc(0b1000); Ok(TERMINATING)),
+            bad64::Op::B_LE => instr!(b_cc(0b1101); Ok(TERMINATING)),
+            bad64::Op::B_LS => instr!(b_cc(0b1001); Ok(TERMINATING)),
+            bad64::Op::B_LT => instr!(b_cc(0b1011); Ok(TERMINATING)),
+            bad64::Op::B_MI => instr!(b_cc(0b0100); Ok(TERMINATING)),
+            bad64::Op::B_NE => instr!(b_cc(0b0001); Ok(TERMINATING)),
+            bad64::Op::B_NV => instr!(b_cc(0b1111); Ok(TERMINATING)),
+            bad64::Op::B_PL => instr!(b_cc(0b0101); Ok(TERMINATING)),
+            bad64::Op::B_VC => instr!(b_cc(0b0111); Ok(TERMINATING)),
+            bad64::Op::B_VS => instr!(b_cc(0b0110); Ok(TERMINATING)),
+            bad64::Op::BR => instr!(br; Ok(TERMINATING)),
+            bad64::Op::CBNZ => instr!(cbnz; Ok(TERMINATING)),
+            bad64::Op::CBZ => instr!(cbz; Ok(TERMINATING)),
+            bad64::Op::TBNZ => instr!(tbnz; Ok(TERMINATING)),
+            bad64::Op::TBZ => instr!(tbz; Ok(TERMINATING)),
+            bad64::Op::RET => instr!(ret; Ok(TERMINATING)),
             // TODO: handle other terminating instructions like ERET?
 
             // Non-terminating
-            bad64::Op::ADD => semantics::add(&mut instruction_graph, &instruction),
-            bad64::Op::ADDS => semantics::adds(&mut instruction_graph, &instruction),
-            bad64::Op::BL => semantics::bl(&mut instruction_graph, &instruction),
-            bad64::Op::BLR => semantics::blr(&mut instruction_graph, &instruction),
-            bad64::Op::LDAR => semantics::ldar(&mut instruction_graph, &instruction),
-            bad64::Op::LDARB => semantics::ldarb(&mut instruction_graph, &instruction),
-            bad64::Op::LDARH => semantics::ldarh(&mut instruction_graph, &instruction),
-            bad64::Op::LDLAR => semantics::ldlar(&mut instruction_graph, &instruction),
-            bad64::Op::LDLARB => semantics::ldlarb(&mut instruction_graph, &instruction),
-            bad64::Op::LDLARH => semantics::ldlarh(&mut instruction_graph, &instruction),
-            bad64::Op::LDP => semantics::ldp(&mut instruction_graph, &instruction),
-            bad64::Op::LDNP => semantics::ldnp(&mut instruction_graph, &instruction),
-            bad64::Op::LDPSW => semantics::ldpsw(&mut instruction_graph, &instruction),
-            bad64::Op::LDR => semantics::ldr(&mut instruction_graph, &instruction),
-            bad64::Op::LDRB => semantics::ldrb(&mut instruction_graph, &instruction),
-            bad64::Op::LDRH => semantics::ldrh(&mut instruction_graph, &instruction),
-            bad64::Op::LDRSW => semantics::ldrsw(&mut instruction_graph, &instruction),
-            bad64::Op::LDRSB => semantics::ldrsb(&mut instruction_graph, &instruction),
-            bad64::Op::LDRSH => semantics::ldrsh(&mut instruction_graph, &instruction),
-            bad64::Op::LDUR => semantics::ldr(&mut instruction_graph, &instruction),
-            bad64::Op::LDURB => semantics::ldrb(&mut instruction_graph, &instruction),
-            bad64::Op::LDURH => semantics::ldrh(&mut instruction_graph, &instruction),
-            bad64::Op::LDURSW => semantics::ldrsw(&mut instruction_graph, &instruction),
-            bad64::Op::LDURSB => semantics::ldrsb(&mut instruction_graph, &instruction),
-            bad64::Op::LDURSH => semantics::ldrsh(&mut instruction_graph, &instruction),
-            bad64::Op::MOV => semantics::mov(&mut instruction_graph, &instruction),
-            bad64::Op::NOP => semantics::nop(&mut instruction_graph, &instruction),
-            bad64::Op::STP => semantics::stp(&mut instruction_graph, &instruction),
-            bad64::Op::STNP => semantics::stnp(&mut instruction_graph, &instruction),
-            bad64::Op::STR => semantics::str(&mut instruction_graph, &instruction),
-            bad64::Op::STRB => semantics::strb(&mut instruction_graph, &instruction),
-            bad64::Op::STRH => semantics::strh(&mut instruction_graph, &instruction),
-            bad64::Op::STUR => semantics::str(&mut instruction_graph, &instruction),
-            bad64::Op::STURB => semantics::strb(&mut instruction_graph, &instruction),
-            bad64::Op::STURH => semantics::strh(&mut instruction_graph, &instruction),
-            bad64::Op::STLLR => semantics::stllr(&mut instruction_graph, &instruction),
-            bad64::Op::STLLRB => semantics::stllrb(&mut instruction_graph, &instruction),
-            bad64::Op::STLLRH => semantics::stllrh(&mut instruction_graph, &instruction),
-            bad64::Op::STLR => semantics::stlr(&mut instruction_graph, &instruction),
-            bad64::Op::STLRB => semantics::stlrb(&mut instruction_graph, &instruction),
-            bad64::Op::STLRH => semantics::stlrh(&mut instruction_graph, &instruction),
-            bad64::Op::STLUR => semantics::stlr(&mut instruction_graph, &instruction),
-            bad64::Op::STLURB => semantics::stlrb(&mut instruction_graph, &instruction),
-            bad64::Op::STLURH => semantics::stlrh(&mut instruction_graph, &instruction),
-            bad64::Op::SUB => semantics::sub(&mut instruction_graph, &instruction),
-            bad64::Op::SUBS => semantics::subs(&mut instruction_graph, &instruction),
+            bad64::Op::ADD => instr!(add; Ok(NON_TERMINATING)),
+            bad64::Op::ADDS => instr!(adds; Ok(NON_TERMINATING)),
+            bad64::Op::BL => instr!(bl; Ok(NON_TERMINATING)),
+            bad64::Op::BLR => instr!(blr; Ok(NON_TERMINATING)),
+            bad64::Op::LDAR => instr!(ldar; Ok(NON_TERMINATING)),
+            bad64::Op::LDARB => instr!(ldarb; Ok(NON_TERMINATING)),
+            bad64::Op::LDARH => instr!(ldarh; Ok(NON_TERMINATING)),
+            bad64::Op::LDLAR => instr!(ldlar; Ok(NON_TERMINATING)),
+            bad64::Op::LDLARB => instr!(ldlarb; Ok(NON_TERMINATING)),
+            bad64::Op::LDLARH => instr!(ldlarh; Ok(NON_TERMINATING)),
+            bad64::Op::LDP => instr!(ldp; Ok(NON_TERMINATING)),
+            bad64::Op::LDNP => instr!(ldnp; Ok(NON_TERMINATING)),
+            bad64::Op::LDPSW => instr!(ldpsw; Ok(NON_TERMINATING)),
+            bad64::Op::LDR => instr!(ldr; Ok(NON_TERMINATING)),
+            bad64::Op::LDRB => instr!(ldrb; Ok(NON_TERMINATING)),
+            bad64::Op::LDRH => instr!(ldrh; Ok(NON_TERMINATING)),
+            bad64::Op::LDRSW => instr!(ldrsw; Ok(NON_TERMINATING)),
+            bad64::Op::LDRSB => instr!(ldrsb; Ok(NON_TERMINATING)),
+            bad64::Op::LDRSH => instr!(ldrsh; Ok(NON_TERMINATING)),
+            bad64::Op::LDUR => instr!(ldr; Ok(NON_TERMINATING)),
+            bad64::Op::LDURB => instr!(ldrb; Ok(NON_TERMINATING)),
+            bad64::Op::LDURH => instr!(ldrh; Ok(NON_TERMINATING)),
+            bad64::Op::LDURSW => instr!(ldrsw; Ok(NON_TERMINATING)),
+            bad64::Op::LDURSB => instr!(ldrsb; Ok(NON_TERMINATING)),
+            bad64::Op::LDURSH => instr!(ldrsh; Ok(NON_TERMINATING)),
+            bad64::Op::MOV => instr!(mov; Ok(NON_TERMINATING)),
+            bad64::Op::NOP => instr!(nop; Ok(NON_TERMINATING)),
+            bad64::Op::STP => instr!(stp; Ok(NON_TERMINATING)),
+            bad64::Op::STNP => instr!(stnp; Ok(NON_TERMINATING)),
+            bad64::Op::STR => instr!(str; Ok(NON_TERMINATING)),
+            bad64::Op::STRB => instr!(strb; Ok(NON_TERMINATING)),
+            bad64::Op::STRH => instr!(strh; Ok(NON_TERMINATING)),
+            bad64::Op::STUR => instr!(str; Ok(NON_TERMINATING)),
+            bad64::Op::STURB => instr!(strb; Ok(NON_TERMINATING)),
+            bad64::Op::STURH => instr!(strh; Ok(NON_TERMINATING)),
+            bad64::Op::STLLR => instr!(stllr; Ok(NON_TERMINATING)),
+            bad64::Op::STLLRB => instr!(stllrb; Ok(NON_TERMINATING)),
+            bad64::Op::STLLRH => instr!(stllrh; Ok(NON_TERMINATING)),
+            bad64::Op::STLR => instr!(stlr; Ok(NON_TERMINATING)),
+            bad64::Op::STLRB => instr!(stlrb; Ok(NON_TERMINATING)),
+            bad64::Op::STLRH => instr!(stlrh; Ok(NON_TERMINATING)),
+            bad64::Op::STLUR => instr!(stlr; Ok(NON_TERMINATING)),
+            bad64::Op::STLURB => instr!(stlrb; Ok(NON_TERMINATING)),
+            bad64::Op::STLURH => instr!(stlrh; Ok(NON_TERMINATING)),
+            bad64::Op::SUB => instr!(sub; Ok(NON_TERMINATING)),
+            bad64::Op::SUBS => instr!(subs; Ok(NON_TERMINATING)),
 
             // Prefetch
             bad64::Op::PRFB
@@ -236,7 +187,7 @@ fn translate_block(
             | bad64::Op::PRFH
             | bad64::Op::PRFM
             | bad64::Op::PRFUM
-            | bad64::Op::PRFW => semantics::nop(&mut instruction_graph, &instruction),
+            | bad64::Op::PRFW => instr!(nop; Ok(NON_TERMINATING)),
 
             bad64::Op::ABS
             | bad64::Op::ADC
@@ -1322,25 +1273,35 @@ fn translate_block(
             | bad64::Op::XTN2
             | bad64::Op::YIELD
             | bad64::Op::ZIP1
-            | bad64::Op::ZIP2 => {
+            | bad64::Op::ZIP2 => Err(unsupported()),
+        };
+
+        match instruction_translate_result {
+            Ok(terminating) => {
+                if terminating {
+                    instruction_graph.set_address(Some(instruction.address()));
+                    block_graphs.push((instruction.address(), instruction_graph));
+                    break;
+                }
+            }
+            Err(UnsupportedError(_)) => {
                 if options.unsupported_are_intrinsics() {
                     semantics::unhandled_intrinsic(
                         &disassembly_bytes[..4],
                         &mut instruction_graph,
                         &instruction,
-                    )
+                    );
                 } else {
-                    Err(format!(
-                        "Unhandled op {:?} of instruction {:#x} ({}) at {:#x}",
-                        instruction.op(),
+                    return Err(format!(
+                        "Unhandled instruction {:#x} ({}) at {:#x}",
                         instruction.opcode(),
                         instruction,
                         instruction.address()
                     )
-                    .into())
+                    .into());
                 }
             }
-        }?;
+        }
 
         instruction_graph.set_address(Some(instruction.address()));
         block_graphs.push((instruction.address(), instruction_graph));
@@ -1355,4 +1316,12 @@ fn translate_block(
         length,
         successors,
     ))
+}
+
+#[derive(Debug)]
+struct UnsupportedError(());
+
+#[inline]
+fn unsupported() -> UnsupportedError {
+    UnsupportedError(())
 }
