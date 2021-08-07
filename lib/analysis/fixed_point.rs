@@ -41,7 +41,7 @@ where
     let entry_block = function.control_flow_graph().block(entry_index)?;
 
     match entry_block.instructions().first() {
-        Some(ref instruction) => {
+        Some(instruction) => {
             let location = il::RefFunctionLocation::Instruction(entry_block, instruction);
             let location = il::RefProgramLocation::new(function, location);
             queue.push_back(location.into());
@@ -147,7 +147,7 @@ where
     let exit_block = function.control_flow_graph().block(exit_index)?;
 
     match exit_block.instructions().last() {
-        Some(ref instruction) => {
+        Some(instruction) => {
             let location = il::RefFunctionLocation::Instruction(exit_block, instruction);
             let location = il::RefProgramLocation::new(function, location);
             queue.push_back(location.clone());

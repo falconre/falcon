@@ -38,7 +38,7 @@ impl Program {
     pub fn functions(&self) -> Vec<&Function> {
         let mut v = Vec::new();
         for f in &self.functions {
-            let f: &Function = &f.1;
+            let f: &Function = f.1;
             v.push(f);
         }
         v

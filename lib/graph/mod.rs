@@ -376,7 +376,7 @@ where
         Ok(self
             .vertices
             .keys()
-            .filter(|index| !reachable_vertices.contains(&index))
+            .filter(|index| !reachable_vertices.contains(index))
             .cloned()
             .collect())
     }
@@ -663,7 +663,7 @@ where
             let this_predecessors = predecessors.get(&vertex_index).unwrap().clone();
 
             for successor_index in &self.successors[&vertex_index] {
-                let successor_predecessors = predecessors.get_mut(&successor_index).unwrap();
+                let successor_predecessors = predecessors.get_mut(successor_index).unwrap();
 
                 let mut changed = false;
                 for predecessor in &this_predecessors {
@@ -788,7 +788,7 @@ where
 
         for (node, dominators) in self.compute_dominators(head)? {
             for successor in &self.successors[&node] {
-                if dominators.contains(&successor) {
+                if dominators.contains(successor) {
                     back_edges.insert((node, *successor));
                 }
             }
