@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.2]
+
+* Cleaning up a warning from recent rust
+
 ## [0.5.1]
 
 ### Breaking

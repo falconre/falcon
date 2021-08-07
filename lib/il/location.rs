@@ -64,7 +64,7 @@ impl<'p> RefProgramLocation<'p> {
                 for instruction in block.instructions() {
                     if instruction.address().map(|a| a == address).unwrap_or(false) {
                         return Some(RefProgramLocation::new(
-                            &function,
+                            function,
                             RefFunctionLocation::Instruction(block, instruction),
                         ));
                     }
@@ -79,7 +79,7 @@ impl<'p> RefProgramLocation<'p> {
                     if let Some(iaddress) = instruction.address() {
                         if iaddress == address {
                             return Some(RefProgramLocation::new(
-                                &function,
+                                function,
                                 RefFunctionLocation::Instruction(block, instruction),
                             ));
                         }
@@ -110,7 +110,7 @@ impl<'p> RefProgramLocation<'p> {
 
     /// Get the function for this `RefProgramLocation`.
     pub fn function(&self) -> &Function {
-        &self.function
+        self.function
     }
 
     /// Get the `RefFunctionLocation` for this `RefProgramLocation`
@@ -373,8 +373,8 @@ impl<'f> RefFunctionLocation<'f> {
     /// If this `RefFunctionLocation` references a `Block`, get that `Block`.
     pub fn block(&self) -> Option<&Block> {
         match *self {
-            RefFunctionLocation::Instruction(ref block, _) => Some(block),
-            RefFunctionLocation::EmptyBlock(ref block) => Some(block),
+            RefFunctionLocation::Instruction(block, _) => Some(block),
+            RefFunctionLocation::EmptyBlock(block) => Some(block),
             _ => None,
         }
     }
@@ -383,7 +383,7 @@ impl<'f> RefFunctionLocation<'f> {
     /// `Instruction`.
     pub fn instruction(&self) -> Option<&Instruction> {
         match *self {
-            RefFunctionLocation::Instruction(_, ref instruction) => Some(instruction),
+            RefFunctionLocation::Instruction(_, instruction) => Some(instruction),
             _ => None,
         }
     }
@@ -391,7 +391,7 @@ impl<'f> RefFunctionLocation<'f> {
     /// If this `RefFunctionLocation` references an `Edge`, get that `Edge`.
     pub fn edge(&self) -> Option<&Edge> {
         match *self {
-            RefFunctionLocation::Edge(ref edge) => Some(edge),
+            RefFunctionLocation::Edge(edge) => Some(edge),
             _ => None,
         }
     }
@@ -405,7 +405,7 @@ impl<'f> RefFunctionLocation<'f> {
 impl<'f> fmt::Display for RefFunctionLocation<'f> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            RefFunctionLocation::Instruction(ref block, ref instruction) => {
+            RefFunctionLocation::Instruction(block, ref instruction) => {
                 write!(f, "0x{:x}:{}", block.index(), instruction)
             }
             RefFunctionLocation::Edge(ref edge) => edge.fmt(f),

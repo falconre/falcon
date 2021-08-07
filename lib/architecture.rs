@@ -43,7 +43,7 @@ impl Amd64 {
 
 impl Architecture for Amd64 {
     fn name(&self) -> &str {
-        &"amd64"
+        "amd64"
     }
     fn endian(&self) -> Endian {
         Endian::Little
@@ -77,7 +77,7 @@ impl Mips {
 
 impl Architecture for Mips {
     fn name(&self) -> &str {
-        &"mips"
+        "mips"
     }
     fn endian(&self) -> Endian {
         Endian::Big
@@ -111,7 +111,7 @@ impl Mipsel {
 
 impl Architecture for Mipsel {
     fn name(&self) -> &str {
-        &"mipsel"
+        "mipsel"
     }
     fn endian(&self) -> Endian {
         Endian::Big
@@ -145,7 +145,7 @@ impl Ppc {
 
 impl Architecture for Ppc {
     fn name(&self) -> &str {
-        &"ppc"
+        "ppc"
     }
     fn endian(&self) -> Endian {
         Endian::Big
@@ -179,7 +179,7 @@ impl X86 {
 
 impl Architecture for X86 {
     fn name(&self) -> &str {
-        &"x86"
+        "x86"
     }
     fn endian(&self) -> Endian {
         Endian::Little

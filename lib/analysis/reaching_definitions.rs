@@ -28,7 +28,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinition
         };
 
         match *location.function_location() {
-            il::RefFunctionLocation::Instruction(_, ref instruction) => {
+            il::RefFunctionLocation::Instruction(_, instruction) => {
                 instruction
                     .operation()
                     .scalars_written()
@@ -51,7 +51,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinition
                             })
                             .cloned()
                             .collect();
-                        kill.iter().for_each(|location| state.remove(&location));
+                        kill.iter().for_each(|location| state.remove(location));
                         state.insert(location.clone().into());
                     });
             }

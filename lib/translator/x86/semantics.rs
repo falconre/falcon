@@ -18,11 +18,11 @@ impl<'s> Semantics<'s> {
     }
 
     pub fn instruction(&self) -> &capstone::Instr {
-        &self.instruction
+        self.instruction
     }
 
     pub fn mode(&self) -> &Mode {
-        &self.mode
+        self.mode
     }
 
     /// Returns the details section of an x86 capstone instruction.

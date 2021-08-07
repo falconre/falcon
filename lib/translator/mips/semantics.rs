@@ -202,7 +202,7 @@ const MIPS_REGISTERS: &[MipsRegister] = &[
 pub fn get_register(capstone_id: mips_reg) -> Result<&'static MipsRegister> {
     for register in MIPS_REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
-            return Ok(&register);
+            return Ok(register);
         }
     }
     Err("Could not find register".into())
@@ -471,7 +471,7 @@ pub fn b(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Resu
 }
 
 pub fn bal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
-    let operand = details(&instruction)?.operands[0];
+    let operand = details(instruction)?.operands[0];
 
     let block_index = {
         let block = control_flow_graph.new_block()?;

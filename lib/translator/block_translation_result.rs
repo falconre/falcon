@@ -78,7 +78,7 @@ impl BlockTranslationResult {
         control_flow_graph.set_exit(block_index)?;
 
         for &(_, ref cfg) in &self.instructions {
-            control_flow_graph.append(&cfg)?;
+            control_flow_graph.append(cfg)?;
         }
 
         control_flow_graph.merge()?;

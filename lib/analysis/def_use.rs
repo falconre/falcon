@@ -20,7 +20,7 @@ pub fn def_use(function: &il::Function) -> Result<HashMap<il::ProgramLocation, L
                 .scalars_read()
                 .into_iter()
                 .for_each(|scalar_read| {
-                    rd[&location].locations().iter().for_each(|rd| {
+                    rd[location].locations().iter().for_each(|rd| {
                         rd.function_location()
                             .apply(function)
                             .unwrap()
@@ -38,10 +38,10 @@ pub fn def_use(function: &il::Function) -> Result<HashMap<il::ProgramLocation, L
                             })
                     })
                 }),
-            il::RefFunctionLocation::Edge(ref edge) => {
+            il::RefFunctionLocation::Edge(edge) => {
                 if let Some(condition) = edge.condition() {
                     condition.scalars().into_iter().for_each(|scalar_read| {
-                        rd[&location].locations().iter().for_each(|rd| {
+                        rd[location].locations().iter().for_each(|rd| {
                             if let Some(scalars_written) = rd
                                 .function_location()
                                 .apply(function)
