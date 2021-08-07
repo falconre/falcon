@@ -6,7 +6,6 @@ use crate::memory;
 use crate::translator::mips::*;
 use crate::RC;
 
-#[macro_use]
 macro_rules! backing {
     ($e: expr) => {{
         let v: Vec<u8> = $e.to_vec();
