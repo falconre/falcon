@@ -28,6 +28,7 @@ default = ["capstone4"]
 thread_safe = []
 capstone4 = ["falcon_capstone/capstone4"]
 static = ["falcon_capstone/static"]
+il-expression-ashr = []
 
 [lib]
 name = "falcon"
