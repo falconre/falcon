@@ -202,7 +202,7 @@ const MIPS_REGISTERS: &[MipsRegister] = &[
 pub fn get_register(capstone_id: mips_reg) -> Result<&'static MipsRegister> {
     for register in MIPS_REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
-            return Ok(&register);
+            return Ok(register);
         }
     }
     Err("Could not find register".into())
@@ -471,7 +471,7 @@ pub fn b(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Resu
 }
 
 pub fn bal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
-    let operand = details(&instruction)?.operands[0];
+    let operand = details(instruction)?.operands[0];
 
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -2064,17 +2064,7 @@ pub fn sra(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        // set up the mask to put the arithmetic in shift arithmetic right
-        let temp = Scalar::temp(instruction.address, 32);
-        let expr = Expr::shl(
-            Expr::sub(
-                expr_const(0, 32),
-                Expr::shr(rt.clone(), expr_const(31, 32))?,
-            )?,
-            Expr::sub(expr_const(32, 32), sa.clone())?,
-        )?;
-        block.assign(temp.clone(), expr);
-        block.assign(rd, Expr::or(Expr::shr(rt, sa)?, temp.into())?);
+        block.assign(rd, Expr::ashr(rt, sa)?);
 
         block.index()
     };
@@ -2099,17 +2089,7 @@ pub fn srav(
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
-        // set up the mask to put the arithmetic in shift arithmetic right
-        let temp = Scalar::temp(instruction.address, 32);
-        let expr = Expr::shl(
-            Expr::sub(
-                expr_const(0, 32),
-                Expr::shr(rt.clone(), expr_const(31, 32))?,
-            )?,
-            Expr::sub(expr_const(32, 32), rs.clone())?,
-        )?;
-        block.assign(temp.clone(), expr);
-        block.assign(rd, Expr::or(Expr::shr(rt, rs)?, temp.into())?);
+        block.assign(rd, Expr::ashr(rt, rs)?);
 
         block.index()
     };

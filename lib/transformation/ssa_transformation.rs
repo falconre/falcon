@@ -22,7 +22,7 @@ fn insert_phi_nodes(function: &mut il::Function) -> Result<()> {
     let entry = cfg.entry().ok_or("CFG entry must be set")?;
 
     let dominance_frontiers = cfg.graph().compute_dominance_frontiers(entry)?;
-    let non_local_scalars = compute_non_local_scalars(&cfg);
+    let non_local_scalars = compute_non_local_scalars(cfg);
 
     for (scalar, defs) in scalars_mutated_in_blocks(cfg) {
         if !non_local_scalars.contains(&scalar) {
@@ -256,7 +256,7 @@ impl SsaRename for il::ControlFlowGraph {
             for successor in dominator_tree.successors(node)? {
                 dominator_tree_dfs_pre_order_traverse(
                     cfg,
-                    &dominator_tree,
+                    dominator_tree,
                     successor.index(),
                     versioning,
                 )?;

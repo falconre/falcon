@@ -1178,7 +1178,7 @@ pub(crate) fn get_register(mode: &Mode, capstone_id: x86_reg) -> Result<&'static
 
     for register in registers.iter() {
         if register.capstone_reg == capstone_id {
-            return Ok(&register);
+            return Ok(register);
         }
     }
     Err(format!("Could not find register {:?}", capstone_id).into())

@@ -21,6 +21,8 @@ pub fn eval(expr: &il::Expression) -> Result<il::Constant> {
         il::Expression::Xor(ref lhs, ref rhs) => eval(lhs)?.xor(&eval(rhs)?)?,
         il::Expression::Shl(ref lhs, ref rhs) => eval(lhs)?.shl(&eval(rhs)?)?,
         il::Expression::Shr(ref lhs, ref rhs) => eval(lhs)?.shr(&eval(rhs)?)?,
+        #[cfg(feature = "il-expression-ashr")]
+        il::Expression::AShr(ref lhs, ref rhs) => eval(lhs)?.ashr(&eval(rhs)?)?,
         il::Expression::Cmpeq(ref lhs, ref rhs) => eval(lhs)?.cmpeq(&eval(rhs)?)?,
         il::Expression::Cmpneq(ref lhs, ref rhs) => eval(lhs)?.cmpneq(&eval(rhs)?)?,
         il::Expression::Cmplts(ref lhs, ref rhs) => eval(lhs)?.cmplts(&eval(rhs)?)?,

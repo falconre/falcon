@@ -292,6 +292,29 @@ impl Constant {
         }
     }
 
+    pub fn ashr(&self, rhs: &Constant) -> Result<Constant> {
+        if self.bits() != rhs.bits() {
+            Err(ErrorKind::Sort.into())
+        } else {
+            let r = rhs
+                .value
+                .to_usize()
+                .map(|bits| {
+                    let value = self.value() >> bits;
+                    let msb = self.value() >> (self.bits - 1);
+                    if msb.is_zero() {
+                        value
+                    } else {
+                        let all_one = BigUint::from_u64(u64::MAX).unwrap();
+                        let fill = all_one << (self.bits - bits);
+                        fill | value
+                    }
+                })
+                .unwrap_or_else(|| BigUint::from_u64(0).unwrap());
+            Ok(Constant::new_big(r, self.bits))
+        }
+    }
+
     pub fn cmpeq(&self, rhs: &Constant) -> Result<Constant> {
         if self.bits() != rhs.bits() {
             Err(ErrorKind::Sort.into())
@@ -482,6 +505,22 @@ fn constant_shr() {
     assert_eq!(
         Constant::new(0x100, 64).shr(&Constant::new(8, 64)).unwrap(),
         Constant::new(1, 64)
+    );
+}
+
+#[test]
+fn constant_ashr() {
+    assert_eq!(
+        Constant::new(0x40000000, 32)
+            .ashr(&Constant::new(0x10, 32))
+            .unwrap(),
+        Constant::new(0x00004000, 32)
+    );
+    assert_eq!(
+        Constant::new(0x80000000, 32)
+            .ashr(&Constant::new(0x10, 32))
+            .unwrap(),
+        Constant::new(0xffff8000, 32)
     );
 }
 

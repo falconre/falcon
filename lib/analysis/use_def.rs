@@ -12,12 +12,12 @@ pub fn use_def(function: &il::Function) -> Result<HashMap<il::ProgramLocation, L
 
     for location in rd.keys() {
         let defs = match location.function_location().apply(function).unwrap() {
-            il::RefFunctionLocation::Instruction(_, ref instruction) => instruction
+            il::RefFunctionLocation::Instruction(_, instruction) => instruction
                 .operation()
                 .scalars_read()
                 .into_iter()
                 .fold(LocationSet::new(), |mut defs, scalar_read| {
-                    rd[&location].locations().iter().for_each(|rd| {
+                    rd[location].locations().iter().for_each(|rd| {
                         rd.function_location()
                             .apply(function)
                             .unwrap()
@@ -34,13 +34,13 @@ pub fn use_def(function: &il::Function) -> Result<HashMap<il::ProgramLocation, L
                     });
                     defs
                 }),
-            il::RefFunctionLocation::Edge(ref edge) => edge
+            il::RefFunctionLocation::Edge(edge) => edge
                 .condition()
                 .map(|condition| {
                     condition.scalars().into_iter().fold(
                         LocationSet::new(),
                         |mut defs, scalar_read| {
-                            rd[&location].locations().iter().for_each(|rd| {
+                            rd[location].locations().iter().for_each(|rd| {
                                 if let Some(scalars_written) = rd
                                     .function_location()
                                     .apply(function)

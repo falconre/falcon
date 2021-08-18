@@ -193,7 +193,7 @@ impl<'f> fixed_point::FixedPointAnalysis<'f, IntermediateOffset> for StackPointe
         };
 
         Ok(match *location.function_location() {
-            il::RefFunctionLocation::Instruction(_, ref instruction) => {
+            il::RefFunctionLocation::Instruction(_, instruction) => {
                 self.handle_operation(instruction.operation(), stack_pointer_offset)?
             }
             _ => stack_pointer_offset,

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.2]
+
+* Add Arithmetic Shift-Right expression type. This expression type is behind a feature flag until 0.6.0. See [#94](https://github.com/falconre/falcon/pull/94) for more information.
+* Cleaning up a warning from recent rust
+
 ## [0.5.1]
 
 ### Breaking

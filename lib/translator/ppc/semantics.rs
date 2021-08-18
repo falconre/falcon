@@ -244,7 +244,7 @@ const PPC_REGISTERS: &[PpcRegister] = &[
 pub fn get_register(capstone_id: ppc_reg) -> Result<&'static PpcRegister> {
     for register in PPC_REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
-            return Ok(&register);
+            return Ok(register);
         }
     }
     Err("Could not find register".into())

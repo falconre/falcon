@@ -128,7 +128,7 @@ impl Elf {
                     let start = start as usize;
                     let size = size as usize;
                     let strtab_bytes = self.bytes.get(start..(start + size)).unwrap();
-                    let strtab = goblin::strtab::Strtab::new(&strtab_bytes, 0);
+                    let strtab = goblin::strtab::Strtab::new(strtab_bytes, 0);
                     for dyn_ in dynamic.dyns {
                         if dyn_.d_tag == goblin::elf::dynamic::DT_NEEDED {
                             let so_name = &strtab[dyn_.d_val as usize];
