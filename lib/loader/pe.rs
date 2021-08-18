@@ -1,6 +1,6 @@
-//! ELF Linker/Loader
+//! PE Linker/Loader
 
-use crate::architecture::X86;
+use crate::architecture::{Amd64, Mips, X86};
 use crate::loader::*;
 use crate::memory::backing::Memory;
 use crate::memory::MemoryPermissions;
@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-/// Loader for a single ELf file.
+/// Loader for a single PE file.
 #[derive(Debug)]
 pub struct Pe {
     bytes: Vec<u8>,
@@ -16,14 +16,18 @@ pub struct Pe {
 }
 
 impl Pe {
-    /// Create a new Elf from the given bytes. This Elf will be rebased to the given
+    /// Create a new PE from the given bytes. This PE will be rebased to the given
     /// base address.
     pub fn new(bytes: Vec<u8>) -> Result<Pe> {
-        let architecture = {
+        let architecture: Box<dyn Architecture> = {
             let pe = goblin::pe::PE::parse(&bytes).map_err(|_| "Not a valid PE")?;
 
             if pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_X86 {
                 Box::new(X86::new())
+            } else if pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_X86_64 {
+                Box::new(Amd64::new())
+            } else if pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_R4000 {
+                Box::new(Mips::new())
             } else {
                 bail!("Unsupported Architecture");
             }
@@ -35,7 +39,7 @@ impl Pe {
         })
     }
 
-    /// Load an elf from a file and use the base address of 0.
+    /// Load an PE from a file and use the base address of 0.
     pub fn from_file(filename: &Path) -> Result<Pe> {
         let mut file = match File::open(filename) {
             Ok(file) => file,
@@ -48,7 +52,7 @@ impl Pe {
         Pe::new(buf)
     }
 
-    /// Return the goblin::elf::Elf for this elf.
+    /// Return the goblin::pe::PE for this PE.
     fn pe(&self) -> goblin::pe::PE {
         goblin::pe::PE::parse(&self.bytes).unwrap()
     }
