@@ -1,6 +1,5 @@
 [![Build Status](https://travis-ci.org/falconre/falcon.svg?branch=master)](https://travis-ci.org/falconre/falcon)
 [![Crates.io Version](https://img.shields.io/crates/v/falcon.svg)](https://crates.io/crates/falcon/)
-[![Documentation](https://docs.rs/falcon/badge.svg)](https://docs.rs/falcon/)
 
 # Welcome to Falcon
 
