@@ -18,7 +18,7 @@ jobs:
           sudo make install
       - uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly-2021-07-27
+            toolchain: stable
             components: clippy
             override: true
       - run: rustup component add rustfmt
