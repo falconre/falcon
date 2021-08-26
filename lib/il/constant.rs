@@ -92,7 +92,7 @@ impl Constant {
     }
 
     /// Get the value of this `Constant` if it is a `u128`.
-    pub(crate) fn value_u128(&self) -> Option<u128> {
+    pub fn value_u128(&self) -> Option<u128> {
         self.value.to_u128()
     }
 
