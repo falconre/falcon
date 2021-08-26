@@ -77,7 +77,7 @@ impl AArch64 {
 
 impl Architecture for AArch64 {
     fn name(&self) -> &str {
-        &"aarch64"
+        "aarch64"
     }
     fn endian(&self) -> Endian {
         Endian::Little
@@ -111,7 +111,7 @@ impl AArch64Eb {
 
 impl Architecture for AArch64Eb {
     fn name(&self) -> &str {
-        &"aarch64eb"
+        "aarch64eb"
     }
     fn endian(&self) -> Endian {
         Endian::Big

@@ -419,7 +419,7 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
 pub(super) fn get_register(bad64_reg: Reg) -> Result<&'static AArch64Register> {
     for register in AARCH64_REGISTERS.iter() {
         if register.bad64_reg == bad64_reg {
-            return Ok(&register);
+            return Ok(register);
         }
     }
 

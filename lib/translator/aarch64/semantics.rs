@@ -99,7 +99,7 @@ fn operand_load(
             let reg_value = reg.get();
             assert_eq!(reg.bits(), 128);
 
-            let (shift, width) = arr_spec_offset_width(&arrspec);
+            let (shift, width) = arr_spec_offset_width(arrspec);
 
             let value =
                 il::Expression::shr(reg_value, il::expr_const(shift as u64, reg.bits())).unwrap();
@@ -179,8 +179,8 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
             let reg = get_register(*reg)?;
             assert_eq!(reg.bits(), 128);
 
-            let (shift, width) = arr_spec_offset_width(&arrspec);
-            let is_indexed = is_arr_spec_indexed(&arrspec);
+            let (shift, width) = arr_spec_offset_width(arrspec);
+            let is_indexed = is_arr_spec_indexed(arrspec);
 
             if is_indexed {
                 // Replace only the selected element. First mask the unselected
@@ -215,7 +215,10 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
                 let masked = match (masked_lower, masked_upper) {
                     (Some(x), Some(y)) => il::Expression::or(x, y).unwrap(),
                     (Some(x), None) | (None, Some(x)) => x,
-                    (None, None) => return Ok(reg.set(block, resize_zext(reg.bits(), value))),
+                    (None, None) => {
+                        reg.set(block, resize_zext(reg.bits(), value));
+                        return Ok(());
+                    }
                 };
 
                 // Shift the new value into the desired place...
