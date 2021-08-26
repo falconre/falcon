@@ -20,6 +20,7 @@
 
 use crate::memory::MemoryPermissions;
 
+pub mod aarch64;
 mod block_translation_result;
 pub mod mips;
 mod options;

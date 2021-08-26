@@ -5,6 +5,7 @@ use std::default;
 ///
 /// This is used for re-lifting functions after Raptor has performed its jump
 /// table analysis.
+#[derive(Clone, Debug)]
 pub struct ManualEdge {
     head_address: u64,
     tail_address: u64,
@@ -51,6 +52,7 @@ impl ManualEdge {
 
 /// Various options that can be passed to the translator. Options will change
 /// the behavior of the translator.
+#[derive(Clone, Debug)]
 pub struct Options {
     manual_edges: Vec<ManualEdge>,
     unsupported_are_intrinsics: bool,

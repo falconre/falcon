@@ -6,6 +6,7 @@ use std::collections::HashSet;
 /// Available type of calling conventions
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CallingConventionType {
+    AArch64,
     Amd64SystemV,
     Cdecl,
     MipsSystemV,
@@ -108,6 +109,107 @@ impl CallingConvention {
     /// `CallingConventionType`.
     pub fn new(typ: CallingConventionType) -> CallingConvention {
         match typ {
+            CallingConventionType::AArch64 => {
+                // <https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst#general-purpose-registers>
+                let argument_registers = vec![
+                    il::scalar("x0", 64),
+                    il::scalar("x1", 64),
+                    il::scalar("x2", 64),
+                    il::scalar("x3", 64),
+                    il::scalar("x4", 64),
+                    il::scalar("x5", 64),
+                    il::scalar("x6", 64),
+                    il::scalar("x7", 64),
+                    il::scalar("v0", 64),
+                    il::scalar("v1", 64),
+                    il::scalar("v2", 64),
+                    il::scalar("v3", 64),
+                    il::scalar("v4", 64),
+                    il::scalar("v5", 64),
+                    il::scalar("v6", 64),
+                    il::scalar("v7", 64),
+                ];
+                let mut preserved_registers = HashSet::new();
+                preserved_registers.insert(il::scalar("x19", 64));
+                preserved_registers.insert(il::scalar("x20", 64));
+                preserved_registers.insert(il::scalar("x21", 64));
+                preserved_registers.insert(il::scalar("x22", 64));
+                preserved_registers.insert(il::scalar("x23", 64));
+                preserved_registers.insert(il::scalar("x24", 64));
+                preserved_registers.insert(il::scalar("x25", 64));
+                preserved_registers.insert(il::scalar("x26", 64));
+                preserved_registers.insert(il::scalar("x27", 64));
+                preserved_registers.insert(il::scalar("x28", 64));
+
+                preserved_registers.insert(il::scalar("v8", 128));
+                preserved_registers.insert(il::scalar("v9", 128));
+                preserved_registers.insert(il::scalar("v10", 128));
+                preserved_registers.insert(il::scalar("v11", 128));
+                preserved_registers.insert(il::scalar("v12", 128));
+                preserved_registers.insert(il::scalar("v13", 128));
+                preserved_registers.insert(il::scalar("v14", 128));
+                preserved_registers.insert(il::scalar("v15", 128));
+
+                let mut trashed_registers = HashSet::new();
+                trashed_registers.insert(il::scalar("x0", 64));
+                trashed_registers.insert(il::scalar("x1", 64));
+                trashed_registers.insert(il::scalar("x2", 64));
+                trashed_registers.insert(il::scalar("x3", 64));
+                trashed_registers.insert(il::scalar("x4", 64));
+                trashed_registers.insert(il::scalar("x5", 64));
+                trashed_registers.insert(il::scalar("x6", 64));
+                trashed_registers.insert(il::scalar("x7", 64));
+                trashed_registers.insert(il::scalar("x8", 64));
+                trashed_registers.insert(il::scalar("x9", 64));
+                trashed_registers.insert(il::scalar("x10", 64));
+                trashed_registers.insert(il::scalar("x11", 64));
+                trashed_registers.insert(il::scalar("x12", 64));
+                trashed_registers.insert(il::scalar("x13", 64));
+                trashed_registers.insert(il::scalar("x14", 64));
+                trashed_registers.insert(il::scalar("x15", 64));
+                trashed_registers.insert(il::scalar("x16", 64));
+                trashed_registers.insert(il::scalar("x17", 64));
+                // trashed_registers.insert(il::scalar("x18", 64)); // platform-dependent
+
+                trashed_registers.insert(il::scalar("x0", 128));
+                trashed_registers.insert(il::scalar("x1", 128));
+                trashed_registers.insert(il::scalar("x2", 128));
+                trashed_registers.insert(il::scalar("x3", 128));
+                trashed_registers.insert(il::scalar("x4", 128));
+                trashed_registers.insert(il::scalar("x5", 128));
+                trashed_registers.insert(il::scalar("x6", 128));
+                trashed_registers.insert(il::scalar("x7", 128));
+                trashed_registers.insert(il::scalar("x16", 128));
+                trashed_registers.insert(il::scalar("x17", 128));
+                trashed_registers.insert(il::scalar("x18", 128));
+                trashed_registers.insert(il::scalar("x19", 128));
+                trashed_registers.insert(il::scalar("x20", 128));
+                trashed_registers.insert(il::scalar("x21", 128));
+                trashed_registers.insert(il::scalar("x22", 128));
+                trashed_registers.insert(il::scalar("x23", 128));
+                trashed_registers.insert(il::scalar("x24", 128));
+                trashed_registers.insert(il::scalar("x25", 128));
+                trashed_registers.insert(il::scalar("x26", 128));
+                trashed_registers.insert(il::scalar("x27", 128));
+                trashed_registers.insert(il::scalar("x28", 128));
+                trashed_registers.insert(il::scalar("x29", 128));
+                trashed_registers.insert(il::scalar("x30", 128));
+                trashed_registers.insert(il::scalar("x31", 128));
+
+                // TODO: FPSR, NZCV, SVE
+
+                let return_type = ReturnAddressType::Register(il::scalar("x30", 64));
+
+                CallingConvention {
+                    argument_registers,
+                    preserved_registers,
+                    trashed_registers,
+                    stack_argument_offset: 0,
+                    stack_argument_length: 4,
+                    return_address_type: return_type,
+                    return_register: il::scalar("x0", 64),
+                }
+            }
             CallingConventionType::Amd64SystemV => {
                 let argument_registers = vec![
                     il::scalar("rdi", 64),

@@ -90,8 +90,6 @@ pub fn dead_code_elimination(function: &il::Function) -> Result<il::Function> {
         .collect::<Vec<il::FunctionLocation>>();
 
     // Eliminate those instructions from our new function
-    let kill: Vec<il::FunctionLocation> = kill.into_iter().collect();
-
     let mut dce_function = function.clone();
 
     for k in kill {
