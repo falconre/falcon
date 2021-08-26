@@ -419,8 +419,8 @@ impl ElfLinker {
                 .get(i as usize)
                 .ok_or(format!("Could not get symbol {}", i))?;
             let symbol_name = dynstrtab
-                .get(sym.st_name)
-                .ok_or(format!("Could not get symbol name for {}", i))??;
+                .get_at(sym.st_name)
+                .ok_or(format!("Could not get symbol name for {}", i))?;
             // Internal entries have already been relocated, so we only need to
             // relocate external entries
             if sym.st_shndx == 0 {

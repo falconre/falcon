@@ -9,10 +9,10 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-bad64 = { version = "0.3.0", features = ["std"] }
+bad64 = { version="0.4", features=["std"] }
 base64 = "0.13"
 bitflags = "1.2"
-falcon_capstone = "0.4.1"
+falcon_capstone = "0.5.0"
 error-chain = "0.12"
 goblin = "0.4"
 log = "0.4"
@@ -34,9 +34,3 @@ il-expression-ashr = []
 [lib]
 name = "falcon"
 path = "lib/lib.rs"
-
-[patch.crates-io]
-# Avoid native library collision (rust-lang/cargo#5237) by switching to the fork
-# of `bad64-sys` that does not run `bindgen` in its build script
-bad64 = { git = "https://github.com/kawadakk/bad64.git", branch = "portable-casting" }
-bad64-sys = { git = "https://github.com/kawadakk/bad64-sys.git", branch = "prebindgen-0.3-built" }
