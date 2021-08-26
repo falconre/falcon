@@ -2,8 +2,8 @@
 
 ## [0.5.2]
 
-* Add Arithmetic Shift-Right expression type. This expression type is behind a feature flag until 0.6.0. See [#94](https://github.com/falconre/falcon/pull/94) for more information.
-* Cleaning up a warning from recent rust
+* emmanuel099 Add Arithmetic Shift-Right expression type. This expression type is behind a feature flag until 0.6.0. See [#94](https://github.com/falconre/falcon/pull/94) for more information.
+* kawadakk Massive work (>5,000 lines) to implement an arm64 lifter. The lifter will stay for a few months to work out kinks, and then this deserves a 0.6.0 bump.
 
 ## [0.5.1]
 
