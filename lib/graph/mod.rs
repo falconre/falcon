@@ -515,7 +515,7 @@ where
     ///
     /// This implementation is based on the Semi-NCA algorithm described in:
     /// Georgiadis, Loukas: Linear-Time Algorithms for Dominators and Related Problems (thesis)
-    /// https://www.cs.princeton.edu/research/techreps/TR-737-05
+    /// <https://www.cs.princeton.edu/research/techreps/TR-737-05>
     pub fn compute_immediate_dominators(&self, root: usize) -> Result<FxHashMap<usize, usize>> {
         if !self.vertices.contains_key(&root) {
             bail!("vertex {} not in graph", root);

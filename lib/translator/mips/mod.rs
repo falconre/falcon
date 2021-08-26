@@ -416,8 +416,12 @@ fn translate_block(
                             .collect::<Vec<String>>()
                             .join("");
                         return Err(format!(
-                            "Unhandled instruction {} {} {} at 0x{:x}",
-                            bytes, instruction.mnemonic, instruction.op_str, instruction.address
+                            "Unhandled instruction ({:?}) {} {} {} at 0x{:x}",
+                            instruction_id,
+                            bytes,
+                            instruction.mnemonic,
+                            instruction.op_str,
+                            instruction.address
                         )
                         .into());
                     }
