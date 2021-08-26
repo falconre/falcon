@@ -21,9 +21,9 @@ impl AArch64Register {
     //     self.bits
     // }
 
-    pub fn name(&self) -> &str {
-        self.name
-    }
+    // pub fn name(&self) -> &str {
+    //     self.name
+    // }
 
     pub fn bits(&self) -> usize {
         self.bits

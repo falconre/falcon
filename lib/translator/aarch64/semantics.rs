@@ -274,13 +274,13 @@ fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOpera
         } => {
             let reg = get_register(*reg)?;
             let offset = il::expr_const(imm_to_u64(offset), 64);
-            let indexed_address = il::Expression::add(reg.clone().get(), offset).unwrap();
+            let indexed_address = il::Expression::add(reg.get(), offset).unwrap();
             (indexed_address, MemOperandSideeffect::None)
         }
         bad64::Operand::MemPreIdx { reg, imm } => {
             let reg = get_register(*reg)?;
             let imm = il::expr_const(imm_to_u64(imm), 64);
-            let indexed_address = il::Expression::add(reg.clone().get(), imm).unwrap();
+            let indexed_address = il::Expression::add(reg.get(), imm).unwrap();
             (
                 indexed_address.clone(),
                 MemOperandSideeffect::Assign(reg, indexed_address),
@@ -717,7 +717,7 @@ pub(super) fn b_cc(
             )
             .unwrap(),
             0b111 => unreachable!(), // handled above
-            0b1000.. => unreachable!(),
+            _ => unreachable!(),
         };
         let cond_false = il::Expression::cmpneq(cond_true.clone(), il::expr_const(1, 1)).unwrap();
         cond_true_false = if (cond & 1) != 0 && cond != 0b1111 {

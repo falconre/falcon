@@ -85,22 +85,13 @@ fn translate_block(
             if options.unsupported_are_intrinsics() {
                 // Known undefined instructions will terminate the flow
                 // TODO: `unsupported_are_intrinsics` might not be the right option
-                match &result {
-                    Err(
-                        bad64::DecodeError::Reserved(_)
-                        | bad64::DecodeError::Unallocated(_)
-                        | bad64::DecodeError::Undefined(_),
-                    ) => {
-                        let mut instruction_graph = ControlFlowGraph::new();
+                if result.is_err() {
+                    let mut instruction_graph = ControlFlowGraph::new();
 
-                        semantics::undefined_intrinsic(encoding, &mut instruction_graph);
+                    semantics::undefined_intrinsic(encoding, &mut instruction_graph);
 
-                        instruction_graph.set_address(Some(instruction_address));
-                        block_graphs.push((instruction_address, instruction_graph));
-
-                        break;
-                    }
-                    _ => {}
+                    instruction_graph.set_address(Some(instruction_address));
+                    block_graphs.push((instruction_address, instruction_graph));
                 }
             }
 

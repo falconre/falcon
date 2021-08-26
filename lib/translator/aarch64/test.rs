@@ -120,25 +120,25 @@ fn get_scalar(
     driver.state().get_scalar(result_scalar).unwrap().clone()
 }
 
-fn get_intrinsic(
-    instruction_words: &[u32],
-    scalars: Vec<(&str, Constant)>,
-    memory: Memory,
-) -> Intrinsic {
-    let mut driver = init_driver_block(instruction_words, scalars, memory);
+// fn get_intrinsic(
+//     instruction_words: &[u32],
+//     scalars: Vec<(&str, Constant)>,
+//     memory: Memory,
+// ) -> Intrinsic {
+//     let mut driver = init_driver_block(instruction_words, scalars, memory);
 
-    loop {
-        {
-            let location = driver.location().apply(driver.program()).unwrap();
-            if let Some(instruction) = location.instruction() {
-                if let Operation::Intrinsic { ref intrinsic } = *instruction.operation() {
-                    return intrinsic.clone();
-                }
-            }
-        }
-        driver = driver.step().unwrap();
-    }
-}
+//     loop {
+//         {
+//             let location = driver.location().apply(driver.program()).unwrap();
+//             if let Some(instruction) = location.instruction() {
+//                 if let Operation::Intrinsic { ref intrinsic } = *instruction.operation() {
+//                     return intrinsic.clone();
+//                 }
+//             }
+//         }
+//         driver = driver.step().unwrap();
+//     }
+// }
 
 fn step_to(mut driver: Driver, target_address: u64) -> Driver {
     loop {
