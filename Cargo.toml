@@ -1,18 +1,18 @@
 [package]
 name = "falcon"
-version = "0.5.2"
+version = "0.5.3"
 authors = [ "endeavor <endeavor@rainbowsandpwnies.com>" ]
 repository = "https://github.com/falconre/falcon"
 description = "A Binary Analysis Framework in Rust"
 license = "Apache-2.0"
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-bad64 = { version="0.4", features=["std"] }
+bad64 = { version="0.5", features=["std"] }
 base64 = "0.13"
 bitflags = "1.2"
-falcon_capstone = "0.5.0"
+falcon_capstone = "0.5.1"
 error-chain = "0.12"
 goblin = "0.4"
 log = "0.4"

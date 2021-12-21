@@ -379,7 +379,6 @@ const AARCH64_REGISTERS: &[AArch64Register] = &[
     AArch64Register { name: "z28", bad64_reg: Reg::Z28, bad64_full_reg: Reg::Z28, bits: 128 },
     AArch64Register { name: "z29", bad64_reg: Reg::Z29, bad64_full_reg: Reg::Z29, bits: 128 },
     AArch64Register { name: "z30", bad64_reg: Reg::Z30, bad64_full_reg: Reg::Z30, bits: 128 },
-    AArch64Register { name: "z31", bad64_reg: Reg::ZZR, bad64_full_reg: Reg::ZZR, bits: 128 },
     AArch64Register { name: "z31", bad64_reg: Reg::Z31, bad64_full_reg: Reg::Z31, bits: 128 },
     AArch64Register { name: "p0", bad64_reg: Reg::P0, bad64_full_reg: Reg::P0, bits: 16 },
     AArch64Register { name: "p1", bad64_reg: Reg::P1, bad64_full_reg: Reg::P1, bits: 16 },
