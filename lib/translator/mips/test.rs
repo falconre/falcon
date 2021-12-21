@@ -37,7 +37,8 @@ fn init_driver_block<'d>(
         .control_flow_graph()
         .block(0)
         .unwrap()
-        .instructions().is_empty()
+        .instructions()
+        .is_empty()
     {
         ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0))
     } else {
@@ -99,7 +100,8 @@ fn get_scalar(
         .apply(driver.program())
         .unwrap()
         .forward()
-        .unwrap().is_empty()
+        .unwrap()
+        .is_empty()
     {
         driver = driver.step().unwrap();
     }

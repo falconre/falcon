@@ -44,8 +44,7 @@ impl<'s> Semantics<'s> {
     }
 
     pub fn operand_load(&self, block: &mut Block, operand: &cs_x86_op) -> Result<Expression> {
-        self.mode
-            .operand_load(block, operand, self.instruction())
+        self.mode.operand_load(block, operand, self.instruction())
     }
 
     pub fn operand_store(
@@ -1443,12 +1442,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(
-                block,
-                expr.clone(),
-                dst.clone(),
-                expr_const(1, dst.bits()),
-            )?;
+            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()))?;
             self.set_cf(block, expr.clone(), dst)?;
 
             self.operand_store(block, &detail.operands[0], expr)?;
@@ -1769,12 +1763,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(
-                block,
-                expr.clone(),
-                dst.clone(),
-                expr_const(1, dst.bits()),
-            )?;
+            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()))?;
             self.set_cf(block, expr.clone(), dst)?;
 
             self.operand_store(block, &detail.operands[0], expr)?;
@@ -1948,8 +1937,7 @@ impl<'s> Semantics<'s> {
 
             let rhs = self.operand_load(block, &detail.operands[1])?;
 
-            self.get_register(x86_reg::X86_REG_AL)?
-                .set(block, rhs)?;
+            self.get_register(x86_reg::X86_REG_AL)?.set(block, rhs)?;
 
             block.index()
         };
@@ -2009,8 +1997,7 @@ impl<'s> Semantics<'s> {
 
             let rhs = self.operand_load(block, &detail.operands[1])?;
 
-            self.get_register(x86_reg::X86_REG_EAX)?
-                .set(block, rhs)?;
+            self.get_register(x86_reg::X86_REG_EAX)?.set(block, rhs)?;
 
             block.index()
         };
@@ -2436,12 +2423,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(
-                block,
-                result.clone().into(),
-                expr_const(0, dst.bits()),
-                dst,
-            )?;
+            self.set_of(block, result.clone().into(), expr_const(0, dst.bits()), dst)?;
 
             self.operand_store(block, &detail.operands[0], result.into())?;
 
@@ -3776,11 +3758,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(block, result.clone())?;
             self.set_sf(block, result.clone())?;
 
-            self.operand_store(
-                block,
-                &detail.operands[0],
-                Expr::trun(dst.bits(), result)?,
-            )?;
+            self.operand_store(block, &detail.operands[0], Expr::trun(dst.bits(), result)?)?;
 
             block.index()
         };
@@ -3828,11 +3806,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(block, result.clone())?;
             self.set_sf(block, result.clone())?;
 
-            self.operand_store(
-                block,
-                &detail.operands[0],
-                Expr::trun(dst.bits(), result)?,
-            )?;
+            self.operand_store(block, &detail.operands[0], Expr::trun(dst.bits(), result)?)?;
 
             block.index()
         };

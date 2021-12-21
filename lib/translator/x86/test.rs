@@ -25,7 +25,8 @@ fn init_amd64_driver<'d>(
         .control_flow_graph()
         .block(0)
         .unwrap()
-        .instructions().is_empty()
+        .instructions()
+        .is_empty()
     {
         il::ProgramLocation::new(Some(0), il::FunctionLocation::EmptyBlock(0))
     } else {
@@ -97,7 +98,10 @@ fn movd() {
     let driver = init_amd64_driver(
         bytes,
         vec![
-            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
+            (
+                "xmm1",
+                mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333),
+            ),
             ("rsi", il::const_(0x1111_2222_dead_beef, 64)),
         ],
         Memory::new(Endian::Little),
@@ -127,8 +131,14 @@ fn pcmpeqd() {
     let driver = init_amd64_driver(
         bytes.clone(),
         vec![
-            ("xmm0", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
-            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
+            (
+                "xmm0",
+                mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333),
+            ),
+            (
+                "xmm1",
+                mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333),
+            ),
         ],
         Memory::new(Endian::Little),
     );
@@ -148,8 +158,14 @@ fn pcmpeqd() {
     let driver = init_amd64_driver(
         bytes,
         vec![
-            ("xmm0", mk128const(0x0000_0000_1111_1111, 0x2232_2222_3333_3333)),
-            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
+            (
+                "xmm0",
+                mk128const(0x0000_0000_1111_1111, 0x2232_2222_3333_3333),
+            ),
+            (
+                "xmm1",
+                mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333),
+            ),
         ],
         Memory::new(Endian::Little),
     );
@@ -176,8 +192,14 @@ fn pcmpeqb() {
     let driver = init_amd64_driver(
         bytes,
         vec![
-            ("xmm0", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
-            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x5555_5555_0011_3322)),
+            (
+                "xmm0",
+                mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333),
+            ),
+            (
+                "xmm1",
+                mk128const(0x0000_0000_1111_1111, 0x5555_5555_0011_3322),
+            ),
         ],
         Memory::new(Endian::Little),
     );
@@ -203,7 +225,10 @@ fn pmovmskb() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![("xmm4", mk128const(0x00ff_00ff_0000_0000, 0xffff_ffff_ff00_ff00))],
+        vec![(
+            "xmm4",
+            mk128const(0x00ff_00ff_0000_0000, 0xffff_ffff_ff00_ff00),
+        )],
         Memory::new(Endian::Little),
     );
 

@@ -157,22 +157,20 @@ fn use_def_test() {
     // }
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(
-        ud[&il::RefProgramLocation::new(
-            &function,
-            il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
-        )
-        .into()].is_empty()
-    );
+    assert!(ud[&il::RefProgramLocation::new(
+        &function,
+        il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
+    )
+    .into()]
+        .is_empty());
 
     let block = function.control_flow_graph().block(0).unwrap();
-    assert!(
-        ud[&il::RefProgramLocation::new(
-            &function,
-            il::RefFunctionLocation::Instruction(block, block.instruction(1).unwrap())
-        )
-        .into()].is_empty()
-    );
+    assert!(ud[&il::RefProgramLocation::new(
+        &function,
+        il::RefFunctionLocation::Instruction(block, block.instruction(1).unwrap())
+    )
+    .into()]
+        .is_empty());
 
     let block = function.control_flow_graph().block(1).unwrap();
     assert!(
