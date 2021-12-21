@@ -188,8 +188,8 @@ where
         let page_address = address & !(PAGE_SIZE as u64 - 1);
         let offset = (address & (PAGE_SIZE as u64 - 1)) as usize;
 
-        if let Some(mut page) = self.pages.get_mut(&page_address) {
-            RC::make_mut(&mut page).store(offset, cell);
+        if let Some(page) = self.pages.get_mut(&page_address) {
+            RC::make_mut(page).store(offset, cell);
             return;
         }
         let mut page = Page::new(PAGE_SIZE);

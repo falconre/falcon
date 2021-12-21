@@ -52,7 +52,7 @@ impl ManualEdge {
 
 /// Various options that can be passed to the translator. Options will change
 /// the behavior of the translator.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Options {
     manual_edges: Vec<ManualEdge>,
     unsupported_are_intrinsics: bool,
@@ -90,15 +90,6 @@ impl Options {
     /// Get the manual edges this translator should enforce
     pub fn manual_edges(&self) -> &[ManualEdge] {
         &self.manual_edges
-    }
-}
-
-impl default::Default for Options {
-    fn default() -> Options {
-        Options {
-            manual_edges: Vec::new(),
-            unsupported_are_intrinsics: false,
-        }
     }
 }
 
