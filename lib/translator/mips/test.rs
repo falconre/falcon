@@ -37,9 +37,7 @@ fn init_driver_block<'d>(
         .control_flow_graph()
         .block(0)
         .unwrap()
-        .instructions()
-        .len()
-        == 0
+        .instructions().is_empty()
     {
         ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0))
     } else {
@@ -96,14 +94,12 @@ fn get_scalar(
 ) -> Constant {
     let mut driver = init_driver_block(instruction_bytes, scalars, memory);
 
-    while driver
+    while !driver
         .location()
         .apply(driver.program())
         .unwrap()
         .forward()
-        .unwrap()
-        .len()
-        > 0
+        .unwrap().is_empty()
     {
         driver = driver.step().unwrap();
     }
@@ -2617,7 +2613,7 @@ fn swr() {
     ]);
 
     let driver = init_driver_function(
-        instruction_bytes.clone(),
+        instruction_bytes,
         vec![("$a0", const_(0xaabbccdd, 32)), ("$a1", const_(0x15, 32))],
     );
 

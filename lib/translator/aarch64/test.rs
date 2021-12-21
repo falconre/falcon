@@ -44,9 +44,7 @@ fn init_driver_block<'d>(
         .control_flow_graph()
         .block(0)
         .unwrap()
-        .instructions()
-        .len()
-        == 0
+        .instructions().is_empty()
     {
         ProgramLocation::new(Some(0), FunctionLocation::EmptyBlock(0))
     } else {
@@ -103,14 +101,12 @@ fn get_scalar(
 ) -> Constant {
     let mut driver = init_driver_block(instruction_words, scalars, memory);
 
-    while driver
+    while !driver
         .location()
         .apply(driver.program())
         .unwrap()
         .forward()
-        .unwrap()
-        .len()
-        > 0
+        .unwrap().is_empty()
     {
         driver = driver.step().unwrap();
     }
@@ -720,7 +716,7 @@ fn ldr_qn_xn() {
     );
     assert_eq!(
         result.value_u128().unwrap(),
-        0xdeadbeef12345678_542fbb5cf6b74d14
+        0xdead_beef_1234_5678_542f_bb5c_f6b7_4d14
     );
 }
 
@@ -1229,7 +1225,7 @@ fn str_wn_xn() {
     let driver = step_to(driver, 0x8);
 
     let memory = driver.state().memory();
-    assert_eq!(memval(memory, 0xeed85f2300, 64), 0x12345678_00000000);
+    assert_eq!(memval(memory, 0xeed85f2300, 64), 0x1234_5678_0000_0000);
 }
 
 #[test]
@@ -1247,7 +1243,7 @@ fn strb_wn_xn() {
     let driver = step_to(driver, 0x8);
 
     let memory = driver.state().memory();
-    assert_eq!(memval(memory, 0xeed85f2300, 64), 0x78000000_00000000);
+    assert_eq!(memval(memory, 0xeed85f2300, 64), 0x7800_0000_0000_0000);
 }
 
 #[test]
@@ -1265,7 +1261,7 @@ fn strh_wn_xn() {
     let driver = step_to(driver, 0x8);
 
     let memory = driver.state().memory();
-    assert_eq!(memval(memory, 0xeed85f2300, 64), 0x56780000_00000000);
+    assert_eq!(memval(memory, 0xeed85f2300, 64), 0x5678_0000_0000_0000);
 }
 
 #[test]
@@ -1283,7 +1279,7 @@ fn stur_wn_xn() {
     let driver = step_to(driver, 0x8);
 
     let memory = driver.state().memory();
-    assert_eq!(memval(memory, 0xeed85f2300 + 3, 64), 0x12345678_00000000);
+    assert_eq!(memval(memory, 0xeed85f2300 + 3, 64), 0x1234_5678_0000_0000);
 }
 
 #[test]

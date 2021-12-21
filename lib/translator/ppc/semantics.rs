@@ -760,9 +760,9 @@ pub fn cmpwi(
     let rhs = expr_const(detail.operands[2].imm() as u64, 32);
 
     let block_index = {
-        let mut block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block()?;
 
-        set_condition_register_signed(&mut block, cr, lhs, rhs)?;
+        set_condition_register_signed(block, cr, lhs, rhs)?;
 
         block.index()
     };
@@ -785,9 +785,9 @@ pub fn cmplwi(
     let rhs = expr_const(detail.operands[2].imm() as u64, 32);
 
     let block_index = {
-        let mut block = control_flow_graph.new_block()?;
+        let block = control_flow_graph.new_block()?;
 
-        set_condition_register_unsigned(&mut block, cr, lhs, rhs)?;
+        set_condition_register_unsigned(block, cr, lhs, rhs)?;
 
         block.index()
     };

@@ -162,9 +162,7 @@ fn use_def_test() {
             &function,
             il::RefFunctionLocation::Instruction(block, block.instruction(0).unwrap())
         )
-        .into()]
-            .len()
-            == 0
+        .into()].is_empty()
     );
 
     let block = function.control_flow_graph().block(0).unwrap();
@@ -173,9 +171,7 @@ fn use_def_test() {
             &function,
             il::RefFunctionLocation::Instruction(block, block.instruction(1).unwrap())
         )
-        .into()]
-            .len()
-            == 0
+        .into()].is_empty()
     );
 
     let block = function.control_flow_graph().block(1).unwrap();

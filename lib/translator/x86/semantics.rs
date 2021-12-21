@@ -43,19 +43,19 @@ impl<'s> Semantics<'s> {
         )
     }
 
-    pub fn operand_load(&self, mut block: &mut Block, operand: &cs_x86_op) -> Result<Expression> {
+    pub fn operand_load(&self, block: &mut Block, operand: &cs_x86_op) -> Result<Expression> {
         self.mode
-            .operand_load(&mut block, operand, self.instruction())
+            .operand_load(block, operand, self.instruction())
     }
 
     pub fn operand_store(
         &self,
-        mut block: &mut Block,
+        block: &mut Block,
         operand: &cs_x86_op,
         value: Expression,
     ) -> Result<()> {
         self.mode
-            .operand_store(&mut block, operand, value, self.instruction())
+            .operand_store(block, operand, value, self.instruction())
     }
 
     pub fn get_register(&self, capstone_id: x86_reg) -> Result<&'static X86Register> {
@@ -249,9 +249,9 @@ impl<'s> Semantics<'s> {
         let head_index = control_flow_graph.new_block()?.index();
 
         let loop_index = {
-            let mut loop_block = control_flow_graph.new_block()?;
+            let loop_block = control_flow_graph.new_block()?;
             cx.set(
-                &mut loop_block,
+                loop_block,
                 Expr::sub(cx.get()?, expr_const(1, self.mode().bits()))?,
             )?;
             loop_block.index()
@@ -336,9 +336,9 @@ impl<'s> Semantics<'s> {
         let head_index = control_flow_graph.new_block()?.index();
 
         let loop_index = {
-            let mut loop_block = control_flow_graph.new_block()?;
+            let loop_block = control_flow_graph.new_block()?;
             cx.set(
-                &mut loop_block,
+                loop_block,
                 Expr::sub(cx.get()?, expr_const(1, self.mode().bits()))?,
             )?;
             loop_block.index()
@@ -420,11 +420,11 @@ impl<'s> Semantics<'s> {
 
         // create a block for this instruction
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let result = self.temp(0, lhs.bits());
 
@@ -434,16 +434,16 @@ impl<'s> Semantics<'s> {
             block.assign(result.clone(), Expr::add(addition, zext_cf)?);
 
             // calculate flags
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
-            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs)?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs)?;
             block.assign(
                 scalar("CF", 1),
                 Expression::cmpltu(result.clone().into(), lhs)?,
             );
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -458,11 +458,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let result = self.temp(0, lhs.bits());
 
@@ -470,16 +470,16 @@ impl<'s> Semantics<'s> {
             block.assign(result.clone(), Expr::add(lhs.clone(), rhs.clone())?);
 
             // calculate flags
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
-            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs)?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs)?;
             block.assign(
                 scalar("CF", 1),
                 Expression::cmpltu(result.clone().into(), lhs)?,
             );
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -494,11 +494,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if rhs.bits() != lhs.bits() {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
@@ -510,13 +510,13 @@ impl<'s> Semantics<'s> {
             block.assign(result.clone(), Expr::and(lhs, rhs)?);
 
             // calculate flags
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
             block.assign(scalar("CF", 1), expr_const(0, 1));
             block.assign(scalar("OF", 1), expr_const(0, 1));
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -539,10 +539,10 @@ impl<'s> Semantics<'s> {
         // create our head block
         let (head_index, rhs, counter) = {
             let (head_index, rhs) = {
-                let mut head_block = control_flow_graph.new_block()?;
+                let head_block = control_flow_graph.new_block()?;
 
                 // get started
-                let rhs = self.operand_load(&mut head_block, &detail.operands[1])?;
+                let rhs = self.operand_load(head_block, &detail.operands[1])?;
 
                 (head_block.index(), rhs)
             };
@@ -596,9 +596,9 @@ impl<'s> Semantics<'s> {
 
         // In our terminating block, we set the result to counter
         let terminating_index = {
-            let mut terminating_block = control_flow_graph.new_block()?;
+            let terminating_block = control_flow_graph.new_block()?;
 
-            self.operand_store(&mut terminating_block, &detail.operands[0], counter.into())?;
+            self.operand_store(terminating_block, &detail.operands[0], counter.into())?;
 
             terminating_block.index()
         };
@@ -646,10 +646,10 @@ impl<'s> Semantics<'s> {
 
         let (head_index, rhs, counter) = {
             let (head_index, rhs) = {
-                let mut head_block = control_flow_graph.new_block()?;
+                let head_block = control_flow_graph.new_block()?;
 
                 // get started
-                let rhs = self.operand_load(&mut head_block, &detail.operands[1])?;
+                let rhs = self.operand_load(head_block, &detail.operands[1])?;
 
                 (head_block.index(), rhs)
             };
@@ -706,9 +706,9 @@ impl<'s> Semantics<'s> {
 
         // In our terminating block, we set the result to counter
         let terminating_index = {
-            let mut terminating_block = control_flow_graph.new_block()?;
+            let terminating_block = control_flow_graph.new_block()?;
 
-            self.operand_store(&mut terminating_block, &detail.operands[0], counter.into())?;
+            self.operand_store(terminating_block, &detail.operands[0], counter.into())?;
 
             terminating_block.index()
         };
@@ -760,11 +760,11 @@ impl<'s> Semantics<'s> {
 
         // create our head block
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get started
-            let base = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut offset = self.operand_load(&mut block, &detail.operands[1])?;
+            let base = self.operand_load(block, &detail.operands[0])?;
+            let mut offset = self.operand_load(block, &detail.operands[1])?;
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
@@ -804,11 +804,11 @@ impl<'s> Semantics<'s> {
 
         // create our head block
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get started
-            let base = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut offset = self.operand_load(&mut block, &detail.operands[1])?;
+            let base = self.operand_load(block, &detail.operands[0])?;
+            let mut offset = self.operand_load(block, &detail.operands[1])?;
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
@@ -824,7 +824,7 @@ impl<'s> Semantics<'s> {
 
             let expr = Expr::xor(temp.clone().into(), expr_const(1, temp.bits()))?;
             let expr = Expr::shl(expr, offset)?;
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -853,11 +853,11 @@ impl<'s> Semantics<'s> {
 
         // create our head block
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get started
-            let base = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut offset = self.operand_load(&mut block, &detail.operands[1])?;
+            let base = self.operand_load(block, &detail.operands[0])?;
+            let mut offset = self.operand_load(block, &detail.operands[1])?;
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
@@ -875,7 +875,7 @@ impl<'s> Semantics<'s> {
             let expr = Expr::xor(expr, expr_const(0xffff_ffff_ffff_ffff, base.bits()))?;
             let expr = Expr::and(base, expr)?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -904,11 +904,11 @@ impl<'s> Semantics<'s> {
 
         // create our head block
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get started
-            let base = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut offset = self.operand_load(&mut block, &detail.operands[1])?;
+            let base = self.operand_load(block, &detail.operands[0])?;
+            let mut offset = self.operand_load(block, &detail.operands[1])?;
 
             // let's ensure we have equal sorts
             if offset.bits() != base.bits() {
@@ -925,7 +925,7 @@ impl<'s> Semantics<'s> {
             let expr = Expr::shl(expr_const(1, base.bits()), offset)?;
             let expr = Expr::or(base, expr)?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -940,10 +940,10 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let src = self.operand_load(&mut block, &detail.operands[0])?;
+            let src = self.operand_load(block, &detail.operands[0])?;
 
             let expr = match src.bits() {
                 32 => Expr::or(
@@ -1017,7 +1017,7 @@ impl<'s> Semantics<'s> {
                 _ => bail!("Unsupported number of bits for bswap instruction"),
             };
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -1032,15 +1032,15 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get started
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
 
             let ret_addr = self.instruction().address + self.instruction().size as u64;
 
             self.mode()
-                .push_value(&mut block, expr_const(ret_addr, self.mode().bits()))?;
+                .push_value(block, expr_const(ret_addr, self.mode().bits()))?;
 
             block.branch(dst);
 
@@ -1055,12 +1055,12 @@ impl<'s> Semantics<'s> {
 
     pub fn cbw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let al = self.get_register(x86_reg::X86_REG_AL)?;
             let ax = self.get_register(x86_reg::X86_REG_AX)?;
 
-            ax.set(&mut block, Expr::sext(16, al.get()?)?)?;
+            ax.set(block, Expr::sext(16, al.get()?)?)?;
 
             block.index()
         };
@@ -1073,7 +1073,7 @@ impl<'s> Semantics<'s> {
 
     pub fn cdq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let eax = self.get_register(x86_reg::X86_REG_EAX)?;
             let edx = self.get_register(x86_reg::X86_REG_EDX)?;
@@ -1083,7 +1083,7 @@ impl<'s> Semantics<'s> {
             let expr = Expr::trun(1, expr)?;
             let expr = Expr::sext(32, expr)?;
 
-            edx.set(&mut block, expr)?;
+            edx.set(block, expr)?;
 
             block.index()
         };
@@ -1096,12 +1096,12 @@ impl<'s> Semantics<'s> {
 
     pub fn cdqe(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let eax = self.get_register(x86_reg::X86_REG_EAX)?;
             let rax = self.get_register(x86_reg::X86_REG_RAX)?;
 
-            rax.set(&mut block, Expr::sext(64, eax.get()?)?)?;
+            rax.set(block, Expr::sext(64, eax.get()?)?)?;
 
             block.index()
         };
@@ -1193,11 +1193,11 @@ impl<'s> Semantics<'s> {
         };
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
 
-            self.operand_store(&mut block, &detail.operands[0], src)?;
+            self.operand_store(block, &detail.operands[0], src)?;
 
             block.index()
         };
@@ -1222,10 +1222,10 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if rhs.bits() != lhs.bits() {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
@@ -1233,10 +1233,10 @@ impl<'s> Semantics<'s> {
 
             let expr = Expr::sub(lhs.clone(), rhs.clone())?;
 
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs)?;
-            self.set_cf(&mut block, expr, lhs)?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
+            self.set_of(block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_cf(block, expr, lhs)?;
 
             block.index()
         };
@@ -1261,10 +1261,10 @@ impl<'s> Semantics<'s> {
         let bits = self.mode().bits();
 
         let head_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if rhs.bits() != lhs.bits() {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
@@ -1272,28 +1272,28 @@ impl<'s> Semantics<'s> {
 
             let expr = Expr::sub(lhs.clone(), rhs.clone())?;
 
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs)?;
-            self.set_cf(&mut block, expr, lhs)?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
+            self.set_of(block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_cf(block, expr, lhs)?;
 
             block.index()
         };
 
         let inc_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            si.set(&mut block, Expr::add(si.get()?, expr_const(1, bits))?)?;
-            di.set(&mut block, Expr::add(di.get()?, expr_const(1, bits))?)?;
+            si.set(block, Expr::add(si.get()?, expr_const(1, bits))?)?;
+            di.set(block, Expr::add(di.get()?, expr_const(1, bits))?)?;
 
             block.index()
         };
 
         let dec_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            si.set(&mut block, Expr::sub(si.get()?, expr_const(1, bits))?)?;
-            di.set(&mut block, Expr::sub(di.get()?, expr_const(1, bits))?)?;
+            si.set(block, Expr::sub(si.get()?, expr_const(1, bits))?)?;
+            di.set(block, Expr::sub(di.get()?, expr_const(1, bits))?)?;
 
             block.index()
         };
@@ -1325,10 +1325,10 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let (head_index, dest, lhs, rhs) = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let dest = match rhs.bits() {
                 8 => self.get_register(x86_reg::X86_REG_AL)?,
@@ -1345,30 +1345,30 @@ impl<'s> Semantics<'s> {
         };
 
         let taken_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             block.assign(scalar("ZF", 1), expr_const(1, 1));
-            self.operand_store(&mut block, &detail.operands[0], rhs.clone())?;
+            self.operand_store(block, &detail.operands[0], rhs.clone())?;
 
             block.index()
         };
 
         let not_taken_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             block.assign(scalar("ZF", 1), expr_const(0, 1));
-            dest.set(&mut block, lhs.clone())?;
+            dest.set(block, lhs.clone())?;
 
             block.index()
         };
 
         let tail_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let result = Expr::sub(lhs.clone(), rhs.clone())?;
-            self.set_sf(&mut block, result.clone())?;
-            self.set_of(&mut block, result.clone(), lhs.clone(), rhs)?;
-            self.set_cf(&mut block, result, lhs.clone())?;
+            self.set_sf(block, result.clone())?;
+            self.set_of(block, result.clone(), lhs.clone(), rhs)?;
+            self.set_cf(block, result, lhs.clone())?;
 
             block.index()
         };
@@ -1395,14 +1395,14 @@ impl<'s> Semantics<'s> {
         let dx = self.get_register(x86_reg::X86_REG_DX)?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // isolate the sign bits of ax
             let expr = Expr::shr(ax.get()?, expr_const(15, 16))?;
             let expr = Expr::trun(1, expr)?;
             let expr = Expr::sext(16, expr)?;
 
-            dx.set(&mut block, expr)?;
+            dx.set(block, expr)?;
 
             block.index()
         };
@@ -1418,9 +1418,9 @@ impl<'s> Semantics<'s> {
         let eax = self.get_register(x86_reg::X86_REG_EAX)?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            eax.set(&mut block, Expr::sext(32, ax.get()?)?)?;
+            eax.set(block, Expr::sext(32, ax.get()?)?)?;
 
             block.index()
         };
@@ -1435,23 +1435,23 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
 
             let expr = Expr::sub(dst.clone(), expr_const(1, dst.bits()))?;
 
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
             self.set_of(
-                &mut block,
+                block,
                 expr.clone(),
                 dst.clone(),
                 expr_const(1, dst.bits()),
             )?;
-            self.set_cf(&mut block, expr.clone(), dst)?;
+            self.set_cf(block, expr.clone(), dst)?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -1466,9 +1466,9 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let divisor = self.operand_load(&mut block, &detail.operands[0])?;
+            let divisor = self.operand_load(block, &detail.operands[0])?;
             let divisor = Expr::zext(divisor.bits() * 2, divisor)?;
 
             let dividend: Expr = match divisor.bits() {
@@ -1514,26 +1514,26 @@ impl<'s> Semantics<'s> {
                 16 => {
                     let al = self.get_register(x86_reg::X86_REG_AL)?;
                     let ah = self.get_register(x86_reg::X86_REG_AH)?;
-                    al.set(&mut block, Expr::trun(8, quotient.into())?)?;
-                    ah.set(&mut block, Expr::trun(8, remainder.into())?)?;
+                    al.set(block, Expr::trun(8, quotient.into())?)?;
+                    ah.set(block, Expr::trun(8, remainder.into())?)?;
                 }
                 32 => {
                     let ax = self.get_register(x86_reg::X86_REG_AX)?;
                     let dx = self.get_register(x86_reg::X86_REG_DX)?;
-                    ax.set(&mut block, Expr::trun(16, quotient.into())?)?;
-                    dx.set(&mut block, Expr::trun(16, remainder.into())?)?;
+                    ax.set(block, Expr::trun(16, quotient.into())?)?;
+                    dx.set(block, Expr::trun(16, remainder.into())?)?;
                 }
                 64 => {
                     let eax = self.get_register(x86_reg::X86_REG_EAX)?;
                     let edx = self.get_register(x86_reg::X86_REG_EDX)?;
-                    eax.set(&mut block, Expr::trun(32, quotient.into())?)?;
-                    edx.set(&mut block, Expr::trun(32, remainder.into())?)?;
+                    eax.set(block, Expr::trun(32, quotient.into())?)?;
+                    edx.set(block, Expr::trun(32, remainder.into())?)?;
                 }
                 128 => {
                     let rax = self.get_register(x86_reg::X86_REG_RAX)?;
                     let rdx = self.get_register(x86_reg::X86_REG_RDX)?;
-                    rax.set(&mut block, Expr::trun(64, quotient.into())?)?;
-                    rdx.set(&mut block, Expr::trun(64, remainder.into())?)?;
+                    rax.set(block, Expr::trun(64, quotient.into())?)?;
+                    rdx.set(block, Expr::trun(64, remainder.into())?)?;
                 }
                 _ => return Err("invalid bit-width in x86 div".into()),
             }
@@ -1553,9 +1553,9 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let divisor = self.operand_load(&mut block, &detail.operands[0])?;
+            let divisor = self.operand_load(block, &detail.operands[0])?;
             let divisor = Expr::zext(divisor.bits() * 2, divisor)?;
 
             let dividend: Expr = match divisor.bits() {
@@ -1601,26 +1601,26 @@ impl<'s> Semantics<'s> {
                 16 => {
                     let al = self.get_register(x86_reg::X86_REG_AL)?;
                     let ah = self.get_register(x86_reg::X86_REG_AH)?;
-                    al.set(&mut block, Expr::trun(8, quotient.into())?)?;
-                    ah.set(&mut block, Expr::trun(8, remainder.into())?)?;
+                    al.set(block, Expr::trun(8, quotient.into())?)?;
+                    ah.set(block, Expr::trun(8, remainder.into())?)?;
                 }
                 32 => {
                     let ax = self.get_register(x86_reg::X86_REG_AX)?;
                     let dx = self.get_register(x86_reg::X86_REG_DX)?;
-                    ax.set(&mut block, Expr::trun(16, quotient.into())?)?;
-                    dx.set(&mut block, Expr::trun(16, remainder.into())?)?;
+                    ax.set(block, Expr::trun(16, quotient.into())?)?;
+                    dx.set(block, Expr::trun(16, remainder.into())?)?;
                 }
                 64 => {
                     let eax = self.get_register(x86_reg::X86_REG_EAX)?;
                     let edx = self.get_register(x86_reg::X86_REG_EDX)?;
-                    eax.set(&mut block, Expr::trun(32, quotient.into())?)?;
-                    edx.set(&mut block, Expr::trun(32, remainder.into())?)?;
+                    eax.set(block, Expr::trun(32, quotient.into())?)?;
+                    edx.set(block, Expr::trun(32, remainder.into())?)?;
                 }
                 128 => {
                     let rax = self.get_register(x86_reg::X86_REG_RAX)?;
                     let rdx = self.get_register(x86_reg::X86_REG_RDX)?;
-                    rax.set(&mut block, Expr::trun(32, quotient.into())?)?;
-                    rdx.set(&mut block, Expr::trun(32, remainder.into())?)?;
+                    rax.set(block, Expr::trun(32, quotient.into())?)?;
+                    rdx.set(block, Expr::trun(32, remainder.into())?)?;
                 }
                 _ => return Err("invalid bit-width in x86 div".into()),
             }
@@ -1641,7 +1641,7 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // Get multiplicand
             let multiplicand = match detail.op_count {
@@ -1652,8 +1652,8 @@ impl<'s> Semantics<'s> {
                     8 => self.get_register(x86_reg::X86_REG_RAX)?.get()?,
                     _ => bail!("invalid operand size for imul"),
                 },
-                2 => self.operand_load(&mut block, &detail.operands[0])?,
-                3 => self.operand_load(&mut block, &detail.operands[1])?,
+                2 => self.operand_load(block, &detail.operands[0])?,
+                3 => self.operand_load(block, &detail.operands[1])?,
                 _ => bail!(
                     "invalid number of operands for imul {} at 0x{:x}",
                     detail.op_count,
@@ -1663,9 +1663,9 @@ impl<'s> Semantics<'s> {
 
             // Get multiplier
             let multiplier = match detail.op_count {
-                1 => self.operand_load(&mut block, &detail.operands[0])?,
+                1 => self.operand_load(block, &detail.operands[0])?,
                 2 => {
-                    let multiplier = self.operand_load(&mut block, &detail.operands[1])?;
+                    let multiplier = self.operand_load(block, &detail.operands[1])?;
                     if multiplier.bits() < multiplicand.bits() {
                         Expr::sext(multiplicand.bits(), multiplier)?
                     } else {
@@ -1673,7 +1673,7 @@ impl<'s> Semantics<'s> {
                     }
                 }
                 3 => {
-                    let multiplier = self.operand_load(&mut block, &detail.operands[2])?;
+                    let multiplier = self.operand_load(block, &detail.operands[2])?;
                     if multiplier.bits() < multiplicand.bits() {
                         Expr::sext(multiplicand.bits(), multiplier)?
                     } else {
@@ -1700,37 +1700,37 @@ impl<'s> Semantics<'s> {
                 1 => match detail.operands[0].size {
                     1 => self
                         .get_register(x86_reg::X86_REG_AX)?
-                        .set(&mut block, result.clone().into())?,
+                        .set(block, result.clone().into())?,
                     2 => {
                         let dx = self.get_register(x86_reg::X86_REG_DX)?;
                         let ax = self.get_register(x86_reg::X86_REG_AX)?;
                         let expr = Expr::shr(result.clone().into(), expr_const(16, 32))?;
-                        dx.set(&mut block, Expr::trun(16, expr)?)?;
-                        ax.set(&mut block, Expr::trun(16, result.clone().into())?)?;
+                        dx.set(block, Expr::trun(16, expr)?)?;
+                        ax.set(block, Expr::trun(16, result.clone().into())?)?;
                     }
                     4 => {
                         let edx = self.get_register(x86_reg::X86_REG_EDX)?;
                         let eax = self.get_register(x86_reg::X86_REG_EAX)?;
                         let expr = Expr::shr(result.clone().into(), expr_const(32, 64))?;
-                        edx.set(&mut block, Expr::trun(32, expr)?)?;
-                        eax.set(&mut block, Expr::trun(32, result.clone().into())?)?;
+                        edx.set(block, Expr::trun(32, expr)?)?;
+                        eax.set(block, Expr::trun(32, result.clone().into())?)?;
                     }
                     8 => {
                         let rdx = self.get_register(x86_reg::X86_REG_RDX)?;
                         let rax = self.get_register(x86_reg::X86_REG_RAX)?;
                         let expr = Expr::shr(result.clone().into(), expr_const(64, 128))?;
-                        rdx.set(&mut block, Expr::trun(64, expr)?)?;
-                        rax.set(&mut block, Expr::trun(64, result.clone().into())?)?;
+                        rdx.set(block, Expr::trun(64, expr)?)?;
+                        rax.set(block, Expr::trun(64, result.clone().into())?)?;
                     }
                     _ => bail!("Invalid operand size for imul"),
                 },
                 2 => {
                     let expr = Expr::trun(bit_width / 2, result.clone().into())?;
-                    self.operand_store(&mut block, &detail.operands[0], expr)?;
+                    self.operand_store(block, &detail.operands[0], expr)?;
                 }
                 3 => {
                     let expr = Expr::trun(bit_width / 2, result.clone().into())?;
-                    self.operand_store(&mut block, &detail.operands[0], expr)?;
+                    self.operand_store(block, &detail.operands[0], expr)?;
                 }
                 _ => bail!("invalid number of operands for imul"),
             }
@@ -1761,23 +1761,23 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
 
             let expr = Expr::add(dst.clone(), expr_const(1, dst.bits()))?;
 
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
             self.set_of(
-                &mut block,
+                block,
                 expr.clone(),
                 dst.clone(),
                 expr_const(1, dst.bits()),
             )?;
-            self.set_cf(&mut block, expr.clone(), dst)?;
+            self.set_cf(block, expr.clone(), dst)?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -1792,9 +1792,9 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let expr = self.operand_load(&mut block, &detail.operands[0])?;
+            let expr = self.operand_load(block, &detail.operands[0])?;
 
             block.intrinsic(Intrinsic::new(
                 "int",
@@ -1834,9 +1834,9 @@ impl<'s> Semantics<'s> {
         };
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
 
             // we only need to emit a conditional branch here if the destination
             // cannot be determined at translation time
@@ -1869,9 +1869,9 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
 
             // we only need to emit a brc here if the destination cannot be determined
             // at translation time
@@ -1894,7 +1894,7 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let dst = self.get_register(detail.operands[0].reg())?;
             let mut src = self
@@ -1905,7 +1905,7 @@ impl<'s> Semantics<'s> {
                 src = Expr::trun(dst.bits(), src)?;
             }
 
-            dst.set(&mut block, src)?;
+            dst.set(block, src)?;
 
             block.index()
         };
@@ -1918,16 +1918,16 @@ impl<'s> Semantics<'s> {
 
     pub fn leave(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let sp = self.get_register(x86_reg::X86_REG_ESP)?.get_full()?;
             let bp = self.get_register(x86_reg::X86_REG_EBP)?.get_full()?;
 
-            sp.set(&mut block, bp.get()?)?;
+            sp.set(block, bp.get()?)?;
             let temp = self
                 .mode()
-                .pop_value(&mut block, self.mode().bits(), self.instruction)?;
-            bp.set(&mut block, temp)?;
+                .pop_value(block, self.mode().bits(), self.instruction)?;
+            bp.set(block, temp)?;
 
             block.index()
         };
@@ -1944,21 +1944,21 @@ impl<'s> Semantics<'s> {
         let si = self.get_register(x86_reg::X86_REG_ESI)?.get_full()?;
 
         let head_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             self.get_register(x86_reg::X86_REG_AL)?
-                .set(&mut block, rhs)?;
+                .set(block, rhs)?;
 
             block.index()
         };
 
         let inc_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             si.set(
-                &mut block,
+                block,
                 Expr::add(si.get()?, expr_const(1, self.mode().bits()))?,
             )?;
 
@@ -1966,10 +1966,10 @@ impl<'s> Semantics<'s> {
         };
 
         let dec_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             si.set(
-                &mut block,
+                block,
                 Expr::sub(si.get()?, expr_const(1, self.mode().bits()))?,
             )?;
 
@@ -2005,21 +2005,21 @@ impl<'s> Semantics<'s> {
         let si = self.get_register(x86_reg::X86_REG_ESI)?.get_full()?;
 
         let head_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             self.get_register(x86_reg::X86_REG_EAX)?
-                .set(&mut block, rhs)?;
+                .set(block, rhs)?;
 
             block.index()
         };
 
         let inc_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             si.set(
-                &mut block,
+                block,
                 Expr::add(si.get()?, expr_const(1, self.mode().bits()))?,
             )?;
 
@@ -2027,10 +2027,10 @@ impl<'s> Semantics<'s> {
         };
 
         let dec_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             si.set(
-                &mut block,
+                block,
                 Expr::sub(si.get()?, expr_const(1, self.mode().bits()))?,
             )?;
 
@@ -2062,11 +2062,11 @@ impl<'s> Semantics<'s> {
 
     pub fn loop_(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let cx = self.get_register(x86_reg::X86_REG_CX)?.get_full()?;
             cx.set(
-                &mut block,
+                block,
                 Expr::sub(cx.get()?, expr_const(1, self.mode().bits()))?,
             )?;
 
@@ -2083,11 +2083,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
 
-            self.operand_store(&mut block, &detail.operands[0], src)?;
+            self.operand_store(block, &detail.operands[0], src)?;
 
             block.index()
         };
@@ -2102,25 +2102,25 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
             let dest_bits = detail.operands[0].size as usize * 8;
 
             if dest_bits == 128 && src.bits() == 128 {
-                self.operand_store(&mut block, &detail.operands[0], src)?;
+                self.operand_store(block, &detail.operands[0], src)?;
             } else if dest_bits == 64 && src.bits() == 128 {
                 let src = Expression::trun(64, Expression::shr(src, expr_const(64, 128))?)?;
-                self.operand_store(&mut block, &detail.operands[0], src)?;
+                self.operand_store(block, &detail.operands[0], src)?;
             } else if dest_bits == 128 && src.bits() == 64 {
                 let src = Expression::or(
                     Expression::and(
-                        self.operand_load(&mut block, &detail.operands[0])?,
+                        self.operand_load(block, &detail.operands[0])?,
                         expr_const(0xffff_ffff_ffff_ffff, 128),
                     )?,
                     Expression::shl(Expression::zext(128, src)?, expr_const(64, 128))?,
                 )?;
-                self.operand_store(&mut block, &detail.operands[0], src)?;
+                self.operand_store(block, &detail.operands[0], src)?;
             } else {
                 bail!("Unhandled movlpd case");
             }
@@ -2138,19 +2138,19 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
             let dest_bits = detail.operands[0].size as usize * 8;
 
             if dest_bits == 128 && src.bits() == 128 {
-                self.operand_store(&mut block, &detail.operands[0], src)?;
+                self.operand_store(block, &detail.operands[0], src)?;
             } else if dest_bits == 64 && src.bits() == 128 {
-                self.operand_store(&mut block, &detail.operands[0], Expression::trun(64, src)?)?;
+                self.operand_store(block, &detail.operands[0], Expression::trun(64, src)?)?;
             } else if dest_bits == 128 && src.bits() == 64 {
                 let src = Expression::or(
                     Expression::and(
-                        self.operand_load(&mut block, &detail.operands[0])?,
+                        self.operand_load(block, &detail.operands[0])?,
                         Expression::shl(
                             expr_const(0xffff_ffff_ffff_ffff, 128),
                             expr_const(64, 128),
@@ -2158,7 +2158,7 @@ impl<'s> Semantics<'s> {
                     )?,
                     Expression::zext(128, src)?,
                 )?;
-                self.operand_store(&mut block, &detail.operands[0], src)?;
+                self.operand_store(block, &detail.operands[0], src)?;
             } else {
                 bail!("Unhandled movlpd case");
             }
@@ -2176,9 +2176,9 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let mut src = self.operand_load(&mut block, &detail.operands[1])?;
+            let mut src = self.operand_load(block, &detail.operands[1])?;
 
             // When the src is an xmm register, the lower 64 bits are copied,
             // and the high bits are zeroed out.
@@ -2198,7 +2198,7 @@ impl<'s> Semantics<'s> {
                 }
             }
 
-            self.operand_store(&mut block, &detail.operands[0], src)?;
+            self.operand_store(block, &detail.operands[0], src)?;
 
             block.index()
         };
@@ -2228,10 +2228,10 @@ impl<'s> Semantics<'s> {
         };
 
         let inc_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             si.set(
-                &mut block,
+                block,
                 Expr::add(
                     si.get()?,
                     expr_const((bits_size / 8) as u64, self.mode().bits()),
@@ -2239,7 +2239,7 @@ impl<'s> Semantics<'s> {
             )?;
 
             di.set(
-                &mut block,
+                block,
                 Expr::add(
                     di.get()?,
                     expr_const((bits_size / 8) as u64, self.mode().bits()),
@@ -2250,10 +2250,10 @@ impl<'s> Semantics<'s> {
         };
 
         let dec_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             si.set(
-                &mut block,
+                block,
                 Expr::sub(
                     si.get()?,
                     expr_const((bits_size / 8) as u64, self.mode().bits()),
@@ -2261,7 +2261,7 @@ impl<'s> Semantics<'s> {
             )?;
 
             di.set(
-                &mut block,
+                block,
                 Expr::sub(
                     di.get()?,
                     expr_const((bits_size / 8) as u64, self.mode().bits()),
@@ -2298,12 +2298,12 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
             let value = Expr::sext((detail.operands[0].size as usize) * 8, src)?;
 
-            self.operand_store(&mut block, &detail.operands[0], value)?;
+            self.operand_store(block, &detail.operands[0], value)?;
 
             block.index()
         };
@@ -2318,12 +2318,12 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
             let value = Expr::zext((detail.operands[0].size as usize) * 8, src)?;
 
-            self.operand_store(&mut block, &detail.operands[0], value)?;
+            self.operand_store(block, &detail.operands[0], value)?;
 
             block.index()
         };
@@ -2338,9 +2338,9 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let rhs = self.operand_load(&mut block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[0])?;
 
             let lhs = match rhs.bits() {
                 8 => self.get_register(x86_reg::X86_REG_AL)?.get()?,
@@ -2361,7 +2361,7 @@ impl<'s> Semantics<'s> {
             match rhs.bits() {
                 8 => {
                     let ax = self.get_register(x86_reg::X86_REG_AX)?;
-                    ax.set(&mut block, result.into())?;
+                    ax.set(block, result.into())?;
                     let expr = Expr::cmpeq(
                         self.get_register(x86_reg::X86_REG_AH)?.get()?,
                         expr_const(0, 8),
@@ -2373,10 +2373,10 @@ impl<'s> Semantics<'s> {
                     let dx = self.get_register(x86_reg::X86_REG_DX)?;
                     let ax = self.get_register(x86_reg::X86_REG_AX)?;
                     dx.set(
-                        &mut block,
+                        block,
                         Expr::trun(16, Expr::shr(result.clone().into(), expr_const(16, 32))?)?,
                     )?;
-                    ax.set(&mut block, Expr::trun(16, result.into())?)?;
+                    ax.set(block, Expr::trun(16, result.into())?)?;
                     block.assign(scalar("OF", 1), Expr::cmpeq(dx.get()?, expr_const(0, 16))?);
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
@@ -2384,10 +2384,10 @@ impl<'s> Semantics<'s> {
                     let edx = self.get_register(x86_reg::X86_REG_EDX)?;
                     let eax = self.get_register(x86_reg::X86_REG_EAX)?;
                     edx.set(
-                        &mut block,
+                        block,
                         Expr::trun(32, Expr::shr(result.clone().into(), expr_const(32, 64))?)?,
                     )?;
-                    eax.set(&mut block, Expr::trun(32, result.into())?)?;
+                    eax.set(block, Expr::trun(32, result.into())?)?;
                     block.assign(scalar("OF", 1), Expr::cmpeq(edx.get()?, expr_const(0, 32))?);
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
@@ -2395,10 +2395,10 @@ impl<'s> Semantics<'s> {
                     let rdx = self.get_register(x86_reg::X86_REG_RDX)?;
                     let rax = self.get_register(x86_reg::X86_REG_RAX)?;
                     rdx.set(
-                        &mut block,
+                        block,
                         Expr::trun(64, Expr::shr(result.clone().into(), expr_const(64, 128))?)?,
                     )?;
-                    rax.set(&mut block, Expr::trun(64, result.into())?)?;
+                    rax.set(block, Expr::trun(64, result.into())?)?;
                     block.assign(scalar("OF", 1), Expr::cmpeq(rdx.get()?, expr_const(0, 64))?);
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
@@ -2418,9 +2418,9 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
 
             let result = self.temp(0, dst.bits());
 
@@ -2434,16 +2434,16 @@ impl<'s> Semantics<'s> {
                 Expr::sub(expr_const(0, dst.bits()), dst.clone())?,
             );
 
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
             self.set_of(
-                &mut block,
+                block,
                 result.clone().into(),
                 expr_const(0, dst.bits()),
                 dst,
             )?;
 
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -2473,13 +2473,13 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
 
             let expr = Expr::xor(dst.clone(), expr_const(!0, dst.bits()))?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -2494,11 +2494,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             let result = self.temp(0, lhs.bits());
 
@@ -2510,13 +2510,13 @@ impl<'s> Semantics<'s> {
             block.assign(result.clone(), Expr::or(lhs, rhs)?);
 
             // calculate flags
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
             block.assign(scalar("CF", 1), expr_const(0, 1));
             block.assign(scalar("OF", 1), expr_const(0, 1));
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -2531,14 +2531,14 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() == 64 {
-                self.operand_store(&mut block, &detail.operands[0], Expr::add(lhs, rhs)?)?;
+                self.operand_store(block, &detail.operands[0], Expr::add(lhs, rhs)?)?;
             } else if lhs.bits() == 128 {
                 let upper = Expr::shl(
                     expr_const(64, 128),
@@ -2549,7 +2549,7 @@ impl<'s> Semantics<'s> {
                 )?;
                 let lower =
                     Expr::and(expr_const(0xffff_ffff_ffff_ffff, 128), Expr::add(lhs, rhs)?)?;
-                self.operand_store(&mut block, &detail.operands[0], Expr::or(upper, lower)?)?;
+                self.operand_store(block, &detail.operands[0], Expr::or(upper, lower)?)?;
             }
 
             block.index()
@@ -2565,11 +2565,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let temp = self.temp(0, lhs.bits());
 
@@ -2603,7 +2603,7 @@ impl<'s> Semantics<'s> {
                 );
             }
 
-            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+            self.operand_store(block, &detail.operands[0], temp.into())?;
 
             block.index()
         };
@@ -2618,11 +2618,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let temp = self.temp(0, lhs.bits());
 
@@ -2656,7 +2656,7 @@ impl<'s> Semantics<'s> {
                 );
             }
 
-            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+            self.operand_store(block, &detail.operands[0], temp.into())?;
 
             block.index()
         };
@@ -2671,11 +2671,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
             let dst = self.get_register(detail.operands[0].reg())?;
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
 
             let temp = self.temp(0, dst.bits());
 
@@ -2711,7 +2711,7 @@ impl<'s> Semantics<'s> {
                 block.assign(temp.clone(), Expr::or(temp.clone().into(), bit)?);
             }
 
-            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+            self.operand_store(block, &detail.operands[0], temp.into())?;
 
             block.index()
         };
@@ -2726,11 +2726,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let temp = self.temp(0, lhs.bits());
 
@@ -2754,7 +2754,7 @@ impl<'s> Semantics<'s> {
                 block.assign(temp.clone(), Expr::or(temp.clone().into(), ite)?);
             }
 
-            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+            self.operand_store(block, &detail.operands[0], temp.into())?;
 
             block.index()
         };
@@ -2769,13 +2769,13 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
-            self.operand_store(&mut block, &detail.operands[0], Expr::or(lhs, rhs)?)?;
+            self.operand_store(block, &detail.operands[0], Expr::or(lhs, rhs)?)?;
 
             block.index()
         };
@@ -2790,11 +2790,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
-            let mut order = self.operand_load(&mut block, &detail.operands[2])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
+            let mut order = self.operand_load(block, &detail.operands[2])?;
 
             if order.bits() < src.bits() {
                 order = Expression::zext(src.bits(), order)?;
@@ -2866,7 +2866,7 @@ impl<'s> Semantics<'s> {
                 Expression::shl(result3, expr_const(96, temp.bits()))?,
             );
 
-            self.operand_store(&mut block, &detail.operands[0], temp.into())?;
+            self.operand_store(block, &detail.operands[0], temp.into())?;
 
             block.index()
         };
@@ -2881,11 +2881,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if rhs.bits() < lhs.bits() {
                 rhs = Expression::zext(lhs.bits(), rhs)?;
@@ -2895,7 +2895,7 @@ impl<'s> Semantics<'s> {
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 
-            self.operand_store(&mut block, &detail.operands[0], Expression::shl(lhs, rhs)?)?;
+            self.operand_store(block, &detail.operands[0], Expression::shl(lhs, rhs)?)?;
 
             block.index()
         };
@@ -2910,17 +2910,17 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if rhs.bits() < lhs.bits() {
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 
-            self.operand_store(&mut block, &detail.operands[0], Expression::shr(lhs, rhs)?)?;
+            self.operand_store(block, &detail.operands[0], Expression::shr(lhs, rhs)?)?;
 
             block.index()
         };
@@ -2935,11 +2935,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let mut temp_vars = Vec::new();
 
@@ -2972,7 +2972,7 @@ impl<'s> Semantics<'s> {
                 );
             }
 
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -2987,14 +2987,14 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() == 64 {
-                self.operand_store(&mut block, &detail.operands[0], Expr::sub(lhs, rhs)?)?;
+                self.operand_store(block, &detail.operands[0], Expr::sub(lhs, rhs)?)?;
             } else if lhs.bits() == 128 {
                 let upper = Expr::shl(
                     expr_const(64, 128),
@@ -3005,7 +3005,7 @@ impl<'s> Semantics<'s> {
                 )?;
                 let lower =
                     Expr::sub(expr_const(0xffff_ffff_ffff_ffff, 128), Expr::sub(lhs, rhs)?)?;
-                self.operand_store(&mut block, &detail.operands[0], Expr::or(upper, lower)?)?;
+                self.operand_store(block, &detail.operands[0], Expr::or(upper, lower)?)?;
             }
 
             block.index()
@@ -3022,23 +3022,23 @@ impl<'s> Semantics<'s> {
 
         // create a block for this instruction
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let value = match detail.operands[0].type_ {
                 x86_op_type::X86_OP_MEM => self.mode().pop_value(
-                    &mut block,
+                    block,
                     detail.operands[0].size as usize * 8,
                     self.instruction,
                 )?,
                 x86_op_type::X86_OP_REG => self.mode().pop_value(
-                    &mut block,
+                    block,
                     self.get_register(detail.operands[0].reg())?.bits(),
                     self.instruction,
                 )?,
                 _ => bail!("invalid op type for `pop` instruction"),
             };
 
-            self.operand_store(&mut block, &detail.operands[0], value)?;
+            self.operand_store(block, &detail.operands[0], value)?;
 
             block.index()
         };
@@ -3053,11 +3053,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let value = self.operand_load(&mut block, &detail.operands[0])?;
+            let value = self.operand_load(block, &detail.operands[0])?;
 
-            self.mode().push_value(&mut block, value)?;
+            self.mode().push_value(block, value)?;
 
             block.index()
         };
@@ -3072,10 +3072,10 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let result = self.temp(0, lhs.bits());
             block.assign(result.clone(), expr_const(0, result.bits()));
@@ -3104,7 +3104,7 @@ impl<'s> Semantics<'s> {
                 );
             }
 
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -3119,10 +3119,10 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let result = self.temp(0, lhs.bits());
             block.assign(result.clone(), expr_const(0, result.bits()));
@@ -3151,7 +3151,7 @@ impl<'s> Semantics<'s> {
                 );
             }
 
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -3166,13 +3166,13 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
-            self.operand_store(&mut block, &detail.operands[0], Expr::xor(lhs, rhs)?)?;
+            self.operand_store(block, &detail.operands[0], Expr::xor(lhs, rhs)?)?;
 
             block.index()
         };
@@ -3187,16 +3187,16 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let value = self
                 .mode()
-                .pop_value(&mut block, self.mode().bits(), self.instruction)?;
+                .pop_value(block, self.mode().bits(), self.instruction)?;
 
             if detail.op_count == 1 {
-                let imm = self.operand_load(&mut block, &detail.operands[0])?;
+                let imm = self.operand_load(block, &detail.operands[0])?;
                 let sp = self.get_register(x86_reg::X86_REG_SP)?.get_full()?;
-                sp.set(&mut block, Expr::add(sp.get()?, imm)?)?;
+                sp.set(block, Expr::add(sp.get()?, imm)?)?;
             }
 
             block.branch(value);
@@ -3214,11 +3214,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let count = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let count = self.operand_load(block, &detail.operands[1])?;
 
             let mut count = match lhs.bits() {
                 8 => Expr::and(count.clone(), expr_const(0x7, count.bits()))?,
@@ -3269,7 +3269,7 @@ impl<'s> Semantics<'s> {
 
             // SF/ZF are unaffected
 
-            self.operand_store(&mut block, &detail.operands[0], result)?;
+            self.operand_store(block, &detail.operands[0], result)?;
 
             block.index()
         };
@@ -3284,11 +3284,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let count = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let count = self.operand_load(block, &detail.operands[1])?;
 
             let mut count = match lhs.bits() {
                 8 => Expr::and(count.clone(), expr_const(0x7, count.bits()))?,
@@ -3349,7 +3349,7 @@ impl<'s> Semantics<'s> {
             // SF/ZF are unaffected
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result)?;
+            self.operand_store(block, &detail.operands[0], result)?;
 
             block.index()
         };
@@ -3391,11 +3391,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() != rhs.bits() {
                 rhs = Expr::zext(lhs.bits(), rhs)?;
@@ -3422,10 +3422,10 @@ impl<'s> Semantics<'s> {
             // OF is the last bit shifted out
             block.assign(scalar("OF", 1), expr_const(0, 1));
 
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -3440,11 +3440,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() != rhs.bits() {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
@@ -3454,13 +3454,13 @@ impl<'s> Semantics<'s> {
             let expr = Expr::sub(lhs.clone(), rhs.clone())?;
 
             // calculate flags
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), lhs.clone(), rhs)?;
-            self.set_cf(&mut block, expr.clone(), lhs)?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
+            self.set_of(block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_cf(block, expr.clone(), lhs)?;
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -3476,7 +3476,7 @@ impl<'s> Semantics<'s> {
         let di = self.get_register(x86_reg::X86_REG_DI)?.get_full()?;
 
         let head_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
             let temp = self.temp(0, 8);
@@ -3484,19 +3484,19 @@ impl<'s> Semantics<'s> {
             let expr = Expr::sub(al.get()?, temp.clone().into())?;
 
             // calculate flags
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), al.get()?, temp.into())?;
-            self.set_cf(&mut block, expr, al.get()?)?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
+            self.set_of(block, expr.clone(), al.get()?, temp.into())?;
+            self.set_cf(block, expr, al.get()?)?;
 
             block.index()
         };
 
         let inc_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             di.set(
-                &mut block,
+                block,
                 Expr::add(di.get()?, expr_const(1, self.mode().bits()))?,
             )?;
 
@@ -3504,10 +3504,10 @@ impl<'s> Semantics<'s> {
         };
 
         let dec_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             di.set(
-                &mut block,
+                block,
                 Expr::sub(di.get()?, expr_const(1, self.mode().bits()))?,
             )?;
 
@@ -3542,7 +3542,7 @@ impl<'s> Semantics<'s> {
         let di = self.get_register(x86_reg::X86_REG_DI)?.get_full()?;
 
         let head_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
             let temp = self.temp(0, 16);
@@ -3550,19 +3550,19 @@ impl<'s> Semantics<'s> {
             let expr = Expr::sub(ax.get()?, temp.clone().into())?;
 
             // calculate flags
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
-            self.set_of(&mut block, expr.clone(), ax.get()?, temp.clone().into())?;
-            self.set_cf(&mut block, expr, temp.into())?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
+            self.set_of(block, expr.clone(), ax.get()?, temp.clone().into())?;
+            self.set_cf(block, expr, temp.into())?;
 
             block.index()
         };
 
         let inc_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             di.set(
-                &mut block,
+                block,
                 Expr::add(di.get()?, expr_const(2, self.mode().bits()))?,
             )?;
 
@@ -3570,10 +3570,10 @@ impl<'s> Semantics<'s> {
         };
 
         let dec_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             di.set(
-                &mut block,
+                block,
                 Expr::sub(di.get()?, expr_const(2, self.mode().bits()))?,
             )?;
 
@@ -3607,11 +3607,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             let expr = self.cc_condition()?;
 
-            self.operand_store(&mut block, &detail.operands[0], Expr::zext(8, expr)?)?;
+            self.operand_store(block, &detail.operands[0], Expr::zext(8, expr)?)?;
 
             block.index()
         };
@@ -3626,11 +3626,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() != rhs.bits() {
                 rhs = Expr::zext(lhs.bits(), rhs)?;
@@ -3667,10 +3667,10 @@ impl<'s> Semantics<'s> {
             )?;
             block.assign(scalar("OF", 1), of);
 
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -3685,11 +3685,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() != rhs.bits() {
                 rhs = Expr::zext(lhs.bits(), rhs)?;
@@ -3725,10 +3725,10 @@ impl<'s> Semantics<'s> {
                 )?,
             );
 
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr.clone())?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr.clone())?;
 
-            self.operand_store(&mut block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
         };
@@ -3743,12 +3743,12 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
-            let count = self.operand_load(&mut block, &detail.operands[2])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
+            let count = self.operand_load(block, &detail.operands[2])?;
 
             let tmp = Expr::or(
                 Expr::shl(
@@ -3773,11 +3773,11 @@ impl<'s> Semantics<'s> {
 
             block.assign(scalar("CF", 1), cf);
 
-            self.set_zf(&mut block, result.clone())?;
-            self.set_sf(&mut block, result.clone())?;
+            self.set_zf(block, result.clone())?;
+            self.set_sf(block, result.clone())?;
 
             self.operand_store(
-                &mut block,
+                block,
                 &detail.operands[0],
                 Expr::trun(dst.bits(), result)?,
             )?;
@@ -3795,12 +3795,12 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let dst = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
-            let count = self.operand_load(&mut block, &detail.operands[2])?;
+            let dst = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
+            let count = self.operand_load(block, &detail.operands[2])?;
 
             let tmp = Expr::or(
                 Expr::zext(dst.bits() * 2, dst.clone())?,
@@ -3825,11 +3825,11 @@ impl<'s> Semantics<'s> {
 
             block.assign(scalar("CF", 1), cf);
 
-            self.set_zf(&mut block, result.clone())?;
-            self.set_sf(&mut block, result.clone())?;
+            self.set_zf(block, result.clone())?;
+            self.set_sf(block, result.clone())?;
 
             self.operand_store(
-                &mut block,
+                block,
                 &detail.operands[0],
                 Expr::trun(dst.bits(), result)?,
             )?;
@@ -3889,20 +3889,20 @@ impl<'s> Semantics<'s> {
 
         // create a block for this instruction
         let (block_index, bits) = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
-            let src = self.operand_load(&mut block, &detail.operands[1])?;
+            let src = self.operand_load(block, &detail.operands[1])?;
             let bits = src.bits();
-            self.operand_store(&mut block, &detail.operands[0], src)?;
+            self.operand_store(block, &detail.operands[0], src)?;
 
             (block.index(), bits as u64)
         };
 
         let inc_index = {
-            let mut inc_block = control_flow_graph.new_block()?;
+            let inc_block = control_flow_graph.new_block()?;
 
             di.set(
-                &mut inc_block,
+                inc_block,
                 Expr::add(di.get()?, expr_const(bits / 8, self.mode().bits()))?,
             )?;
 
@@ -3910,10 +3910,10 @@ impl<'s> Semantics<'s> {
         };
 
         let dec_index = {
-            let mut dec_block = control_flow_graph.new_block()?;
+            let dec_block = control_flow_graph.new_block()?;
 
             di.set(
-                &mut dec_block,
+                dec_block,
                 Expr::sub(di.get()?, expr_const(bits / 8, self.mode().bits()))?,
             )?;
 
@@ -3946,11 +3946,11 @@ impl<'s> Semantics<'s> {
 
         // create a block for this instruction
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() != rhs.bits() {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
@@ -3960,13 +3960,13 @@ impl<'s> Semantics<'s> {
             block.assign(result.clone(), Expr::sub(lhs.clone(), rhs.clone())?);
 
             // calculate flags
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
-            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs)?;
-            self.set_cf(&mut block, result.clone().into(), lhs)?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs)?;
+            self.set_cf(block, result.clone().into(), lhs)?;
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
@@ -4027,17 +4027,17 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let expr = Expr::and(lhs, rhs)?;
 
             // calculate flags
-            self.set_zf(&mut block, expr.clone())?;
-            self.set_sf(&mut block, expr)?;
+            self.set_zf(block, expr.clone())?;
+            self.set_sf(block, expr)?;
             block.assign(scalar("CF", 1), expr_const(0, 1));
             block.assign(scalar("OF", 1), expr_const(0, 1));
 
@@ -4076,11 +4076,11 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let result = self.temp(0, lhs.bits());
 
@@ -4088,14 +4088,14 @@ impl<'s> Semantics<'s> {
             block.assign(result.clone(), Expr::add(lhs.clone(), rhs.clone())?);
 
             // calculate flags
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
-            self.set_of(&mut block, result.clone().into(), lhs.clone(), rhs.clone())?;
-            self.set_cf(&mut block, result.clone().into(), lhs)?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs.clone())?;
+            self.set_cf(block, result.clone().into(), lhs)?;
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
-            self.operand_store(&mut block, &detail.operands[1], rhs)?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[1], rhs)?;
 
             block.index()
         };
@@ -4110,17 +4110,17 @@ impl<'s> Semantics<'s> {
         let detail = self.details()?;
 
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let rhs = self.operand_load(block, &detail.operands[1])?;
 
             let tmp = self.temp(0, lhs.bits());
             block.assign(tmp.clone(), lhs);
 
-            self.operand_store(&mut block, &detail.operands[0], rhs)?;
-            self.operand_store(&mut block, &detail.operands[1], tmp.into())?;
+            self.operand_store(block, &detail.operands[0], rhs)?;
+            self.operand_store(block, &detail.operands[1], tmp.into())?;
 
             block.index()
         };
@@ -4136,11 +4136,11 @@ impl<'s> Semantics<'s> {
 
         // create a block for this instruction
         let block_index = {
-            let mut block = control_flow_graph.new_block()?;
+            let block = control_flow_graph.new_block()?;
 
             // get operands
-            let lhs = self.operand_load(&mut block, &detail.operands[0])?;
-            let mut rhs = self.operand_load(&mut block, &detail.operands[1])?;
+            let lhs = self.operand_load(block, &detail.operands[0])?;
+            let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if lhs.bits() != rhs.bits() {
                 rhs = Expr::sext(lhs.bits(), rhs)?;
@@ -4157,13 +4157,13 @@ impl<'s> Semantics<'s> {
             }
 
             // calculate flags
-            self.set_zf(&mut block, result.clone().into())?;
-            self.set_sf(&mut block, result.clone().into())?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
             block.assign(scalar("CF", 1), expr_const(0, 1));
             block.assign(scalar("OF", 1), expr_const(0, 1));
 
             // store result
-            self.operand_store(&mut block, &detail.operands[0], result.into())?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };

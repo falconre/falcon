@@ -25,9 +25,7 @@ fn init_amd64_driver<'d>(
         .control_flow_graph()
         .block(0)
         .unwrap()
-        .instructions()
-        .len()
-        == 0
+        .instructions().is_empty()
     {
         il::ProgramLocation::new(Some(0), il::FunctionLocation::EmptyBlock(0))
     } else {
@@ -97,10 +95,10 @@ fn movd() {
     let bytes: Vec<u8> = vec![0x66, 0x0f, 0x6e, 0xce, 0x90];
 
     let driver = init_amd64_driver(
-        bytes.clone(),
+        bytes,
         vec![
-            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333)),
-            ("rsi", il::const_(0x11112222_deadbeef, 64)),
+            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
+            ("rsi", il::const_(0x1111_2222_dead_beef, 64)),
         ],
         Memory::new(Endian::Little),
     );
@@ -112,7 +110,7 @@ fn movd() {
     assert!(eval(
         &il::Expression::cmpeq(
             driver.state().get_scalar("xmm1").unwrap().clone().into(),
-            mk128const(0x00000000_00000000, 0x00000000_deadbeef).into()
+            mk128const(0x0000_0000_0000_0000, 0x0000_0000_dead_beef).into()
         )
         .unwrap()
     )
@@ -129,8 +127,8 @@ fn pcmpeqd() {
     let driver = init_amd64_driver(
         bytes.clone(),
         vec![
-            ("xmm0", mk128const(0x00000000_11111111, 0x22222222_33333333)),
-            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333)),
+            ("xmm0", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
+            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
         ],
         Memory::new(Endian::Little),
     );
@@ -140,7 +138,7 @@ fn pcmpeqd() {
     assert!(eval(
         &il::Expression::cmpeq(
             driver.state().get_scalar("xmm0").unwrap().clone().into(),
-            mk128const(0xffffffff_ffffffff, 0xffffffff_ffffffff).into()
+            mk128const(0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff).into()
         )
         .unwrap()
     )
@@ -150,8 +148,8 @@ fn pcmpeqd() {
     let driver = init_amd64_driver(
         bytes,
         vec![
-            ("xmm0", mk128const(0x00000000_11111111, 0x22322222_33333333)),
-            ("xmm1", mk128const(0x00000000_11111111, 0x22222222_33333333)),
+            ("xmm0", mk128const(0x0000_0000_1111_1111, 0x2232_2222_3333_3333)),
+            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
         ],
         Memory::new(Endian::Little),
     );
@@ -161,7 +159,7 @@ fn pcmpeqd() {
     assert!(eval(
         &il::Expression::cmpeq(
             driver.state().get_scalar("xmm0").unwrap().clone().into(),
-            mk128const(0xffffffff_ffffffff, 0x00000000_ffffffff).into()
+            mk128const(0xffff_ffff_ffff_ffff, 0x0000_0000_ffff_ffff).into()
         )
         .unwrap()
     )
@@ -176,10 +174,10 @@ fn pcmpeqb() {
     let bytes: Vec<u8> = vec![0x66, 0x0f, 0x74, 0xc1, 0x90];
 
     let driver = init_amd64_driver(
-        bytes.clone(),
+        bytes,
         vec![
-            ("xmm0", mk128const(0x00000000_11111111, 0x22222222_33333333)),
-            ("xmm1", mk128const(0x00000000_11111111, 0x55555555_00113322)),
+            ("xmm0", mk128const(0x0000_0000_1111_1111, 0x2222_2222_3333_3333)),
+            ("xmm1", mk128const(0x0000_0000_1111_1111, 0x5555_5555_0011_3322)),
         ],
         Memory::new(Endian::Little),
     );
@@ -189,7 +187,7 @@ fn pcmpeqb() {
     assert!(eval(
         &il::Expression::cmpeq(
             driver.state().get_scalar("xmm0").unwrap().clone().into(),
-            mk128const(0xffffffff_ffffffff, 0x00000000_0000ff00).into()
+            mk128const(0xffff_ffff_ffff_ffff, 0x0000_0000_0000_ff00).into()
         )
         .unwrap()
     )
@@ -204,8 +202,8 @@ fn pmovmskb() {
     let bytes: Vec<u8> = vec![0x66, 0x0f, 0xd7, 0xd4, 0x90];
 
     let driver = init_amd64_driver(
-        bytes.clone(),
-        vec![("xmm4", mk128const(0x00ff00ff_00000000, 0xffffffff_ff00ff00))],
+        bytes,
+        vec![("xmm4", mk128const(0x00ff_00ff_0000_0000, 0xffff_ffff_ff00_ff00))],
         Memory::new(Endian::Little),
     );
 
@@ -218,7 +216,7 @@ fn pmovmskb() {
             .unwrap()
             .value_u64()
             .unwrap(),
-        0b01010000_11111010
+        0b0101_0000_1111_1010
     );
 }
 
@@ -229,7 +227,7 @@ fn rol() {
     let bytes: Vec<u8> = vec![0x48, 0xc1, 0xc0, 0x11, 0x90];
 
     let driver = init_amd64_driver(
-        bytes.clone(),
+        bytes,
         vec![("rax", il::const_(0xbfeffffffd00, 64))],
         Memory::new(Endian::Little),
     );
@@ -249,7 +247,7 @@ fn ror() {
     let bytes: Vec<u8> = vec![0x49, 0xc1, 0xc8, 0x11, 0x90];
 
     let driver = init_amd64_driver(
-        bytes.clone(),
+        bytes,
         vec![("r8", il::const_(0x7fdfffffed200001, 64))],
         Memory::new(Endian::Little),
     );

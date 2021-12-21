@@ -157,7 +157,7 @@ impl Mode {
     /// Stores a value in an operand, performing any stores as necessary.
     pub fn operand_store(
         &self,
-        mut block: &mut Block,
+        block: &mut Block,
         operand: &cs_x86_op,
         value: Expression,
         instruction: &capstone::Instr,
@@ -167,7 +167,7 @@ impl Mode {
             x86_op_type::X86_OP_IMM => Err("operand_store called on immediate operand".into()),
             x86_op_type::X86_OP_REG => {
                 let dst_register = self.get_register(operand.reg())?;
-                dst_register.set(&mut block, value)
+                dst_register.set(block, value)
             }
             x86_op_type::X86_OP_MEM => {
                 let address = self.operand_value(operand, instruction)?;
