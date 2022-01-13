@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.4]
+
+* Minor improvements to constants analysis.
+* Added a maximum number of steps field to `fixed_point_forward_options`.
+
+## [0.5.3]
+
+* Just tidying things up
+
 ## [0.5.2]
 
 * emmanuel099 Add Arithmetic Shift-Right expression type. This expression type is behind a feature flag until 0.6.0. See [#94](https://github.com/falconre/falcon/pull/94) for more information.
