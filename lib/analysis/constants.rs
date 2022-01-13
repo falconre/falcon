@@ -224,7 +224,8 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
                     state.set_scalar(dst.clone(), Constant::Top);
                     state
                 }
-                il::Operation::Store { .. } | il::Operation::Branch { .. } => {
+                il::Operation::Store { .. } => state,
+                il::Operation::Branch { .. } => {
                     state.top();
                     state
                 }
