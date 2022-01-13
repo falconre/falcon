@@ -5,6 +5,8 @@ use crate::il;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
+const DEFAULT_MAX_ANALYSIS_STEPS: usize = 250000;
+
 /// A trait which implements a forward, flow-sensitive analysis to a
 /// fixed point.
 pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + PartialOrd> {
@@ -24,6 +26,7 @@ pub fn fixed_point_forward_options<'f, Analysis, State>(
     analysis: Analysis,
     function: &'f il::Function,
     force: bool,
+    max_analysis_steps: usize,
 ) -> Result<HashMap<il::ProgramLocation, State>>
 where
     Analysis: FixedPointAnalysis<'f, State>,
@@ -53,7 +56,14 @@ where
         }
     }
 
+    let mut steps = 0;
+
     while !queue.is_empty() {
+        if steps > max_analysis_steps {
+            bail!("Exceeded maximum analysis steps");
+        }
+        steps += 1;
+
         let location = queue.pop_front().unwrap();
 
         // TODO this should not be an unwrap
@@ -119,7 +129,7 @@ where
     Analysis: FixedPointAnalysis<'f, State>,
     State: 'f + Clone + Debug + PartialOrd,
 {
-    fixed_point_forward_options(analysis, function, false)
+    fixed_point_forward_options(analysis, function, false, DEFAULT_MAX_ANALYSIS_STEPS)
 }
 
 /// A backward, work-list data-flow analysis algorithm.
