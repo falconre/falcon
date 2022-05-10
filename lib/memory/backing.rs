@@ -10,6 +10,7 @@ use crate::executor;
 use crate::il;
 use crate::memory::MemoryPermissions;
 use crate::translator::TranslationMemory;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::ops::Bound::Included;
 

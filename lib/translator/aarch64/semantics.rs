@@ -743,7 +743,7 @@ pub(super) fn b_cc(
 
 pub(super) fn br(
     instruction_graph: &mut il::ControlFlowGraph,
-    _successors: &mut Vec<(u64, Option<il::Expression>)>,
+    _successors: &mut [(u64, Option<il::Expression>)],
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
@@ -1202,7 +1202,7 @@ pub(super) fn nop(
 
 pub(super) fn ret(
     instruction_graph: &mut il::ControlFlowGraph,
-    _successors: &mut Vec<(u64, Option<il::Expression>)>,
+    _successors: &mut [(u64, Option<il::Expression>)],
     _instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {

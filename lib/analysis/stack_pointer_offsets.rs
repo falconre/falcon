@@ -11,6 +11,7 @@ use crate::architecture::Architecture;
 use crate::error::*;
 use crate::executor::eval;
 use crate::il;
+use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
 
@@ -35,7 +36,7 @@ pub fn perfect(
 }
 
 /// The offset of the stack pointer from the beginning of the function.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum StackPointerOffset {
     Top,
     Value(isize),
@@ -88,7 +89,7 @@ fn transform(
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 enum IntermediateOffset {
     Top,
     Value(il::Constant),

@@ -7,6 +7,7 @@ use crate::architecture::Endian;
 use crate::error::*;
 use crate::il;
 use crate::RC;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::memory::backing;

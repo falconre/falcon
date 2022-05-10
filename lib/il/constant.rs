@@ -3,6 +3,7 @@
 use crate::il::*;
 use num_bigint::{BigInt, BigUint, ToBigInt};
 use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::*;

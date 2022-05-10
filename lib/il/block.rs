@@ -8,6 +8,7 @@
 //! To create a `Block`, call `ControlFlowGraph::new_block`.
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// A basic block in Falcon IL.

@@ -14,6 +14,7 @@
 //! references.
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// A location applied to a `Program`.

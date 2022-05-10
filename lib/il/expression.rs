@@ -24,6 +24,7 @@
 use std::fmt;
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 
 /// An IL Expression.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]

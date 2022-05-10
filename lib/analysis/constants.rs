@@ -10,6 +10,7 @@ use crate::analysis::fixed_point;
 use crate::error::*;
 use crate::executor::eval;
 use crate::il;
+use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
 
@@ -39,7 +40,7 @@ pub fn constants(function: &il::Function) -> Result<HashMap<il::ProgramLocation,
 }
 
 #[allow(dead_code)] // Bottom is never used
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 enum Constant {
     Top,
     Constant(il::Constant),
@@ -82,7 +83,7 @@ impl PartialOrd for Constant {
 }
 
 /// The value of all constants before the `RefProgramLocation` is evaluated.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Constants {
     constants: HashMap<il::Scalar, Constant>,
 }

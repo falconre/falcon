@@ -3,6 +3,7 @@
 //! We can think of a `Function` as providing _location_ to a `ControlFlowGraph`.
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 
 /// A function for Falcon IL. Provides location and context in a `Program` to a
 /// `ControlFlowGraph`.

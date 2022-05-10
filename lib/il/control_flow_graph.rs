@@ -2,6 +2,7 @@
 
 use crate::graph;
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 

@@ -1,6 +1,7 @@
 //! Implements a directed graph.
 
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
@@ -997,7 +998,7 @@ where
             .vertices
             .iter()
             .map(|v| {
-                let label = v.1.dot_label().replace("\n", "\\l");
+                let label = v.1.dot_label().replace('\n', "\\l");
                 let fill_color = v.1.dot_fill_color();
                 let font_color = v.1.dot_font_color();
                 format!(
@@ -1014,7 +1015,7 @@ where
             .edges
             .iter()
             .map(|e| {
-                let label = e.1.dot_label().replace("\n", "\\l");
+                let label = e.1.dot_label().replace('\n', "\\l");
                 let style = e.1.dot_style();
                 let fill_color = e.1.dot_fill_color();
                 let font_color = e.1.dot_font_color();
