@@ -1,7 +1,7 @@
-use crate::error::*;
 use crate::il::Expression as Expr;
 use crate::il::*;
 use crate::translator::x86::x86register::{get_register, X86Register};
+use crate::Error;
 use falcon_capstone::capstone;
 use falcon_capstone::capstone::cs_x86_op;
 use falcon_capstone::capstone_sys::{x86_op_type, x86_reg};
@@ -15,7 +15,7 @@ pub(crate) enum Mode {
 }
 
 impl Mode {
-    pub(crate) fn get_register(&self, capstone_id: x86_reg) -> Result<&'static X86Register> {
+    pub(crate) fn get_register(&self, capstone_id: x86_reg) -> Result<&'static X86Register, Error> {
         get_register(self, capstone_id)
     }
 
@@ -37,7 +37,7 @@ impl Mode {
         &self,
         register: capstone::x86_reg,
         instruction: &capstone::Instr,
-    ) -> Result<Expression> {
+    ) -> Result<Expression, Error> {
         Ok(match register {
             x86_reg::X86_REG_RIP => {
                 let value = instruction.address + instruction.size as u64;
@@ -52,7 +52,7 @@ impl Mode {
         &self,
         operand: &cs_x86_op,
         instruction: &capstone::Instr,
-    ) -> Result<Expression> {
+    ) -> Result<Expression, Error> {
         match operand.type_ {
             x86_op_type::X86_OP_INVALID => Err("Invalid operand".into()),
             x86_op_type::X86_OP_REG => {
@@ -120,7 +120,7 @@ impl Mode {
                         let segment_register = self.get_register(mem.segment)?.get()?;
                         Ok(Expr::add(segment_register, op)?)
                     }
-                    _ => bail!("invalid segment register"),
+                    _ => return Err(Error::Custom("invalid segment register".to_string())),
                 }
             }
             x86_op_type::X86_OP_IMM => {
@@ -143,7 +143,7 @@ impl Mode {
         block: &mut Block,
         operand: &cs_x86_op,
         instruction: &capstone::Instr,
-    ) -> Result<Expression> {
+    ) -> Result<Expression, Error> {
         let op = self.operand_value(operand, instruction)?;
 
         if operand.type_ == x86_op_type::X86_OP_MEM {
@@ -161,7 +161,7 @@ impl Mode {
         operand: &cs_x86_op,
         value: Expression,
         instruction: &capstone::Instr,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         match operand.type_ {
             x86_op_type::X86_OP_INVALID => Err("operand_store called on invalid operand".into()),
             x86_op_type::X86_OP_IMM => Err("operand_store called on immediate operand".into()),
@@ -185,7 +185,7 @@ impl Mode {
         block: &mut Block,
         bits: usize,
         instruction: &capstone::Instr,
-    ) -> Result<Expression> {
+    ) -> Result<Expression, Error> {
         let temp = Scalar::temp(instruction.address, bits);
 
         block.load(temp.clone(), self.sp().into());
@@ -198,7 +198,7 @@ impl Mode {
     }
 
     /// Convenience function to push a value onto the stack
-    pub fn push_value(&self, block: &mut Block, value: Expression) -> Result<()> {
+    pub fn push_value(&self, block: &mut Block, value: Expression) -> Result<(), Error> {
         match self {
             Mode::X86 => block.assign(self.sp(), Expr::sub(self.sp().into(), expr_const(4, 32))?),
             Mode::Amd64 => block.assign(self.sp(), Expr::sub(self.sp().into(), expr_const(8, 64))?),

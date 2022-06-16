@@ -7,15 +7,17 @@
 //! and then attempts to evaluate the expression to an `il::Constant`.
 
 use crate::analysis::fixed_point;
-use crate::error::*;
 use crate::executor::eval;
 use crate::il;
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
 
 /// Compute constants for the given function
-pub fn constants(function: &il::Function) -> Result<HashMap<il::ProgramLocation, Constants>> {
+pub fn constants(
+    function: &il::Function,
+) -> Result<HashMap<il::ProgramLocation, Constants>, Error> {
     let constants = fixed_point::fixed_point_forward(ConstantsAnalysis {}, function)?;
 
     // we're now going to remap constants, so each position holds the values of
@@ -205,7 +207,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
         &self,
         location: il::RefProgramLocation<'r>,
         state: Option<Constants>,
-    ) -> Result<Constants> {
+    ) -> Result<Constants, Error> {
         let mut state = match state {
             Some(state) => state,
             None => Constants::new(),
@@ -248,7 +250,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
         Ok(state)
     }
 
-    fn join(&self, state0: Constants, state1: &Constants) -> Result<Constants> {
+    fn join(&self, state0: Constants, state1: &Constants) -> Result<Constants, Error> {
         Ok(state0.join(state1))
     }
 }

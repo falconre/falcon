@@ -1,8 +1,8 @@
 //! Concrete execution over Falcon IL.
 
-use crate::error::*;
 use crate::il;
 use crate::memory;
+use crate::Error;
 
 mod driver;
 mod eval;

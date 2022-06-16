@@ -2,6 +2,7 @@ use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::Memory;
 use crate::memory::MemoryPermissions;
+use crate::Error;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
@@ -19,7 +20,7 @@ pub struct Elf {
 impl Elf {
     /// Create a new Elf from the given bytes. This Elf will be rebased to the given
     /// base address.
-    pub fn new(bytes: Vec<u8>, base_address: u64) -> Result<Elf> {
+    pub fn new(bytes: Vec<u8>, base_address: u64) -> Result<Elf, Error> {
         let architecture = {
             let elf = goblin::elf::Elf::parse(&bytes).map_err(|_| "Not a valid elf")?;
 
@@ -37,7 +38,11 @@ impl Elf {
             } else if elf.header.e_machine == goblin::elf::header::EM_PPC {
                 match elf.header.endianness()? {
                     goblin::container::Endian::Big => Box::new(Ppc::new()) as Box<dyn Architecture>,
-                    goblin::container::Endian::Little => bail!("PPC Little-Endian not supported"),
+                    goblin::container::Endian::Little => {
+                        return Err(Error::FalconInternal(
+                            "PPC Little-Endian not supported".to_string(),
+                        ))
+                    }
                 }
             } else if elf.header.e_machine == goblin::elf::header::EM_X86_64 {
                 Box::new(Amd64::new())
@@ -51,7 +56,7 @@ impl Elf {
                     }
                 }
             } else {
-                bail!("Unsupported Architecture");
+                return Err(Error::UnsupprotedArchitecture);
             }
         };
 
@@ -73,7 +78,7 @@ impl Elf {
     pub fn from_file_with_base_address<P: AsRef<Path>>(
         filename: P,
         base_address: u64,
-    ) -> Result<Elf> {
+    ) -> Result<Elf, Error> {
         let filename: &Path = filename.as_ref();
         let mut file = match File::open(filename) {
             Ok(file) => file,
@@ -87,7 +92,7 @@ impl Elf {
     }
 
     /// Load an elf from a file and use the base address of 0.
-    pub fn from_file<P: AsRef<Path>>(filename: P) -> Result<Elf> {
+    pub fn from_file<P: AsRef<Path>>(filename: P) -> Result<Elf, Error> {
         Elf::from_file_with_base_address(filename, 0)
     }
 
@@ -97,7 +102,7 @@ impl Elf {
     }
 
     /// Return the strings from the DT_NEEDED entries.
-    pub fn dt_needed(&self) -> Result<Vec<String>> {
+    pub fn dt_needed(&self) -> Result<Vec<String>, Error> {
         let mut v = Vec::new();
 
         let elf = self.elf();
@@ -212,14 +217,18 @@ impl Elf {
 }
 
 impl Loader for Elf {
-    fn memory(&self) -> Result<Memory> {
+    fn memory(&self) -> Result<Memory, Error> {
         let elf = self.elf();
         let mut memory = Memory::new(self.architecture().endian());
 
         for ph in elf.program_headers {
             if ph.p_type == goblin::elf::program_header::PT_LOAD {
                 let file_range = (ph.p_offset as usize)..((ph.p_offset + ph.p_filesz) as usize);
-                let mut bytes = self.bytes.get(file_range).ok_or("Malformed Elf")?.to_vec();
+                let mut bytes = self
+                    .bytes
+                    .get(file_range)
+                    .ok_or(Error::FalconInternal("Malformed Elf".to_string()))?
+                    .to_vec();
 
                 if bytes.len() != ph.p_memsz as usize {
                     bytes.append(&mut vec![0; (ph.p_memsz - ph.p_filesz) as usize]);
@@ -243,7 +252,7 @@ impl Loader for Elf {
         Ok(memory)
     }
 
-    fn function_entries(&self) -> Result<Vec<FunctionEntry>> {
+    fn function_entries(&self) -> Result<Vec<FunctionEntry>, Error> {
         let elf = self.elf();
 
         let mut function_entries: BTreeMap<u64, FunctionEntry> = BTreeMap::new();

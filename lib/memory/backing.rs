@@ -5,11 +5,11 @@
 //! to use it to lift instructions.
 
 use crate::architecture::Endian;
-use crate::error::*;
 use crate::executor;
 use crate::il;
 use crate::memory::MemoryPermissions;
 use crate::translator::TranslationMemory;
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::ops::Bound::Included;
@@ -119,7 +119,7 @@ impl Memory {
 
     /// Set the 32-bit value at the given address, allowing the memory model
     /// to account for the underlying endianness.
-    pub fn set32(&mut self, address: u64, value: u32) -> Result<()> {
+    pub fn set32(&mut self, address: u64, value: u32) -> Result<(), Error> {
         let (section_address, offset) = self
             .section_address_offset(address)
             .unwrap_or_else(|| panic!("Address 0x{:x} has no section", address));
@@ -127,12 +127,12 @@ impl Memory {
         let section = self.sections.get_mut(&section_address).unwrap();
 
         if offset + 4 > section.len() {
-            bail!(format!(
+            return Err(Error::Custom(format!(
                 "Section at 0x{:x} is of size {}, and not big \
                  enough to hold 32-bit value",
                 section_address,
                 section.len()
-            ));
+            )));
         }
 
         match self.endian {

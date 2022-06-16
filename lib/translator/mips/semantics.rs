@@ -1,6 +1,6 @@
-use crate::error::*;
 use crate::il::Expression as Expr;
 use crate::il::*;
+use crate::Error;
 use falcon_capstone::capstone;
 use falcon_capstone::capstone_sys::mips_reg;
 
@@ -199,7 +199,7 @@ const MIPS_REGISTERS: &[MipsRegister] = &[
 ];
 
 /// Takes a capstone register enum and returns a `MipsRegister`
-pub fn get_register(capstone_id: mips_reg) -> Result<&'static MipsRegister> {
+pub fn get_register(capstone_id: mips_reg) -> Result<&'static MipsRegister, Error> {
     for register in MIPS_REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
             return Ok(register);
@@ -209,7 +209,7 @@ pub fn get_register(capstone_id: mips_reg) -> Result<&'static MipsRegister> {
 }
 
 /// Returns the details section of a mips capstone instruction.
-pub fn details(instruction: &capstone::Instr) -> Result<capstone::cs_mips> {
+pub fn details(instruction: &capstone::Instr) -> Result<capstone::cs_mips, Error> {
     let detail = instruction.detail.as_ref().unwrap();
     match detail.arch {
         capstone::DetailsArch::MIPS(x) => Ok(x),
@@ -217,7 +217,10 @@ pub fn details(instruction: &capstone::Instr) -> Result<capstone::cs_mips> {
     }
 }
 
-pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn add(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -286,7 +289,7 @@ pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn addi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -361,7 +364,7 @@ pub fn addi(
 pub fn addiu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -392,7 +395,7 @@ pub fn addiu(
 pub fn addu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -414,7 +417,10 @@ pub fn addu(
     Ok(())
 }
 
-pub fn and(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn and(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -439,7 +445,7 @@ pub fn and(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn andi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -461,7 +467,7 @@ pub fn andi(
     Ok(())
 }
 
-pub fn b(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn b(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<(), Error> {
     let block_index = control_flow_graph.new_block()?.index();
 
     control_flow_graph.set_entry(block_index)?;
@@ -470,7 +476,10 @@ pub fn b(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Resu
     Ok(())
 }
 
-pub fn bal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn bal(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let operand = details(instruction)?.operands[0];
 
     let block_index = {
@@ -491,7 +500,7 @@ pub fn bal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn bgezal(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let lhs = get_register(detail.operands[0].reg())?.expression();
@@ -535,7 +544,7 @@ pub fn bgezal(
 pub fn bltzal(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let lhs = get_register(detail.operands[0].reg())?.expression();
@@ -574,7 +583,7 @@ pub fn bltzal(
 pub fn break_(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
@@ -598,7 +607,10 @@ pub fn break_(
     Ok(())
 }
 
-pub fn clo(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn clo(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let rd = get_register(detail.operands[0].reg())?.scalar();
@@ -662,7 +674,10 @@ pub fn clo(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn clz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn clz(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let rd = get_register(detail.operands[0].reg())?.scalar();
@@ -726,7 +741,10 @@ pub fn clz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn div(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn div(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -751,7 +769,7 @@ pub fn div(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn divu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -773,7 +791,7 @@ pub fn divu(
     Ok(())
 }
 
-pub fn j(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn j(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<(), Error> {
     let block_index = control_flow_graph.new_block()?.index();
 
     control_flow_graph.set_entry(block_index)?;
@@ -782,7 +800,10 @@ pub fn j(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Resu
     Ok(())
 }
 
-pub fn jr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn jr(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let target = get_register(detail.operands[0].reg())?.expression();
@@ -801,7 +822,10 @@ pub fn jr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn jal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn jal(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let block_index = {
@@ -822,7 +846,7 @@ pub fn jal(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn jalr(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let target = get_register(detail.operands[0].reg())?.expression();
@@ -842,7 +866,10 @@ pub fn jalr(
     Ok(())
 }
 
-pub fn lb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lb(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -866,7 +893,10 @@ pub fn lb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn lbu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lbu(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -890,7 +920,10 @@ pub fn lbu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn lh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lh(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -914,7 +947,10 @@ pub fn lh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn lhu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lhu(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -939,7 +975,10 @@ pub fn lhu(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 }
 
 // This is identical to lw
-pub fn ll(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn ll(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -961,7 +1000,10 @@ pub fn ll(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn lui(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lui(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -982,7 +1024,10 @@ pub fn lui(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn lw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lw(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1004,7 +1049,10 @@ pub fn lw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn lwl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lwl(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1052,7 +1100,10 @@ pub fn lwl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn lwr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lwr(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1100,7 +1151,7 @@ pub fn lwr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn madd(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1143,7 +1194,7 @@ pub fn madd(
 pub fn maddu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1186,7 +1237,7 @@ pub fn maddu(
 pub fn mfhi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1209,7 +1260,7 @@ pub fn mfhi(
 pub fn mflo(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1232,7 +1283,7 @@ pub fn mflo(
 pub fn move_(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1256,7 +1307,7 @@ pub fn move_(
 pub fn movn(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1305,7 +1356,7 @@ pub fn movn(
 pub fn movz(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1354,7 +1405,7 @@ pub fn movz(
 pub fn msub(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1397,7 +1448,7 @@ pub fn msub(
 pub fn msubu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1440,7 +1491,7 @@ pub fn msubu(
 pub fn mthi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1463,7 +1514,7 @@ pub fn mthi(
 pub fn mtlo(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1483,7 +1534,10 @@ pub fn mtlo(
     Ok(())
 }
 
-pub fn mul(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn mul(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1511,7 +1565,7 @@ pub fn mul(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn mult(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1544,7 +1598,7 @@ pub fn mult(
 pub fn multu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1577,7 +1631,7 @@ pub fn multu(
 pub fn negu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1598,7 +1652,7 @@ pub fn negu(
     Ok(())
 }
 
-pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<(), Error> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
@@ -1613,7 +1667,10 @@ pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Re
     Ok(())
 }
 
-pub fn nor(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn nor(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1638,7 +1695,10 @@ pub fn nor(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn or(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn or(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1660,7 +1720,10 @@ pub fn or(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn ori(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn ori(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1685,7 +1748,7 @@ pub fn ori(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn rdhwr(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let rt = get_register(detail.operands[0].reg())?.expression();
@@ -1711,7 +1774,10 @@ pub fn rdhwr(
     Ok(())
 }
 
-pub fn sb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sb(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1734,7 +1800,10 @@ pub fn sb(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 }
 
 // This is identical to sw
-pub fn sc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sc(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1763,7 +1832,10 @@ pub fn sc(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn sh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sh(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1785,7 +1857,10 @@ pub fn sh(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn sll(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sll(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1810,7 +1885,7 @@ pub fn sll(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn sllv(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1832,7 +1907,10 @@ pub fn sllv(
     Ok(())
 }
 
-pub fn slt(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn slt(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1888,7 +1966,7 @@ pub fn slt(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn slti(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1944,7 +2022,7 @@ pub fn slti(
 pub fn sltiu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2000,7 +2078,7 @@ pub fn sltiu(
 pub fn sltu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2053,7 +2131,10 @@ pub fn sltu(
     Ok(())
 }
 
-pub fn sra(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sra(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2078,7 +2159,7 @@ pub fn sra(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn srav(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2100,7 +2181,10 @@ pub fn srav(
     Ok(())
 }
 
-pub fn srl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn srl(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2125,7 +2209,7 @@ pub fn srl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn srlv(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2147,7 +2231,10 @@ pub fn srlv(
     Ok(())
 }
 
-pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sub(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2215,7 +2302,7 @@ pub fn sub(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn subu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2237,7 +2324,10 @@ pub fn subu(
     Ok(())
 }
 
-pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn sw(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2309,7 +2399,10 @@ pub fn sw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn swl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn swl(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2363,7 +2456,10 @@ pub fn swl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn swr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn swr(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2413,7 +2509,7 @@ pub fn swr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn syscall(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
@@ -2437,7 +2533,10 @@ pub fn syscall(
     Ok(())
 }
 
-pub fn teq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn teq(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2486,7 +2585,10 @@ pub fn teq(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn xor(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn xor(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -2511,7 +2613,7 @@ pub fn xor(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn xori(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands

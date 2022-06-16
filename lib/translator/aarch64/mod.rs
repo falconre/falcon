@@ -1,9 +1,9 @@
 //! Capstone-based translator for AArch64.
 
 use crate::architecture::Endian;
-use crate::error::*;
 use crate::il::*;
 use crate::translator::{BlockTranslationResult, Options, Translator};
+use crate::Error;
 
 mod register;
 mod semantics;
@@ -26,7 +26,7 @@ impl Translator for AArch64 {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translate_block(bytes, address, Endian::Little, options)
     }
 }
@@ -47,7 +47,7 @@ impl Translator for AArch64Eb {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translate_block(bytes, address, Endian::Big, options)
     }
 }
@@ -57,7 +57,7 @@ fn translate_block(
     address: u64,
     _endian: Endian,
     options: &Options,
-) -> Result<BlockTranslationResult> {
+) -> Result<BlockTranslationResult, Error> {
     // A vec which holds each lifted instruction in this block.
     let mut block_graphs: Vec<(u64, ControlFlowGraph)> = Vec::new();
 

@@ -27,9 +27,9 @@ mod options;
 pub mod ppc;
 pub mod x86;
 
-use crate::error::*;
 use crate::il;
 use crate::il::*;
+use crate::Error;
 pub use block_translation_result::BlockTranslationResult;
 use falcon_capstone::capstone;
 pub use options::{ManualEdge, Options, OptionsBuilder};
@@ -69,7 +69,7 @@ pub trait TranslationMemory {
 pub(crate) fn unhandled_intrinsic(
     control_flow_graph: &mut il::ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
 
@@ -99,14 +99,14 @@ pub trait Translator {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult>;
+    ) -> Result<BlockTranslationResult, Error>;
 
     /// Translates a function
     fn translate_function(
         &self,
         memory: &dyn TranslationMemory,
         function_address: u64,
-    ) -> Result<Function> {
+    ) -> Result<Function, Error> {
         self.translate_function_extended(memory, function_address, &Options::default())
     }
 
@@ -118,7 +118,7 @@ pub trait Translator {
         memory: &dyn TranslationMemory,
         function_address: u64,
         options: &Options,
-    ) -> Result<Function> {
+    ) -> Result<Function, Error> {
         // Addresses of blocks pending translation
         let mut translation_queue: VecDeque<u64> = VecDeque::new();
 

@@ -1,6 +1,6 @@
 //! A `Constant` holds a single value.
 
-use crate::il::*;
+use crate::Error;
 use num_bigint::{BigInt, BigUint, ToBigInt};
 use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,7 @@ impl Constant {
     }
 
     /// Crates a constant from a decimal string of the value
-    pub fn from_decimal_string(s: &str, bits: usize) -> Result<Constant> {
+    pub fn from_decimal_string(s: &str, bits: usize) -> Result<Constant, Error> {
         let constant = Constant::new_big(s.parse()?, bits);
         Ok(match constant.bits().cmp(&bits) {
             Ordering::Less => constant.zext(bits)?,
@@ -117,9 +117,9 @@ impl Constant {
         self.value.is_one()
     }
 
-    pub fn add(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn add(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(Constant::new_big(
                 self.value.clone() + rhs.value.clone(),
@@ -128,9 +128,9 @@ impl Constant {
         }
     }
 
-    pub fn sub(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn sub(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if self.value < rhs.value {
             let lhs = self.value.clone();
             let lhs = lhs | (BigUint::from_u64(1).unwrap() << self.bits);
@@ -143,9 +143,9 @@ impl Constant {
         }
     }
 
-    pub fn mul(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn mul(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(Constant::new_big(
                 self.value.clone() * rhs.value.clone(),
@@ -154,11 +154,11 @@ impl Constant {
         }
     }
 
-    pub fn divu(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn divu(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if rhs.is_zero() {
-            Err(ErrorKind::DivideByZero.into())
+            Err(Error::DivideByZero)
         } else {
             Ok(Constant::new_big(
                 self.value.clone() / rhs.value.clone(),
@@ -167,11 +167,11 @@ impl Constant {
         }
     }
 
-    pub fn modu(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn modu(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if rhs.is_zero() {
-            Err(ErrorKind::DivideByZero.into())
+            Err(Error::DivideByZero)
         } else {
             Ok(Constant::new_big(
                 self.value.clone() % rhs.value.clone(),
@@ -180,11 +180,11 @@ impl Constant {
         }
     }
 
-    pub fn divs(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn divs(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if rhs.is_zero() {
-            Err(ErrorKind::DivideByZero.into())
+            Err(Error::DivideByZero)
         } else {
             let lhs = self.to_bigint();
             let rhs = rhs.to_bigint();
@@ -201,11 +201,11 @@ impl Constant {
         }
     }
 
-    pub fn mods(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn mods(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if rhs.is_zero() {
-            Err(ErrorKind::DivideByZero.into())
+            Err(Error::DivideByZero)
         } else {
             let lhs = self.to_bigint();
             let rhs = rhs.to_bigint();
@@ -222,9 +222,9 @@ impl Constant {
         }
     }
 
-    pub fn and(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn and(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(Constant::new_big(
                 self.value.clone() & rhs.value.clone(),
@@ -233,9 +233,9 @@ impl Constant {
         }
     }
 
-    pub fn or(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn or(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(Constant::new_big(
                 self.value.clone() | rhs.value.clone(),
@@ -244,9 +244,9 @@ impl Constant {
         }
     }
 
-    pub fn xor(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn xor(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(Constant::new_big(
                 self.value.clone() ^ rhs.value.clone(),
@@ -255,9 +255,9 @@ impl Constant {
         }
     }
 
-    pub fn shl(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn shl(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             // If, for some reason, an analysis generates a very large shift
             // value (for example << 0xFFFFFFFF_FFFFFFFF:64), this will cause
@@ -280,9 +280,9 @@ impl Constant {
         }
     }
 
-    pub fn shr(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn shr(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             let r = rhs
                 .value
@@ -293,9 +293,9 @@ impl Constant {
         }
     }
 
-    pub fn ashr(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn ashr(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             let r = rhs
                 .value
@@ -316,9 +316,9 @@ impl Constant {
         }
     }
 
-    pub fn cmpeq(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn cmpeq(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if self.value == rhs.value {
             Ok(Constant::new(1, 1))
         } else {
@@ -326,9 +326,9 @@ impl Constant {
         }
     }
 
-    pub fn cmpneq(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn cmpneq(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if self.value == rhs.value {
             Ok(Constant::new(0, 1))
         } else {
@@ -336,9 +336,9 @@ impl Constant {
         }
     }
 
-    pub fn cmpltu(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn cmpltu(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else if self.value < rhs.value {
             Ok(Constant::new(1, 1))
         } else {
@@ -346,9 +346,9 @@ impl Constant {
         }
     }
 
-    pub fn cmplts(&self, rhs: &Constant) -> Result<Constant> {
+    pub fn cmplts(&self, rhs: &Constant) -> Result<Constant, Error> {
         if self.bits() != rhs.bits() {
-            return Err(ErrorKind::Sort.into());
+            return Err(Error::Sort);
         }
         let lhs = self.to_bigint();
         let rhs = rhs.to_bigint();
@@ -359,25 +359,25 @@ impl Constant {
         }
     }
 
-    pub fn trun(&self, bits: usize) -> Result<Constant> {
+    pub fn trun(&self, bits: usize) -> Result<Constant, Error> {
         if bits >= self.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(Constant::new_big(self.value.clone(), bits))
         }
     }
 
-    pub fn zext(&self, bits: usize) -> Result<Constant> {
+    pub fn zext(&self, bits: usize) -> Result<Constant, Error> {
         if bits <= self.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(Constant::new_big(self.value.clone(), bits))
         }
     }
 
-    pub fn sext(&self, bits: usize) -> Result<Constant> {
+    pub fn sext(&self, bits: usize) -> Result<Constant, Error> {
         if bits <= self.bits() || bits % 8 > 0 {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             let sign_bit = self.value.clone() >> (self.bits - 1);
             let value = if sign_bit == BigUint::from_u64(1).unwrap() {

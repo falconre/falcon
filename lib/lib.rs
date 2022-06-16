@@ -37,9 +37,6 @@
 //! # }
 //! ```
 
-#[macro_use]
-extern crate error_chain;
-
 pub mod analysis;
 pub mod architecture;
 pub mod executor;
@@ -61,88 +58,101 @@ use std::sync::Arc;
 #[cfg(feature = "thread_safe")]
 pub type RC<T> = Arc<T>;
 
-/// Falcon Error types.
-pub mod error {
-    error_chain! {
-        types {
-            Error, ErrorKind, ResultExt, Result;
-        }
+use thiserror::Error;
 
-        foreign_links {
-            Bad64(::bad64::DecodeError);
-            Base64(::base64::DecodeError);
-            Capstone(::falcon_capstone::capstone::CsErr);
-            Goblin(::goblin::error::Error);
-            Io(::std::io::Error);
-            Json(::serde_json::Error);
-            ParseBigIntError(::num_bigint::ParseBigIntError);
-            ParseIntError(::std::num::ParseIntError);
-            Utf8(::std::string::FromUtf8Error);
-        }
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("An error in the analysis: `{0}`")]
+    Analysis(String),
+    #[error("Error in evaluation of arithmetic expression: `{0}`")]
+    Arithmetic(String),
+    #[error("Attempt to access unmapped memory at address 0x`{0:x}`")]
+    AccessUnmappedMemory(u64),
+    #[error("Bad64: `{0}`")]
+    Bad64(#[from] bad64::DecodeError),
+    #[error("Base64: `{0}`")]
+    Base64(#[from] base64::DecodeError),
+    #[error("FalconCapstone: `{0}`")]
+    Capstone(#[from] falcon_capstone::capstone::CsErr),
+    #[error("Capstone failed")]
+    CapstoneError,
+    #[error("`{0}` - `{1}`")]
+    Chain(Box<Error>, Box<Error>),
+    #[error("ControlFlowGraph successor not found")]
+    ControlFlowGraphSuccessorNotFound,
+    #[error("ControlFlowGraph entry and/or exit nodes not found")]
+    ControlFlowGraphEntryExitNotFound,
+    #[error("Custom: `{0}`")]
+    Custom(String),
+    #[error("Unrecoverable error during disassembly")]
+    DisassemblyFailure,
+    #[error("Division by zero")]
+    DivideByZero,
+    #[error("Elf Linker: relocations unsuppored")]
+    ElfLinkerRelocationsUnsupported,
+    #[error("Executor received an invalid address")]
+    ExecutorInvalidAddress,
+    #[error("Executor failed to lift function at `{0}` `{1}`")]
+    ExecutorLiftFail(u64, Box<Error>),
+    #[error("Executor can only execute over constant values, encountered `{0}`")]
+    ExecutorScalar(String),
+    #[error("Executor did not have a valid location")]
+    ExecutorNoValidLocation,
+    #[error("Executor failed to get edge consition")]
+    ExecutorNoEdgeCondition,
+    #[error("Falcon internal error: {0}")]
+    FalconInternal(String),
+    #[error("Max steps reached while conducting fixed-point analysis")]
+    FixedPointMaxSteps,
+    #[error("Found a state which was not >= previous state (it was `{0:?}`) @ `{1}`")]
+    FixedPointOrdering(String, il::ProgramLocation),
+    #[error("FixedPoint requires an entry point in CFG")]
+    FixedPointRequiresEntry,
+    #[error("Failed to apply il::FunctionLocation")]
+    FunctionLocationApplication,
+    #[error("Goblin: `{0}`")]
+    Goblin(#[from] goblin::error::Error),
+    #[error("The edge with head `{0}` and tail `{1}` does not exist in the graph")]
+    GraphEdgeNotFound(usize, usize),
+    #[error("The vertex id `{0}` does not exist in the graph")]
+    GraphVertexNotFound(usize),
+    #[error("Invalid File Format: `{0}`")]
+    InvalidFileFormat(String),
+    #[error("Io: `{0}`")]
+    Io(#[from] std::io::Error),
+    #[error("Json: `{0}`")]
+    Json(#[from] serde_json::Error),
+    #[error("BigInt: `{0}`")]
+    ParseBigIntError(#[from] num_bigint::ParseBigIntError),
+    #[error("Failed to apply il::ProgramLocation")]
+    ProgramLocationApplication,
+    #[error("Sort error, invalid bitness between expressions")]
+    Sort,
+    #[error("A constant with >64 bytes was used as an address")]
+    TooManyAddressBits,
+    #[error("An unhandled intrinsic was encountered during evaluation")]
+    UnhandledIntrinsic(String),
+    #[error("Unsupported Architecture")]
+    UnsupprotedArchitecture,
+    #[error("Utf8: `{0}`")]
+    Utf8(#[from] std::string::FromUtf8Error),
+}
 
-        errors {
-            Analysis(m: String) {
-                description("An error in the analysis")
-                display("Analysis error: {}", m)
-            }
-            Arithmetic(m: String) {
-                description("Error in evaluation of arithmetic expression")
-                display("Arithmetic expression evaluation error: {}", m)
-            }
-            AccessUnmappedMemory(address: u64) {
-                description("Attempt to access unmapped memory")
-                display("Attempt to access unmapped memory at address 0x{:x}", address)
-            }
-            CapstoneError {
-                description("Capstone failed")
-                display("Capstone failed")
-            }
-            DisassemblyFailure {
-                description("Unrecoverable error during disassembly")
-                display("Disassembly Failure")
-            }
-            DivideByZero {
-                description("Division by zero")
-                display("Division by zero")
-            }
-            ExecutorScalar(name: String) {
-                description("Executor can only execute over constant values")
-                display("A scalar \"{}\" was found while executor was evaluating expression", name)
-            }
-            FunctionLocationApplication {
-                description("Failed to apply il::FunctionLocation")
-                display("Failed to apply il::FunctionLocation")
-            }
-            GraphEdgeNotFound(head: usize, tail: usize) {
-                description("An edge was not found in a graph")
-                display("The edge with head {} and tail {} does not exist in the graph", head, tail)
-            }
-            GraphVertexNotFound(vertex_id: usize) {
-                description("A vertex was not found in a graph")
-                display("The vertex id {} does not exist in the graph", vertex_id)
-            }
-            ProgramLocationMigration(reason: String) {
-                description("Error migrating ProgramLocation between Program")
-                display("Failed to migrate ProgramLocation between Program: {}", reason)
-            }
-            ProgramLocationApplication {
-                description("Failed to apply il::ProgramLocation")
-                display("Failed to apply il::ProgramLocation")
-            }
-            Sort {
-                description("Sort error, invalid bitness between expressions")
-                display("Sort error, invalid bitness between expressions")
-            }
-            TooManyAddressBits {
-                description("A constant with >64 bits was used as an address")
-                display("A constant with >64 bits was used as an address")
-            }
-            UnhandledIntrinsic(intrinsic_str: String) {
-                description("An unhandled intrinsic was encountered during evaluation")
-                display("Encountered unhandled intrinsic {}", intrinsic_str)
-            }
-        }
+impl From<&str> for Error {
+    fn from(s: &str) -> Error {
+        Error::Custom(s.to_string())
     }
 }
 
-pub use error::*;
+impl From<String> for Error {
+    fn from(s: String) -> Error {
+        Error::Custom(s)
+    }
+}
+
+impl Error {
+    pub fn chain(self, other: Error) -> Error {
+        Error::Chain(Box::new(self), Box::new(other))
+    }
+}
+

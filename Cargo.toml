@@ -13,8 +13,8 @@ bad64 = { version="0.5", features=["std"] }
 base64 = "0.13"
 bitflags = "1.2"
 falcon_capstone = "0.5.1"
-error-chain = "0.12"
-goblin = "0.4"
+thiserror = "1"
+goblin = "0.5"
 log = "0.4"
 num-bigint = {version="0.4", features=["serde"]}
 num-traits = "0.2"

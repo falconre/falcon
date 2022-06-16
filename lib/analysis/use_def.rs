@@ -1,11 +1,13 @@
 use crate::analysis::{reaching_definitions, LocationSet};
-use crate::error::*;
 use crate::il;
+use crate::Error;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
 /// Compute use definition chains for the given function.
-pub fn use_def(function: &il::Function) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
+pub fn use_def(
+    function: &il::Function,
+) -> Result<HashMap<il::ProgramLocation, LocationSet>, Error> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     let mut ud = HashMap::new();

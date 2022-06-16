@@ -1,7 +1,7 @@
 //! Capstone-based translator for 32/64-bit x86.
 
-use crate::error::*;
 use crate::translator::{BlockTranslationResult, Options, Translator};
+use crate::Error;
 
 mod mode;
 mod semantics;
@@ -29,7 +29,7 @@ impl Translator for X86 {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translator::translate_block(Mode::X86, bytes, address, options)
     }
 }
@@ -50,7 +50,7 @@ impl Translator for Amd64 {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translator::translate_block(Mode::Amd64, bytes, address, options)
     }
 }

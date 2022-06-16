@@ -4,8 +4,8 @@
 //! This memory model operates over types which implement the `Value` trait.
 
 use crate::architecture::Endian;
-use crate::error::*;
 use crate::il;
+use crate::Error;
 use crate::RC;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -229,7 +229,7 @@ where
     ///
     /// The value must have a bit-width >= 8, and the bit-width must be evenly
     /// divisible by 8.
-    pub fn store(&mut self, address: u64, value: V) -> Result<()> {
+    pub fn store(&mut self, address: u64, value: V) -> Result<(), Error> {
         if value.bits() % 8 != 0 || value.bits() == 0 {
             return Err(format!(
                 "Storing value in paged memory with bit width not divisible by 8 and > 0 {}",
@@ -318,7 +318,7 @@ where
     ///
     /// If a value cannot be retrieved for all bits of the load, `None` will
     /// be returned.
-    pub fn load(&self, address: u64, bits: usize) -> Result<Option<V>> {
+    pub fn load(&self, address: u64, bits: usize) -> Result<Option<V>, Error> {
         if bits % 8 != 0 {
             return Err(format!("Loading paged memory with non-8 bit-width {}", bits).into());
         } else if bits == 0 {
@@ -361,19 +361,8 @@ where
                         value.clone()
                     } else {
                         match self.endian {
-                            Endian::Little => value
-                                .trun(bits)
-                                .chain_err(|| format!("Truncating {:?} to {}", value, bits))?,
-                            Endian::Big => {
-                                value.shr(value.bits() - bits)?.trun(bits).chain_err(|| {
-                                    format!(
-                                        "Shift {:?} right {} truncate {}",
-                                        value,
-                                        value.bits() - bits,
-                                        bits
-                                    )
-                                })?
-                            }
+                            Endian::Little => value.trun(bits)?,
+                            Endian::Big => value.shr(value.bits() - bits)?.trun(bits)?,
                         }
                     }
                 }
@@ -387,11 +376,11 @@ where
                         Endian::Little => {
                             let shift_bits = ((address - backref_address) * 8) as usize;
                             let trun_bits = value.bits() - shift_bits;
-                            value.shr(shift_bits)?.trun(trun_bits).chain_err(|| {
-                                format!(
+                            value.shr(shift_bits)?.trun(trun_bits).map_err(|e| {
+                                e.chain(Error::Custom(format!(
                                     "Shifted {:?} right {} and truncated to {}",
                                     value, shift_bits, bits
-                                )
+                                )))
                             })?
                         }
                         Endian::Big => {
@@ -402,17 +391,21 @@ where
                                 value.bits() - bits - offset
                             };
                             let trun_bits = value.bits() - offset - shift_bits;
-                            value.shr(shift_bits)?.trun(trun_bits).chain_err(|| {
-                                format!(
+                            value.shr(shift_bits)?.trun(trun_bits).map_err(|e| {
+                                e.chain(Error::Custom(format!(
                                     "Shifted {:?} right {} and truncated to {}",
                                     value, shift_bits, bits
-                                )
+                                )))
                             })?
                         }
                     };
                     if value.bits() > bits {
-                        value.trun(bits).chain_err(|| {
-                            format!("Error truncating {} bits to {}", value.bits(), bits)
+                        value.trun(bits).map_err(|e| {
+                            e.chain(Error::Custom(format!(
+                                "Error truncating {} bits to {}",
+                                value.bits(),
+                                bits
+                            )))
                         })?
                     } else {
                         value

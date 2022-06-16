@@ -8,9 +8,9 @@
 
 use crate::analysis::fixed_point;
 use crate::architecture::Architecture;
-use crate::error::*;
 use crate::executor::eval;
 use crate::il;
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
@@ -20,7 +20,7 @@ use std::collections::HashMap;
 pub fn stack_pointer_offsets(
     function: &il::Function,
     architecture: &dyn Architecture,
-) -> Result<HashMap<il::ProgramLocation, StackPointerOffset>> {
+) -> Result<HashMap<il::ProgramLocation, StackPointerOffset>, Error> {
     let spoa = StackPointerOffsetAnalysis {
         stack_pointer: architecture.stack_pointer(),
     };
@@ -63,14 +63,14 @@ impl StackPointerOffset {
         }
     }
 
-    fn from_intermediate(intermediate: &IntermediateOffset) -> Result<StackPointerOffset> {
+    fn from_intermediate(intermediate: &IntermediateOffset) -> Result<StackPointerOffset, Error> {
         Ok(match intermediate {
             IntermediateOffset::Top => StackPointerOffset::Top,
             IntermediateOffset::Bottom => StackPointerOffset::Bottom,
             IntermediateOffset::Value(value) => StackPointerOffset::Value(
                 value
                     .value_u64()
-                    .ok_or_else(|| ErrorKind::Analysis("Stack pointer was not u64".to_string()))?
+                    .ok_or_else(|| Error::Analysis("Stack pointer was not u64".to_string()))?
                     as isize,
             ),
         })
@@ -79,7 +79,7 @@ impl StackPointerOffset {
 
 fn transform(
     states: HashMap<il::ProgramLocation, IntermediateOffset>,
-) -> Result<HashMap<il::ProgramLocation, StackPointerOffset>> {
+) -> Result<HashMap<il::ProgramLocation, StackPointerOffset>, Error> {
     states
         .into_iter()
         .try_fold(HashMap::new(), |mut t, (rpl, ispo)| {
@@ -134,7 +134,7 @@ impl StackPointerOffsetAnalysis {
         &self,
         operation: &il::Operation,
         stack_pointer_offset: IntermediateOffset,
-    ) -> Result<IntermediateOffset> {
+    ) -> Result<IntermediateOffset, Error> {
         Ok(match *operation {
             // If we're assigning, operate off current stack pointer value
             il::Operation::Assign { ref dst, ref src } => {
@@ -175,7 +175,7 @@ impl<'f> fixed_point::FixedPointAnalysis<'f, IntermediateOffset> for StackPointe
         &self,
         location: il::RefProgramLocation<'f>,
         state: Option<IntermediateOffset>,
-    ) -> Result<IntermediateOffset> {
+    ) -> Result<IntermediateOffset, Error> {
         // If we are the function entry, we set the value of the stack pointer
         // to 0.
         let stack_pointer_offset = match state {
@@ -205,7 +205,7 @@ impl<'f> fixed_point::FixedPointAnalysis<'f, IntermediateOffset> for StackPointe
         &self,
         state0: IntermediateOffset,
         state1: &IntermediateOffset,
-    ) -> Result<IntermediateOffset> {
+    ) -> Result<IntermediateOffset, Error> {
         Ok(match state0 {
             IntermediateOffset::Top => IntermediateOffset::Top,
             IntermediateOffset::Value(v0) => match *state1 {

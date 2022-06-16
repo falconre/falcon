@@ -14,6 +14,7 @@
 //! references.
 
 use crate::il::*;
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -94,7 +95,7 @@ impl<'p> RefProgramLocation<'p> {
 
     /// Create a new `RefProgramLocation` in the given `Program` by finding the
     /// first `Instruction` in the given function.
-    pub fn from_function(function: &Function) -> Option<Result<RefProgramLocation>> {
+    pub fn from_function(function: &Function) -> Option<Result<RefProgramLocation, Error>> {
         function.control_flow_graph().entry().map(|entry| {
             function.block(entry).map(|block| {
                 RefProgramLocation::new(
@@ -148,11 +149,11 @@ impl<'p> RefProgramLocation<'p> {
     ///
     /// This works by locating the location in the other `Program` based on
     /// `Function`, `Block`, and `Instruction` indices.
-    pub fn migrate<'m>(&self, program: &'m Program) -> Result<RefProgramLocation<'m>> {
+    pub fn migrate<'m>(&self, program: &'m Program) -> Result<RefProgramLocation<'m>, Error> {
         let function = program
             .function(self.function().index().unwrap())
             .ok_or_else(|| {
-                ErrorKind::ProgramLocationMigration(format!(
+                Error::FalconInternal(format!(
                     "Could not find function {}",
                     self.function.index().unwrap()
                 ))
@@ -161,9 +162,9 @@ impl<'p> RefProgramLocation<'p> {
             RefFunctionLocation::Instruction(block, instruction) => {
                 let block = function.block(block.index())?;
                 let instruction = block.instruction(instruction.index()).ok_or_else(|| {
-                    ErrorKind::ProgramLocationMigration(format!(
-                        "Could not find instruction {}",
-                        instruction.index()
+                    Error::FalconInternal(format!(
+                        "Could not find function {}",
+                        self.function.index().unwrap()
                     ))
                 })?;
                 RefFunctionLocation::Instruction(block, instruction)
@@ -187,7 +188,7 @@ impl<'p> RefProgramLocation<'p> {
         &self,
         block: &'p Block,
         instruction: &Instruction,
-    ) -> Result<Vec<RefProgramLocation<'p>>> {
+    ) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         let instructions = block.instructions();
         for i in (0..instructions.len()).rev() {
             if instructions[i].index() == instruction.index() {
@@ -219,7 +220,7 @@ impl<'p> RefProgramLocation<'p> {
         .into())
     }
 
-    fn edge_backward(&self, edge: &'p Edge) -> Result<Vec<RefProgramLocation<'p>>> {
+    fn edge_backward(&self, edge: &'p Edge) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         let block = self.function.block(edge.head())?;
 
         let instructions = block.instructions();
@@ -236,7 +237,7 @@ impl<'p> RefProgramLocation<'p> {
         }
     }
 
-    fn empty_block_backward(&self, block: &'p Block) -> Result<Vec<RefProgramLocation<'p>>> {
+    fn empty_block_backward(&self, block: &'p Block) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         let edges = self.function.control_flow_graph().edges_in(block.index())?;
 
         let mut locations = Vec::new();
@@ -253,7 +254,7 @@ impl<'p> RefProgramLocation<'p> {
         &self,
         block: &'p Block,
         instruction: &Instruction,
-    ) -> Result<Vec<RefProgramLocation<'p>>> {
+    ) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         let instructions = block.instructions();
         for i in 0..instructions.len() {
             // We found the instruction.
@@ -292,7 +293,7 @@ impl<'p> RefProgramLocation<'p> {
         .into())
     }
 
-    fn edge_forward(&self, edge: &'p Edge) -> Result<Vec<RefProgramLocation<'p>>> {
+    fn edge_forward(&self, edge: &'p Edge) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         let block = self.function.block(edge.tail())?;
 
         let instructions = block.instructions();
@@ -309,7 +310,7 @@ impl<'p> RefProgramLocation<'p> {
         }
     }
 
-    fn empty_block_forward(&self, block: &'p Block) -> Result<Vec<RefProgramLocation<'p>>> {
+    fn empty_block_forward(&self, block: &'p Block) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         let edges = self
             .function
             .control_flow_graph()
@@ -329,7 +330,7 @@ impl<'p> RefProgramLocation<'p> {
     /// Advance the `RefProgramLocation` forward.
     ///
     /// This does _not_ follow targets of `Operation::Brc`.
-    pub fn forward(&self) -> Result<Vec<RefProgramLocation<'p>>> {
+    pub fn forward(&self) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         match self.function_location {
             RefFunctionLocation::Instruction(block, instruction) => {
                 self.instruction_forward(block, instruction)
@@ -342,7 +343,7 @@ impl<'p> RefProgramLocation<'p> {
     /// Advance the `RefProgramLocation` backward.
     ///
     /// This does _not_ follow targets of `Operation::Brc`.
-    pub fn backward(&self) -> Result<Vec<RefProgramLocation<'p>>> {
+    pub fn backward(&self) -> Result<Vec<RefProgramLocation<'p>>, Error> {
         match self.function_location {
             RefFunctionLocation::Instruction(block, instruction) => {
                 self.instruction_backward(block, instruction)
@@ -436,17 +437,17 @@ impl ProgramLocation {
 
     /// "Apply" this `ProgramLocation` to a `Program`, returning a
     /// `RefProgramLocation`.
-    pub fn apply<'p>(&self, program: &'p Program) -> Result<RefProgramLocation<'p>> {
+    pub fn apply<'p>(&self, program: &'p Program) -> Result<RefProgramLocation<'p>, Error> {
         if self.function_index.is_none() {
-            return Err(ErrorKind::ProgramLocationApplication.into());
+            return Err(Error::ProgramLocationApplication);
         }
         let function_index = self
             .function_index
-            .ok_or(ErrorKind::ProgramLocationApplication)?;
+            .ok_or(Error::ProgramLocationApplication)?;
 
         let function = program
             .function(function_index)
-            .ok_or(ErrorKind::ProgramLocationApplication)?;
+            .ok_or(Error::ProgramLocationApplication)?;
 
         let function_location = self.function_location.apply(function)?;
         Ok(RefProgramLocation::new(function, function_location))
@@ -499,27 +500,27 @@ pub enum FunctionLocation {
 impl FunctionLocation {
     /// "Apply" this `FunctionLocation` to a `Function`, returning a
     /// `RefFunctionLocation`.
-    pub fn apply<'f>(&self, function: &'f Function) -> Result<RefFunctionLocation<'f>> {
+    pub fn apply<'f>(&self, function: &'f Function) -> Result<RefFunctionLocation<'f>, Error> {
         match *self {
             FunctionLocation::Instruction(block_index, instruction_index) => {
                 let block = function
                     .block(block_index)
-                    .map_err(|_| ErrorKind::FunctionLocationApplication)?;
+                    .map_err(|_| Error::FunctionLocationApplication)?;
                 let instruction = block
                     .instruction(instruction_index)
-                    .ok_or(ErrorKind::FunctionLocationApplication)?;
+                    .ok_or(Error::FunctionLocationApplication)?;
                 Ok(RefFunctionLocation::Instruction(block, instruction))
             }
             FunctionLocation::Edge(head, tail) => {
                 let edge = function
                     .edge(head, tail)
-                    .map_err(|_| ErrorKind::FunctionLocationApplication)?;
+                    .map_err(|_| Error::FunctionLocationApplication)?;
                 Ok(RefFunctionLocation::Edge(edge))
             }
             FunctionLocation::EmptyBlock(block_index) => {
                 let block = function
                     .block(block_index)
-                    .map_err(|_| ErrorKind::FunctionLocationApplication)?;
+                    .map_err(|_| Error::FunctionLocationApplication)?;
                 Ok(RefFunctionLocation::EmptyBlock(block))
             }
         }

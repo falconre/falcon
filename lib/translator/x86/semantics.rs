@@ -1,8 +1,8 @@
-use crate::error::*;
 use crate::il::Expression as Expr;
 use crate::il::*;
 use crate::translator::x86::x86register::*;
 use crate::translator::x86::Mode;
+use crate::Error;
 use falcon_capstone::capstone;
 use falcon_capstone::capstone::cs_x86_op;
 use falcon_capstone::capstone_sys::{x86_op_type, x86_reg};
@@ -26,7 +26,7 @@ impl<'s> Semantics<'s> {
     }
 
     /// Returns the details section of an x86 capstone instruction.
-    pub fn details(&self) -> Result<capstone::cs_x86> {
+    pub fn details(&self) -> Result<capstone::cs_x86, Error> {
         let detail = self.instruction().detail.as_ref().unwrap();
 
         match detail.arch {
@@ -43,7 +43,11 @@ impl<'s> Semantics<'s> {
         )
     }
 
-    pub fn operand_load(&self, block: &mut Block, operand: &cs_x86_op) -> Result<Expression> {
+    pub fn operand_load(
+        &self,
+        block: &mut Block,
+        operand: &cs_x86_op,
+    ) -> Result<Expression, Error> {
         self.mode.operand_load(block, operand, self.instruction())
     }
 
@@ -52,24 +56,24 @@ impl<'s> Semantics<'s> {
         block: &mut Block,
         operand: &cs_x86_op,
         value: Expression,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         self.mode
             .operand_store(block, operand, value, self.instruction())
     }
 
-    pub fn get_register(&self, capstone_id: x86_reg) -> Result<&'static X86Register> {
+    pub fn get_register(&self, capstone_id: x86_reg) -> Result<&'static X86Register, Error> {
         self.mode.get_register(capstone_id)
     }
 
     /// Convenience function set set the zf based on result
-    pub fn set_zf(&self, block: &mut Block, result: Expression) -> Result<()> {
+    pub fn set_zf(&self, block: &mut Block, result: Expression) -> Result<(), Error> {
         let expr = Expr::cmpeq(result.clone(), expr_const(0, result.bits()))?;
         block.assign(scalar("ZF", 1), expr);
         Ok(())
     }
 
     /// Convenience function to set the sf based on result
-    pub fn set_sf(&self, block: &mut Block, result: Expression) -> Result<()> {
+    pub fn set_sf(&self, block: &mut Block, result: Expression) -> Result<(), Error> {
         let expr = Expr::shr(
             result.clone(),
             expr_const((result.bits() - 1) as u64, result.bits()),
@@ -86,7 +90,7 @@ impl<'s> Semantics<'s> {
         result: Expression,
         lhs: Expression,
         rhs: Expression,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         let expr0 = Expr::xor(lhs.clone(), rhs)?;
         let expr1 = Expr::xor(lhs, result)?;
         let expr = Expr::and(expr0, expr1)?;
@@ -99,7 +103,12 @@ impl<'s> Semantics<'s> {
     }
 
     /// Convenience function to set the cf based on result and lhs operand
-    pub fn set_cf(&self, block: &mut Block, result: Expression, lhs: Expression) -> Result<()> {
+    pub fn set_cf(
+        &self,
+        block: &mut Block,
+        result: Expression,
+        lhs: Expression,
+    ) -> Result<(), Error> {
         let expr = Expr::cmpltu(lhs, result)?;
         block.assign(scalar("CF", 1), expr);
         Ok(())
@@ -107,7 +116,7 @@ impl<'s> Semantics<'s> {
 
     /// Returns a condition which is true if a conditional instruction should be
     /// executed. Used for setcc, jcc and cmovcc.
-    pub fn cc_condition(&self) -> Result<Expression> {
+    pub fn cc_condition(&self) -> Result<Expression, Error> {
         if let capstone::InstrIdArch::X86(instruction_id) = self.instruction().id {
             match instruction_id {
                 capstone::x86_insn::X86_INS_CMOVA
@@ -206,15 +215,15 @@ impl<'s> Semantics<'s> {
                 | capstone::x86_insn::X86_INS_SETS => {
                     Expr::cmpeq(expr_scalar("SF", 1), expr_const(1, 1))
                 }
-                _ => bail!("unhandled jcc"),
+                _ => return Err(Error::Custom("unhandled jcc".to_string())),
             }
         } else {
-            bail!("not an x86 instruction")
+            return Err(Error::Custom("not an x86 instruction".to_string()));
         }
     }
 
     /// Returns a condition which is true if a loop should be taken
-    pub fn loop_condition(&self) -> Result<Expression> {
+    pub fn loop_condition(&self) -> Result<Expression, Error> {
         let cx = self.get_register(x86_reg::X86_REG_ECX)?.get_full()?;
 
         if let capstone::InstrIdArch::X86(instruction_id) = self.instruction().id {
@@ -230,17 +239,17 @@ impl<'s> Semantics<'s> {
                     let expr = Expr::cmpneq(cx.get()?, expr_const(0, cx.bits()))?;
                     Expr::and(expr, Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?)
                 }
-                _ => bail!("unhandled loop"),
+                _ => return Err(Error::Custom("unhandled loop".to_string())),
             }
         } else {
-            bail!("not an x86 instruction")
+            return Err(Error::Custom("not an x86 instruction".to_string()));
         }
     }
 
     /// Wraps the given instruction graph with the rep prefix inplace
-    pub fn rep_prefix(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn rep_prefix(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         if control_flow_graph.entry().is_none() || control_flow_graph.exit().is_none() {
-            bail!("control_flow_graph entry/exit was none");
+            return Err(Error::ControlFlowGraphEntryExitNotFound);
         }
 
         let cx = self.get_register(x86_reg::X86_REG_ECX)?.get_full()?;
@@ -311,10 +320,13 @@ impl<'s> Semantics<'s> {
                     // loop -> head
                     control_flow_graph.unconditional_edge(loop_index, head_index)?;
                 }
-                _ => bail!(
-                    "unsupported instruction for rep prefix, 0x{:x}",
-                    self.instruction().address
-                ),
+                _ => {
+                    return Err(format!(
+                        "Unsupported instruction for rep prefix @ 0x{:x}",
+                        self.instruction().address,
+                    )
+                    .into())
+                }
             }
         }
 
@@ -325,9 +337,9 @@ impl<'s> Semantics<'s> {
     }
 
     /// Wraps the given instruction graph with the rep prefix inplace
-    pub fn repne_prefix(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn repne_prefix(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         if control_flow_graph.entry().is_none() || control_flow_graph.exit().is_none() {
-            bail!("control_flow_graph entry/exit was none");
+            return Err(Error::ControlFlowGraphEntryExitNotFound);
         }
 
         let cx = self.get_register(x86_reg::X86_REG_ECX)?.get_full()?;
@@ -398,13 +410,15 @@ impl<'s> Semantics<'s> {
                     // loop -> head
                     control_flow_graph.unconditional_edge(loop_index, head_index)?;
                 }
-                _ => bail!(
-                    "unsupported instruction for rep prefix, \
+                _ => {
+                    return Err(Error::Custom(format!(
+                        "unsupported instruction for rep prefix, \
                      instruction: {} {}, address: 0x{:x}",
-                    self.instruction().mnemonic,
-                    self.instruction().op_str,
-                    self.instruction().address
-                ),
+                        self.instruction().mnemonic,
+                        self.instruction().op_str,
+                        self.instruction().address
+                    )))
+                }
             }
         }
 
@@ -414,7 +428,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn adc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn adc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create a block for this instruction
@@ -453,7 +467,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn add(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn add(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -489,7 +503,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn and(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn and(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -532,7 +546,7 @@ impl<'s> Semantics<'s> {
         is set and the destination register is loaded with the bit index of the
         first set bit.
     */
-    pub fn bsf(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn bsf(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create our head block
@@ -640,7 +654,7 @@ impl<'s> Semantics<'s> {
         with the bit index of the first set bit found when scanning in the reverse
         direction.
     */
-    pub fn bsr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn bsr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let (head_index, rhs, counter) = {
@@ -754,7 +768,7 @@ impl<'s> Semantics<'s> {
         0F BA /4 ib BT r/m16,imm8 3/6 Save bit in carry flag
         0F BA /4 ib BT r/m32,imm8 3/6 Save bit in carry flag
     */
-    pub fn bt(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn bt(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create our head block
@@ -798,7 +812,7 @@ impl<'s> Semantics<'s> {
         0F BA /7 ib BTC r/m16,imm8 6/8 Save bit in carry flag and complement
         0F BA /7 ib BTC r/m32,imm8 6/8 Save bit in carry flag and complement
     */
-    pub fn btc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn btc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create our head block
@@ -847,7 +861,7 @@ impl<'s> Semantics<'s> {
         0F BA /6 ib BTR r/m16,imm8 6/8 Save bit in carry flag and reset
         0F BA /6 ib BTR r/m32,imm8 6/8 Save bit in carry flag and reset
     */
-    pub fn btr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn btr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create our head block
@@ -898,7 +912,7 @@ impl<'s> Semantics<'s> {
         0F BA /5 ib BTS r/m16,imm8 6/8 Save bit in carry flag and set
         0F BA /5 ib BTS r/m32,imm8 6/8 Save bit in carry flag and set
     */
-    pub fn bts(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn bts(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create our head block
@@ -935,7 +949,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn bswap(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn bswap(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1013,7 +1027,11 @@ impl<'s> Semantics<'s> {
                         )?,
                     )?,
                 )?,
-                _ => bail!("Unsupported number of bits for bswap instruction"),
+                _ => {
+                    return Err(Error::Custom(
+                        "Unsupported number of bits for bswap instruction".to_string(),
+                    ))
+                }
             };
 
             self.operand_store(block, &detail.operands[0], expr)?;
@@ -1027,7 +1045,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn call(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn call(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1052,7 +1070,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cbw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cbw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1070,7 +1088,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cdq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cdq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1093,7 +1111,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cdqe(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cdqe(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1111,7 +1129,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn clc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn clc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1126,7 +1144,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cld(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cld(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1141,7 +1159,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cli(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cli(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1156,7 +1174,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cmc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cmc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1172,7 +1190,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cmovcc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cmovcc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let head_index = {
@@ -1217,7 +1235,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1246,7 +1264,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cmpsb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cmpsb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let si = match *self.mode() {
@@ -1320,7 +1338,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cmpxchg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cmpxchg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let (head_index, dest, lhs, rhs) = {
@@ -1334,10 +1352,12 @@ impl<'s> Semantics<'s> {
                 16 => self.get_register(x86_reg::X86_REG_AX)?,
                 32 => self.get_register(x86_reg::X86_REG_EAX)?,
                 64 => self.get_register(x86_reg::X86_REG_RAX)?,
-                _ => bail!(
-                    "can't figure out dest for xmpxchg, rhs.bits()={}",
-                    rhs.bits()
-                ),
+                _ => {
+                    return Err(Error::Custom(format!(
+                        "can't figure out dest for xmpxchg, rhs.bits()={}",
+                        rhs.bits()
+                    )))
+                }
             };
 
             (block.index(), dest, lhs, rhs)
@@ -1389,7 +1409,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cwd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cwd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let ax = self.get_register(x86_reg::X86_REG_AX)?;
         let dx = self.get_register(x86_reg::X86_REG_DX)?;
 
@@ -1412,7 +1432,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cwde(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cwde(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let ax = self.get_register(x86_reg::X86_REG_AX)?;
         let eax = self.get_register(x86_reg::X86_REG_EAX)?;
 
@@ -1430,7 +1450,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn dec(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn dec(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1456,7 +1476,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn div(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn div(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1543,7 +1563,7 @@ impl<'s> Semantics<'s> {
 
     // This is essentially the exact same as div with the signs of the arith ops
     // reversed.
-    pub fn idiv(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn idiv(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1631,7 +1651,7 @@ impl<'s> Semantics<'s> {
     // If we have one operand, we go in AX, DX:AX, EDX:EAX
     // If we have two operands, sign-extend rhs if required, go in 0 operand
     // If we have three operands, sign-extend rhs if required, go in 0 operand
-    pub fn imul(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn imul(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1644,15 +1664,17 @@ impl<'s> Semantics<'s> {
                     2 => self.get_register(x86_reg::X86_REG_AX)?.get()?,
                     4 => self.get_register(x86_reg::X86_REG_EAX)?.get()?,
                     8 => self.get_register(x86_reg::X86_REG_RAX)?.get()?,
-                    _ => bail!("invalid operand size for imul"),
+                    _ => return Err(Error::Custom("invalid operand size for imul".to_string())),
                 },
                 2 => self.operand_load(block, &detail.operands[0])?,
                 3 => self.operand_load(block, &detail.operands[1])?,
-                _ => bail!(
-                    "invalid number of operands for imul {} at 0x{:x}",
-                    detail.op_count,
-                    self.instruction().address
-                ),
+                _ => {
+                    return Err(Error::Custom(format!(
+                        "invalid number of operands for imul {} at 0x{:x}",
+                        detail.op_count,
+                        self.instruction().address
+                    )))
+                }
             };
 
             // Get multiplier
@@ -1674,7 +1696,11 @@ impl<'s> Semantics<'s> {
                         multiplier
                     }
                 }
-                _ => bail!("invalid number of operands for imul"),
+                _ => {
+                    return Err(Error::Custom(
+                        "invalid number of operands for imul".to_string(),
+                    ))
+                }
             };
 
             // Perform multiplication
@@ -1716,7 +1742,7 @@ impl<'s> Semantics<'s> {
                         rdx.set(block, Expr::trun(64, expr)?)?;
                         rax.set(block, Expr::trun(64, result.clone().into())?)?;
                     }
-                    _ => bail!("Invalid operand size for imul"),
+                    _ => return Err("Invalid operand size for imul".into()),
                 },
                 2 => {
                     let expr = Expr::trun(bit_width / 2, result.clone().into())?;
@@ -1726,7 +1752,7 @@ impl<'s> Semantics<'s> {
                     let expr = Expr::trun(bit_width / 2, result.clone().into())?;
                     self.operand_store(block, &detail.operands[0], expr)?;
                 }
-                _ => bail!("invalid number of operands for imul"),
+                _ => return Err("invalid number of operands for imul".into()),
             }
 
             // Set flags
@@ -1751,7 +1777,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn inc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn inc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1777,7 +1803,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn int(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn int(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1803,7 +1829,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn cjmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn cjmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let head_index = {
@@ -1854,7 +1880,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn jmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn jmp(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1879,7 +1905,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn lea(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn lea(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -1905,7 +1931,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn leave(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn leave(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -1927,7 +1953,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn lodsb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn lodsb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let si = self.get_register(x86_reg::X86_REG_ESI)?.get_full()?;
@@ -1987,7 +2013,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn lodsd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn lodsd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let si = self.get_register(x86_reg::X86_REG_ESI)?.get_full()?;
@@ -2047,7 +2073,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn loop_(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn loop_(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -2066,7 +2092,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn mov(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn mov(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2085,7 +2111,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn movhpd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn movhpd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2109,7 +2135,7 @@ impl<'s> Semantics<'s> {
                 )?;
                 self.operand_store(block, &detail.operands[0], src)?;
             } else {
-                bail!("Unhandled movlpd case");
+                return Err(Error::Custom("Unhandled movlpd case".to_string()));
             }
 
             block.index()
@@ -2121,7 +2147,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn movlpd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn movlpd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2147,7 +2173,7 @@ impl<'s> Semantics<'s> {
                 )?;
                 self.operand_store(block, &detail.operands[0], src)?;
             } else {
-                bail!("Unhandled movlpd case");
+                return Err(Error::Custom("Unhandled movlpd case".to_string()));
             }
 
             block.index()
@@ -2159,7 +2185,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn movq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn movq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2196,7 +2222,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn movs(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn movs(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let bits_size = detail.operands[1].size as usize * 8;
@@ -2281,7 +2307,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn movsx(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn movsx(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2301,7 +2327,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn movzx(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn movzx(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2321,7 +2347,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn mul(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn mul(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2334,7 +2360,7 @@ impl<'s> Semantics<'s> {
                 16 => self.get_register(x86_reg::X86_REG_AX)?.get()?,
                 32 => self.get_register(x86_reg::X86_REG_EAX)?.get()?,
                 64 => self.get_register(x86_reg::X86_REG_RAX)?.get()?,
-                _ => bail!("invalid bit-width for mul"),
+                _ => return Err("invalid bit-width for mul".into()),
             };
 
             let bit_width = rhs.bits() * 2;
@@ -2389,7 +2415,7 @@ impl<'s> Semantics<'s> {
                     block.assign(scalar("OF", 1), Expr::cmpeq(rdx.get()?, expr_const(0, 64))?);
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
-                _ => bail!("invalid bit-width for mul"),
+                _ => return Err(Error::Custom("invalid bit-width for mul".to_string())),
             }
 
             block.index()
@@ -2401,7 +2427,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn neg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn neg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2436,7 +2462,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn nop(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn nop(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -2451,7 +2477,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn not(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn not(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2472,7 +2498,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn or(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn or(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2509,7 +2535,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn paddq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn paddq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2543,7 +2569,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pcmpeqb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pcmpeqb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2596,7 +2622,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pcmpeqd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pcmpeqd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2649,7 +2675,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pmovmskb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pmovmskb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2704,7 +2730,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pminub(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pminub(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2747,7 +2773,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn por(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn por(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2768,7 +2794,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pshufd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pshufd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2859,7 +2885,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pslldq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pslldq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2888,7 +2914,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn psrldq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn psrldq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2913,7 +2939,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn psubb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn psubb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2965,7 +2991,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn psubq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn psubq(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -2999,7 +3025,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pop(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pop(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create a block for this instruction
@@ -3017,7 +3043,11 @@ impl<'s> Semantics<'s> {
                     self.get_register(detail.operands[0].reg())?.bits(),
                     self.instruction,
                 )?,
-                _ => bail!("invalid op type for `pop` instruction"),
+                _ => {
+                    return Err(Error::Custom(
+                        "invalid op type for `pop` instruction".to_string(),
+                    ))
+                }
             };
 
             self.operand_store(block, &detail.operands[0], value)?;
@@ -3031,7 +3061,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn push(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn push(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3050,7 +3080,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn punpcklbw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn punpcklbw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3097,7 +3127,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn punpcklwd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn punpcklwd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3144,7 +3174,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn pxor(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn pxor(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3165,7 +3195,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn ret(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn ret(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3192,7 +3222,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn rol(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn rol(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3207,7 +3237,12 @@ impl<'s> Semantics<'s> {
                 16 => Expr::and(count.clone(), expr_const(0xf, count.bits()))?,
                 32 => Expr::and(count.clone(), expr_const(0x1f, count.bits()))?,
                 64 => Expr::and(count.clone(), expr_const(0x3f, count.bits()))?,
-                _ => bail!("Unsupported rol bits {}", count.bits()),
+                _ => {
+                    return Err(Error::Custom(format!(
+                        "Unsupported rol bits {}",
+                        count.bits()
+                    )))
+                }
             };
 
             if count.bits() < lhs.bits() {
@@ -3262,7 +3297,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn ror(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn ror(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3277,7 +3312,12 @@ impl<'s> Semantics<'s> {
                 16 => Expr::and(count.clone(), expr_const(0xf, count.bits()))?,
                 32 => Expr::and(count.clone(), expr_const(0x1f, count.bits()))?,
                 64 => Expr::and(count.clone(), expr_const(0x3f, count.bits()))?,
-                _ => bail!("Unsupported ror bits {}", count.bits()),
+                _ => {
+                    return Err(Error::Custom(format!(
+                        "Unsupported ror bits {}",
+                        count.bits()
+                    )))
+                }
             };
 
             if count.bits() < lhs.bits() {
@@ -3342,7 +3382,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn sahf(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn sahf(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -3369,7 +3409,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn sar(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn sar(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3418,7 +3458,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn sbb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn sbb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3453,7 +3493,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn scasb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn scasb(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let al = self.get_register(x86_reg::X86_REG_AL)?;
         let di = self.get_register(x86_reg::X86_REG_DI)?.get_full()?;
 
@@ -3519,7 +3559,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn scasw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn scasw(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let ax = self.get_register(x86_reg::X86_REG_AX)?;
         let di = self.get_register(x86_reg::X86_REG_DI)?.get_full()?;
 
@@ -3585,7 +3625,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn setcc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn setcc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3604,7 +3644,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn shl(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn shl(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3663,7 +3703,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn shr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn shr(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3721,7 +3761,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn shld(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn shld(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3769,7 +3809,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn shrd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn shrd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -3817,7 +3857,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn stc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn stc(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
             block.assign(scalar("CF", 1), expr_const(1, 1));
@@ -3830,7 +3870,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn std(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn std(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
             block.assign(scalar("DF", 1), expr_const(1, 1));
@@ -3843,7 +3883,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn sti(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn sti(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
             block.assign(scalar("IF", 1), expr_const(1, 1));
@@ -3856,7 +3896,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn stos(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn stos(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let di = self.get_register(x86_reg::X86_REG_DI)?.get_full()?;
@@ -3915,7 +3955,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn sub(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn sub(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create a block for this instruction
@@ -3951,7 +3991,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn syscall(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn syscall(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         // create a block for this instruction
         let block_index = {
             let block = control_flow_graph.new_block()?;
@@ -3974,7 +4014,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn sysenter(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn sysenter(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         // create a block for this instruction
         let block_index = {
             let block = control_flow_graph.new_block()?;
@@ -3997,7 +4037,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn test(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn test(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -4024,7 +4064,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn ud2(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn ud2(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let block_index = {
             let block = control_flow_graph.new_block()?;
 
@@ -4046,7 +4086,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn xadd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn xadd(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -4080,7 +4120,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn xchg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn xchg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         let block_index = {
@@ -4105,7 +4145,7 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    pub fn xor(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+    pub fn xor(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
         // create a block for this instruction

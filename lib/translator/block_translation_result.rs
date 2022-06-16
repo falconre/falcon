@@ -1,5 +1,5 @@
-use crate::error::*;
 use crate::il::*;
+use crate::Error;
 
 /// The result of translating a block from a native architecture.
 ///
@@ -66,7 +66,7 @@ impl BlockTranslationResult {
     }
 
     /// Return a single `ControlFlowGraph` for this block
-    pub fn blockify(&self) -> Result<ControlFlowGraph> {
+    pub fn blockify(&self) -> Result<ControlFlowGraph, Error> {
         let mut control_flow_graph = ControlFlowGraph::new();
 
         let block_index = {
