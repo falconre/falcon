@@ -278,10 +278,10 @@ where
             return Err("duplicate edge".into());
         }
         if !self.vertices.contains_key(&edge.head()) {
-            return Err(Error::GraphVertexNotFound(edge.head()).into());
+            return Err(Error::GraphVertexNotFound(edge.head()));
         }
         if !self.vertices.contains_key(&edge.tail()) {
-            return Err(Error::GraphVertexNotFound(edge.tail()).into());
+            return Err(Error::GraphVertexNotFound(edge.tail()));
         }
 
         self.edges.insert((edge.head(), edge.tail()), edge.clone());
@@ -927,26 +927,26 @@ where
     pub fn vertex(&self, index: usize) -> Result<&V, Error> {
         self.vertices
             .get(&index)
-            .ok_or_else(|| Error::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
     // Fetches a mutable instance of a vertex.
     pub fn vertex_mut(&mut self, index: usize) -> Result<&mut V, Error> {
         self.vertices
             .get_mut(&index)
-            .ok_or_else(|| Error::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
     pub fn edge(&self, head: usize, tail: usize) -> Result<&E, Error> {
         self.edges
             .get(&(head, tail))
-            .ok_or_else(|| Error::GraphEdgeNotFound(head, tail).into())
+            .ok_or(Error::GraphEdgeNotFound(head, tail))
     }
 
     pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut E, Error> {
         self.edges
             .get_mut(&(head, tail))
-            .ok_or_else(|| Error::GraphEdgeNotFound(head, tail).into())
+            .ok_or(Error::GraphEdgeNotFound(head, tail))
     }
 
     /// Get a reference to every `Edge` in the `Graph`.
@@ -973,7 +973,7 @@ where
                     .map(|succ| &self.edges[&(index, *succ)])
                     .collect()
             })
-            .ok_or_else(|| Error::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
     /// Return all edges in for a vertex
@@ -986,7 +986,7 @@ where
                     .map(|pred| &self.edges[&(*pred, index)])
                     .collect()
             })
-            .ok_or_else(|| Error::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
     /// Returns a string in the graphviz format

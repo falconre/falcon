@@ -367,12 +367,12 @@ impl ElfLinker {
                         .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_GOTPC => {
-                    return Err(Error::Custom(format!("R_386_GOT_PC")))
+                    return Err(Error::Custom("R_386_GOT_PC".to_string()))
                 }
                 goblin::elf::reloc::R_386_TLS_TPOFF => {
-                    return Err(Error::Custom(format!(
-                        "Ignoring R_386_TLS_TPOFF Relocation"
-                    )))
+                    return Err(Error::Custom(
+                        "Ignoring R_386_TLS_TPOFF Relocation".to_string(),
+                    ))
                 }
                 goblin::elf::reloc::R_386_IRELATIVE => {
                     return Err(Error::Custom(format!(

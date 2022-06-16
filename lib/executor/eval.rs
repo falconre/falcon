@@ -6,7 +6,7 @@ use crate::Error;
 pub fn eval(expr: &il::Expression) -> Result<il::Constant, Error> {
     Ok(match *expr {
         il::Expression::Scalar(ref scalar) => {
-            return Err(Error::ExecutorScalar(scalar.name().to_string()).into());
+            return Err(Error::ExecutorScalar(scalar.name().to_string()));
         }
         il::Expression::Constant(ref constant) => constant.clone(),
         il::Expression::Add(ref lhs, ref rhs) => eval(lhs)?.add(&eval(rhs)?)?,

@@ -44,9 +44,11 @@ impl Pe {
         let mut file = match File::open(filename) {
             Ok(file) => file,
             Err(e) => {
-                return Err(Error::FalconInternal(
-                    format!("Error opening {}: {}", filename.to_str().unwrap(), e).into(),
-                ))
+                return Err(Error::FalconInternal(format!(
+                    "Error opening {}: {}",
+                    filename.to_str().unwrap(),
+                    e
+                )))
             }
         };
         let mut buf = Vec::new();

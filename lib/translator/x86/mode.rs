@@ -120,7 +120,7 @@ impl Mode {
                         let segment_register = self.get_register(mem.segment)?.get()?;
                         Ok(Expr::add(segment_register, op)?)
                     }
-                    _ => return Err(Error::Custom("invalid segment register".to_string())),
+                    _ => Err(Error::Custom("invalid segment register".to_string())),
                 }
             }
             x86_op_type::X86_OP_IMM => {

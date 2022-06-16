@@ -215,10 +215,10 @@ impl<'s> Semantics<'s> {
                 | capstone::x86_insn::X86_INS_SETS => {
                     Expr::cmpeq(expr_scalar("SF", 1), expr_const(1, 1))
                 }
-                _ => return Err(Error::Custom("unhandled jcc".to_string())),
+                _ => Err(Error::Custom("unhandled jcc".to_string())),
             }
         } else {
-            return Err(Error::Custom("not an x86 instruction".to_string()));
+            Err(Error::Custom("not an x86 instruction".to_string()))
         }
     }
 
@@ -239,10 +239,10 @@ impl<'s> Semantics<'s> {
                     let expr = Expr::cmpneq(cx.get()?, expr_const(0, cx.bits()))?;
                     Expr::and(expr, Expr::cmpeq(expr_scalar("ZF", 1), expr_const(0, 1))?)
                 }
-                _ => return Err(Error::Custom("unhandled loop".to_string())),
+                _ => Err(Error::Custom("unhandled loop".to_string())),
             }
         } else {
-            return Err(Error::Custom("not an x86 instruction".to_string()));
+            Err(Error::Custom("not an x86 instruction".to_string()))
         }
     }
 

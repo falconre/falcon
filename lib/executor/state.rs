@@ -185,7 +185,7 @@ impl State {
                 ))
             }
             il::Operation::Intrinsic { ref intrinsic } => {
-                Err(Error::UnhandledIntrinsic(format!("{}", intrinsic)).into())
+                Err(Error::UnhandledIntrinsic(format!("{}", intrinsic)))
             }
             il::Operation::Nop { .. } => Ok(Successor::new(self, SuccessorType::FallThrough)),
         }

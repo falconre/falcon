@@ -227,7 +227,7 @@ impl Loader for Elf {
                 let mut bytes = self
                     .bytes
                     .get(file_range)
-                    .ok_or(Error::FalconInternal("Malformed Elf".to_string()))?
+                    .ok_or_else(|| Error::FalconInternal("Malformed Elf".to_string()))?
                     .to_vec();
 
                 if bytes.len() != ph.p_memsz as usize {

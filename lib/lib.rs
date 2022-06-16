@@ -155,4 +155,3 @@ impl Error {
         Error::Chain(Box::new(self), Box::new(other))
     }
 }
-
