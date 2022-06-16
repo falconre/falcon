@@ -1,12 +1,12 @@
 //! Loading executable binaries into Falcon.
 //!
 //! ```
-//! # use falcon::error::*;
+//! # use falcon::Error;
 //! use falcon::loader::Elf;
 //! use falcon::loader::Loader;
 //! use std::path::Path;
 //!
-//! # fn example () -> Result<()> {
+//! # fn example () -> Result<(), Error> {
 //! // Load an elf for analysis
 //! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
 //! // Lift a program from the elf

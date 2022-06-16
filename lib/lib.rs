@@ -20,12 +20,12 @@
 //! analysis over Falcon quick and pleasant.
 //!
 //! ```
-//! # use falcon::error::*;
+//! # use falcon::Error;
 //! use falcon::loader::Elf;
 //! use falcon::loader::Loader;
 //! use std::path::Path;
 //!
-//! # fn example () -> Result<()> {
+//! # fn example () -> Result<(), Error> {
 //! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
 //! for function in elf.program()?.functions() {
 //!     for block in function.blocks() {
