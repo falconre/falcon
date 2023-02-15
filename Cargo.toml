@@ -9,12 +9,12 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-bad64 = { version="0.5", features=["std"] }
-base64 = "0.13"
+bad64 = { version="0.6", features=["std"] }
+base64 = "0.21"
 bitflags = "1.2"
 falcon_capstone = "0.5.1"
 thiserror = "1"
-goblin = "0.5"
+goblin = "0.6"
 log = "0.4"
 num-bigint = {version="0.4", features=["serde"]}
 num-traits = "0.2"
