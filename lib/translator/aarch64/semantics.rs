@@ -814,7 +814,7 @@ fn cbz_cbnz_tbz_tbnz(
     let (dst, mut cond_true, mut cond_false);
 
     let opr_value = 0;
-    let opr_bit = test_bit.then(|| 1);
+    let opr_bit = test_bit.then_some(1);
     let opr_target = [1, 2][test_bit as usize];
 
     let block_index = {

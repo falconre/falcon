@@ -12,7 +12,7 @@ edition = "2021"
 bad64 = { version="0.6", features=["std"] }
 base64 = "0.21"
 bitflags = "1.2"
-falcon_capstone = "0.5.1"
+falcon_capstone = "0.5.2"
 thiserror = "1"
 goblin = "0.6"
 log = "0.4"

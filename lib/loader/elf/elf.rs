@@ -297,10 +297,7 @@ impl Loader for Elf {
             );
         }
 
-        Ok(function_entries
-            .into_iter()
-            .map(|(_, entry)| entry)
-            .collect())
+        Ok(function_entries.into_values().collect())
     }
 
     fn program_entry(&self) -> u64 {

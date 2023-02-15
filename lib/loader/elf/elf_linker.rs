@@ -300,7 +300,7 @@ impl ElfLinker {
                         }
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_GOT32 => {
                     return Err(Error::Custom("R_386_GOT32".to_string()))
@@ -331,7 +331,7 @@ impl ElfLinker {
                         }
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_JMP_SLOT => {
                     let sym = &dynsyms
@@ -348,12 +348,10 @@ impl ElfLinker {
                         }
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_RELATIVE => {
-                    let value = self
-                        .memory
-                        .get32(reloc.r_offset as u64 + elf.base_address());
+                    let value = self.memory.get32(reloc.r_offset + elf.base_address());
                     let value = match value {
                         Some(value) => elf.base_address() as u32 + value,
                         None => {
@@ -364,7 +362,7 @@ impl ElfLinker {
                         }
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_GOTPC => {
                     return Err(Error::Custom("R_386_GOT_PC".to_string()))

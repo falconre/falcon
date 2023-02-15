@@ -509,7 +509,7 @@ pub fn addze(
 
         let src = Expression::add(
             lhs.clone(),
-            Expression::zext(lhs.bits() as usize, expr_scalar("carry", 1))?,
+            Expression::zext(lhs.bits(), expr_scalar("carry", 1))?,
         )?;
         block.assign(dst, src);
 

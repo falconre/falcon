@@ -102,7 +102,7 @@ impl Json {
 
                 let bytes = match segment["bytes"] {
                     Value::String(ref bytes) => {
-                        base64::engine::general_purpose::STANDARD_NO_PAD.decode(&bytes)?
+                        base64::engine::general_purpose::STANDARD_NO_PAD.decode(bytes)?
                     }
                     _ => {
                         return Err(Error::FalconInternal(

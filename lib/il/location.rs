@@ -50,7 +50,7 @@ impl<'p> RefProgramLocation<'p> {
                 continue;
             }
 
-            if function == None {
+            if function.is_none() {
                 function = Some(f);
                 continue;
             }
