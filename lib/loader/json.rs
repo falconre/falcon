@@ -1,11 +1,11 @@
 //! Experimental loader which takes a program specification in Json form.
 
-use base64::Engine;
 use crate::architecture::*;
 use crate::loader::*;
 use crate::memory::backing::*;
 use crate::memory::MemoryPermissions;
 use crate::Error;
+use base64::Engine;
 use serde_json::Value;
 use std::fs::File;
 use std::io::Read;
@@ -101,7 +101,9 @@ impl Json {
                 };
 
                 let bytes = match segment["bytes"] {
-                    Value::String(ref bytes) => base64::engine::general_purpose::STANDARD_NO_PAD.decode(&bytes)?,
+                    Value::String(ref bytes) => {
+                        base64::engine::general_purpose::STANDARD_NO_PAD.decode(&bytes)?
+                    }
                     _ => {
                         return Err(Error::FalconInternal(
                             "bytes missing for segment".to_string(),
