@@ -44,7 +44,10 @@ impl State {
 
     /// Symbolize an expression, replacing all scalars with the concrete values
     /// stored in this state.
-    pub fn symbolize_expression(&self, expression: &il::Expression) -> Result<il::Expression> {
+    pub fn symbolize_expression(
+        &self,
+        expression: &il::Expression,
+    ) -> Result<il::Expression, Error> {
         Ok(match *expression {
             il::Expression::Scalar(ref scalar) => match self.scalars.get(scalar.name()) {
                 Some(expr) => expr.clone().into(),
@@ -140,13 +143,13 @@ impl State {
     /// Symbolize the given expression, replacing all scalars with the concrete
     /// values held in this state, and evaluate the expression to a single
     /// concrete value.
-    pub fn symbolize_and_eval(&self, expression: &il::Expression) -> Result<il::Constant> {
+    pub fn symbolize_and_eval(&self, expression: &il::Expression) -> Result<il::Constant, Error> {
         let expression = self.symbolize_expression(expression)?;
         eval(&expression)
     }
 
     /// Execute an `il::Operation`, returning the post-execution `State`.
-    pub fn execute(mut self, operation: &il::Operation) -> Result<Successor> {
+    pub fn execute(mut self, operation: &il::Operation) -> Result<Successor, Error> {
         match *operation {
             il::Operation::Assign { ref dst, ref src } => {
                 let src = self.symbolize_and_eval(src)?;
@@ -157,13 +160,13 @@ impl State {
                 let src = self.symbolize_and_eval(src)?;
                 let index = self.symbolize_and_eval(index)?;
                 self.memory
-                    .store(index.value_u64().ok_or(ErrorKind::TooManyAddressBits)?, src)?;
+                    .store(index.value_u64().ok_or(Error::TooManyAddressBits)?, src)?;
                 Ok(Successor::new(self, SuccessorType::FallThrough))
             }
             il::Operation::Load { ref dst, ref index } => {
                 let index = self.symbolize_and_eval(index)?;
                 let value = self.memory.load(
-                    index.value_u64().ok_or(ErrorKind::TooManyAddressBits)?,
+                    index.value_u64().ok_or(Error::TooManyAddressBits)?,
                     dst.bits(),
                 )?;
                 match value {
@@ -171,20 +174,18 @@ impl State {
                         self.set_scalar(dst.name(), v);
                         Ok(Successor::new(self, SuccessorType::FallThrough))
                     }
-                    None => {
-                        bail!("Got invalid concretized address {}", index);
-                    }
+                    None => Err(Error::ExecutorInvalidAddress),
                 }
             }
             il::Operation::Branch { ref target } => {
                 let target = self.symbolize_and_eval(target)?;
                 Ok(Successor::new(
                     self,
-                    SuccessorType::Branch(target.value_u64().ok_or(ErrorKind::TooManyAddressBits)?),
+                    SuccessorType::Branch(target.value_u64().ok_or(Error::TooManyAddressBits)?),
                 ))
             }
             il::Operation::Intrinsic { ref intrinsic } => {
-                Err(ErrorKind::UnhandledIntrinsic(format!("{}", intrinsic)).into())
+                Err(Error::UnhandledIntrinsic(format!("{}", intrinsic)))
             }
             il::Operation::Nop { .. } => Ok(Successor::new(self, SuccessorType::FallThrough)),
         }

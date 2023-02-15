@@ -24,6 +24,8 @@
 use std::fmt;
 
 use crate::il::*;
+use crate::Error;
+use serde::{Deserialize, Serialize};
 
 /// An IL Expression.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -90,9 +92,9 @@ impl Expression {
     }
 
     /// Ensures the bits of both lhs and rhs are the same.
-    fn ensure_sort(lhs: &Expression, rhs: &Expression) -> Result<()> {
+    fn ensure_sort(lhs: &Expression, rhs: &Expression) -> Result<(), Error> {
         if lhs.bits() != rhs.bits() {
-            Err(ErrorKind::Sort.into())
+            Err(Error::Sort)
         } else {
             Ok(())
         }
@@ -104,7 +106,7 @@ impl Expression {
     /// the option is Some, that value will replace the sub expression in the
     /// larger expression. If closure returns None, the original sub
     /// expression will be used in the larger expression.
-    fn map_to_expression<F>(&self, f: F) -> Result<Expression>
+    fn map_to_expression<F>(&self, f: F) -> Result<Expression, Error>
     where
         F: Fn(&Expression) -> Option<Expression>,
     {
@@ -116,7 +118,7 @@ impl Expression {
         where
             F: Fn(&Expression) -> Option<Expression>,
         {
-            fn map(&self, expression: &Expression) -> Result<Expression> {
+            fn map(&self, expression: &Expression) -> Result<Expression, Error> {
                 Ok(if let Some(expression) = (self.f)(expression) {
                     expression
                 } else {
@@ -193,7 +195,11 @@ impl Expression {
 
     /// Return a clone of this expression, but with every occurrence of the
     /// given scalar replaced with the given expression
-    pub fn replace_scalar(&self, scalar: &Scalar, expression: &Expression) -> Result<Expression> {
+    pub fn replace_scalar(
+        &self,
+        scalar: &Scalar,
+        expression: &Expression,
+    ) -> Result<Expression, Error> {
         self.map_to_expression(|expr| {
             if let Expression::Scalar(ref expr_scalar) = *expr {
                 if expr_scalar == scalar {
@@ -357,7 +363,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same
     #[allow(clippy::should_implement_trait)]
-    pub fn add(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn add(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Add(Box::new(lhs), Box::new(rhs)))
     }
@@ -366,7 +372,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
-    pub fn sub(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn sub(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Sub(Box::new(lhs), Box::new(rhs)))
     }
@@ -375,7 +381,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
-    pub fn mul(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn mul(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Mul(Box::new(lhs), Box::new(rhs)))
     }
@@ -383,7 +389,7 @@ impl Expression {
     /// Create an unsigned division `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn divu(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn divu(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Divu(Box::new(lhs), Box::new(rhs)))
     }
@@ -391,7 +397,7 @@ impl Expression {
     /// Create an unsigned modulus `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn modu(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn modu(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Modu(Box::new(lhs), Box::new(rhs)))
     }
@@ -399,7 +405,7 @@ impl Expression {
     /// Create a signed division `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn divs(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn divs(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Divs(Box::new(lhs), Box::new(rhs)))
     }
@@ -407,7 +413,7 @@ impl Expression {
     /// Create a signed modulus `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn mods(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn mods(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Mods(Box::new(lhs), Box::new(rhs)))
     }
@@ -415,7 +421,7 @@ impl Expression {
     /// Create a binary and `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn and(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn and(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::And(Box::new(lhs), Box::new(rhs)))
     }
@@ -423,7 +429,7 @@ impl Expression {
     /// Create a binary or `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn or(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn or(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Or(Box::new(lhs), Box::new(rhs)))
     }
@@ -431,7 +437,7 @@ impl Expression {
     /// Create a binary xor `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn xor(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn xor(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Xor(Box::new(lhs), Box::new(rhs)))
     }
@@ -440,7 +446,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
-    pub fn shl(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn shl(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Shl(Box::new(lhs), Box::new(rhs)))
     }
@@ -449,7 +455,7 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
-    pub fn shr(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn shr(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Shr(Box::new(lhs), Box::new(rhs)))
     }
@@ -459,7 +465,7 @@ impl Expression {
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
     #[cfg(feature = "il-expression-ashr")]
-    pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::AShr(Box::new(lhs), Box::new(rhs)))
     }
@@ -469,7 +475,7 @@ impl Expression {
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
     #[cfg(not(feature = "il-expression-ashr"))]
-    pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
 
         // Create the mask we apply if that lhs is signed
@@ -490,7 +496,7 @@ impl Expression {
     /// Create an equals comparison `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn cmpeq(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn cmpeq(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmpeq(Box::new(lhs), Box::new(rhs)))
     }
@@ -498,7 +504,7 @@ impl Expression {
     /// Create an not equals comparison `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn cmpneq(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn cmpneq(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmpneq(Box::new(lhs), Box::new(rhs)))
     }
@@ -506,7 +512,7 @@ impl Expression {
     /// Create an unsigned less-than comparison `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn cmpltu(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn cmpltu(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmpltu(Box::new(lhs), Box::new(rhs)))
     }
@@ -514,7 +520,7 @@ impl Expression {
     /// Create a signed less-than comparison `Expression`.
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
-    pub fn cmplts(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn cmplts(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::Cmplts(Box::new(lhs), Box::new(rhs)))
     }
@@ -523,9 +529,9 @@ impl Expression {
     /// in bits.
     /// # Error
     /// src has more or equal number of bits than bits
-    pub fn zext(bits: usize, src: Expression) -> Result<Expression> {
+    pub fn zext(bits: usize, src: Expression) -> Result<Expression, Error> {
         if src.bits() >= bits || src.bits() == 0 {
-            return Err(ErrorKind::Sort.into());
+            return Err(Error::Sort);
         }
         Ok(Expression::Zext(bits, Box::new(src)))
     }
@@ -533,9 +539,9 @@ impl Expression {
     /// Create an expression to sign-extend src to the number of bits specified
     /// # Error
     /// src has more or equal number of bits than bits
-    pub fn sext(bits: usize, src: Expression) -> Result<Expression> {
+    pub fn sext(bits: usize, src: Expression) -> Result<Expression, Error> {
         if src.bits() >= bits || src.bits() == 0 {
-            return Err(ErrorKind::Sort.into());
+            return Err(Error::Sort);
         }
         Ok(Expression::Sext(bits, Box::new(src)))
     }
@@ -544,9 +550,9 @@ impl Expression {
     /// of bits given.
     /// # Error
     /// src has less-than or equal bits than bits
-    pub fn trun(bits: usize, src: Expression) -> Result<Expression> {
+    pub fn trun(bits: usize, src: Expression) -> Result<Expression, Error> {
         if src.bits() <= bits || src.bits() == 0 {
-            return Err(ErrorKind::Sort.into());
+            return Err(Error::Sort);
         }
         Ok(Expression::Trun(bits, Box::new(src)))
     }
@@ -554,9 +560,9 @@ impl Expression {
     /// Create an if-than-else expression
     /// # Error
     /// condition is not 1-bit, or bitness of then and else_ do not match.
-    pub fn ite(cond: Expression, then: Expression, else_: Expression) -> Result<Expression> {
+    pub fn ite(cond: Expression, then: Expression, else_: Expression) -> Result<Expression, Error> {
         if cond.bits() != 1 || (then.bits() != else_.bits()) {
-            return Err(ErrorKind::Sort.into());
+            return Err(Error::Sort);
         }
         Ok(Expression::Ite(
             Box::new(cond),
@@ -569,9 +575,9 @@ impl Expression {
     ///
     /// This is a pseudo-expression, and emits an expression with
     /// sub-expressions
-    pub fn sra(lhs: Expression, rhs: Expression) -> Result<Expression> {
+    pub fn sra(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         if lhs.bits() != rhs.bits() {
-            return Err(ErrorKind::Sort.into());
+            return Err(Error::Sort);
         }
 
         let expr = Expression::shr(lhs.clone(), rhs.clone())?;
@@ -602,7 +608,7 @@ impl Expression {
     ///
     /// This is a pseudo-expression, and emits an expression with
     /// sub-expressions
-    pub fn rotl(e: Expression, s: Expression) -> Result<Expression> {
+    pub fn rotl(e: Expression, s: Expression) -> Result<Expression, Error> {
         Expression::or(
             Expression::shl(e.clone(), s.clone())?,
             Expression::shr(

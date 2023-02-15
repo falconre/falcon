@@ -1,6 +1,7 @@
 //! An `Operation` captures the semantics of the IL.
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// An IL Operation updates some state.

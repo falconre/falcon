@@ -7,14 +7,17 @@
 //! and then attempts to evaluate the expression to an `il::Constant`.
 
 use crate::analysis::fixed_point;
-use crate::error::*;
 use crate::executor::eval;
 use crate::il;
+use crate::Error;
+use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::HashMap;
 
 /// Compute constants for the given function
-pub fn constants(function: &il::Function) -> Result<HashMap<il::ProgramLocation, Constants>> {
+pub fn constants(
+    function: &il::Function,
+) -> Result<HashMap<il::ProgramLocation, Constants>, Error> {
     let constants = fixed_point::fixed_point_forward(ConstantsAnalysis {}, function)?;
 
     // we're now going to remap constants, so each position holds the values of
@@ -39,7 +42,7 @@ pub fn constants(function: &il::Function) -> Result<HashMap<il::ProgramLocation,
 }
 
 #[allow(dead_code)] // Bottom is never used
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 enum Constant {
     Top,
     Constant(il::Constant),
@@ -82,7 +85,7 @@ impl PartialOrd for Constant {
 }
 
 /// The value of all constants before the `RefProgramLocation` is evaluated.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Constants {
     constants: HashMap<il::Scalar, Constant>,
 }
@@ -204,7 +207,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
         &self,
         location: il::RefProgramLocation<'r>,
         state: Option<Constants>,
-    ) -> Result<Constants> {
+    ) -> Result<Constants, Error> {
         let mut state = match state {
             Some(state) => state,
             None => Constants::new(),
@@ -247,7 +250,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, Constants> for ConstantsAnalysis {
         Ok(state)
     }
 
-    fn join(&self, state0: Constants, state1: &Constants) -> Result<Constants> {
+    fn join(&self, state0: Constants, state1: &Constants) -> Result<Constants, Error> {
         Ok(state0.join(state1))
     }
 }

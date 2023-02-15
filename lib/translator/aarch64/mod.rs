@@ -1,9 +1,9 @@
 //! Capstone-based translator for AArch64.
 
 use crate::architecture::Endian;
-use crate::error::*;
 use crate::il::*;
 use crate::translator::{BlockTranslationResult, Options, Translator};
+use crate::Error;
 
 mod register;
 mod semantics;
@@ -26,7 +26,7 @@ impl Translator for AArch64 {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translate_block(bytes, address, Endian::Little, options)
     }
 }
@@ -47,7 +47,7 @@ impl Translator for AArch64Eb {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translate_block(bytes, address, Endian::Big, options)
     }
 }
@@ -57,7 +57,7 @@ fn translate_block(
     address: u64,
     _endian: Endian,
     options: &Options,
-) -> Result<BlockTranslationResult> {
+) -> Result<BlockTranslationResult, Error> {
     // A vec which holds each lifted instruction in this block.
     let mut block_graphs: Vec<(u64, ControlFlowGraph)> = Vec::new();
 
@@ -222,9 +222,11 @@ fn translate_block(
             | bad64::Op::ADCS
             | bad64::Op::ADDG
             | bad64::Op::ADDHN
+            | bad64::Op::ADDHA
             | bad64::Op::ADDHN2
             | bad64::Op::ADDHNB
             | bad64::Op::ADDHNT
+            | bad64::Op::ADDVA
             | bad64::Op::ADDP
             | bad64::Op::ADDPL
             | bad64::Op::ADDV
@@ -283,6 +285,8 @@ fn translate_block(
             | bad64::Op::BLRAAZ
             | bad64::Op::BLRAB
             | bad64::Op::BLRABZ
+            | bad64::Op::BFMOPA
+            | bad64::Op::BFMOPS
             | bad64::Op::BRAA
             | bad64::Op::BRAAZ
             | bad64::Op::BRAB
@@ -483,6 +487,8 @@ fn translate_block(
             | bad64::Op::FMLSLB
             | bad64::Op::FMLSLT
             | bad64::Op::FMMLA
+            | bad64::Op::FMOPA
+            | bad64::Op::FMOPS
             | bad64::Op::FMOV
             | bad64::Op::FMSB
             | bad64::Op::FMSUB
@@ -542,6 +548,7 @@ fn translate_block(
             | bad64::Op::LD1B
             | bad64::Op::LD1D
             | bad64::Op::LD1H
+            | bad64::Op::LD1Q
             | bad64::Op::LD1R
             | bad64::Op::LD1RB
             | bad64::Op::LD1RD
@@ -737,6 +744,7 @@ fn translate_block(
             | bad64::Op::MLA
             | bad64::Op::MLS
             | bad64::Op::MNEG
+            | bad64::Op::MOVA
             | bad64::Op::MOVI
             | bad64::Op::MOVK
             | bad64::Op::MOVN
@@ -813,6 +821,7 @@ fn translate_block(
             | bad64::Op::REV32
             | bad64::Op::REV64
             | bad64::Op::REVB
+            | bad64::Op::REVD
             | bad64::Op::REVH
             | bad64::Op::REVW
             | bad64::Op::RMIF
@@ -857,6 +866,7 @@ fn translate_block(
             | bad64::Op::SBFIZ
             | bad64::Op::SBFM
             | bad64::Op::SBFX
+            | bad64::Op::SCLAMP
             | bad64::Op::SCVTF
             | bad64::Op::SDIV
             | bad64::Op::SDIVR
@@ -919,7 +929,11 @@ fn translate_block(
             | bad64::Op::SMLSLT
             | bad64::Op::SMMLA
             | bad64::Op::SMNEGL
+            | bad64::Op::SMOPA
+            | bad64::Op::SMOPS
             | bad64::Op::SMOV
+            | bad64::Op::SMSTART
+            | bad64::Op::SMSTOP
             | bad64::Op::SMSUBL
             | bad64::Op::SMULH
             | bad64::Op::SMULL
@@ -1019,6 +1033,7 @@ fn translate_block(
             | bad64::Op::ST1B
             | bad64::Op::ST1D
             | bad64::Op::ST1H
+            | bad64::Op::ST1Q
             | bad64::Op::ST1W
             | bad64::Op::ST2
             | bad64::Op::ST2B
@@ -1117,6 +1132,8 @@ fn translate_block(
             | bad64::Op::SUBPS
             | bad64::Op::SUBR
             | bad64::Op::SUDOT
+            | bad64::Op::SUMOPA
+            | bad64::Op::SUMOPS
             | bad64::Op::SUNPKHI
             | bad64::Op::SUNPKLO
             | bad64::Op::SUQADD
@@ -1177,6 +1194,7 @@ fn translate_block(
             | bad64::Op::UBFM
             | bad64::Op::UBFX
             | bad64::Op::UCVTF
+            | bad64::Op::UCLAMP
             | bad64::Op::UDIV
             | bad64::Op::UDIVR
             | bad64::Op::UDOT
@@ -1201,12 +1219,16 @@ fn translate_block(
             | bad64::Op::UMMLA
             | bad64::Op::UMNEGL
             | bad64::Op::UMOV
+            | bad64::Op::UMOPA
+            | bad64::Op::UMOPS
             | bad64::Op::UMSUBL
             | bad64::Op::UMULH
             | bad64::Op::UMULL
             | bad64::Op::UMULL2
             | bad64::Op::UMULLB
             | bad64::Op::UMULLT
+            | bad64::Op::USMOPA
+            | bad64::Op::USMOPS
             | bad64::Op::UQADD
             | bad64::Op::UQDECB
             | bad64::Op::UQDECD
@@ -1293,6 +1315,7 @@ fn translate_block(
             | bad64::Op::XTN
             | bad64::Op::XTN2
             | bad64::Op::YIELD
+            | bad64::Op::ZERO
             | bad64::Op::ZIP1
             | bad64::Op::ZIP2 => (Err(unsupported()), NON_TERMINATING),
         };

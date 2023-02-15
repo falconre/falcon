@@ -1,7 +1,6 @@
 //! A fixed-point engine for data-flow analysis.
 
-use crate::error::*;
-use crate::il;
+use crate::{il, Error};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
@@ -12,10 +11,14 @@ const DEFAULT_MAX_ANALYSIS_STEPS: usize = 250000;
 pub trait FixedPointAnalysis<'f, State: 'f + Clone + Debug + PartialOrd> {
     /// Given an input state for a block, create an output state for this
     /// block.
-    fn trans(&self, location: il::RefProgramLocation<'f>, state: Option<State>) -> Result<State>;
+    fn trans(
+        &self,
+        location: il::RefProgramLocation<'f>,
+        state: Option<State>,
+    ) -> Result<State, Error>;
 
     /// Given two states, join them into one state.
-    fn join(&self, state0: State, state1: &State) -> Result<State>;
+    fn join(&self, state0: State, state1: &State) -> Result<State, Error>;
 }
 
 /// A forward, work-list data-flow analysis algorithm.
@@ -27,7 +30,7 @@ pub fn fixed_point_forward_options<'f, Analysis, State>(
     function: &'f il::Function,
     force: bool,
     max_analysis_steps: usize,
-) -> Result<HashMap<il::ProgramLocation, State>>
+) -> Result<HashMap<il::ProgramLocation, State>, Error>
 where
     Analysis: FixedPointAnalysis<'f, State>,
     State: 'f + Clone + Debug + PartialOrd,
@@ -40,7 +43,7 @@ where
     let entry_index = function
         .control_flow_graph()
         .entry()
-        .ok_or("Function's control flow graph must have entry")?;
+        .ok_or(Error::FixedPointRequiresEntry)?;
     let entry_block = function.control_flow_graph().block(entry_index)?;
 
     match entry_block.instructions().first() {
@@ -60,7 +63,7 @@ where
 
     while !queue.is_empty() {
         if steps > max_analysis_steps {
-            bail!("Exceeded maximum analysis steps");
+            return Err(Error::FixedPointMaxSteps);
         }
         steps += 1;
 
@@ -100,11 +103,10 @@ where
             if force {
                 state = analysis.join(state, in_state)?;
             } else if let Some(ordering) = ordering {
-                bail!(
-                    "Found a state which was not >= previous state (it was {}) @ {}",
-                    ordering,
-                    location
-                );
+                return Err(Error::FixedPointOrdering(
+                    ordering.to_string(),
+                    location.into(),
+                ));
             }
         }
 
@@ -124,7 +126,7 @@ where
 pub fn fixed_point_forward<'f, Analysis, State>(
     analysis: Analysis,
     function: &'f il::Function,
-) -> Result<HashMap<il::ProgramLocation, State>>
+) -> Result<HashMap<il::ProgramLocation, State>, Error>
 where
     Analysis: FixedPointAnalysis<'f, State>,
     State: 'f + Clone + Debug + PartialOrd,
@@ -140,7 +142,7 @@ pub fn fixed_point_backward_options<'f, Analysis, State>(
     analysis: Analysis,
     function: &'f il::Function,
     force: bool,
-) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+) -> Result<HashMap<il::RefProgramLocation<'f>, State>, Error>
 where
     Analysis: FixedPointAnalysis<'f, State>,
     State: 'f + Clone + Debug + PartialOrd,
@@ -153,7 +155,7 @@ where
     let exit_index = function
         .control_flow_graph()
         .entry()
-        .ok_or("Function's control flow graph must have entry")?;
+        .ok_or(Error::FixedPointRequiresEntry)?;
     let exit_block = function.control_flow_graph().block(exit_index)?;
 
     match exit_block.instructions().last() {
@@ -200,11 +202,10 @@ where
             if force {
                 state = analysis.join(state, in_state)?;
             } else if let Some(ordering) = ordering {
-                bail!(
-                    "Found a state which was not >= previous state (it was {}) @ {}",
-                    ordering,
-                    location
-                );
+                return Err(Error::FixedPointOrdering(
+                    ordering.to_string(),
+                    location.into(),
+                ));
             }
         }
 
@@ -224,7 +225,7 @@ where
 pub fn fixed_point_backward<'f, Analysis, State>(
     analysis: Analysis,
     function: &'f il::Function,
-) -> Result<HashMap<il::RefProgramLocation<'f>, State>>
+) -> Result<HashMap<il::RefProgramLocation<'f>, State>, Error>
 where
     Analysis: FixedPointAnalysis<'f, State>,
     State: 'f + Clone + Debug + PartialOrd,

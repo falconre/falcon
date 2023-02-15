@@ -1,6 +1,7 @@
 //! Intrinsics are instructions Falcon cannot model.
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// An Instrinsic is a lifted instruction Falcon cannot model.

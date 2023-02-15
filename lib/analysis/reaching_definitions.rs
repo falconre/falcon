@@ -1,12 +1,12 @@
 use crate::analysis::{fixed_point, LocationSet};
-use crate::error::*;
 use crate::il;
+use crate::Error;
 use std::collections::HashMap;
 
 /// Compute reaching definitions for the given function.
 pub fn reaching_definitions(
     function: &il::Function,
-) -> Result<HashMap<il::ProgramLocation, LocationSet>> {
+) -> Result<HashMap<il::ProgramLocation, LocationSet>, Error> {
     let rda = ReachingDefinitionsAnalysis { function };
     fixed_point::fixed_point_forward(rda, function)
 }
@@ -21,7 +21,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinition
         &self,
         location: il::RefProgramLocation<'r>,
         state: Option<LocationSet>,
-    ) -> Result<LocationSet> {
+    ) -> Result<LocationSet, Error> {
         let mut state = match state {
             Some(state) => state,
             None => LocationSet::new(),
@@ -61,7 +61,7 @@ impl<'r> fixed_point::FixedPointAnalysis<'r, LocationSet> for ReachingDefinition
         Ok(state)
     }
 
-    fn join(&self, mut state0: LocationSet, state1: &LocationSet) -> Result<LocationSet> {
+    fn join(&self, mut state0: LocationSet, state1: &LocationSet) -> Result<LocationSet, Error> {
         state1
             .locations()
             .iter()

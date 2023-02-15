@@ -1,5 +1,6 @@
 //! A `Scalar` is a variable which holds a single value.
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// A `Scalar` is a variable which holds a single value.

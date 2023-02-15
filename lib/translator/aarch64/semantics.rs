@@ -120,6 +120,9 @@ fn operand_load(
         }
         bad64::Operand::Label(imm) => Ok(il::expr_const(imm_to_u64(imm), 64)),
         bad64::Operand::FImm32(_)
+        | bad64::Operand::SmeTile { .. }
+        | bad64::Operand::AccumArray { .. }
+        | bad64::Operand::IndexedElement { .. }
         | bad64::Operand::QualReg { .. }
         | bad64::Operand::MultiReg { .. }
         | bad64::Operand::SysReg(_)
@@ -150,6 +153,9 @@ fn operand_imm_u64(opr: &bad64::Operand) -> u64 {
             unreachable!("unshifted immediate expected")
         }
         bad64::Operand::Reg { .. }
+        | bad64::Operand::SmeTile { .. }
+        | bad64::Operand::AccumArray { .. }
+        | bad64::Operand::IndexedElement { .. }
         | bad64::Operand::ShiftReg { .. }
         | bad64::Operand::FImm32(_)
         | bad64::Operand::QualReg { .. }
@@ -259,7 +265,10 @@ fn operand_store(block: &mut il::Block, opr: &bad64::Operand, value: il::Express
         | bad64::Operand::ImplSpec { .. }
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
-        | bad64::Operand::StrImm { .. } => return Err(unsupported()),
+        | bad64::Operand::StrImm { .. }
+        | bad64::Operand::SmeTile { .. }
+        | bad64::Operand::AccumArray { .. }
+        | bad64::Operand::IndexedElement { .. } => return Err(unsupported()),
     }
     Ok(())
 }
@@ -324,6 +333,9 @@ fn mem_operand_address(opr: &bad64::Operand) -> Result<(il::Expression, MemOpera
         }
 
         bad64::Operand::MemOffset { mul_vl: true, .. }
+        | bad64::Operand::SmeTile { .. }
+        | bad64::Operand::AccumArray { .. }
+        | bad64::Operand::IndexedElement { .. }
         | bad64::Operand::MemOffset {
             arrspec: Some(_), ..
         }
@@ -403,7 +415,10 @@ fn operand_storing_width(opr: &bad64::Operand) -> Result<usize> {
         | bad64::Operand::ImplSpec { .. }
         | bad64::Operand::Cond(_)
         | bad64::Operand::Name(_)
-        | bad64::Operand::StrImm { .. } => Err(unsupported()),
+        | bad64::Operand::StrImm { .. }
+        | bad64::Operand::SmeTile { .. }
+        | bad64::Operand::AccumArray { .. }
+        | bad64::Operand::IndexedElement { .. } => Err(unsupported()),
     }
 }
 
@@ -743,7 +758,7 @@ pub(super) fn b_cc(
 
 pub(super) fn br(
     instruction_graph: &mut il::ControlFlowGraph,
-    _successors: &mut Vec<(u64, Option<il::Expression>)>,
+    _successors: &mut [(u64, Option<il::Expression>)],
     instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {
@@ -799,7 +814,7 @@ fn cbz_cbnz_tbz_tbnz(
     let (dst, mut cond_true, mut cond_false);
 
     let opr_value = 0;
-    let opr_bit = test_bit.then(|| 1);
+    let opr_bit = test_bit.then_some(1);
     let opr_target = [1, 2][test_bit as usize];
 
     let block_index = {
@@ -1202,7 +1217,7 @@ pub(super) fn nop(
 
 pub(super) fn ret(
     instruction_graph: &mut il::ControlFlowGraph,
-    _successors: &mut Vec<(u64, Option<il::Expression>)>,
+    _successors: &mut [(u64, Option<il::Expression>)],
     _instruction: &bad64::Instruction,
 ) -> Result<()> {
     let block_index = {

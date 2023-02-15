@@ -1,6 +1,6 @@
-use crate::error::*;
 use crate::il::Expression as Expr;
 use crate::il::*;
+use crate::Error;
 use falcon_capstone::capstone;
 use falcon_capstone::capstone_sys::ppc_reg;
 use std::cmp::Ordering;
@@ -241,7 +241,7 @@ const PPC_REGISTERS: &[PpcRegister] = &[
 ];
 
 /// Takes a capstone register enum and returns a `MIPSRegister`
-pub fn get_register(capstone_id: ppc_reg) -> Result<&'static PpcRegister> {
+pub fn get_register(capstone_id: ppc_reg) -> Result<&'static PpcRegister, Error> {
     for register in PPC_REGISTERS.iter() {
         if register.capstone_reg == capstone_id {
             return Ok(register);
@@ -251,7 +251,7 @@ pub fn get_register(capstone_id: ppc_reg) -> Result<&'static PpcRegister> {
 }
 
 /// Returns the details section of a mips capstone instruction.
-pub fn details(instruction: &capstone::Instr) -> Result<capstone::cs_ppc> {
+pub fn details(instruction: &capstone::Instr) -> Result<capstone::cs_ppc, Error> {
     let detail = instruction.detail.as_ref().unwrap();
     match detail.arch {
         capstone::DetailsArch::PPC(x) => Ok(x),
@@ -264,7 +264,7 @@ pub fn set_condition_register_signed(
     condition_register: Scalar,
     lhs: Expression,
     rhs: Expression,
-) -> Result<()> {
+) -> Result<(), Error> {
     let lt = Expression::ite(
         Expression::cmplts(lhs.clone(), rhs.clone())?,
         expr_const(0b0100, 4),
@@ -292,7 +292,7 @@ pub fn set_condition_register_unsigned(
     condition_register: Scalar,
     lhs: Expression,
     rhs: Expression,
-) -> Result<()> {
+) -> Result<(), Error> {
     let lt = Expression::ite(
         Expression::cmpltu(lhs.clone(), rhs.clone())?,
         expr_const(0b0100, 4),
@@ -326,7 +326,7 @@ pub fn set_condition_register_summary_overflow(
     );
 }
 
-pub fn condition_register_bit_to_flag(condition_register_bit: usize) -> Result<Scalar> {
+pub fn condition_register_bit_to_flag(condition_register_bit: usize) -> Result<Scalar, Error> {
     Ok(match condition_register_bit {
         0 => scalar("cr0-lt", 1),
         1 => scalar("cr0-gt", 1),
@@ -360,7 +360,7 @@ pub fn condition_register_bit_to_flag(condition_register_bit: usize) -> Result<S
         29 => scalar("cr7-gt", 1),
         30 => scalar("cr7-eq", 1),
         31 => scalar("cr7-so", 1),
-        _ => bail!("Invalid condition register bit"),
+        _ => return Err(Error::Custom("Invalid condition register bit".to_string())),
     })
 }
 
@@ -371,7 +371,7 @@ pub fn rlwinm_(
     sh: u64,
     mb: u64,
     me: u64,
-) -> Result<()> {
+) -> Result<(), Error> {
     /*
     - If the MB value is less than the ME value + 1, then the mask bits between
       and including the starting point and the end point are set to ones. All
@@ -416,7 +416,10 @@ pub fn rlwinm_(
     Ok(())
 }
 
-pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn add(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -442,7 +445,7 @@ pub fn add(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn addi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -468,7 +471,7 @@ pub fn addi(
 pub fn addis(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -494,7 +497,7 @@ pub fn addis(
 pub fn addze(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -506,7 +509,7 @@ pub fn addze(
 
         let src = Expression::add(
             lhs.clone(),
-            Expression::zext(lhs.bits() as usize, expr_scalar("carry", 1))?,
+            Expression::zext(lhs.bits(), expr_scalar("carry", 1))?,
         )?;
         block.assign(dst, src);
 
@@ -519,7 +522,10 @@ pub fn addze(
     Ok(())
 }
 
-pub fn bl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn bl(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -543,7 +549,7 @@ pub fn bl(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 pub fn bclr(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -726,13 +732,13 @@ pub fn bclr(
             control_flow_graph.set_entry(block_index)?;
             control_flow_graph.set_exit(block_index)?;
         }
-        _ => bail!("Invalid bo for bclr: {}", bo),
+        _ => return Err(Error::Custom(format!("Invalid bo for bclr: {}", bo))),
     }
 
     Ok(())
 }
 
-pub fn bctr(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn bctr(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<(), Error> {
     // get operands
     let block_index = {
         let block = control_flow_graph.new_block()?;
@@ -751,7 +757,7 @@ pub fn bctr(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> R
 pub fn cmpwi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -776,7 +782,7 @@ pub fn cmpwi(
 pub fn cmplwi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -798,7 +804,10 @@ pub fn cmplwi(
     Ok(())
 }
 
-pub fn lbz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lbz(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -825,7 +834,10 @@ pub fn lbz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn li(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn li(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -846,7 +858,10 @@ pub fn li(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
     Ok(())
 }
 
-pub fn lwz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lwz(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -874,7 +889,7 @@ pub fn lwz(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn lwzu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -900,7 +915,10 @@ pub fn lwzu(
     Ok(())
 }
 
-pub fn lis(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn lis(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -926,7 +944,10 @@ pub fn lis(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
     Ok(())
 }
 
-pub fn mr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn mr(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -950,7 +971,7 @@ pub fn mr(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Ins
 pub fn mflr(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -973,7 +994,7 @@ pub fn mflr(
 pub fn mtctr(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -997,7 +1018,7 @@ pub fn mtctr(
 pub fn mtlr(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1017,7 +1038,7 @@ pub fn mtlr(
     Ok(())
 }
 
-pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<()> {
+pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Result<(), Error> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
         block.nop();
@@ -1033,7 +1054,7 @@ pub fn nop(control_flow_graph: &mut ControlFlowGraph, _: &capstone::Instr) -> Re
 pub fn rlwinm(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let ra = get_register(detail.operands[0].reg())?.scalar();
@@ -1048,7 +1069,7 @@ pub fn rlwinm(
 pub fn slwi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     let ra = get_register(detail.operands[0].reg())?.scalar();
@@ -1061,7 +1082,7 @@ pub fn slwi(
 pub fn srawi(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1083,7 +1104,10 @@ pub fn srawi(
     Ok(())
 }
 
-pub fn stw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::Instr) -> Result<()> {
+pub fn stw(
+    control_flow_graph: &mut ControlFlowGraph,
+    instruction: &capstone::Instr,
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1111,7 +1135,7 @@ pub fn stw(control_flow_graph: &mut ControlFlowGraph, instruction: &capstone::In
 pub fn stmw(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1132,7 +1156,11 @@ pub fn stmw(
 
         let mut i = match start_register {
             Some(i) => i,
-            None => bail!("Failed to find start register for stmwu"),
+            None => {
+                return Err(Error::Custom(
+                    "Failed to find start register for stmwu".to_string(),
+                ))
+            }
         };
 
         while PPC_REGISTERS[i].capstone_reg != ppc_reg::PPC_REG_CR0 {
@@ -1155,7 +1183,7 @@ pub fn stmw(
 pub fn stwu(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands
@@ -1184,7 +1212,7 @@ pub fn stwu(
 pub fn subf(
     control_flow_graph: &mut ControlFlowGraph,
     instruction: &capstone::Instr,
-) -> Result<()> {
+) -> Result<(), Error> {
     let detail = details(instruction)?;
 
     // get operands

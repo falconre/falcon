@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.5]
+
+* falcon_capstone now has a vendored option thanks to @marirs and @mnaza. This option won't take effect until [this issue](https://github.com/falconre/falcon_capstone/issues/65) is resolved, but it's coming.
+* Moved from the error-chain crate (unmaintained) to thiserror.
+* Updated dependencies.
+
 ## [0.5.4]
 
 * Minor improvements to constants analysis.

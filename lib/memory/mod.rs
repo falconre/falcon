@@ -20,6 +20,7 @@ mod value;
 pub use self::value::Value;
 
 use bitflags::bitflags;
+use serde::{Deserialize, Serialize};
 
 bitflags! {
     /// RWX permissions for memory.

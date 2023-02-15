@@ -1,11 +1,12 @@
 //! Implements a directed graph.
 
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 
-use crate::error::*;
+use crate::Error;
 
 pub trait Vertex: Clone + Sync {
     // The index of this vertex.
@@ -193,11 +194,11 @@ where
     }
 
     /// Removes a vertex, and all edges associated with that vertex.
-    pub fn remove_vertex(&mut self, index: usize) -> Result<()> {
+    pub fn remove_vertex(&mut self, index: usize) -> Result<(), Error> {
         // TODO there's a lot of duplicated work in removing edges. Makes
         // debugging easier, but could be made much more efficient.
         if !self.has_vertex(index) {
-            bail!("vertex does not exist");
+            return Err(Error::GraphVertexNotFound(index));
         }
 
         // remove this vertex
@@ -229,7 +230,7 @@ where
 
     /// Removes all unreachable vertices from this graph.
     /// Unreachable means that there is no path from head to the vertex.
-    pub fn remove_unreachable_vertices(&mut self, head: usize) -> Result<()> {
+    pub fn remove_unreachable_vertices(&mut self, head: usize) -> Result<(), Error> {
         self.unreachable_vertices(head)?
             .iter()
             .for_each(|vertex| self.remove_vertex(*vertex).unwrap());
@@ -242,9 +243,9 @@ where
     }
 
     /// Removes an edge
-    pub fn remove_edge(&mut self, head: usize, tail: usize) -> Result<()> {
+    pub fn remove_edge(&mut self, head: usize, tail: usize) -> Result<(), Error> {
         if !self.has_edge(head, tail) {
-            bail!("edge does not exist");
+            return Err(Error::GraphEdgeNotFound(head, tail));
         }
 
         self.edges.remove(&(head, tail));
@@ -259,7 +260,7 @@ where
     /// Inserts a vertex into the graph.
     /// # Errors
     /// Error if the vertex already exists by index.
-    pub fn insert_vertex(&mut self, v: V) -> Result<()> {
+    pub fn insert_vertex(&mut self, v: V) -> Result<(), Error> {
         if self.vertices.contains_key(&v.index()) {
             return Err("duplicate vertex index".into());
         }
@@ -272,15 +273,15 @@ where
     /// Inserts an edge into the graph.
     /// # Errors
     /// Error if the edge already exists by indices.
-    pub fn insert_edge(&mut self, edge: E) -> Result<()> {
+    pub fn insert_edge(&mut self, edge: E) -> Result<(), Error> {
         if self.edges.contains_key(&(edge.head(), edge.tail())) {
             return Err("duplicate edge".into());
         }
         if !self.vertices.contains_key(&edge.head()) {
-            return Err(ErrorKind::GraphVertexNotFound(edge.head()).into());
+            return Err(Error::GraphVertexNotFound(edge.head()));
         }
         if !self.vertices.contains_key(&edge.tail()) {
-            return Err(ErrorKind::GraphVertexNotFound(edge.tail()).into());
+            return Err(Error::GraphVertexNotFound(edge.tail()));
         }
 
         self.edges.insert((edge.head(), edge.tail()), edge.clone());
@@ -297,12 +298,9 @@ where
     }
 
     /// Returns all immediate successors of a vertex from the graph.
-    pub fn successors(&self, index: usize) -> Result<Vec<&V>> {
+    pub fn successors(&self, index: usize) -> Result<Vec<&V>, Error> {
         if !self.vertices.contains_key(&index) {
-            bail!(
-                "Vertex {} does not exist and therefor has no successors",
-                index
-            );
+            return Err(Error::GraphVertexNotFound(index));
         }
 
         let vertices = &self.successors[&index];
@@ -314,12 +312,9 @@ where
     }
 
     /// Returns all immediate predecessors of a vertex from the graph.
-    pub fn predecessors(&self, index: usize) -> Result<Vec<&V>> {
+    pub fn predecessors(&self, index: usize) -> Result<Vec<&V>, Error> {
         if !self.vertices.contains_key(&index) {
-            bail!(
-                "Vertex {} does not exist and therefor has no predecessors",
-                index
-            );
+            return Err(Error::GraphVertexNotFound(index));
         }
 
         let vertices = &self.predecessors[&index];
@@ -331,24 +326,18 @@ where
     }
 
     /// Returns the indices of all immediate successors of a vertex from the graph.
-    pub fn successor_indices(&self, index: usize) -> Result<Vec<usize>> {
+    pub fn successor_indices(&self, index: usize) -> Result<Vec<usize>, Error> {
         if !self.vertices.contains_key(&index) {
-            bail!(
-                "Vertex {} does not exist and therefor has no successors",
-                index
-            );
+            return Err(Error::GraphVertexNotFound(index));
         }
 
         Ok(self.successors[&index].iter().cloned().collect())
     }
 
     /// Returns the indices of all immediate predecessors of a vertex from the graph.
-    pub fn predecessor_indices(&self, index: usize) -> Result<Vec<usize>> {
+    pub fn predecessor_indices(&self, index: usize) -> Result<Vec<usize>, Error> {
         if !self.vertices.contains_key(&index) {
-            bail!(
-                "Vertex {} does not exist and therefor has no predecessors",
-                index
-            );
+            return Err(Error::GraphVertexNotFound(index));
         }
 
         Ok(self.predecessors[&index].iter().cloned().collect())
@@ -371,7 +360,7 @@ where
     }
 
     /// Computes the set of vertices unreachable from the given index.
-    pub fn unreachable_vertices(&self, index: usize) -> Result<FxHashSet<usize>> {
+    pub fn unreachable_vertices(&self, index: usize) -> Result<FxHashSet<usize>, Error> {
         let reachable_vertices = self.reachable_vertices(index)?;
         Ok(self
             .vertices
@@ -382,9 +371,9 @@ where
     }
 
     /// Computes the set of vertices reachable from the given index.
-    pub fn reachable_vertices(&self, index: usize) -> Result<FxHashSet<usize>> {
+    pub fn reachable_vertices(&self, index: usize) -> Result<FxHashSet<usize>, Error> {
         if !self.has_vertex(index) {
-            bail!("vertex does not exist");
+            return Err(Error::GraphVertexNotFound(index));
         }
 
         let mut reachable_vertices: FxHashSet<usize> = FxHashSet::default();
@@ -408,9 +397,9 @@ where
     }
 
     /// Compute the pre order of all vertices in the graph
-    pub fn compute_pre_order(&self, root: usize) -> Result<Vec<usize>> {
+    pub fn compute_pre_order(&self, root: usize) -> Result<Vec<usize>, Error> {
         if !self.has_vertex(root) {
-            bail!("vertex does not exist");
+            return Err(Error::GraphVertexNotFound(root));
         }
 
         let mut visited: FxHashSet<usize> = FxHashSet::default();
@@ -435,7 +424,7 @@ where
     }
 
     // Compute the post order of all vertices in the graph
-    pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>> {
+    pub fn compute_post_order(&self, root: usize) -> Result<Vec<usize>, Error> {
         let mut visited: FxHashSet<usize> = FxHashSet::default();
         let mut order: Vec<usize> = Vec::new();
 
@@ -444,7 +433,7 @@ where
             node: usize,
             visited: &mut FxHashSet<usize>,
             order: &mut Vec<usize>,
-        ) -> Result<()> {
+        ) -> Result<(), Error> {
             visited.insert(node);
             for successor in &graph.successors[&node] {
                 if !visited.contains(successor) {
@@ -464,7 +453,7 @@ where
     pub fn compute_dominance_frontiers(
         &self,
         start_index: usize,
-    ) -> Result<FxHashMap<usize, FxHashSet<usize>>> {
+    ) -> Result<FxHashMap<usize, FxHashSet<usize>>, Error> {
         let mut df: FxHashMap<usize, FxHashSet<usize>> = FxHashMap::default();
 
         for vertex in &self.vertices {
@@ -516,9 +505,12 @@ where
     /// This implementation is based on the Semi-NCA algorithm described in:
     /// Georgiadis, Loukas: Linear-Time Algorithms for Dominators and Related Problems (thesis)
     /// <https://www.cs.princeton.edu/research/techreps/TR-737-05>
-    pub fn compute_immediate_dominators(&self, root: usize) -> Result<FxHashMap<usize, usize>> {
+    pub fn compute_immediate_dominators(
+        &self,
+        root: usize,
+    ) -> Result<FxHashMap<usize, usize>, Error> {
         if !self.vertices.contains_key(&root) {
-            bail!("vertex {} not in graph", root);
+            return Err(Error::GraphVertexNotFound(root));
         }
 
         let dfs = self.compute_dfs_tree(root)?;
@@ -598,9 +590,9 @@ where
     pub fn compute_dominators(
         &self,
         start_index: usize,
-    ) -> Result<FxHashMap<usize, FxHashSet<usize>>> {
+    ) -> Result<FxHashMap<usize, FxHashSet<usize>>, Error> {
         if !self.vertices.contains_key(&start_index) {
-            bail!("vertex {} not in graph", start_index);
+            return Err(Error::GraphVertexNotFound(start_index));
         }
 
         let dom_tree = self.compute_dominator_tree(start_index)?;
@@ -624,7 +616,7 @@ where
     pub fn compute_dominator_tree(
         &self,
         start_index: usize,
-    ) -> Result<Graph<NullVertex, NullEdge>> {
+    ) -> Result<Graph<NullVertex, NullEdge>, Error> {
         let mut graph = Graph::new();
         for vertex in &self.vertices {
             graph.insert_vertex(NullVertex::new(*vertex.0))?;
@@ -644,7 +636,7 @@ where
     /// graph, not just immediate predecessors.
     ///
     /// Given A -> B -> C, both A and B will be in the set for C.
-    pub fn compute_predecessors(&self) -> Result<FxHashMap<usize, FxHashSet<usize>>> {
+    pub fn compute_predecessors(&self) -> Result<FxHashMap<usize, FxHashSet<usize>>, Error> {
         let mut predecessors: FxHashMap<usize, FxHashSet<usize>> = FxHashMap::default();
         let mut queue: VecDeque<usize> = VecDeque::new();
 
@@ -680,9 +672,12 @@ where
     }
 
     /// Creates a DFS tree with NullVertex and NullEdge
-    pub fn compute_dfs_tree(&self, start_index: usize) -> Result<Graph<NullVertex, NullEdge>> {
+    pub fn compute_dfs_tree(
+        &self,
+        start_index: usize,
+    ) -> Result<Graph<NullVertex, NullEdge>, Error> {
         if !self.has_vertex(start_index) {
-            bail!("vertex does not exist");
+            return Err(Error::GraphVertexNotFound(start_index));
         }
 
         let mut tree = Graph::new();
@@ -710,7 +705,10 @@ where
     }
 
     /// Creates an acyclic graph with NullVertex and NullEdge
-    pub fn compute_acyclic(&self, start_index: usize) -> Result<Graph<NullVertex, NullEdge>> {
+    pub fn compute_acyclic(
+        &self,
+        start_index: usize,
+    ) -> Result<Graph<NullVertex, NullEdge>, Error> {
         let mut graph = Graph::new();
         for vertex in &self.vertices {
             graph.insert_vertex(NullVertex::new(*vertex.0))?;
@@ -783,7 +781,7 @@ where
     /// Computes the set of back edges
     ///
     /// Back edges are edges whose heads dominate their tails.
-    fn compute_back_edges(&self, head: usize) -> Result<FxHashSet<(usize, usize)>> {
+    fn compute_back_edges(&self, head: usize) -> Result<FxHashSet<(usize, usize)>, Error> {
         let mut back_edges: FxHashSet<(usize, usize)> = FxHashSet::default();
 
         for (node, dominators) in self.compute_dominators(head)? {
@@ -798,7 +796,7 @@ where
     }
 
     /// Determines if the graph is reducible.
-    pub fn is_reducible(&self, head: usize) -> Result<bool> {
+    pub fn is_reducible(&self, head: usize) -> Result<bool, Error> {
         let back_edges = self.compute_back_edges(head)?;
 
         // Build a graph without back edges, a.k.a. forward edges (FE) graph.
@@ -818,7 +816,7 @@ where
     }
 
     /// Computes the set of natural loops in the graph
-    pub fn compute_loops(&self, head: usize) -> Result<Vec<Loop>> {
+    pub fn compute_loops(&self, head: usize) -> Result<Vec<Loop>, Error> {
         let mut loops: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
 
         // For each back edge compute the set of nodes part of the loop
@@ -850,7 +848,7 @@ where
     /// Computes the loop tree of all natural loops in the graph
     ///
     /// If loop `l1` is nested in loop `l2`, `l1` is a child node of `l2` in the loop tree.
-    pub fn compute_loop_tree(&self, head: usize) -> Result<LoopTree> {
+    pub fn compute_loop_tree(&self, head: usize) -> Result<LoopTree, Error> {
         let mut tree = LoopTree::new();
 
         let loops = self.compute_loops(head)?;
@@ -870,7 +868,7 @@ where
     }
 
     /// Computes the topological ordering of all vertices in the graph
-    pub fn compute_topological_ordering(&self) -> Result<Vec<usize>> {
+    pub fn compute_topological_ordering(&self) -> Result<Vec<usize>, Error> {
         let mut permanent_marks: FxHashSet<usize> = FxHashSet::default();
         let mut temporary_marks: FxHashSet<usize> = FxHashSet::default();
         let mut order: Vec<usize> = Vec::new();
@@ -881,7 +879,7 @@ where
             permanent_marks: &mut FxHashSet<usize>,
             temporary_marks: &mut FxHashSet<usize>,
             order: &mut Vec<usize>,
-        ) -> Result<()> {
+        ) -> Result<(), Error> {
             if permanent_marks.contains(&node) {
                 return Ok(());
             }
@@ -926,29 +924,29 @@ where
     }
 
     /// Fetches an index from the graph by index.
-    pub fn vertex(&self, index: usize) -> Result<&V> {
+    pub fn vertex(&self, index: usize) -> Result<&V, Error> {
         self.vertices
             .get(&index)
-            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
     // Fetches a mutable instance of a vertex.
-    pub fn vertex_mut(&mut self, index: usize) -> Result<&mut V> {
+    pub fn vertex_mut(&mut self, index: usize) -> Result<&mut V, Error> {
         self.vertices
             .get_mut(&index)
-            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
-    pub fn edge(&self, head: usize, tail: usize) -> Result<&E> {
+    pub fn edge(&self, head: usize, tail: usize) -> Result<&E, Error> {
         self.edges
             .get(&(head, tail))
-            .ok_or_else(|| ErrorKind::GraphEdgeNotFound(head, tail).into())
+            .ok_or(Error::GraphEdgeNotFound(head, tail))
     }
 
-    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut E> {
+    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut E, Error> {
         self.edges
             .get_mut(&(head, tail))
-            .ok_or_else(|| ErrorKind::GraphEdgeNotFound(head, tail).into())
+            .ok_or(Error::GraphEdgeNotFound(head, tail))
     }
 
     /// Get a reference to every `Edge` in the `Graph`.
@@ -966,7 +964,7 @@ where
     }
 
     /// Return all edges out for a vertex
-    pub fn edges_out(&self, index: usize) -> Result<Vec<&E>> {
+    pub fn edges_out(&self, index: usize) -> Result<Vec<&E>, Error> {
         self.successors
             .get(&index)
             .map(|succs| {
@@ -975,11 +973,11 @@ where
                     .map(|succ| &self.edges[&(index, *succ)])
                     .collect()
             })
-            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
     /// Return all edges in for a vertex
-    pub fn edges_in(&self, index: usize) -> Result<Vec<&E>> {
+    pub fn edges_in(&self, index: usize) -> Result<Vec<&E>, Error> {
         self.predecessors
             .get(&index)
             .map(|preds| {
@@ -988,7 +986,7 @@ where
                     .map(|pred| &self.edges[&(*pred, index)])
                     .collect()
             })
-            .ok_or_else(|| ErrorKind::GraphVertexNotFound(index).into())
+            .ok_or(Error::GraphVertexNotFound(index))
     }
 
     /// Returns a string in the graphviz format
@@ -997,7 +995,7 @@ where
             .vertices
             .iter()
             .map(|v| {
-                let label = v.1.dot_label().replace("\n", "\\l");
+                let label = v.1.dot_label().replace('\n', "\\l");
                 let fill_color = v.1.dot_fill_color();
                 let font_color = v.1.dot_font_color();
                 format!(
@@ -1014,7 +1012,7 @@ where
             .edges
             .iter()
             .map(|e| {
-                let label = e.1.dot_label().replace("\n", "\\l");
+                let label = e.1.dot_label().replace('\n', "\\l");
                 let style = e.1.dot_style();
                 let fill_color = e.1.dot_fill_color();
                 let font_color = e.1.dot_font_color();
