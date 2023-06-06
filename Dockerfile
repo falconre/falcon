@@ -1,5 +1,8 @@
 FROM debian:buster
 
+ARG TARGETPLATFORM
+RUN echo "Building for $TARGETPLATFORM"
+
 RUN apt-get update && \
     apt-get -y install \
         build-essential \
@@ -21,7 +24,8 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:$PATH
 
 RUN set -eux; \
-    url="https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init"; \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then ARCHITECTURE=aarch64; else ARCHITECTURE=x86_64; fi && \
+    url="https://static.rust-lang.org/rustup/dist/${ARCHITECTURE}-unknown-linux-gnu/rustup-init"; \
     wget "$url"; \
     chmod +x rustup-init; \
     ./rustup-init -y --no-modify-path; \
