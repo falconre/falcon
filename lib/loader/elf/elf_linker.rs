@@ -206,7 +206,7 @@ impl ElfLinker {
             }
         } else {
             // Ensure all shared objects we rely on are loaded
-            for so_name in self.loaded[&filename].dt_needed()?.clone() {
+            for so_name in self.loaded[&filename].dt_needed()? {
                 if self.loaded.get(&so_name).is_none() {
                     self.next_lib_address += LIB_BASE_STEP;
                     let next_lib_address = self.next_lib_address;
@@ -289,7 +289,7 @@ impl ElfLinker {
                         None => bail!("Could not resolve symbol {}", sym_name),
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_GOT32 => {
                     bail!("R_386_GOT32");
@@ -322,7 +322,7 @@ impl ElfLinker {
                         }
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_JMP_SLOT => {
                     let sym = &dynsyms
@@ -334,12 +334,10 @@ impl ElfLinker {
                         None => bail!("Could not resolve symbol {}", sym_name),
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_RELATIVE => {
-                    let value = self
-                        .memory
-                        .get32(reloc.r_offset as u64 + elf.base_address());
+                    let value = self.memory.get32(reloc.r_offset + elf.base_address());
                     let value = match value {
                         Some(value) => elf.base_address() as u32 + value,
                         None => bail!(
@@ -349,7 +347,7 @@ impl ElfLinker {
                         ),
                     };
                     self.memory
-                        .set32(reloc.r_offset as u64 + elf.base_address(), value)?;
+                        .set32(reloc.r_offset + elf.base_address(), value)?;
                 }
                 goblin::elf::reloc::R_386_GOTPC => {
                     bail!("R_386_GOT_PC");

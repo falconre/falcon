@@ -2070,7 +2070,7 @@ fn nop() {
         _ => None,
     };
 
-    assert_eq!(nop.is_some(), true);
+    assert!(nop.is_some());
 }
 
 #[test]

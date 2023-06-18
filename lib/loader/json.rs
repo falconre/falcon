@@ -79,7 +79,7 @@ impl Json {
                 };
 
                 let bytes = match segment["bytes"] {
-                    Value::String(ref bytes) => base64::decode(&bytes)?,
+                    Value::String(ref bytes) => base64::decode(bytes)?,
                     _ => bail!("bytes missing for segment"),
                 };
 

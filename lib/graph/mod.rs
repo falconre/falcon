@@ -997,7 +997,7 @@ where
             .vertices
             .iter()
             .map(|v| {
-                let label = v.1.dot_label().replace("\n", "\\l");
+                let label = v.1.dot_label().replace('\n', "\\l");
                 let fill_color = v.1.dot_fill_color();
                 let font_color = v.1.dot_font_color();
                 format!(
@@ -1014,7 +1014,7 @@ where
             .edges
             .iter()
             .map(|e| {
-                let label = e.1.dot_label().replace("\n", "\\l");
+                let label = e.1.dot_label().replace('\n', "\\l");
                 let style = e.1.dot_style();
                 let fill_color = e.1.dot_fill_color();
                 let font_color = e.1.dot_font_color();
@@ -1483,7 +1483,7 @@ mod tests {
     #[test]
     fn test_is_acyclic_should_return_false_for_cyclic_graph() {
         let graph = create_test_graph();
-        assert_eq!(graph.is_acyclic(1), false);
+        assert!(!graph.is_acyclic(1));
     }
 
     #[test]
@@ -1523,7 +1523,7 @@ mod tests {
             graph
         };
 
-        assert_eq!(graph.is_reducible(1).unwrap(), false);
+        assert!(!graph.is_reducible(1).unwrap());
     }
 
     #[test]

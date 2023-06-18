@@ -268,7 +268,7 @@ impl Constant {
                 .value
                 .to_usize()
                 .map(|bits| {
-                    if bits as usize >= self.bits() {
+                    if bits >= self.bits() {
                         BigUint::from_u64(0).unwrap()
                     } else {
                         self.value.clone() << bits

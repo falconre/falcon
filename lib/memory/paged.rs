@@ -157,7 +157,7 @@ where
     /// Set memory permissions for the page at the given address
     pub fn set_permissions(&mut self, address: u64, len: u64, permissions: MemoryPermissions) {
         let mut page_address = address & PAGE_MASK;
-        let total_length = len as u64 + (address - page_address);
+        let total_length = len + (address - page_address);
         while page_address < total_length {
             RC::make_mut(
                 self.pages

@@ -101,7 +101,7 @@ impl Mode {
                             Expr::add(op, expr_const(mem.disp as u64, self.bits()))?
                         }
                         Ordering::Less => {
-                            Expr::sub(op, expr_const(mem.disp.abs() as u64, self.bits()))?
+                            Expr::sub(op, expr_const(mem.disp.unsigned_abs(), self.bits()))?
                         }
                         Ordering::Equal => op,
                     }
