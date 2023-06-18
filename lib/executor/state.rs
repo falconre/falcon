@@ -99,7 +99,6 @@ impl State {
                 self.symbolize_expression(lhs)?,
                 self.symbolize_expression(rhs)?,
             )?,
-            #[cfg(feature = "il-expression-ashr")]
             il::Expression::AShr(ref lhs, ref rhs) => il::Expression::ashr(
                 self.symbolize_expression(lhs)?,
                 self.symbolize_expression(rhs)?,
