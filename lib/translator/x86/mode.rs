@@ -132,8 +132,6 @@ impl Mode {
                 };
                 Ok(expr_const(operand.imm() as u64, operand_size))
             }
-            #[cfg(not(feature = "capstone4"))]
-            x86_op_type::X86_OP_FP => Err("Unhandled operand".into()),
         }
     }
 
@@ -174,8 +172,6 @@ impl Mode {
                 block.store(address, value);
                 Ok(())
             }
-            #[cfg(not(feature = "capstone4"))]
-            x86_op_type::X86_OP_FP => Err("operand_store called on fp operand".into()),
         }
     }
 

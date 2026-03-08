@@ -12,7 +12,7 @@ edition = "2021"
 bad64 = { version="0.6", features=["std"] }
 base64 = "0.21"
 bitflags = "1.2"
-falcon_capstone = "0.5.2"
+falcon_capstone = "0.5.3"
 thiserror = "1"
 goblin = "0.6"
 log = "0.4"
@@ -24,10 +24,7 @@ rustc-hash = "1.1.0"
 
 
 [features]
-default = ["capstone4"]
 thread_safe = []
-capstone4 = ["falcon_capstone/capstone4"]
-static = ["falcon_capstone/static"]
 il-expression-ashr = []
 
 [lib]
