@@ -151,7 +151,7 @@ impl Elf {
     }
 
     /// Return the goblin::elf::Elf for this elf.
-    pub fn elf(&self) -> goblin::elf::Elf {
+    pub fn elf(&self) -> goblin::elf::Elf<'_> {
         goblin::elf::Elf::parse(&self.bytes).unwrap()
     }
 

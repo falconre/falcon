@@ -39,7 +39,7 @@ impl Function {
     ///
     /// Convenient for analyses where we need to check every location in a
     /// function
-    pub fn locations(&self) -> Vec<RefFunctionLocation> {
+    pub fn locations(&self) -> Vec<RefFunctionLocation<'_>> {
         let mut locations = Vec::new();
 
         for block in self.blocks() {

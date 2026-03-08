@@ -57,7 +57,7 @@ impl Pe {
     }
 
     /// Return the goblin::pe::PE for this PE.
-    fn pe(&self) -> goblin::pe::PE {
+    fn pe(&self) -> goblin::pe::PE<'_> {
         goblin::pe::PE::parse(&self.bytes).unwrap()
     }
 }
