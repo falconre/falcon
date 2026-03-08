@@ -18,7 +18,7 @@ pub struct Pe {
 impl Pe {
     /// Create a new PE from the given bytes. This PE will be rebased to the given
     /// base address.
-    pub fn new(bytes: Vec<u8>) -> Result<Pe> {
+    pub fn new(bytes: Vec<u8>) -> Result<Pe, Error> {
         let architecture: Box<dyn Architecture> = {
             let pe = goblin::pe::PE::parse(&bytes).map_err(|_| "Not a valid PE")?;
 
@@ -29,7 +29,7 @@ impl Pe {
             } else if pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_R4000 {
                 Box::new(Mips::new())
             } else {
-                bail!("Unsupported Architecture");
+                return Err(Error::UnsupprotedArchitecture);
             }
         };
 
@@ -40,11 +40,15 @@ impl Pe {
     }
 
     /// Load an PE from a file and use the base address of 0.
-    pub fn from_file(filename: &Path) -> Result<Pe> {
+    pub fn from_file(filename: &Path) -> Result<Pe, Error> {
         let mut file = match File::open(filename) {
             Ok(file) => file,
             Err(e) => {
-                return Err(format!("Error opening {}: {}", filename.to_str().unwrap(), e).into())
+                return Err(Error::FalconInternal(format!(
+                    "Error opening {}: {}",
+                    filename.to_str().unwrap(),
+                    e
+                )))
             }
         };
         let mut buf = Vec::new();
@@ -59,7 +63,7 @@ impl Pe {
 }
 
 impl Loader for Pe {
-    fn memory(&self) -> Result<Memory> {
+    fn memory(&self) -> Result<Memory, Error> {
         let mut memory = Memory::new(self.architecture().endian());
 
         let pe = self.pe();
@@ -91,7 +95,7 @@ impl Loader for Pe {
         Ok(memory)
     }
 
-    fn function_entries(&self) -> Result<Vec<FunctionEntry>> {
+    fn function_entries(&self) -> Result<Vec<FunctionEntry>, Error> {
         let pe = self.pe();
 
         let mut function_entries = Vec::new();
@@ -129,8 +133,12 @@ impl Loader for Pe {
         let pe = self.pe();
         let mut symbols = Vec::new();
         for export in pe.exports {
+            let offset = match export.offset {
+                Some(offset) => offset,
+                None => continue,
+            };
             if let Some(name) = export.name {
-                symbols.push(Symbol::new(name.to_string(), export.offset as u64));
+                symbols.push(Symbol::new(name.to_string(), offset as u64));
             }
         }
         symbols

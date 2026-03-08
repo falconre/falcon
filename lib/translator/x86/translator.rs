@@ -1,14 +1,14 @@
 //! Capstone-based translator for 32-bit x86.
 
-use crate::error::*;
 use crate::il::*;
 use crate::translator::x86::mode::Mode;
 use crate::translator::{unhandled_intrinsic, BlockTranslationResult, Options};
+use crate::Error;
 use falcon_capstone::{capstone, capstone_sys};
 
 use crate::translator::x86::semantics::Semantics;
 
-fn ensure_block_instruction(control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+fn ensure_block_instruction(control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
     let head_block_num_instructions = control_flow_graph
         .block(control_flow_graph.entry().unwrap())?
         .instructions()
@@ -27,7 +27,7 @@ pub(crate) fn translate_block(
     bytes: &[u8],
     address: u64,
     options: &Options,
-) -> Result<BlockTranslationResult> {
+) -> Result<BlockTranslationResult, Error> {
     let cs = match mode {
         Mode::X86 => capstone::Capstone::new(capstone::cs_arch::CS_ARCH_X86, capstone::CS_MODE_32),
         Mode::Amd64 => {
@@ -74,12 +74,12 @@ pub(crate) fn translate_block(
                 // case. If zero, second case.
                 capstone_sys::cs_err::CS_ERR_OK => {
                     if offset == 0 {
-                        return Err(ErrorKind::DisassemblyFailure.into());
+                        return Err(Error::DisassemblyFailure);
                     }
                     successors.push((address + offset as u64, None));
                     break;
                 }
-                _ => return Err(ErrorKind::CapstoneError.into()),
+                _ => return Err(Error::CapstoneError),
             },
         };
 
@@ -268,11 +268,10 @@ pub(crate) fn translate_block(
                     if options.unsupported_are_intrinsics() {
                         unhandled_intrinsic(&mut instruction_graph, &instruction)
                     } else {
-                        return Err(format!(
+                        return Err(Error::Custom(format!(
                             "Unhandled instruction {} {} at 0x{:x}",
                             instruction.mnemonic, instruction.op_str, instruction.address
-                        )
-                        .into());
+                        )));
                     }
                 }
             }?;
@@ -373,7 +372,7 @@ pub(crate) fn translate_block(
                 }
             }
         } else {
-            bail!("not an x86 instruction")
+            return Err(Error::Custom("not an x86 instruction".to_string()));
         }
 
         offset += instruction.size as usize;

@@ -1,8 +1,8 @@
 //! Capstone-based translator for MIPS.
 
-use crate::error::*;
 use crate::il::*;
 use crate::translator::{unhandled_intrinsic, BlockTranslationResult, Options, Translator};
+use crate::Error;
 use falcon_capstone::capstone;
 
 pub mod semantics;
@@ -25,12 +25,12 @@ impl Translator for Ppc {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translate_block(bytes, address, options)
     }
 }
 
-pub fn nop(control_flow_graph: &mut ControlFlowGraph) -> Result<()> {
+pub fn nop(control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
     let block_index = {
         let block = control_flow_graph.new_block()?;
         block.nop();
@@ -47,11 +47,11 @@ fn translate_block(
     bytes: &[u8],
     address: u64,
     options: &Options,
-) -> Result<BlockTranslationResult> {
+) -> Result<BlockTranslationResult, Error> {
     let mode = capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN;
     let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_PPC, mode) {
         Ok(cs) => cs,
-        Err(_) => return Err(ErrorKind::CapstoneError.into()),
+        Err(_) => return Err(Error::CapstoneError),
     };
 
     cs.option(
@@ -85,11 +85,11 @@ fn translate_block(
         let disassembly_bytes = bytes.get(disassembly_range).unwrap();
         let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
             Ok(instructions) => instructions,
-            Err(_) => return Err(ErrorKind::CapstoneError.into()),
+            Err(_) => return Err(Error::CapstoneError),
         };
 
         if instructions.count() == 0 {
-            return Err(ErrorKind::CapstoneError.into());
+            return Err(Error::CapstoneError);
         }
 
         let instruction = instructions.get(0).unwrap();
@@ -225,7 +225,7 @@ fn translate_block(
                         successors.push((instruction.address + 4, Some(false_condition)));
                         successors.push((detail.operands[0].imm() as u64, Some(true_condition)));
                     } else {
-                        bail!("Unhandled bc instruction");
+                        return Err(Error::Custom("Unhandled bc instruction".to_string()));
                     }
                     break;
                 }
@@ -241,7 +241,7 @@ fn translate_block(
 
             length += instruction.size as usize;
         } else {
-            bail!("not a MIPS instruction")
+            return Err(Error::Custom("not a MIPS instruction".to_string()));
         }
 
         offset += instruction.size as usize;

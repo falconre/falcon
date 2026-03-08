@@ -1,12 +1,12 @@
 //! Loading executable binaries into Falcon.
 //!
 //! ```
-//! # use falcon::error::*;
+//! # use falcon::Error;
 //! use falcon::loader::Elf;
 //! use falcon::loader::Loader;
 //! use std::path::Path;
 //!
-//! # fn example () -> Result<()> {
+//! # fn example () -> Result<(), Error> {
 //! // Load an elf for analysis
 //! let elf = Elf::from_file(Path::new("test_binaries/simple-0/simple-0"))?;
 //! // Lift a program from the elf
@@ -19,11 +19,11 @@
 //! ```
 
 use crate::architecture::Architecture;
-use crate::error::*;
 use crate::executor::eval;
 use crate::il;
 use crate::memory;
 use crate::translator::Options;
+use crate::Error;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -76,10 +76,10 @@ impl fmt::Display for FunctionEntry {
 /// Generic trait for all loaders
 pub trait Loader: fmt::Debug + Send + Sync {
     /// Get a model of the memory contained in the binary
-    fn memory(&self) -> Result<memory::backing::Memory>;
+    fn memory(&self) -> Result<memory::backing::Memory, Error>;
 
     /// Get addresses for known function entries
-    fn function_entries(&self) -> Result<Vec<FunctionEntry>>;
+    fn function_entries(&self) -> Result<Vec<FunctionEntry>, Error>;
 
     /// The address program execution should begin at
     fn program_entry(&self) -> u64;
@@ -88,13 +88,13 @@ pub trait Loader: fmt::Debug + Send + Sync {
     fn architecture(&self) -> &dyn Architecture;
 
     /// Lift just one function from the executable
-    fn function(&self, address: u64) -> Result<il::Function> {
+    fn function(&self, address: u64) -> Result<il::Function, Error> {
         self.function_extended(address, &Options::default())
     }
 
     /// Lift just one function from the executable, while also supplying
     /// translator options.
-    fn function_extended(&self, address: u64, options: &Options) -> Result<il::Function> {
+    fn function_extended(&self, address: u64, options: &Options) -> Result<il::Function, Error> {
         let translator = self.architecture().translator();
         let memory = self.memory()?;
         translator.translate_function_extended(&memory, address, options)
@@ -117,7 +117,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     /// Lift executable into an il::Program.
     ///
     /// Individual functions which fail to lift are omitted and ignored.
-    fn program(&self) -> Result<il::Program> {
+    fn program(&self) -> Result<il::Program, Error> {
         Ok(self.program_verbose(&Options::default())?.0)
     }
 
@@ -165,7 +165,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
     ///
     /// program_recursive silently drops any functions that cause lifting
     /// errors. If you care about those, use `program_recursive_verbose`.
-    fn program_recursive(&self) -> Result<il::Program> {
+    fn program_recursive(&self) -> Result<il::Program, Error> {
         Ok(self.program_recursive_verbose(&Options::default())?.0)
     }
 

@@ -177,7 +177,6 @@
 //! yourself, and can use the accessor methods to gather the information
 //! required.
 
-use crate::error::*;
 use crate::graph;
 
 mod block;

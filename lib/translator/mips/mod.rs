@@ -1,12 +1,12 @@
 //! Capstone-based translator for MIPS.
 
 use crate::architecture::Endian;
-use crate::error::*;
 use crate::il::*;
 use crate::translator::{
     unhandled_intrinsic, BlockTranslationResult, Options, Translator,
     DEFAULT_TRANSLATION_BLOCK_BYTES,
 };
+use crate::Error;
 use falcon_capstone::capstone;
 
 mod semantics;
@@ -29,7 +29,7 @@ impl Translator for Mips {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translate_block(bytes, address, Endian::Big, options)
     }
 }
@@ -50,7 +50,7 @@ impl Translator for Mipsel {
         bytes: &[u8],
         address: u64,
         options: &Options,
-    ) -> Result<BlockTranslationResult> {
+    ) -> Result<BlockTranslationResult, Error> {
         translate_block(bytes, address, Endian::Little, options)
     }
 }
@@ -67,7 +67,7 @@ enum TranslateBranchDelay {
 // instead. However, this can mess up some analyses where we expect an
 // instruction at that address, such as branching to a return address. We emit
 // a NOP instruction in these cases.
-fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
+fn nop_graph(address: u64) -> Result<ControlFlowGraph, Error> {
     let mut cfg = ControlFlowGraph::new();
 
     let block_index = {
@@ -87,7 +87,10 @@ fn nop_graph(address: u64) -> Result<ControlFlowGraph> {
 // If a branch has a delay slot, we need to calculate the condition for the
 // branch before we execute the delay slow. We create a graph which sets a
 // scalar "branching" condition, and execute this prior to the delay slot.
-fn conditional_graph(address: u64, branching_condition: Expression) -> Result<ControlFlowGraph> {
+fn conditional_graph(
+    address: u64,
+    branching_condition: Expression,
+) -> Result<ControlFlowGraph, Error> {
     let mut cfg = ControlFlowGraph::new();
 
     let block_index = {
@@ -109,14 +112,14 @@ fn translate_block(
     address: u64,
     endian: Endian,
     options: &Options,
-) -> Result<BlockTranslationResult> {
+) -> Result<BlockTranslationResult, Error> {
     let mode = match endian {
         Endian::Big => capstone::CS_MODE_32 | capstone::CS_MODE_BIG_ENDIAN,
         Endian::Little => capstone::CS_MODE_32 | capstone::CS_MODE_LITTLE_ENDIAN,
     };
     let cs = match capstone::Capstone::new(capstone::cs_arch::CS_ARCH_MIPS, mode) {
         Ok(cs) => cs,
-        Err(_) => return Err(ErrorKind::CapstoneError.into()),
+        Err(_) => return Err(Error::CapstoneError),
     };
 
     cs.option(
@@ -153,7 +156,7 @@ fn translate_block(
         let disassembly_bytes = bytes.get(disassembly_range).unwrap();
         let instructions = match cs.disasm(disassembly_bytes, address + offset as u64, 1) {
             Ok(instructions) => instructions,
-            Err(e) => bail!("Capstone Error: {}", e.code() as u32),
+            Err(e) => return Err(Error::Capstone(e)),
         };
 
         if instructions.count() == 0 {
@@ -435,7 +438,7 @@ fn translate_block(
                 true_target: u64,
                 false_target: u64,
                 branch_condition: Expression,
-            ) -> Result<()> {
+            ) -> Result<(), Error> {
                 block_graphs.push((address, conditional_graph(address, branch_condition)?));
 
                 let branch_condition = expr_scalar("branching_condition", 1);
@@ -696,7 +699,7 @@ fn translate_block(
 
             length += instruction.size as usize;
         } else {
-            bail!("not a MIPS instruction")
+            return Err(Error::Custom("Not a MIPS instruction".to_string()));
         }
 
         offset += instruction.size as usize;

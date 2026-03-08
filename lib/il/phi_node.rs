@@ -1,6 +1,7 @@
 //! `PhiNode` represents a phi node in the SSA form
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 

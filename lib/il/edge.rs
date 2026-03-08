@@ -10,6 +10,7 @@
 //! `ControlFlowGraph::conditional_edge`.
 
 use crate::il::*;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Edge between IL blocks

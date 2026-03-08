@@ -1,7 +1,7 @@
-use crate::error::*;
 use crate::il::Expression as Expr;
 use crate::il::*;
 use crate::translator::x86::mode::Mode;
+use crate::Error;
 use falcon_capstone::capstone_sys::x86_reg;
 
 const X86REGISTERS: &[X86Register] = &[
@@ -1116,14 +1116,14 @@ impl X86Register {
     }
 
     /// Returns the full-width register for this register
-    pub fn get_full(&self) -> Result<&'static X86Register> {
+    pub fn get_full(&self) -> Result<&'static X86Register, Error> {
         get_register(&self.mode, self.full_reg)
     }
 
     /// Returns an expression which evaluates to the value of the register.
     ///
     /// This handles things like al/ah/ax/eax
-    pub fn get(&self) -> Result<Expression> {
+    pub fn get(&self) -> Result<Expression, Error> {
         if self.is_full() {
             Ok(expr_scalar(self.name, self.bits))
         } else if self.offset == 0 {
@@ -1141,7 +1141,7 @@ impl X86Register {
     /// Sets the value of this register.
     ///
     /// This handles things like al/ah/ax/eax
-    pub fn set(&self, block: &mut Block, value: Expression) -> Result<()> {
+    pub fn set(&self, block: &mut Block, value: Expression) -> Result<(), Error> {
         if self.is_full() {
             block.assign(scalar(self.name, self.bits), value);
             Ok(())
@@ -1170,7 +1170,10 @@ impl X86Register {
 }
 
 /// Takes a capstone register enum and returns an `X86Register`
-pub(crate) fn get_register(mode: &Mode, capstone_id: x86_reg) -> Result<&'static X86Register> {
+pub(crate) fn get_register(
+    mode: &Mode,
+    capstone_id: x86_reg,
+) -> Result<&'static X86Register, Error> {
     let registers: &[X86Register] = match *mode {
         Mode::X86 => X86REGISTERS,
         Mode::Amd64 => AMD64REGISTERS,
@@ -1181,5 +1184,8 @@ pub(crate) fn get_register(mode: &Mode, capstone_id: x86_reg) -> Result<&'static
             return Ok(register);
         }
     }
-    Err(format!("Could not find register {:?}", capstone_id).into())
+    Err(Error::Custom(format!(
+        "Could not find register {:?}",
+        capstone_id
+    )))
 }

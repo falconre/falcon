@@ -1,12 +1,12 @@
 //! Static Single Assignment (SSA) Transformation
 
-use crate::error::*;
 use crate::graph::*;
 use crate::il;
+use crate::Error;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Transform the IL function into SSA form.
-pub fn ssa_transformation(function: &il::Function) -> Result<il::Function> {
+pub fn ssa_transformation(function: &il::Function) -> Result<il::Function, Error> {
     let mut ssa_function = function.clone();
     insert_phi_nodes(&mut ssa_function)?;
     rename_scalars(&mut ssa_function)?;
@@ -17,7 +17,7 @@ pub fn ssa_transformation(function: &il::Function) -> Result<il::Function> {
 ///
 /// Implements the algorithm for constructing Semi-Pruned SSA form,
 /// see Algorithm 3.1 in "SSA-based Compiler Design" book for more details.
-fn insert_phi_nodes(function: &mut il::Function) -> Result<()> {
+fn insert_phi_nodes(function: &mut il::Function) -> Result<(), Error> {
     let cfg = function.control_flow_graph();
     let entry = cfg.entry().ok_or("CFG entry must be set")?;
 
@@ -119,7 +119,7 @@ fn compute_non_local_scalars(cfg: &il::ControlFlowGraph) -> HashSet<il::Scalar> 
     non_locals
 }
 
-fn rename_scalars(function: &mut il::Function) -> Result<()> {
+fn rename_scalars(function: &mut il::Function) -> Result<(), Error> {
     let mut versioning = ScalarVersioning::new();
     function.rename_scalars(&mut versioning)
 }
@@ -169,11 +169,11 @@ impl ScalarVersioning {
 }
 
 trait SsaRename {
-    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()>;
+    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<(), Error>;
 }
 
 impl SsaRename for il::Expression {
-    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
+    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<(), Error> {
         for scalar in self.scalars_mut() {
             scalar.set_ssa(versioning.get_version(scalar));
         }
@@ -183,7 +183,7 @@ impl SsaRename for il::Expression {
 }
 
 impl SsaRename for il::Instruction {
-    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
+    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<(), Error> {
         // rename all read scalars
         if let Some(mut scalars_read) = self.scalars_read_mut() {
             for scalar in scalars_read.iter_mut() {
@@ -203,7 +203,7 @@ impl SsaRename for il::Instruction {
 }
 
 impl SsaRename for il::Block {
-    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
+    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<(), Error> {
         // introduce new SSA names for phi node outputs
         for phi_node in self.phi_nodes_mut() {
             let scalar = phi_node.out_mut();
@@ -219,7 +219,7 @@ impl SsaRename for il::Block {
 }
 
 impl SsaRename for il::ControlFlowGraph {
-    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
+    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<(), Error> {
         let entry = self.entry().ok_or("CFG entry must be set")?;
 
         type DominatorTree = Graph<NullVertex, NullEdge>;
@@ -230,7 +230,7 @@ impl SsaRename for il::ControlFlowGraph {
             dominator_tree: &DominatorTree,
             node: usize,
             versioning: &mut ScalarVersioning,
-        ) -> Result<()> {
+        ) -> Result<(), Error> {
             versioning.start_new_scope();
 
             let block = cfg.block_mut(node)?;
@@ -272,7 +272,7 @@ impl SsaRename for il::ControlFlowGraph {
 }
 
 impl SsaRename for il::Function {
-    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<()> {
+    fn rename_scalars(&mut self, versioning: &mut ScalarVersioning) -> Result<(), Error> {
         self.control_flow_graph_mut().rename_scalars(versioning)
     }
 }

@@ -8,6 +8,8 @@
 //! To create a `Block`, call `ControlFlowGraph::new_block`.
 
 use crate::il::*;
+use crate::Error;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// A basic block in Falcon IL.
@@ -97,7 +99,7 @@ impl Block {
     }
 
     /// Deletes an `Instruction` by its index.
-    pub fn remove_instruction(&mut self, index: usize) -> Result<()> {
+    pub fn remove_instruction(&mut self, index: usize) -> Result<(), Error> {
         self.instructions
             .iter()
             .position(|instruction| instruction.index() == index)

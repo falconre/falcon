@@ -3,6 +3,7 @@
 use crate::analysis::calling_convention::{CallingConvention, CallingConventionType};
 use crate::il;
 use crate::translator;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// An architecture's endanness.

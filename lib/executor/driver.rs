@@ -1,10 +1,10 @@
 //! A driver concretely executes a Falcon IL programs.
 
 use crate::architecture::Architecture;
-use crate::error::*;
 use crate::executor::successor::*;
 use crate::executor::State;
 use crate::il;
+use crate::Error;
 use crate::RC;
 
 /// A driver for a concrete executor over Falcon IL.
@@ -33,7 +33,7 @@ impl Driver {
     }
 
     /// Step forward over Falcon IL.
-    pub fn step(self) -> Result<Driver> {
+    pub fn step(self) -> Result<Driver, Error> {
         let location = self.location.apply(&self.program)?;
         match *location.function_location() {
             il::RefFunctionLocation::Instruction(_, instruction) => {
@@ -73,7 +73,7 @@ impl Driver {
                                     }
                                 }
                             }
-                            bail!("No valid successor location found on fall through");
+                            Err(Error::ExecutorNoValidLocation)
                         }
                     }
                     SuccessorType::Branch(address) => {
@@ -90,12 +90,7 @@ impl Driver {
                                     .architecture
                                     .translator()
                                     .translate_function(state.memory(), address)
-                                    .unwrap_or_else(|e| {
-                                        panic!(
-                                            "Failed to lift function at 0x{:x}: {:?}",
-                                            address, e
-                                        )
-                                    });
+                                    .map_err(|e| Error::ExecutorLiftFail(address, Box::new(e)))?;
                                 let mut program = self.program.clone();
                                 RC::make_mut(&mut program).add_function(function);
                                 let location: il::ProgramLocation =
@@ -106,12 +101,9 @@ impl Driver {
                             }
                         }
                     }
-                    SuccessorType::Intrinsic(ref intrinsic) => {
-                        bail!(format!(
-                            "Intrinsic is unimplemented, {}",
-                            intrinsic.instruction_str()
-                        ));
-                    }
+                    SuccessorType::Intrinsic(ref intrinsic) => Err(Error::UnhandledIntrinsic(
+                        intrinsic.instruction_str().to_string(),
+                    )),
                 }
             }
             il::RefFunctionLocation::Edge(_) => {
@@ -138,7 +130,7 @@ impl Driver {
                             if self
                                 .state
                                 .symbolize_and_eval(
-                                    edge.condition().ok_or("Failed to get edge condition")?,
+                                    edge.condition().ok_or(Error::ExecutorNoEdgeCondition)?,
                                 )?
                                 .is_one()
                             {
@@ -152,7 +144,7 @@ impl Driver {
                         }
                     }
                 }
-                bail!("No valid location out of empty block");
+                Err(Error::ExecutorNoValidLocation)
             }
         }
     }

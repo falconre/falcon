@@ -1,7 +1,8 @@
 //! A `ControlFlowGraph` is a directed `Graph` of `Block` and `Edge`.
 
-use crate::graph;
 use crate::il::*;
+use crate::{graph, Error};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -49,7 +50,7 @@ impl ControlFlowGraph {
     }
 
     /// Sets the entry point for this `ControlFlowGraph` to the given `Block` index.
-    pub fn set_entry(&mut self, entry: usize) -> Result<()> {
+    pub fn set_entry(&mut self, entry: usize) -> Result<(), Error> {
         if self.graph.has_vertex(entry) {
             self.entry = Some(entry);
             return Ok(());
@@ -58,7 +59,7 @@ impl ControlFlowGraph {
     }
 
     /// Sets the exit point for this `ControlFlowGraph` to the given `Block` index.
-    pub fn set_exit(&mut self, exit: usize) -> Result<()> {
+    pub fn set_exit(&mut self, exit: usize) -> Result<(), Error> {
         if self.graph.has_vertex(exit) {
             self.exit = Some(exit);
             return Ok(());
@@ -77,12 +78,12 @@ impl ControlFlowGraph {
     }
 
     /// Get a `Block` by index.
-    pub fn block(&self, index: usize) -> Result<&Block> {
+    pub fn block(&self, index: usize) -> Result<&Block, Error> {
         self.graph.vertex(index)
     }
 
     /// Get a mutable reference to a `Block` by index.
-    pub fn block_mut(&mut self, index: usize) -> Result<&mut Block> {
+    pub fn block_mut(&mut self, index: usize) -> Result<&mut Block, Error> {
         self.graph.vertex_mut(index)
     }
 
@@ -97,12 +98,12 @@ impl ControlFlowGraph {
     }
 
     /// Get an `Edge` by its head and tail `Block` indices.
-    pub fn edge(&self, head: usize, tail: usize) -> Result<&Edge> {
+    pub fn edge(&self, head: usize, tail: usize) -> Result<&Edge, Error> {
         self.graph.edge(head, tail)
     }
 
     /// Get a mutable reference to an `Edge` by its head and tail `Block` indices.
-    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut Edge> {
+    pub fn edge_mut(&mut self, head: usize, tail: usize) -> Result<&mut Edge, Error> {
         self.graph.edge_mut(head, tail)
     }
 
@@ -117,22 +118,22 @@ impl ControlFlowGraph {
     }
 
     /// Get every incoming edge to a block
-    pub fn edges_in(&self, index: usize) -> Result<Vec<&Edge>> {
+    pub fn edges_in(&self, index: usize) -> Result<Vec<&Edge>, Error> {
         self.graph.edges_in(index)
     }
 
     /// Get every outgoing edge from a block
-    pub fn edges_out(&self, index: usize) -> Result<Vec<&Edge>> {
+    pub fn edges_out(&self, index: usize) -> Result<Vec<&Edge>, Error> {
         self.graph.edges_out(index)
     }
 
     /// Get the indices of every predecessor of a `Block` in this `ControlFlowGraph`.
-    pub fn predecessor_indices(&self, index: usize) -> Result<Vec<usize>> {
+    pub fn predecessor_indices(&self, index: usize) -> Result<Vec<usize>, Error> {
         self.graph.predecessor_indices(index)
     }
 
     /// Get the indices of every successor of a `Block` in this `ControlFlowGraph`.
-    pub fn successor_indices(&self, index: usize) -> Result<Vec<usize>> {
+    pub fn successor_indices(&self, index: usize) -> Result<Vec<usize>, Error> {
         self.graph.successor_indices(index)
     }
 
@@ -148,7 +149,7 @@ impl ControlFlowGraph {
     }
 
     /// Returns the entry block for this ControlFlowGraph
-    pub fn entry_block(&self) -> Option<Result<&Block>> {
+    pub fn entry_block(&self) -> Option<Result<&Block, Error>> {
         if self.entry.is_none() {
             None
         } else {
@@ -164,7 +165,7 @@ impl ControlFlowGraph {
     }
 
     /// Creates a new basic block, adds it to the graph, and returns it
-    pub fn new_block(&mut self) -> Result<&mut Block> {
+    pub fn new_block(&mut self) -> Result<&mut Block, Error> {
         let next_index = self.next_index;
         self.next_index += 1;
         let block = Block::new(next_index);
@@ -173,7 +174,7 @@ impl ControlFlowGraph {
     }
 
     /// Creates an unconditional edge from one block to another block
-    pub fn unconditional_edge(&mut self, head: usize, tail: usize) -> Result<()> {
+    pub fn unconditional_edge(&mut self, head: usize, tail: usize) -> Result<(), Error> {
         let edge = Edge::new(head, tail, None);
         self.graph.insert_edge(edge)
     }
@@ -184,7 +185,7 @@ impl ControlFlowGraph {
         head: usize,
         tail: usize,
         condition: Expression,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         let edge = Edge::new(head, tail, Some(condition));
         self.graph.insert_edge(edge)
     }
@@ -193,7 +194,7 @@ impl ControlFlowGraph {
     ///
     /// When a `Block` as only one successor, and that successor has only one predecessor, we
     /// merge both into one `Block`.
-    pub fn merge(&mut self) -> Result<()> {
+    pub fn merge(&mut self) -> Result<(), Error> {
         use std::collections::HashSet;
 
         loop {
@@ -222,7 +223,7 @@ impl ControlFlowGraph {
                 // get the vertex for this successor
                 let successor: usize = match successors.first() {
                     Some(successor) => successor.tail(),
-                    None => bail!("successor not found"),
+                    None => return Err(Error::ControlFlowGraphSuccessorNotFound),
                 };
 
                 // If this is the entry vertex, we will not merge
@@ -288,7 +289,7 @@ impl ControlFlowGraph {
     /// In order for this to work, the entry and exit of boths graphs must be
     /// set, which should be the case for all conformant translators. You can
     /// also append to an empty ControlFlowGraph.
-    pub fn append(&mut self, other: &ControlFlowGraph) -> Result<()> {
+    pub fn append(&mut self, other: &ControlFlowGraph) -> Result<(), Error> {
         let is_empty = self.graph.num_vertices() == 0;
 
         if !is_empty && (self.entry().is_none() || self.exit().is_none()) {
@@ -347,9 +348,9 @@ impl ControlFlowGraph {
     ///
     /// # Warnings
     /// This invalidates the entry and exit of the control flow graph.
-    pub fn insert(&mut self, other: &ControlFlowGraph) -> Result<(usize, usize)> {
+    pub fn insert(&mut self, other: &ControlFlowGraph) -> Result<(usize, usize), Error> {
         if other.entry().is_none() || other.exit().is_none() {
-            bail!("entry/exit not set on control flow graph");
+            return Err(Error::ControlFlowGraphEntryExitNotFound);
         }
 
         // our entry and exit are no longer valid
@@ -386,7 +387,7 @@ impl ControlFlowGraph {
         }
 
         if entry_index.is_none() || exit_index.is_none() {
-            bail!("failed to get entry/exit indices");
+            return Err(Error::ControlFlowGraphEntryExitNotFound);
         }
 
         Ok((entry_index.unwrap(), exit_index.unwrap()))

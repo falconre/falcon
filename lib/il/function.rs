@@ -3,6 +3,8 @@
 //! We can think of a `Function` as providing _location_ to a `ControlFlowGraph`.
 
 use crate::il::*;
+use crate::Error;
+use serde::{Deserialize, Serialize};
 
 /// A function for Falcon IL. Provides location and context in a `Program` to a
 /// `ControlFlowGraph`.
@@ -67,12 +69,12 @@ impl Function {
     }
 
     /// Return a `Block` from this `Function`'s `ControlFlowGraph` by index.
-    pub fn block(&self, index: usize) -> Result<&Block> {
+    pub fn block(&self, index: usize) -> Result<&Block, Error> {
         self.control_flow_graph.block(index)
     }
 
     /// Return a mutable reference to a `Block` in this `Function`
-    pub fn block_mut(&mut self, index: usize) -> Result<&mut Block> {
+    pub fn block_mut(&mut self, index: usize) -> Result<&mut Block, Error> {
         self.control_flow_graph.block_mut(index)
     }
 
@@ -87,7 +89,7 @@ impl Function {
     }
 
     /// Return an `Edge` from this `Function`'s `ControlFlowGraph` by index.
-    pub fn edge(&self, head: usize, tail: usize) -> Result<&Edge> {
+    pub fn edge(&self, head: usize, tail: usize) -> Result<&Edge, Error> {
         self.control_flow_graph.edge(head, tail)
     }
 

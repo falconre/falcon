@@ -1,8 +1,8 @@
 //! Dead-Code Elimination
 
 use crate::analysis::{def_use, reaching_definitions};
-use crate::error::*;
 use crate::il;
+use crate::Error;
 use std::collections::HashSet;
 
 #[allow(dead_code)]
@@ -15,7 +15,7 @@ use std::collections::HashSet;
 /// Instructions are not removed by this analysis. Instead, they are replaced
 /// with `nop` operations. This preserves the location of the removed
 /// instruction, in case an analysis needs to find that instruction later.
-pub fn dead_code_elimination(function: &il::Function) -> Result<il::Function> {
+pub fn dead_code_elimination(function: &il::Function) -> Result<il::Function, Error> {
     let rd = reaching_definitions::reaching_definitions(function)?;
 
     // This is a set of assignments we will always consider used.
