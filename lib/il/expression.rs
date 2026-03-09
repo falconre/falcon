@@ -458,33 +458,9 @@ impl Expression {
     /// # Error
     /// The sort of the lhs and the rhs are not the same.
     #[allow(clippy::should_implement_trait)]
-    #[cfg(feature = "il-expression-ashr")]
     pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
         Expression::ensure_sort(&lhs, &rhs)?;
         Ok(Expression::AShr(Box::new(lhs), Box::new(rhs)))
-    }
-
-    /// Create an arithmetic shift-right `Expression`.
-    /// # Error
-    /// The sort of the lhs and the rhs are not the same.
-    #[allow(clippy::should_implement_trait)]
-    #[cfg(not(feature = "il-expression-ashr"))]
-    pub fn ashr(lhs: Expression, rhs: Expression) -> Result<Expression, Error> {
-        Expression::ensure_sort(&lhs, &rhs)?;
-
-        // Create the mask we apply if that lhs is signed
-        let mask = Expression::shl(expr_const(1, lhs.bits()), rhs.clone())?;
-        let mask = Expression::sub(mask, expr_const(1, lhs.bits()))?;
-        let mask = Expression::shl(
-            mask,
-            Expression::sub(expr_const(lhs.bits() as u64, lhs.bits()), rhs.clone())?,
-        )?;
-
-        // Multiple the mask by the sign bit
-        let expr = Expression::shr(lhs.clone(), expr_const(lhs.bits() as u64 - 1, lhs.bits()))?;
-        let expr = Expression::mul(mask, expr)?;
-
-        Expression::or(expr, Expression::shr(lhs, rhs)?)
     }
 
     /// Create an equals comparison `Expression`.

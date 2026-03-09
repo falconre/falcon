@@ -88,6 +88,8 @@ pub enum Error {
     DisassemblyFailure,
     #[error("Division by zero")]
     DivideByZero,
+    #[error("Elf Linker: missing symbol `{0}`")]
+    ElfLinkerMissingSymbol(String),
     #[error("Elf Linker: relocations unsuppored")]
     ElfLinkerRelocationsUnsupported,
     #[error("Executor received an invalid address")]

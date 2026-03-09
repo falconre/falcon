@@ -447,7 +447,7 @@ impl ElfLinker {
                 if let Some(value) = self.symbols.get(symbol_name) {
                     self.memory.set32(address, *value as u32)?;
                 } else {
-                    format!("Could not get symbol with name: \"{}\"", symbol_name);
+                    return Err(Error::ElfLinkerMissingSymbol(symbol_name.to_string()));
                 }
             }
             address += 4;
