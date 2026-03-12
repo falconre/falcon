@@ -1,4 +1,4 @@
-//! Capstone-based translator for MIPS.
+//! Capstone-based translator for PPC.
 
 use crate::il::*;
 use crate::translator::{unhandled_intrinsic, BlockTranslationResult, Options, Translator};
@@ -9,7 +9,7 @@ pub mod semantics;
 #[cfg(test)]
 mod test;
 
-/// The MIPS translator.
+/// The PPC translator.
 #[derive(Clone, Debug, Default)]
 pub struct Ppc;
 
@@ -223,7 +223,7 @@ fn translate_block(
                         let false_condition =
                             Expression::cmpneq(true_condition.clone(), expr_const(1, 1))?;
                         successors.push((instruction.address + 4, Some(false_condition)));
-                        successors.push((detail.operands[0].imm() as u64, Some(true_condition)));
+                        successors.push((detail.operands[2].imm() as u64, Some(true_condition)));
                     } else {
                         return Err(Error::Custom("Unhandled bc instruction".to_string()));
                     }
@@ -241,7 +241,7 @@ fn translate_block(
 
             length += instruction.size as usize;
         } else {
-            return Err(Error::Custom("not a MIPS instruction".to_string()));
+            return Err(Error::Custom("not a PPC instruction".to_string()));
         }
 
         offset += instruction.size as usize;

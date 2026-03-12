@@ -56,7 +56,7 @@ impl Elf {
                     }
                 }
             } else {
-                return Err(Error::UnsupprotedArchitecture);
+                return Err(Error::UnsupportedArchitecture);
             }
         };
 

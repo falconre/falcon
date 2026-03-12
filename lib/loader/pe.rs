@@ -29,7 +29,7 @@ impl Pe {
             } else if pe.header.coff_header.machine == goblin::pe::header::COFF_MACHINE_R4000 {
                 Box::new(Mips::new())
             } else {
-                return Err(Error::UnsupprotedArchitecture);
+                return Err(Error::UnsupportedArchitecture);
             }
         };
 

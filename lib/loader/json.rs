@@ -36,10 +36,10 @@ impl Json {
                 if architecture == "x86" {
                     Box::new(X86::new())
                 } else {
-                    return Err(Error::UnsupprotedArchitecture);
+                    return Err(Error::UnsupportedArchitecture);
                 }
             }
-            _ => return Err(Error::UnsupprotedArchitecture),
+            _ => return Err(Error::UnsupportedArchitecture),
         };
 
         let entry = match root["entry"] {

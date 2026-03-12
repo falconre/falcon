@@ -135,7 +135,7 @@ pub enum Error {
     #[error("An unhandled intrinsic was encountered during evaluation")]
     UnhandledIntrinsic(String),
     #[error("Unsupported Architecture")]
-    UnsupprotedArchitecture,
+    UnsupportedArchitecture,
     #[error("Utf8: `{0}`")]
     Utf8(#[from] std::string::FromUtf8Error),
 }

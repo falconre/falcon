@@ -436,7 +436,7 @@ where
         for offset in 0..bytes {
             let value = match self.load(address + offset, 8)? {
                 Some(v) => v,
-                None => match self.load_backing(address) {
+                None => match self.load_backing(address + offset) {
                     Some(v) => v,
                     None => return Ok(None),
                 },
@@ -611,6 +611,29 @@ mod memory_tests {
         assert_eq!(
             memory.load(0x106, 32).unwrap().unwrap(),
             il::const_(0x66AABBCC, 32)
+        );
+    }
+
+    #[test]
+    fn backing_fallback_uses_correct_offset() {
+        // Backing has only 2 bytes at 0x1000
+        let mut backing = memory::backing::Memory::new(Endian::Big);
+        backing.set_memory(0x1000, vec![0xAA, 0xBB], MemoryPermissions::ALL);
+
+        let mut memory: Memory<il::Constant> =
+            Memory::new_with_backing(Endian::Big, RC::new(backing));
+
+        // Store a 16-bit paged value overlaying bytes 0x1000-0x1001
+        memory.store(0x1000, il::const_(0x1122, 16)).unwrap();
+
+        // Load 32 bits. Bytes 0-1 come from paged (0x11, 0x22).
+        // Bytes 2-3 have no source (no cell, no backing at 0x1002-0x1003).
+        // Should return None.
+        let result = memory.load(0x1000, 32).unwrap();
+        assert!(
+            result.is_none(),
+            "Expected None (bytes 0x1002-0x1003 have no data), got {:?}",
+            result
         );
     }
 
