@@ -27,8 +27,7 @@ fn init_driver_block<'d>(
         .chain(Some(&NOP))
         // The following code can be rewritten as `encoding.to_le_bytes()
         // .into_iter()` in Rust 2021 but not in Rust 2018
-        .map(|encoding| IntoIterator::into_iter(encoding.to_le_bytes()))
-        .flatten()
+        .flat_map(|encoding| IntoIterator::into_iter(encoding.to_le_bytes()))
         .collect();
 
     let mut backing = memory::backing::Memory::new(Endian::Big);

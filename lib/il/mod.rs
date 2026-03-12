@@ -6,17 +6,17 @@
 //! intermediate language for the analysis of Binary Programs.
 //!
 //! * **Simple** - Falcon IL has 21 expression types (including terminals), and
-//! 5 operation types, minimizing the work required to implement analyses.
+//!   5 operation types, minimizing the work required to implement analyses.
 //! * **Expression-based** - Falcon IL operates over expressions, as opposed to
-//! a [three-address form](https://en.wikipedia.org/wiki/Three-address_code)
-//! like REIL/RREIL.
+//!   a [three-address form](https://en.wikipedia.org/wiki/Three-address_code)
+//!   like REIL/RREIL.
 //! * **Well-defined** - Falcon IL is specified with rust's enumerated types,
-//! leaving no ambiguity in the IL.
+//!   leaving no ambiguity in the IL.
 //! * **Semantically accurate** - Falcon IL accurately captures the semantics of
-//! underlying architectures. This is mainly a function of the lifters.  A
-//! divergence in the lifted semantics and the target architecture is a bug.
-//! This makes Falcon IL suitable for analyses which require precision in the
-//! semantics.
+//!   underlying architectures. This is mainly a function of the lifters.  A
+//!   divergence in the lifted semantics and the target architecture is a bug.
+//!   This makes Falcon IL suitable for analyses which require precision in the
+//!   semantics.
 //!
 //! ## Limitations
 //!
@@ -68,7 +68,7 @@
 //!
 //! * Terminals: `Scalar`, `Constant`.
 //! * Arithmetic: `Add`, `Sub`, `Mul`, `Divu`, `Modu`, `Divs`, `Mods`, `And`,
-//! `Or`, `Xor`, `Shl`, `Shr`.
+//!   `Or`, `Xor`, `Shl`, `Shr`.
 //! * Comparison: `Cmpeq`, `Cmpneq`, `Cmplts`, `Cmpltu`.
 //! * Extension: `Zext`, `Sext`, `Trun`.
 //! * Ternary: `Ite`
@@ -90,19 +90,19 @@
 //!
 //! * `Assign`: Assigns an `Expression` to a `Scalar`.
 //! * `Store`: Stores an `Expression` indexed by an `Expression`. The size of
-//! the store will be determined by the size of the expression being stored.
+//!   the store will be determined by the size of the expression being stored.
 //! * `Load`: Loads an `Expression` indexed by an `Expression`, and places the
-//! result into a `Scalar`. The size of the load will be determined by the size
-//! of the Scalar being loaded into.
+//!   result into a `Scalar`. The size of the load will be determined by the size
+//!   of the Scalar being loaded into.
 //! * `Branch`: Branch to the address in the given `Expression`.
 //! * `Intrinsic`: The `Intrinsic` operation is used when a Falcon lifter cannot
-//! capture the semantics of a lifted instruction. Dealing with intrinsic
-//! instructions is left to the user.
+//!   capture the semantics of a lifted instruction. Dealing with intrinsic
+//!   instructions is left to the user.
 //! * `Nop`: The nop instruction is used to provide an instruction, which has a
-//! location, when no operation needs take place at that location. For example,
-//! Intra-precedural direct branches lifted as edges in the `ControlFlowGraph`,
-//! and `Nop` is emitted in case a follow-on analysis needs to find the address
-//! where that branching instruction was originally located.
+//!   location, when no operation needs take place at that location. For example,
+//!   Intra-precedural direct branches lifted as edges in the `ControlFlowGraph`,
+//!   and `Nop` is emitted in case a follow-on analysis needs to find the address
+//!   where that branching instruction was originally located.
 //!
 //! When lifting, direct conditional branches such as X86 `je` or MIPS `be` do
 //! not result in an `Operation::Branch`. Instead, the instruction will be

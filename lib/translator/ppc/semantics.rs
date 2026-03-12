@@ -560,7 +560,7 @@ pub fn bclr(
     let branch_target = expr_scalar("lr", 32);
 
     match bo & 0x1f {
-        0b00000 | 0b00001 | 0b00010 | 0b00011 => {
+        0b00000..=0b00011 => {
             // Decrement the CTR, then branch if condition is false
             let head_index = {
                 let block = control_flow_graph.new_block()?;
@@ -589,7 +589,7 @@ pub fn bclr(
             control_flow_graph.set_entry(head_index)?;
             control_flow_graph.set_exit(false_index)?;
         }
-        0b00100 | 0b00101 | 0b00110 | 0b00111 => {
+        0b00100..=0b00111 => {
             // Branch if the condition is false
             let head_index = { control_flow_graph.new_block()?.index() };
 
@@ -611,7 +611,7 @@ pub fn bclr(
             control_flow_graph.set_entry(head_index)?;
             control_flow_graph.set_exit(false_index)?;
         }
-        0b01000 | 0b01001 | 0b01010 | 0b01011 => {
+        0b01000..=0b01011 => {
             // Decrement the CTR, then branch if condition is true
             let head_index = {
                 let block = control_flow_graph.new_block()?;
@@ -640,7 +640,7 @@ pub fn bclr(
             control_flow_graph.set_entry(head_index)?;
             control_flow_graph.set_exit(false_index)?;
         }
-        0b01100 | 0b01101 | 0b01110 | 0b01111 => {
+        0b01100..=0b01111 => {
             // Branch if the condition is true
             let head_index = { control_flow_graph.new_block()?.index() };
 

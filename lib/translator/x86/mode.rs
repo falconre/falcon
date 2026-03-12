@@ -82,16 +82,10 @@ impl Mode {
                 };
 
                 // Handle base and scale/index
-                let op: Option<Expression> = if base.is_some() {
-                    if si.is_some() {
-                        Some(Expr::add(base.unwrap(), si.unwrap())?)
-                    } else {
-                        base
-                    }
-                } else if si.is_some() {
-                    si
-                } else {
-                    None
+                let op: Option<Expression> = match (base, si) {
+                    (Some(base), Some(si)) => Some(Expr::add(base, si)?),
+                    (Some(base), None) => Some(base),
+                    (None, si) => si,
                 };
 
                 // handle disp
@@ -132,8 +126,6 @@ impl Mode {
                 };
                 Ok(expr_const(operand.imm() as u64, operand_size))
             }
-            #[cfg(not(feature = "capstone4"))]
-            x86_op_type::X86_OP_FP => Err("Unhandled operand".into()),
         }
     }
 
@@ -174,8 +166,6 @@ impl Mode {
                 block.store(address, value);
                 Ok(())
             }
-            #[cfg(not(feature = "capstone4"))]
-            x86_op_type::X86_OP_FP => Err("operand_store called on fp operand".into()),
         }
     }
 

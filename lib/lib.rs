@@ -6,7 +6,7 @@
 //! programs. A quick synopsis of Falcon's modules:
 //!
 //! * **analysis** - A fixed-point engine and methods for abstract interpretation
-//! over Falcon IL. Example, usable analyses are given.
+//!   over Falcon IL. Example, usable analyses are given.
 //! * **architecture** - Information on Falcon's supported architectures.
 //! * **executor** - A concrete execution engine over Falcon IL.
 //! * **graph** - A simple directed graph library.
@@ -88,6 +88,8 @@ pub enum Error {
     DisassemblyFailure,
     #[error("Division by zero")]
     DivideByZero,
+    #[error("Elf Linker: missing symbol `{0}`")]
+    ElfLinkerMissingSymbol(String),
     #[error("Elf Linker: relocations unsuppored")]
     ElfLinkerRelocationsUnsupported,
     #[error("Executor received an invalid address")]

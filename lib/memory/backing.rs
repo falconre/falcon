@@ -185,7 +185,7 @@ impl Memory {
 
     /// Get a constant value up to a certain number of bits
     pub fn get(&self, address: u64, bits: usize) -> Option<il::Constant> {
-        if bits % 8 > 0 || bits == 0 {
+        if !bits.is_multiple_of(8) || bits == 0 {
             return None;
         }
 
@@ -285,7 +285,7 @@ impl Memory {
                     self.sections.get_mut(&a).unwrap().truncate(new_length);
                 }
             } else if a >= address && a + l <= address + data.len() as u64 {
-                if self.sections.get(&a).is_none() {
+                if !self.sections.contains_key(&a) {
                     panic!(
                         "About to remove 0x{:x} from sections in \
                             backing::Memory::set_memory, but address does not

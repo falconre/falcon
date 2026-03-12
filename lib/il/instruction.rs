@@ -202,7 +202,7 @@ impl Instruction {
         let mut scalars = self
             .scalars_written()?
             .into_iter()
-            .chain(self.scalars_read()?.into_iter())
+            .chain(self.scalars_read()?)
             .collect::<Vec<&Scalar>>();
 
         scalars.sort();

@@ -93,13 +93,9 @@ impl Operation {
     pub fn scalars_read(&self) -> Option<Vec<&Scalar>> {
         match *self {
             Operation::Assign { ref src, .. } => Some(src.scalars()),
-            Operation::Store { ref index, ref src } => Some(
-                index
-                    .scalars()
-                    .into_iter()
-                    .chain(src.scalars().into_iter())
-                    .collect(),
-            ),
+            Operation::Store { ref index, ref src } => {
+                Some(index.scalars().into_iter().chain(src.scalars()).collect())
+            }
             Operation::Load { ref index, .. } => Some(index.scalars()),
             Operation::Branch { ref target } => Some(target.scalars()),
             Operation::Intrinsic { ref intrinsic } => intrinsic.scalars_read(),
@@ -118,7 +114,7 @@ impl Operation {
                 index
                     .scalars_mut()
                     .into_iter()
-                    .chain(src.scalars_mut().into_iter())
+                    .chain(src.scalars_mut())
                     .collect(),
             ),
             Operation::Load { ref mut index, .. } => Some(index.scalars_mut()),

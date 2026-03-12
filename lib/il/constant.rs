@@ -376,7 +376,7 @@ impl Constant {
     }
 
     pub fn sext(&self, bits: usize) -> Result<Constant, Error> {
-        if bits <= self.bits() || bits % 8 > 0 {
+        if bits <= self.bits() || !bits.is_multiple_of(8) {
             Err(Error::Sort)
         } else {
             let sign_bit = self.value.clone() >> (self.bits - 1);

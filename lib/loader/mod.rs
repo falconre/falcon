@@ -145,7 +145,7 @@ pub trait Loader: fmt::Debug + Send + Sync {
             // Ensure this memory is marked executable
             if memory
                 .permissions(address)
-                .map_or(false, |p| p.contains(memory::MemoryPermissions::EXECUTE))
+                .is_some_and(|p| p.contains(memory::MemoryPermissions::EXECUTE))
             {
                 match translator.translate_function_extended(&memory, address, options) {
                     Ok(mut function) => {

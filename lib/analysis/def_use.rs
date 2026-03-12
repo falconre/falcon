@@ -15,7 +15,7 @@ pub fn def_use(
     let mut du: HashMap<il::ProgramLocation, LocationSet> = HashMap::new();
 
     for location in rd.keys() {
-        du.entry(location.clone()).or_insert_with(LocationSet::new);
+        du.entry(location.clone()).or_default();
         match location.function_location().apply(function).unwrap() {
             il::RefFunctionLocation::Instruction(_, instruction) => instruction
                 .operation()
@@ -33,9 +33,7 @@ pub fn def_use(
                             .into_iter()
                             .for_each(|scalar_written| {
                                 if scalar_written == scalar_read {
-                                    du.entry(rd.clone())
-                                        .or_insert_with(LocationSet::new)
-                                        .insert(location.clone());
+                                    du.entry(rd.clone()).or_default().insert(location.clone());
                                 }
                             })
                     })
@@ -55,9 +53,7 @@ pub fn def_use(
                             {
                                 scalars_written.into_iter().for_each(|scalar_written| {
                                     if scalar_written == scalar_read {
-                                        du.entry(rd.clone())
-                                            .or_insert_with(LocationSet::new)
-                                            .insert(location.clone());
+                                        du.entry(rd.clone()).or_default().insert(location.clone());
                                     }
                                 })
                             }

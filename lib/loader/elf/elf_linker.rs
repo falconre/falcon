@@ -190,7 +190,7 @@ impl ElfLinker {
 
             // Add its exported symbols to our symbols
             for symbol in elf.exported_symbols() {
-                if self.symbols.get(symbol.name()).is_some() {
+                if self.symbols.contains_key(symbol.name()) {
                     continue;
                 }
                 self.symbols.insert(
@@ -211,7 +211,7 @@ impl ElfLinker {
         } else {
             // Ensure all shared objects we rely on are loaded
             for so_name in self.loaded[&filename].dt_needed()? {
-                if self.loaded.get(&so_name).is_none() {
+                if !self.loaded.contains_key(&so_name) {
                     self.next_lib_address += LIB_BASE_STEP;
                     let next_lib_address = self.next_lib_address;
                     self.load_elf(Path::new(&so_name), next_lib_address)?;
@@ -447,7 +447,7 @@ impl ElfLinker {
                 if let Some(value) = self.symbols.get(symbol_name) {
                     self.memory.set32(address, *value as u32)?;
                 } else {
-                    format!("Could not get symbol with name: \"{}\"", symbol_name);
+                    return Err(Error::ElfLinkerMissingSymbol(symbol_name.to_string()));
                 }
             }
             address += 4;
