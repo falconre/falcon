@@ -82,16 +82,10 @@ impl Mode {
                 };
 
                 // Handle base and scale/index
-                let op: Option<Expression> = if base.is_some() {
-                    if si.is_some() {
-                        Some(Expr::add(base.unwrap(), si.unwrap())?)
-                    } else {
-                        base
-                    }
-                } else if si.is_some() {
-                    si
-                } else {
-                    None
+                let op: Option<Expression> = match (base, si) {
+                    (Some(base), Some(si)) => Some(Expr::add(base, si)?),
+                    (Some(base), None) => Some(base),
+                    (None, si) => si,
                 };
 
                 // handle disp

@@ -190,12 +190,14 @@ pub trait Translator {
             for &(address, ref instruction_graph) in block_translation_result.instructions().iter()
             {
                 // Have we already inserted this instruction?
-                let (entry, exit) = if instruction_indices.get(&address).is_some() {
-                    instruction_indices[&address]
-                } else {
+                let (entry, exit) = if let std::collections::btree_map::Entry::Vacant(e) =
+                    instruction_indices.entry(address)
+                {
                     let (entry, exit) = control_flow_graph.insert(instruction_graph)?;
-                    instruction_indices.insert(address, (entry, exit));
+                    e.insert((entry, exit));
                     (entry, exit)
+                } else {
+                    instruction_indices[&address]
                 };
                 // If this is not our first instruction through this block.
                 if let Some(previous_exit) = previous_exit {

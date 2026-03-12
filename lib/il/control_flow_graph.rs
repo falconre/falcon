@@ -150,11 +150,7 @@ impl ControlFlowGraph {
 
     /// Returns the entry block for this ControlFlowGraph
     pub fn entry_block(&self) -> Option<Result<&Block, Error>> {
-        if self.entry.is_none() {
-            None
-        } else {
-            Some(self.block(self.entry.unwrap()))
-        }
+        self.entry.map(|entry| self.block(entry))
     }
 
     /// Generates a temporary scalar unique to this control flow graph.

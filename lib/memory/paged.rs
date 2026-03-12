@@ -230,7 +230,7 @@ where
     /// The value must have a bit-width >= 8, and the bit-width must be evenly
     /// divisible by 8.
     pub fn store(&mut self, address: u64, value: V) -> Result<(), Error> {
-        if value.bits() % 8 != 0 || value.bits() == 0 {
+        if !value.bits().is_multiple_of(8) || value.bits() == 0 {
             return Err(format!(
                 "Storing value in paged memory with bit width not divisible by 8 and > 0 {}",
                 value.bits()
@@ -319,7 +319,7 @@ where
     /// If a value cannot be retrieved for all bits of the load, `None` will
     /// be returned.
     pub fn load(&self, address: u64, bits: usize) -> Result<Option<V>, Error> {
-        if bits % 8 != 0 {
+        if !bits.is_multiple_of(8) {
             return Err(format!("Loading paged memory with non-8 bit-width {}", bits).into());
         } else if bits == 0 {
             return Err("Loading paged memory with 0 bit-width".into());

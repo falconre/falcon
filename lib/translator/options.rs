@@ -16,7 +16,7 @@ impl ManualEdge {
     /// Create a new manual edge
     ///
     /// * `head_address` - The address of the instruction where this manual edge
-    /// should begin.
+    ///   should begin.
     /// * `tail_address` - The address of the block this edge should point to.
     /// * `condition` - An optional condition which guards this edge.
     ///

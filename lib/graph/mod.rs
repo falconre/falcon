@@ -536,7 +536,7 @@ where
         // Compute semidominators in reverse preorder (without root)
         let mut semi = FxHashMap::default();
         for &vertex in dfs_pre_order.iter().skip(1).rev() {
-            let mut min_semi = std::usize::MAX;
+            let mut min_semi = usize::MAX;
 
             for &pred in &self.predecessors[&vertex] {
                 if ancestor[&pred].is_some() {
@@ -1022,7 +1022,7 @@ where
             })
             .collect::<Vec<String>>();
 
-        let options = vec![
+        let options = [
             "graph [fontname = \"Courier New\", splines=\"polyline\"]",
             "node [fontname = \"Courier New\"]",
             "edge [fontname = \"Courier New\"]",

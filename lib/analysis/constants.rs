@@ -168,17 +168,15 @@ impl Constants {
     pub fn eval(&self, expression: &il::Expression) -> Option<il::Constant> {
         let expression_scalars = expression.scalars();
 
-        let expression = expression_scalars.into_iter().fold(
-            Some(expression.clone()),
-            |expression, scalar| {
-                self.scalar(scalar).and_then(|constant| {
-                    expression.map(|expr| {
+        let expression =
+            expression_scalars
+                .into_iter()
+                .try_fold(expression.clone(), |expr, scalar| {
+                    self.scalar(scalar).map(|constant| {
                         expr.replace_scalar(scalar, &constant.clone().into())
                             .unwrap()
                     })
-                })
-            },
-        )?;
+                })?;
 
         eval(&expression).ok()
     }
