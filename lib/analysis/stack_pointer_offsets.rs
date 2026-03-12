@@ -52,7 +52,7 @@ impl StackPointerOffset {
         self.value().is_some()
     }
 
-    pub fn is_bototm(&self) -> bool {
+    pub fn is_bottom(&self) -> bool {
         matches!(self, StackPointerOffset::Bottom)
     }
 
@@ -225,5 +225,17 @@ impl<'f> fixed_point::FixedPointAnalysis<'f, IntermediateOffset> for StackPointe
                 IntermediateOffset::Bottom => IntermediateOffset::Bottom,
             },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_bottom_method_works() {
+        assert!(StackPointerOffset::Bottom.is_bottom());
+        assert!(!StackPointerOffset::Top.is_bottom());
+        assert!(!StackPointerOffset::Value(42).is_bottom());
     }
 }

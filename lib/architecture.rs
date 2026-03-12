@@ -183,7 +183,7 @@ impl Architecture for Mipsel {
         "mipsel"
     }
     fn endian(&self) -> Endian {
-        Endian::Big
+        Endian::Little
     }
     fn translator(&self) -> Box<dyn translator::Translator> {
         Box::new(translator::mips::Mipsel::new())
@@ -202,7 +202,7 @@ impl Architecture for Mipsel {
     }
 }
 
-/// The 32-bit Mips Architecture.
+/// The 32-bit PPC Architecture.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Ppc {}
 
@@ -239,6 +239,22 @@ impl Architecture for Ppc {
 /// The 32-bit X86 Architecture.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct X86 {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mipsel_endianness_is_little() {
+        assert_eq!(Mipsel::new().endian(), Endian::Little);
+    }
+
+    #[test]
+    fn unsupported_architecture_error_exists() {
+        let err = crate::Error::UnsupportedArchitecture;
+        assert!(format!("{}", err).contains("Unsupported"));
+    }
+}
 
 impl X86 {
     pub fn new() -> X86 {
