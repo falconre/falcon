@@ -3477,16 +3477,18 @@ impl<'s> Semantics<'s> {
             }
 
             let rhs = Expr::add(rhs.clone(), Expr::zext(rhs.bits(), expr_scalar("CF", 1))?)?;
-            let expr = Expr::sub(lhs.clone(), rhs.clone())?;
+
+            let result = self.temp(0, lhs.bits());
+            block.assign(result.clone(), Expr::sub(lhs.clone(), rhs.clone())?);
 
             // calculate flags
-            self.set_zf(block, expr.clone())?;
-            self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), lhs.clone(), rhs, true)?;
-            self.set_cf(block, expr.clone(), lhs)?;
+            self.set_zf(block, result.clone().into())?;
+            self.set_sf(block, result.clone().into())?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs, true)?;
+            self.set_cf(block, result.clone().into(), lhs)?;
 
             // store result
-            self.operand_store(block, &detail.operands[0], expr)?;
+            self.operand_store(block, &detail.operands[0], result.into())?;
 
             block.index()
         };
