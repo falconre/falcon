@@ -1575,7 +1575,7 @@ impl<'s> Semantics<'s> {
             let block = control_flow_graph.new_block()?;
 
             let divisor = self.operand_load(block, &detail.operands[0])?;
-            let divisor = Expr::zext(divisor.bits() * 2, divisor)?;
+            let divisor = Expr::sext(divisor.bits() * 2, divisor)?;
 
             let dividend: Expr = match divisor.bits() {
                 16 => self.get_register(x86_reg::X86_REG_AX)?.get()?,
@@ -1601,7 +1601,7 @@ impl<'s> Semantics<'s> {
                     let expr_edx = Expr::shl(expr_edx, expr_const(64, 128))?;
                     Expr::or(
                         expr_edx,
-                        Expr::zext(128, self.get_register(x86_reg::X86_REG_EAX)?.get()?)?,
+                        Expr::zext(128, self.get_register(x86_reg::X86_REG_RAX)?.get()?)?,
                     )?
                 }
                 _ => return Err("invalid bit-width in x86 div".into()),
@@ -1638,8 +1638,8 @@ impl<'s> Semantics<'s> {
                 128 => {
                     let rax = self.get_register(x86_reg::X86_REG_RAX)?;
                     let rdx = self.get_register(x86_reg::X86_REG_RDX)?;
-                    rax.set(block, Expr::trun(32, quotient.into())?)?;
-                    rdx.set(block, Expr::trun(32, remainder.into())?)?;
+                    rax.set(block, Expr::trun(64, quotient.into())?)?;
+                    rdx.set(block, Expr::trun(64, remainder.into())?)?;
                 }
                 _ => return Err("invalid bit-width in x86 div".into()),
             }
