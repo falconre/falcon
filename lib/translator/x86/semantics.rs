@@ -3779,24 +3779,35 @@ impl<'s> Semantics<'s> {
             let rhs = self.operand_load(block, &detail.operands[1])?;
             let count = self.operand_load(block, &detail.operands[2])?;
 
+            let bits = dst.bits();
             let tmp = Expr::or(
                 Expr::shl(
-                    Expr::zext(dst.bits() * 2, dst.clone())?,
-                    expr_const(dst.bits() as u64, dst.bits() * 2),
+                    Expr::zext(bits * 2, dst.clone())?,
+                    expr_const(bits as u64, bits * 2),
                 )?,
-                Expr::zext(dst.bits() * 2, rhs)?,
+                Expr::zext(bits * 2, rhs)?,
             )?;
 
-            let result = Expr::shl(tmp.clone(), Expr::zext(tmp.bits(), count.clone())?)?;
+            let shifted = Expr::shl(tmp.clone(), Expr::zext(tmp.bits(), count.clone())?)?;
+            // Extract the high bits (the SHLD result)
+            let result = Expr::trun(
+                bits,
+                Expr::shr(shifted, expr_const(bits as u64, bits * 2))?,
+            )?;
 
+            // CF = last bit shifted out = MSB of (tmp << (count-1))
+            let cf_shifted = Expr::shl(
+                tmp.clone(),
+                Expr::zext(
+                    tmp.bits(),
+                    Expr::sub(count.clone(), expr_const(1, count.bits()))?,
+                )?,
+            )?;
             let cf = Expr::trun(
                 1,
-                Expr::shl(
-                    tmp.clone(),
-                    Expr::zext(
-                        tmp.bits(),
-                        Expr::sub(count.clone(), expr_const(1, count.bits()))?,
-                    )?,
+                Expr::shr(
+                    cf_shifted.clone(),
+                    expr_const(cf_shifted.bits() as u64 - 1, cf_shifted.bits()),
                 )?,
             )?;
 
@@ -3805,7 +3816,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(block, result.clone())?;
             self.set_sf(block, result.clone())?;
 
-            self.operand_store(block, &detail.operands[0], Expr::trun(dst.bits(), result)?)?;
+            self.operand_store(block, &detail.operands[0], result)?;
 
             block.index()
         };
@@ -3827,16 +3838,20 @@ impl<'s> Semantics<'s> {
             let rhs = self.operand_load(block, &detail.operands[1])?;
             let count = self.operand_load(block, &detail.operands[2])?;
 
+            let bits = dst.bits();
             let tmp = Expr::or(
-                Expr::zext(dst.bits() * 2, dst.clone())?,
+                Expr::zext(bits * 2, dst.clone())?,
                 Expr::shl(
-                    Expr::zext(dst.bits() * 2, rhs)?,
-                    expr_const(dst.bits() as u64, dst.bits() * 2),
+                    Expr::zext(bits * 2, rhs)?,
+                    expr_const(bits as u64, bits * 2),
                 )?,
             )?;
 
-            let result = Expr::shr(tmp.clone(), Expr::zext(tmp.bits(), count.clone())?)?;
+            let shifted = Expr::shr(tmp.clone(), Expr::zext(tmp.bits(), count.clone())?)?;
+            // Extract the low bits (the SHRD result)
+            let result = Expr::trun(bits, shifted)?;
 
+            // CF = last bit shifted out (trun(1) is correct for right shift)
             let cf = Expr::trun(
                 1,
                 Expr::shr(
@@ -3853,7 +3868,7 @@ impl<'s> Semantics<'s> {
             self.set_zf(block, result.clone())?;
             self.set_sf(block, result.clone())?;
 
-            self.operand_store(block, &detail.operands[0], Expr::trun(dst.bits(), result)?)?;
+            self.operand_store(block, &detail.operands[0], result)?;
 
             block.index()
         };
