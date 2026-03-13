@@ -2932,11 +2932,10 @@ impl<'s> Semantics<'s> {
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 
-            if rhs.bits() < lhs.bits() {
-                rhs = Expression::zext(lhs.bits(), rhs)?;
-            }
+            // PSLLDQ shifts by bytes, convert to bits
+            let shift_bits = Expression::shl(rhs, expr_const(3, lhs.bits()))?;
 
-            self.operand_store(block, &detail.operands[0], Expression::shl(lhs, rhs)?)?;
+            self.operand_store(block, &detail.operands[0], Expression::shl(lhs, shift_bits)?)?;
 
             block.index()
         };
@@ -2961,7 +2960,10 @@ impl<'s> Semantics<'s> {
                 rhs = Expression::zext(lhs.bits(), rhs)?;
             }
 
-            self.operand_store(block, &detail.operands[0], Expression::shr(lhs, rhs)?)?;
+            // PSRLDQ shifts by bytes, convert to bits
+            let shift_bits = Expression::shl(rhs, expr_const(3, lhs.bits()))?;
+
+            self.operand_store(block, &detail.operands[0], Expression::shr(lhs, shift_bits)?)?;
 
             block.index()
         };
