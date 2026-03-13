@@ -306,7 +306,8 @@ impl Constant {
                     if msb.is_zero() {
                         value
                     } else {
-                        let all_one = BigUint::from_u64(u64::MAX).unwrap();
+                        let all_one = (BigUint::from_u64(1).unwrap() << self.bits)
+                            - BigUint::from_u64(1).unwrap();
                         let fill = all_one << (self.bits - bits);
                         fill | value
                     }
@@ -559,6 +560,37 @@ fn constant_cmpltu() {
         Constant::new(1, 64).cmpltu(&Constant::new(2, 64)).unwrap(),
         Constant::new(1, 1)
     );
+}
+
+#[test]
+fn constant_ashr_128bit() {
+    // Bug: ashr sign-extension fill uses u64::MAX (64 1-bits), which is insufficient
+    // for >64-bit values. A 128-bit negative value shifted right by 96 should have
+    // 96 positions of sign extension, but only 64 are filled.
+    //
+    // 128-bit value with only the sign bit set: 0x80000000_00000000_00000000_00000000
+    // Arithmetic shift right by 96 should produce: 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_80000000
+    use num_bigint::BigUint;
+    use num_traits::FromPrimitive;
+
+    // Build the 128-bit value: 1 << 127
+    let value = BigUint::from_u64(1).unwrap() << 127usize;
+    let lhs = Constant::new_big(value, 128);
+    let rhs = Constant::new(96, 128);
+
+    let result = lhs.ashr(&rhs).unwrap();
+
+    // Expected: 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_80000000
+    // That's (2^128 - 1) - (2^31 - 1) = all 1s except bits 0-30 are 0, bit 31 is 1
+    // More precisely: bits 31-127 are all 1, bits 0-30 are 0
+    let expected_value = {
+        let full_mask = (BigUint::from_u64(1).unwrap() << 128usize) - BigUint::from_u64(1).unwrap();
+        let low_mask = (BigUint::from_u64(1).unwrap() << 31usize) - BigUint::from_u64(1).unwrap();
+        full_mask - low_mask
+    };
+    let expected = Constant::new_big(expected_value, 128);
+
+    assert_eq!(result, expected);
 }
 
 #[test]
