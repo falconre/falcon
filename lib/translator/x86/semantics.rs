@@ -4115,6 +4115,10 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(block, &detail.operands[0])?;
             let rhs = self.operand_load(block, &detail.operands[1])?;
 
+            // save original dest to temp before it gets overwritten
+            let original_dest = self.temp(1, lhs.bits());
+            block.assign(original_dest.clone(), lhs.clone());
+
             let result = self.temp(0, lhs.bits());
 
             // perform addition
@@ -4123,12 +4127,15 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(block, result.clone().into(), lhs.clone(), rhs.clone(), false)?;
-            self.set_cf(block, result.clone().into(), lhs)?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs, false)?;
+            block.assign(
+                scalar("CF", 1),
+                Expression::cmpltu(result.clone().into(), lhs)?,
+            );
 
-            // store result
+            // store result: dest gets sum, src gets original dest
             self.operand_store(block, &detail.operands[0], result.into())?;
-            self.operand_store(block, &detail.operands[1], rhs)?;
+            self.operand_store(block, &detail.operands[1], original_dest.into())?;
 
             block.index()
         };
