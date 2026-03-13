@@ -2049,7 +2049,7 @@ impl<'s> Semantics<'s> {
 
             si.set(
                 block,
-                Expr::add(si.get()?, expr_const(1, self.mode().bits()))?,
+                Expr::add(si.get()?, expr_const(4, self.mode().bits()))?,
             )?;
 
             block.index()
@@ -2060,7 +2060,7 @@ impl<'s> Semantics<'s> {
 
             si.set(
                 block,
-                Expr::sub(si.get()?, expr_const(1, self.mode().bits()))?,
+                Expr::sub(si.get()?, expr_const(4, self.mode().bits()))?,
             )?;
 
             block.index()
