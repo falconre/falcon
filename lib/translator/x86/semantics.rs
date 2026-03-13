@@ -2573,11 +2573,11 @@ impl<'s> Semantics<'s> {
                 self.operand_store(block, &detail.operands[0], Expr::add(lhs, rhs)?)?;
             } else if lhs.bits() == 128 {
                 let upper = Expr::shl(
-                    expr_const(64, 128),
                     Expr::add(
-                        Expr::shr(expr_const(64, 128), lhs.clone())?,
-                        Expr::shr(expr_const(64, 128), lhs.clone())?,
+                        Expr::shr(lhs.clone(), expr_const(64, 128))?,
+                        Expr::shr(rhs.clone(), expr_const(64, 128))?,
                     )?,
+                    expr_const(64, 128),
                 )?;
                 let lower =
                     Expr::and(expr_const(0xffff_ffff_ffff_ffff, 128), Expr::add(lhs, rhs)?)?;
@@ -3029,14 +3029,14 @@ impl<'s> Semantics<'s> {
                 self.operand_store(block, &detail.operands[0], Expr::sub(lhs, rhs)?)?;
             } else if lhs.bits() == 128 {
                 let upper = Expr::shl(
-                    expr_const(64, 128),
                     Expr::sub(
-                        Expr::shr(expr_const(64, 128), lhs.clone())?,
-                        Expr::shr(expr_const(64, 128), lhs.clone())?,
+                        Expr::shr(lhs.clone(), expr_const(64, 128))?,
+                        Expr::shr(rhs.clone(), expr_const(64, 128))?,
                     )?,
+                    expr_const(64, 128),
                 )?;
                 let lower =
-                    Expr::sub(expr_const(0xffff_ffff_ffff_ffff, 128), Expr::sub(lhs, rhs)?)?;
+                    Expr::and(expr_const(0xffff_ffff_ffff_ffff, 128), Expr::sub(lhs, rhs)?)?;
                 self.operand_store(block, &detail.operands[0], Expr::or(upper, lower)?)?;
             }
 
