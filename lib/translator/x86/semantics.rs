@@ -1347,7 +1347,7 @@ impl<'s> Semantics<'s> {
     pub fn cmpxchg(&self, control_flow_graph: &mut ControlFlowGraph) -> Result<(), Error> {
         let detail = self.details()?;
 
-        let (head_index, dest, lhs, rhs) = {
+        let (head_index, dest, lhs, rhs, cmp_lhs, cmp_rhs) = {
             let block = control_flow_graph.new_block()?;
 
             let lhs = self.operand_load(block, &detail.operands[0])?;
@@ -1366,7 +1366,14 @@ impl<'s> Semantics<'s> {
                 }
             };
 
-            (block.index(), dest, lhs, rhs)
+            // Save comparison operands to temps before conditional paths
+            // modify them. CMP is: accumulator - first_operand (dest.get - lhs).
+            let cmp_lhs = self.temp(0, lhs.bits());
+            let cmp_rhs = self.temp(1, lhs.bits());
+            block.assign(cmp_lhs.clone(), dest.get()?);
+            block.assign(cmp_rhs.clone(), lhs.clone());
+
+            (block.index(), dest, lhs, rhs, cmp_lhs, cmp_rhs)
         };
 
         let taken_index = {
@@ -1390,10 +1397,11 @@ impl<'s> Semantics<'s> {
         let tail_index = {
             let block = control_flow_graph.new_block()?;
 
-            let result = Expr::sub(lhs.clone(), rhs.clone())?;
+            // Flags from CMP (accumulator - first_operand), using saved temps
+            let result = Expr::sub(cmp_lhs.clone().into(), cmp_rhs.clone().into())?;
             self.set_sf(block, result.clone())?;
-            self.set_of(block, result.clone(), lhs.clone(), rhs, true)?;
-            self.set_cf(block, result, lhs.clone())?;
+            self.set_of(block, result.clone(), cmp_lhs.clone().into(), cmp_rhs.into(), true)?;
+            self.set_cf(block, result, cmp_lhs.into())?;
 
             block.index()
         };
