@@ -1286,7 +1286,14 @@ impl<'s> Semantics<'s> {
         let head_index = {
             let block = control_flow_graph.new_block()?;
 
-            let lhs = self.operand_load(block, &detail.operands[0])?;
+            // Save first operand load to a temp before loading second,
+            // because operand_load reuses the same internal temp scalar
+            // for both memory operands at the same instruction address.
+            let lhs_loaded = self.operand_load(block, &detail.operands[0])?;
+            let lhs_temp = self.temp(0, lhs_loaded.bits());
+            block.assign(lhs_temp.clone(), lhs_loaded);
+            let lhs: Expression = lhs_temp.into();
+
             let mut rhs = self.operand_load(block, &detail.operands[1])?;
 
             if rhs.bits() != lhs.bits() {
