@@ -3676,14 +3676,15 @@ impl<'s> Semantics<'s> {
                     Expr::cmpneq(rhs.clone(), expr_const(0, rhs.bits()))?,
                 )?,
             )?;
-            // This shifts lhs left by (rhs - 1)
+            // Shift lhs left by (rhs - 1), putting the last-shifted-out bit at the MSB
             let cf = Expr::shl(lhs, Expr::sub(rhs.clone(), expr_const(1, rhs.bits()))?)?;
-            // Apply mask
+            // Extract MSB (shift right by bits-1), then apply non-zero mask
+            let cf = Expr::shr(cf.clone(), expr_const(cf.bits() as u64 - 1, cf.bits()))?;
             let cf = Expr::trun(1, Expr::and(cf, non_zero_mask)?)?;
             block.assign(scalar("CF", 1), cf.clone());
 
-            // OF is set if most significant bit of result is equal to OF
-            let of = Expr::cmpeq(
+            // OF (count==1): OF = MSB(result) XOR CF
+            let of = Expr::xor(
                 cf,
                 Expr::trun(
                     1,
