@@ -445,21 +445,29 @@ impl<'s> Semantics<'s> {
             let lhs = self.operand_load(block, &detail.operands[0])?;
             let rhs = self.operand_load(block, &detail.operands[1])?;
 
+            let sum_no_carry = self.temp(1, lhs.bits());
             let result = self.temp(0, lhs.bits());
 
-            // perform addition
-            let addition = Expr::add(lhs.clone(), rhs.clone())?;
+            // perform addition in two steps: (lhs + rhs), then + CF
+            block.assign(
+                sum_no_carry.clone(),
+                Expr::add(lhs.clone(), rhs.clone())?,
+            );
             let zext_cf = Expr::zext(lhs.bits(), expr_scalar("CF", 1))?;
-            block.assign(result.clone(), Expr::add(addition, zext_cf)?);
+            block.assign(
+                result.clone(),
+                Expr::add(sum_no_carry.clone().into(), zext_cf)?,
+            );
 
             // calculate flags
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
             self.set_of(block, result.clone().into(), lhs.clone(), rhs, false)?;
-            block.assign(
-                scalar("CF", 1),
-                Expression::cmpltu(result.clone().into(), lhs)?,
-            );
+            // Two-step carry: carry from lhs+rhs, or carry from (lhs+rhs)+CF
+            let carry1 = Expression::cmpltu(sum_no_carry.clone().into(), lhs)?;
+            let carry2 =
+                Expression::cmpltu(result.clone().into(), sum_no_carry.into())?;
+            block.assign(scalar("CF", 1), Expression::or(carry1, carry2)?);
 
             // store result
             self.operand_store(block, &detail.operands[0], result.into())?;
