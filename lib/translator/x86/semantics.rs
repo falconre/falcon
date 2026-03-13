@@ -1715,8 +1715,8 @@ impl<'s> Semantics<'s> {
             block.assign(
                 result.clone(),
                 Expr::mul(
-                    Expr::zext(bit_width, multiplicand)?,
-                    Expr::zext(bit_width, multiplier)?,
+                    Expr::sext(bit_width, multiplicand)?,
+                    Expr::sext(bit_width, multiplier)?,
                 )?,
             );
 
@@ -1760,15 +1760,12 @@ impl<'s> Semantics<'s> {
                 _ => return Err("invalid number of operands for imul".into()),
             }
 
-            // Set flags
+            // Set flags: CF=OF=1 when the full result != sign-extension of lower half
             block.assign(
                 scalar("OF", 1),
                 Expr::cmpneq(
-                    Expr::trun(
-                        bit_width / 2,
-                        Expr::shr(result.into(), expr_const((bit_width / 2) as u64, bit_width))?,
-                    )?,
-                    expr_const(0, bit_width / 2),
+                    result.clone().into(),
+                    Expr::sext(bit_width, Expr::trun(bit_width / 2, result.into())?)?,
                 )?,
             );
             block.assign(scalar("CF", 1), expr_scalar("OF", 1));
