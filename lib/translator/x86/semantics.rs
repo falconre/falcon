@@ -2984,7 +2984,7 @@ impl<'s> Semantics<'s> {
                     8,
                     Expression::shr(rhs.clone(), expr_const(i as u64 * 8, lhs.bits()))?,
                 )?;
-                let temp = self.temp(0, 8);
+                let temp = self.temp(i + 2, 8);
                 block.assign(temp.clone(), Expression::sub(ll, rr)?);
                 temp_vars.push(temp);
             }
