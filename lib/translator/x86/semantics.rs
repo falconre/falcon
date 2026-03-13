@@ -3592,8 +3592,8 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), ax.get()?, temp.clone().into(), true)?;
-            self.set_cf(block, expr, temp.into())?;
+            self.set_of(block, expr.clone(), ax.get()?, temp.into(), true)?;
+            self.set_cf(block, expr, ax.get()?)?;
 
             block.index()
         };
