@@ -91,3 +91,38 @@ fn xadd_rax_rbx_signed_overflow() {
     // MSB of 0x8000000000000000 is 1 => SF=1
     assert_flag(&driver, "SF", 1);
 }
+
+/// XADD rax, rbx: negative signed overflow case.
+/// 0x8000000000000000 + 0x8000000000000000 = 0 (mod 2^64)
+/// Two negative numbers produce a non-negative result => OF=1.
+/// Unsigned carry => CF=1. Result is zero => ZF=1, SF=0.
+#[test]
+fn xadd_rax_rbx_negative_overflow() {
+    // xadd rax, rbx
+    // nop
+    let bytes: Vec<u8> = vec![0x48, 0x0f, 0xc1, 0xd8, 0x90];
+
+    let driver = init_amd64_driver(
+        bytes,
+        vec![
+            ("rax", il::const_(0x8000000000000000, 64)),
+            ("rbx", il::const_(0x8000000000000000, 64)),
+        ],
+        Memory::new(Endian::Little),
+    );
+
+    let driver = step_to(driver, 0x4);
+
+    // dest (rax) = 0x8000000000000000 + 0x8000000000000000 = 0
+    assert_scalar(&driver, "rax", 0x0);
+    // src (rbx) = original dest = 0x8000000000000000
+    assert_scalar(&driver, "rbx", 0x8000000000000000);
+    // Unsigned carry => CF=1
+    assert_flag(&driver, "CF", 1);
+    // Signed overflow: negative + negative = non-negative => OF=1
+    assert_flag(&driver, "OF", 1);
+    // Result is zero => ZF=1
+    assert_flag(&driver, "ZF", 1);
+    // Result is 0 => SF=0
+    assert_flag(&driver, "SF", 0);
+}

@@ -79,3 +79,39 @@ fn cmpxchg_not_equal() {
     assert_flag(&driver, "SF", 1);
     assert_flag(&driver, "OF", 0);
 }
+
+/// CMPXCHG rbx, rcx: signed overflow in comparison (not-equal case).
+/// RAX = 0x8000000000000000, RBX = 0x0000000000000001.
+/// CMP result: RAX - RBX = 0x8000000000000000 - 1 = 0x7FFFFFFFFFFFFFFF.
+/// Signed: INT64_MIN - 1 overflows => OF=1.
+/// No unsigned borrow (0x8000... > 0x1) => CF=0. Result MSB=0 => SF=0.
+/// RAX != RBX => not-equal: RAX <- RBX, RBX unchanged.
+#[test]
+fn cmpxchg_signed_overflow() {
+    // cmpxchg rbx, rcx  =>  48 0f b1 cb
+    // nop               =>  90
+    let bytes: Vec<u8> = vec![0x48, 0x0f, 0xb1, 0xcb, 0x90];
+
+    let driver = init_amd64_driver(
+        bytes,
+        vec![
+            ("rax", il::const_(0x8000000000000000, 64)),
+            ("rbx", il::const_(0x0000000000000001, 64)),
+            ("rcx", il::const_(0xAAAAAAAAAAAAAAAA, 64)),
+        ],
+        Memory::new(Endian::Little),
+    );
+
+    let driver = step_to(driver, 0x4);
+
+    // Not-equal case: RAX gets dest (rbx), dest unchanged
+    assert_scalar(&driver, "rax", 0x0000000000000001);
+    assert_scalar(&driver, "rbx", 0x0000000000000001);
+    assert_scalar(&driver, "rcx", 0xAAAAAAAAAAAAAAAA);
+
+    // Flags from CMP (RAX - RBX = 0x8000000000000000 - 1 = 0x7FFFFFFFFFFFFFFF)
+    assert_flag(&driver, "ZF", 0);
+    assert_flag(&driver, "CF", 0);
+    assert_flag(&driver, "SF", 0);
+    assert_flag(&driver, "OF", 1);
+}

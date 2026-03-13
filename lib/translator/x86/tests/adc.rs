@@ -81,3 +81,31 @@ fn adc_signed_overflow_via_carry() {
     assert_flag(&driver, "ZF", 0);
     assert_flag(&driver, "SF", 1);
 }
+
+/// ADC rax, rbx: negative signed overflow with CF=0.
+/// 0x8000000000000000 + 0x8000000000000000 + 0 = 0 (mod 2^64)
+/// Two negative numbers produce a non-negative result => OF=1.
+/// Unsigned carry => CF=1. Result is zero => ZF=1, SF=0.
+#[test]
+fn adc_negative_overflow() {
+    // adc rax, rbx; nop
+    let bytes: Vec<u8> = vec![0x48, 0x11, 0xd8, 0x90];
+
+    let driver = init_amd64_driver(
+        bytes,
+        vec![
+            ("rax", il::const_(0x8000000000000000, 64)),
+            ("rbx", il::const_(0x8000000000000000, 64)),
+            ("CF", il::const_(0, 1)),
+        ],
+        Memory::new(Endian::Little),
+    );
+
+    let driver = step_to(driver, 0x3);
+
+    assert_scalar(&driver, "rax", 0x0);
+    assert_flag(&driver, "CF", 1);
+    assert_flag(&driver, "OF", 1);
+    assert_flag(&driver, "ZF", 1);
+    assert_flag(&driver, "SF", 0);
+}

@@ -82,3 +82,32 @@ fn sbb_signed_overflow_via_borrow() {
     assert_flag(&driver, "ZF", 0);
     assert_flag(&driver, "SF", 0);
 }
+
+/// SBB rax, rbx: positive-direction signed overflow with CF=0.
+/// 0x7FFFFFFFFFFFFFFF - 0xFFFFFFFFFFFFFFFF - 0 = 0x8000000000000000 (mod 2^64)
+/// Signed: MAX_INT64 - (-1) = MAX_INT64+1, overflows positive direction => OF=1.
+/// Unsigned: 0x7FFF... < 0xFFFF... => borrow => CF=1.
+/// Result MSB=1 => SF=1. Non-zero => ZF=0.
+#[test]
+fn sbb_positive_overflow() {
+    // sbb rax, rbx; nop
+    let bytes: Vec<u8> = vec![0x48, 0x19, 0xd8, 0x90];
+
+    let driver = init_amd64_driver(
+        bytes,
+        vec![
+            ("rax", il::const_(0x7FFFFFFFFFFFFFFF, 64)),
+            ("rbx", il::const_(0xFFFFFFFFFFFFFFFF, 64)),
+            ("CF", il::const_(0, 1)),
+        ],
+        Memory::new(Endian::Little),
+    );
+
+    let driver = step_to(driver, 0x3);
+
+    assert_scalar(&driver, "rax", 0x8000000000000000);
+    assert_flag(&driver, "CF", 1);
+    assert_flag(&driver, "OF", 1);
+    assert_flag(&driver, "ZF", 0);
+    assert_flag(&driver, "SF", 1);
+}

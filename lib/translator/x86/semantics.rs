@@ -83,15 +83,21 @@ impl<'s> Semantics<'s> {
         Ok(())
     }
 
-    /// Convenience function to set the of based on result and both operands
+    /// Convenience function to set the OF flag based on result and both operands.
+    /// For subtraction (subtract=true): OF = (lhs ^ rhs) & (lhs ^ result)
+    /// For addition (subtract=false): OF = ~(lhs ^ rhs) & (lhs ^ result)
     pub fn set_of(
         &self,
         block: &mut Block,
         result: Expression,
         lhs: Expression,
         rhs: Expression,
+        subtract: bool,
     ) -> Result<(), Error> {
-        let expr0 = Expr::xor(lhs.clone(), rhs)?;
+        let mut expr0 = Expr::xor(lhs.clone(), rhs)?;
+        if !subtract {
+            expr0 = Expr::xor(expr0, expr_const(0xffff_ffff_ffff_ffff, lhs.bits()))?;
+        }
         let expr1 = Expr::xor(lhs, result)?;
         let expr = Expr::and(expr0, expr1)?;
         let expr = Expr::shr(
@@ -449,7 +455,7 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(block, result.clone().into(), lhs.clone(), rhs)?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs, false)?;
             block.assign(
                 scalar("CF", 1),
                 Expression::cmpltu(result.clone().into(), lhs)?,
@@ -485,7 +491,7 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(block, result.clone().into(), lhs.clone(), rhs)?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs, false)?;
             block.assign(
                 scalar("CF", 1),
                 Expression::cmpltu(result.clone().into(), lhs)?,
@@ -1252,7 +1258,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_of(block, expr.clone(), lhs.clone(), rhs, true)?;
             self.set_cf(block, expr, lhs)?;
 
             block.index()
@@ -1291,7 +1297,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_of(block, expr.clone(), lhs.clone(), rhs, true)?;
             self.set_cf(block, expr, lhs)?;
 
             block.index()
@@ -1386,7 +1392,7 @@ impl<'s> Semantics<'s> {
 
             let result = Expr::sub(lhs.clone(), rhs.clone())?;
             self.set_sf(block, result.clone())?;
-            self.set_of(block, result.clone(), lhs.clone(), rhs)?;
+            self.set_of(block, result.clone(), lhs.clone(), rhs, true)?;
             self.set_cf(block, result, lhs.clone())?;
 
             block.index()
@@ -1462,8 +1468,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()))?;
-            self.set_cf(block, expr.clone(), dst)?;
+            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()), true)?;
 
             self.operand_store(block, &detail.operands[0], expr)?;
 
@@ -1789,8 +1794,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()))?;
-            self.set_cf(block, expr.clone(), dst)?;
+            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()), false)?;
 
             self.operand_store(block, &detail.operands[0], expr)?;
 
@@ -2449,7 +2453,7 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(block, result.clone().into(), expr_const(0, dst.bits()), dst)?;
+            self.set_of(block, result.clone().into(), expr_const(0, dst.bits()), dst, true)?;
 
             self.operand_store(block, &detail.operands[0], result.into())?;
 
@@ -3478,7 +3482,7 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), lhs.clone(), rhs)?;
+            self.set_of(block, expr.clone(), lhs.clone(), rhs, true)?;
             self.set_cf(block, expr.clone(), lhs)?;
 
             // store result
@@ -3508,7 +3512,7 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), al.get()?, temp.into())?;
+            self.set_of(block, expr.clone(), al.get()?, temp.into(), true)?;
             self.set_cf(block, expr, al.get()?)?;
 
             block.index()
@@ -3574,7 +3578,7 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), ax.get()?, temp.clone().into())?;
+            self.set_of(block, expr.clone(), ax.get()?, temp.clone().into(), true)?;
             self.set_cf(block, expr, temp.into())?;
 
             block.index()
@@ -3976,7 +3980,7 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(block, result.clone().into(), lhs.clone(), rhs)?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs, true)?;
             self.set_cf(block, result.clone().into(), lhs)?;
 
             // store result
@@ -4104,7 +4108,7 @@ impl<'s> Semantics<'s> {
             // calculate flags
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(block, result.clone().into(), lhs.clone(), rhs.clone())?;
+            self.set_of(block, result.clone().into(), lhs.clone(), rhs.clone(), false)?;
             self.set_cf(block, result.clone().into(), lhs)?;
 
             // store result
