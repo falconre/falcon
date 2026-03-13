@@ -2887,15 +2887,24 @@ impl<'s> Semantics<'s> {
             block.assign(temp.clone(), result0);
             block.assign(
                 temp.clone(),
-                Expression::shl(result1, expr_const(32, temp.bits()))?,
+                Expression::or(
+                    temp.clone().into(),
+                    Expression::shl(result1, expr_const(32, temp.bits()))?,
+                )?,
             );
             block.assign(
                 temp.clone(),
-                Expression::shl(result2, expr_const(64, temp.bits()))?,
+                Expression::or(
+                    temp.clone().into(),
+                    Expression::shl(result2, expr_const(64, temp.bits()))?,
+                )?,
             );
             block.assign(
                 temp.clone(),
-                Expression::shl(result3, expr_const(96, temp.bits()))?,
+                Expression::or(
+                    temp.clone().into(),
+                    Expression::shl(result3, expr_const(96, temp.bits()))?,
+                )?,
             );
 
             self.operand_store(block, &detail.operands[0], temp.into())?;
