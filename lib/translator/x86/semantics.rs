@@ -3388,11 +3388,11 @@ impl<'s> Semantics<'s> {
 
             let ax = self.get_register(x86_reg::X86_REG_AX)?.get()?;
 
-            let cf = Expr::trun(1, ax.clone())?;
-            // let pf = Expr::trun(1, Expr::shr(2, ax.clone())?)?;
-            // let af = Expr::trun(1, Expr::shr(4, ax.clone())?)?;
-            let zf = Expr::trun(1, Expr::shr(expr_const(6, 16), ax.clone())?)?;
-            let sf = Expr::trun(1, Expr::shr(expr_const(7, 16), ax)?)?;
+            let cf = Expr::trun(1, Expr::shr(ax.clone(), expr_const(8, 16))?)?;
+            // let pf = Expr::trun(1, Expr::shr(ax.clone(), expr_const(10, 16))?)?;
+            // let af = Expr::trun(1, Expr::shr(ax.clone(), expr_const(12, 16))?)?;
+            let zf = Expr::trun(1, Expr::shr(ax.clone(), expr_const(14, 16))?)?;
+            let sf = Expr::trun(1, Expr::shr(ax, expr_const(15, 16))?)?;
 
             block.assign(scalar("CF", 1), cf);
             // block.assign(scalar("PF", 1), pf);
