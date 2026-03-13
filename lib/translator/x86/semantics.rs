@@ -832,11 +832,11 @@ impl<'s> Semantics<'s> {
 
             // this handles the assign to CF
             let temp = self.temp(1, base.bits());
-            block.assign(temp.clone(), Expr::shr(base, offset.clone())?);
-            block.assign(scalar("CF", 1), Expr::trun(1, temp.clone().into())?);
+            block.assign(temp.clone(), Expr::shr(base.clone(), offset.clone())?);
+            block.assign(scalar("CF", 1), Expr::trun(1, temp.into())?);
 
-            let expr = Expr::xor(temp.clone().into(), expr_const(1, temp.bits()))?;
-            let expr = Expr::shl(expr, offset)?;
+            let expr = Expr::shl(expr_const(1, base.bits()), offset)?;
+            let expr = Expr::xor(base, expr)?;
             self.operand_store(block, &detail.operands[0], expr)?;
 
             block.index()
