@@ -377,7 +377,7 @@ impl CallingConvention {
                 trashed_registers.insert(il::scalar("r12", 32));
                 trashed_registers.insert(il::scalar("r13", 32));
 
-                let return_type = ReturnAddressType::Register(il::scalar("r3", 32));
+                let return_type = ReturnAddressType::Register(il::scalar("lr", 32));
 
                 CallingConvention {
                     argument_registers,
@@ -386,7 +386,7 @@ impl CallingConvention {
                     stack_argument_offset: 4,
                     stack_argument_length: 4,
                     return_address_type: return_type,
-                    return_register: il::scalar("lr", 32),
+                    return_register: il::scalar("r3", 32),
                 }
             }
         }
@@ -464,5 +464,38 @@ impl CallingConvention {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ppc_return_address_is_lr() {
+        // Bug: PPC calling convention has return_address_type and return_register swapped.
+        // Per PPC32 SVR4 ABI:
+        //   - return address (where to jump back to) is in lr (link register)
+        //   - return value (function result) is in r3
+        // The code currently has these backwards: return_address_type = r3, return_register = lr
+        let cc = CallingConvention::new(CallingConventionType::PpcSystemV);
+
+        // The return ADDRESS should be in lr (link register)
+        let return_addr = cc.return_address_type();
+        let return_addr_reg = return_addr.register().expect("PPC returns via register");
+        assert_eq!(
+            return_addr_reg.name(),
+            "lr",
+            "PPC return address should be in lr, not {}",
+            return_addr_reg.name()
+        );
+
+        // The return VALUE should be in r3
+        assert_eq!(
+            cc.return_register().name(),
+            "r3",
+            "PPC return value should be in r3, not {}",
+            cc.return_register().name()
+        );
     }
 }

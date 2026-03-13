@@ -110,6 +110,8 @@ pub enum Error {
     FixedPointOrdering(String, il::ProgramLocation),
     #[error("FixedPoint requires an entry point in CFG")]
     FixedPointRequiresEntry,
+    #[error("FixedPoint requires an exit point in CFG")]
+    FixedPointRequiresExit,
     #[error("Failed to apply il::FunctionLocation")]
     FunctionLocationApplication,
     #[error("Goblin: `{0}`")]
