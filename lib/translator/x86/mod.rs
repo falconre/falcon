@@ -9,7 +9,7 @@ mod translator;
 mod x86register;
 
 #[cfg(test)]
-mod test;
+mod tests;
 
 use self::mode::Mode;
 
