@@ -2379,7 +2379,7 @@ impl<'s> Semantics<'s> {
                 8 => {
                     let ax = self.get_register(x86_reg::X86_REG_AX)?;
                     ax.set(block, result.into())?;
-                    let expr = Expr::cmpeq(
+                    let expr = Expr::cmpneq(
                         self.get_register(x86_reg::X86_REG_AH)?.get()?,
                         expr_const(0, 8),
                     )?;
@@ -2394,7 +2394,7 @@ impl<'s> Semantics<'s> {
                         Expr::trun(16, Expr::shr(result.clone().into(), expr_const(16, 32))?)?,
                     )?;
                     ax.set(block, Expr::trun(16, result.into())?)?;
-                    block.assign(scalar("OF", 1), Expr::cmpeq(dx.get()?, expr_const(0, 16))?);
+                    block.assign(scalar("OF", 1), Expr::cmpneq(dx.get()?, expr_const(0, 16))?);
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
                 32 => {
@@ -2405,7 +2405,7 @@ impl<'s> Semantics<'s> {
                         Expr::trun(32, Expr::shr(result.clone().into(), expr_const(32, 64))?)?,
                     )?;
                     eax.set(block, Expr::trun(32, result.into())?)?;
-                    block.assign(scalar("OF", 1), Expr::cmpeq(edx.get()?, expr_const(0, 32))?);
+                    block.assign(scalar("OF", 1), Expr::cmpneq(edx.get()?, expr_const(0, 32))?);
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
                 64 => {
@@ -2416,7 +2416,7 @@ impl<'s> Semantics<'s> {
                         Expr::trun(64, Expr::shr(result.clone().into(), expr_const(64, 128))?)?,
                     )?;
                     rax.set(block, Expr::trun(64, result.into())?)?;
-                    block.assign(scalar("OF", 1), Expr::cmpeq(rdx.get()?, expr_const(0, 64))?);
+                    block.assign(scalar("OF", 1), Expr::cmpneq(rdx.get()?, expr_const(0, 64))?);
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
                 _ => return Err(Error::Custom("invalid bit-width for mul".to_string())),
