@@ -34,11 +34,7 @@ fn call_rbx_block_length() {
         .unwrap();
 
     // The block should be exactly 2 bytes (the length of `call rbx`)
-    assert_eq!(
-        result.length(),
-        2,
-        "call rbx should produce a 2-byte block"
-    );
+    assert_eq!(result.length(), 2, "call rbx should produce a 2-byte block");
 }
 
 /// CALL rbx: verify the instruction count.

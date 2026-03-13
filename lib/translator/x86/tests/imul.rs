@@ -10,10 +10,7 @@ fn imul_r64_one_operand_small_positive() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("rax", il::const_(7, 64)),
-            ("rbx", il::const_(3, 64)),
-        ],
+        vec![("rax", il::const_(7, 64)), ("rbx", il::const_(3, 64))],
         Memory::new(Endian::Little),
     );
 
@@ -47,7 +44,7 @@ fn imul_r64_one_operand_negative_result() {
     let driver = step_to(driver, 0x3);
 
     assert_scalar(&driver, "rax", 0xFFFFFFFFFFFFFFF4); // -12
-    assert_scalar(&driver, "rdx", 0xFFFFFFFFFFFFFFFF);  // sign extension of negative result
+    assert_scalar(&driver, "rdx", 0xFFFFFFFFFFFFFFFF); // sign extension of negative result
     assert_flag(&driver, "CF", 0);
     assert_flag(&driver, "OF", 0);
 }
@@ -61,10 +58,7 @@ fn imul_r64_two_operand_simple() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("rax", il::const_(10, 64)),
-            ("rbx", il::const_(20, 64)),
-        ],
+        vec![("rax", il::const_(10, 64)), ("rbx", il::const_(20, 64))],
         Memory::new(Endian::Little),
     );
 

@@ -32,9 +32,7 @@ fn pxor_self_zeroing() {
     // XOR with self should produce zero (common idiom to zero a register)
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("xmm0", mk128const(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF)),
-        ],
+        vec![("xmm0", mk128const(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF))],
         Memory::new(Endian::Little),
     );
 

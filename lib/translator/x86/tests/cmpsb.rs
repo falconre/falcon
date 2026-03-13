@@ -18,10 +18,7 @@ fn cmpsb_equal() {
             ("rdi", il::const_(0x3000, 64)),
             ("DF", il::const_(0, 1)),
         ],
-        vec![
-            (0x2000, il::const_(0x42, 8)),
-            (0x3000, il::const_(0x42, 8)),
-        ],
+        vec![(0x2000, il::const_(0x42, 8)), (0x3000, il::const_(0x42, 8))],
     );
 
     let driver = step_to(driver, 0x1);
@@ -58,10 +55,7 @@ fn cmpsb_src_greater() {
             ("rdi", il::const_(0x3000, 64)),
             ("DF", il::const_(0, 1)),
         ],
-        vec![
-            (0x2000, il::const_(0x80, 8)),
-            (0x3000, il::const_(0x40, 8)),
-        ],
+        vec![(0x2000, il::const_(0x80, 8)), (0x3000, il::const_(0x40, 8))],
     );
 
     let driver = step_to(driver, 0x1);
@@ -95,10 +89,7 @@ fn cmpsb_src_less() {
             ("rdi", il::const_(0x3000, 64)),
             ("DF", il::const_(0, 1)),
         ],
-        vec![
-            (0x2000, il::const_(0x10, 8)),
-            (0x3000, il::const_(0x20, 8)),
-        ],
+        vec![(0x2000, il::const_(0x10, 8)), (0x3000, il::const_(0x20, 8))],
     );
 
     let driver = step_to(driver, 0x1);
@@ -131,10 +122,7 @@ fn cmpsb_df_set() {
             ("rdi", il::const_(0x3010, 64)),
             ("DF", il::const_(1, 1)),
         ],
-        vec![
-            (0x2010, il::const_(0xAA, 8)),
-            (0x3010, il::const_(0xAA, 8)),
-        ],
+        vec![(0x2010, il::const_(0xAA, 8)), (0x3010, il::const_(0xAA, 8))],
     );
 
     let driver = step_to(driver, 0x1);

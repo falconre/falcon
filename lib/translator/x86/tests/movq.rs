@@ -12,10 +12,7 @@ fn movq_xmm0_rax_upper_zeroed() {
     let driver = init_amd64_driver(
         bytes,
         vec![
-            (
-                "xmm0",
-                mk128const(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF),
-            ),
+            ("xmm0", mk128const(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
             ("rax", il::const_(0xDEADBEEFCAFEBABE, 64)),
         ],
         Memory::new(Endian::Little),

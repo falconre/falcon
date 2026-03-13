@@ -23,5 +23,10 @@ fn pcmpeqb_mixed() {
 
     let driver = step_to(driver, 0x4);
 
-    assert_xmm(&driver, "xmm0", 0xffff_ffff_ffff_ffff, 0x0000_0000_0000_ff00);
+    assert_xmm(
+        &driver,
+        "xmm0",
+        0xffff_ffff_ffff_ffff,
+        0x0000_0000_0000_ff00,
+    );
 }

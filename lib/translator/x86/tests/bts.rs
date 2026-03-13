@@ -17,10 +17,7 @@ fn bts_set_clear_bit() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("rax", il::const_(0xFF00, 64)),
-            ("rbx", il::const_(3, 64)),
-        ],
+        vec![("rax", il::const_(0xFF00, 64)), ("rbx", il::const_(3, 64))],
         Memory::new(Endian::Little),
     );
 
@@ -46,10 +43,7 @@ fn bts_set_already_set_bit() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("rax", il::const_(0xFF00, 64)),
-            ("rbx", il::const_(10, 64)),
-        ],
+        vec![("rax", il::const_(0xFF00, 64)), ("rbx", il::const_(10, 64))],
         Memory::new(Endian::Little),
     );
 

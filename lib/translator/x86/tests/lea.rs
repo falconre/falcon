@@ -29,10 +29,7 @@ fn lea_base_plus_disp() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("rax", il::const_(0, 64)),
-            ("rbx", il::const_(rbx_val, 64)),
-        ],
+        vec![("rax", il::const_(0, 64)), ("rbx", il::const_(rbx_val, 64))],
         Memory::new(Endian::Little),
     );
 

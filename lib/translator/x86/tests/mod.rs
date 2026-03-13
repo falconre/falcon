@@ -28,8 +28,8 @@ mod cli;
 mod cmc;
 mod cmovcc;
 mod cmp;
-mod cmpxchg;
 mod cmpsb;
+mod cmpxchg;
 mod cwd;
 mod cwde;
 mod dec;
@@ -59,8 +59,8 @@ mod or;
 mod paddq;
 mod pcmpeqb;
 mod pcmpeqd;
-mod pmovmskb;
 mod pminub;
+mod pmovmskb;
 mod pop;
 mod por;
 mod pshufd;
@@ -211,12 +211,9 @@ fn assert_xmm(driver: &Driver, name: &str, lo: u64, hi: u64) {
     assert_eq!(val.bits(), 128, "expected {} to be 128 bits", name);
     let expected = mk128const(lo, hi);
     assert!(
-        eval(
-            &il::Expression::cmpeq(val.clone().into(), expected.into())
-                .unwrap()
-        )
-        .unwrap()
-        .is_one(),
+        eval(&il::Expression::cmpeq(val.clone().into(), expected.into()).unwrap())
+            .unwrap()
+            .is_one(),
         "{} expected lo=0x{:016x} hi=0x{:016x}",
         name,
         lo,

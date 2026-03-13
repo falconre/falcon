@@ -26,7 +26,12 @@ fn cdq_positive_eax() {
     // EAX = 0x7FFFFFFF (bit 31 = 0), so EDX = 0x00000000.
     // Writing EDX zero-extends into RDX, so RDX = 0x0000000000000000.
     // EAX should be unchanged.
-    let rax = driver.state().get_scalar("rax").unwrap().value_u64().unwrap();
+    let rax = driver
+        .state()
+        .get_scalar("rax")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let eax = rax & 0xFFFFFFFF;
     assert_eq!(
         eax, 0x7FFFFFFF,
@@ -63,7 +68,12 @@ fn cdq_negative_eax() {
     // EAX = 0x80000000 (bit 31 = 1), so EDX = 0xFFFFFFFF.
     // Writing EDX zero-extends into RDX, so RDX = 0x00000000FFFFFFFF.
     // EAX should be unchanged.
-    let rax = driver.state().get_scalar("rax").unwrap().value_u64().unwrap();
+    let rax = driver
+        .state()
+        .get_scalar("rax")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let eax = rax & 0xFFFFFFFF;
     assert_eq!(
         eax, 0x80000000,

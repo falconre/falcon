@@ -23,7 +23,12 @@ fn pcmpeqd_all_equal() {
 
     let driver = step_to(driver, 0x4);
 
-    assert_xmm(&driver, "xmm0", 0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff);
+    assert_xmm(
+        &driver,
+        "xmm0",
+        0xffff_ffff_ffff_ffff,
+        0xffff_ffff_ffff_ffff,
+    );
 }
 
 #[test]
@@ -49,5 +54,10 @@ fn pcmpeqd_partial_match() {
 
     let driver = step_to(driver, 0x4);
 
-    assert_xmm(&driver, "xmm0", 0xffff_ffff_ffff_ffff, 0x0000_0000_ffff_ffff);
+    assert_xmm(
+        &driver,
+        "xmm0",
+        0xffff_ffff_ffff_ffff,
+        0x0000_0000_ffff_ffff,
+    );
 }

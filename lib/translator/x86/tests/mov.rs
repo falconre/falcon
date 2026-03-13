@@ -39,10 +39,7 @@ fn mov_memory_load() {
 
     let driver = init_amd64_driver_with_memory(
         bytes,
-        vec![
-            ("rax", il::const_(0, 64)),
-            ("rbx", il::const_(addr, 64)),
-        ],
+        vec![("rax", il::const_(0, 64)), ("rbx", il::const_(addr, 64))],
         vec![(addr, il::const_(mem_value, 64))],
     );
 

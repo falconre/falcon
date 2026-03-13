@@ -22,7 +22,12 @@ fn cbw_positive_al() {
     // AL = 0x50 (bit 7 = 0), so AX = 0x0050.
     // The low 16 bits of rax should be 0x0050.
     // Upper 48 bits of rax behavior depends on implementation.
-    let rax = driver.state().get_scalar("rax").unwrap().value_u64().unwrap();
+    let rax = driver
+        .state()
+        .get_scalar("rax")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let ax = rax & 0xFFFF;
     assert_eq!(ax, 0x0050, "AX expected 0x0050, got 0x{:04x}", ax);
 }
@@ -47,7 +52,12 @@ fn cbw_negative_al() {
 
     // Per AMD64 manual: CBW sign-extends AL into AX.
     // AL = 0x80 (bit 7 = 1), so AX = 0xFF80.
-    let rax = driver.state().get_scalar("rax").unwrap().value_u64().unwrap();
+    let rax = driver
+        .state()
+        .get_scalar("rax")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let ax = rax & 0xFFFF;
     assert_eq!(ax, 0xFF80, "AX expected 0xFF80, got 0x{:04x}", ax);
 }

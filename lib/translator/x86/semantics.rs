@@ -449,10 +449,7 @@ impl<'s> Semantics<'s> {
             let result = self.temp(0, lhs.bits());
 
             // perform addition in two steps: (lhs + rhs), then + CF
-            block.assign(
-                sum_no_carry.clone(),
-                Expr::add(lhs.clone(), rhs.clone())?,
-            );
+            block.assign(sum_no_carry.clone(), Expr::add(lhs.clone(), rhs.clone())?);
             let zext_cf = Expr::zext(lhs.bits(), expr_scalar("CF", 1))?;
             block.assign(
                 result.clone(),
@@ -465,8 +462,7 @@ impl<'s> Semantics<'s> {
             self.set_of(block, result.clone().into(), lhs.clone(), rhs, false)?;
             // Two-step carry: carry from lhs+rhs, or carry from (lhs+rhs)+CF
             let carry1 = Expression::cmpltu(sum_no_carry.clone().into(), lhs)?;
-            let carry2 =
-                Expression::cmpltu(result.clone().into(), sum_no_carry.into())?;
+            let carry2 = Expression::cmpltu(result.clone().into(), sum_no_carry.into())?;
             block.assign(scalar("CF", 1), Expression::or(carry1, carry2)?);
 
             // store result
@@ -1415,7 +1411,13 @@ impl<'s> Semantics<'s> {
             // Flags from CMP (accumulator - first_operand), using saved temps
             let result = Expr::sub(cmp_lhs.clone().into(), cmp_rhs.clone().into())?;
             self.set_sf(block, result.clone())?;
-            self.set_of(block, result.clone(), cmp_lhs.clone().into(), cmp_rhs.into(), true)?;
+            self.set_of(
+                block,
+                result.clone(),
+                cmp_lhs.clone().into(),
+                cmp_rhs.into(),
+                true,
+            )?;
             self.set_cf(block, result, cmp_lhs.into())?;
 
             block.index()
@@ -1491,7 +1493,13 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()), true)?;
+            self.set_of(
+                block,
+                expr.clone(),
+                dst.clone(),
+                expr_const(1, dst.bits()),
+                true,
+            )?;
 
             self.operand_store(block, &detail.operands[0], expr)?;
 
@@ -1814,7 +1822,13 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, expr.clone())?;
             self.set_sf(block, expr.clone())?;
-            self.set_of(block, expr.clone(), dst.clone(), expr_const(1, dst.bits()), false)?;
+            self.set_of(
+                block,
+                expr.clone(),
+                dst.clone(),
+                expr_const(1, dst.bits()),
+                false,
+            )?;
 
             self.operand_store(block, &detail.operands[0], expr)?;
 
@@ -2425,7 +2439,10 @@ impl<'s> Semantics<'s> {
                         Expr::trun(32, Expr::shr(result.clone().into(), expr_const(32, 64))?)?,
                     )?;
                     eax.set(block, Expr::trun(32, result.into())?)?;
-                    block.assign(scalar("OF", 1), Expr::cmpneq(edx.get()?, expr_const(0, 32))?);
+                    block.assign(
+                        scalar("OF", 1),
+                        Expr::cmpneq(edx.get()?, expr_const(0, 32))?,
+                    );
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
                 64 => {
@@ -2436,7 +2453,10 @@ impl<'s> Semantics<'s> {
                         Expr::trun(64, Expr::shr(result.clone().into(), expr_const(64, 128))?)?,
                     )?;
                     rax.set(block, Expr::trun(64, result.into())?)?;
-                    block.assign(scalar("OF", 1), Expr::cmpneq(rdx.get()?, expr_const(0, 64))?);
+                    block.assign(
+                        scalar("OF", 1),
+                        Expr::cmpneq(rdx.get()?, expr_const(0, 64))?,
+                    );
                     block.assign(scalar("CF", 1), expr_scalar("OF", 1));
                 }
                 _ => return Err(Error::Custom("invalid bit-width for mul".to_string())),
@@ -2473,7 +2493,13 @@ impl<'s> Semantics<'s> {
 
             self.set_zf(block, result.clone().into())?;
             self.set_sf(block, result.clone().into())?;
-            self.set_of(block, result.clone().into(), expr_const(0, dst.bits()), dst, true)?;
+            self.set_of(
+                block,
+                result.clone().into(),
+                expr_const(0, dst.bits()),
+                dst,
+                true,
+            )?;
 
             self.operand_store(block, &detail.operands[0], result.into())?;
 
@@ -2935,7 +2961,11 @@ impl<'s> Semantics<'s> {
             // PSLLDQ shifts by bytes, convert to bits
             let shift_bits = Expression::shl(rhs, expr_const(3, lhs.bits()))?;
 
-            self.operand_store(block, &detail.operands[0], Expression::shl(lhs, shift_bits)?)?;
+            self.operand_store(
+                block,
+                &detail.operands[0],
+                Expression::shl(lhs, shift_bits)?,
+            )?;
 
             block.index()
         };
@@ -2963,7 +2993,11 @@ impl<'s> Semantics<'s> {
             // PSRLDQ shifts by bytes, convert to bits
             let shift_bits = Expression::shl(rhs, expr_const(3, lhs.bits()))?;
 
-            self.operand_store(block, &detail.operands[0], Expression::shr(lhs, shift_bits)?)?;
+            self.operand_store(
+                block,
+                &detail.operands[0],
+                Expression::shr(lhs, shift_bits)?,
+            )?;
 
             block.index()
         };
@@ -3821,10 +3855,7 @@ impl<'s> Semantics<'s> {
 
             let shifted = Expr::shl(tmp.clone(), Expr::zext(tmp.bits(), count.clone())?)?;
             // Extract the high bits (the SHLD result)
-            let result = Expr::trun(
-                bits,
-                Expr::shr(shifted, expr_const(bits as u64, bits * 2))?,
-            )?;
+            let result = Expr::trun(bits, Expr::shr(shifted, expr_const(bits as u64, bits * 2))?)?;
 
             // CF = last bit shifted out = MSB of (tmp << (count-1))
             let cf_shifted = Expr::shl(

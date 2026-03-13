@@ -24,11 +24,21 @@ fn cwd_positive_ax() {
     // Per AMD64 manual: CWD sign-extends AX into DX:AX.
     // AX = 0x7FFF (bit 15 = 0), so DX = 0x0000.
     // AX should be unchanged at 0x7FFF.
-    let rax = driver.state().get_scalar("rax").unwrap().value_u64().unwrap();
+    let rax = driver
+        .state()
+        .get_scalar("rax")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let ax = rax & 0xFFFF;
     assert_eq!(ax, 0x7FFF, "AX expected 0x7FFF, got 0x{:04x}", ax);
 
-    let rdx = driver.state().get_scalar("rdx").unwrap().value_u64().unwrap();
+    let rdx = driver
+        .state()
+        .get_scalar("rdx")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let dx = rdx & 0xFFFF;
     assert_eq!(dx, 0x0000, "DX expected 0x0000, got 0x{:04x}", dx);
 }
@@ -57,11 +67,21 @@ fn cwd_negative_ax() {
     // Per AMD64 manual: CWD sign-extends AX into DX:AX.
     // AX = 0x8000 (bit 15 = 1), so DX = 0xFFFF.
     // AX should be unchanged at 0x8000.
-    let rax = driver.state().get_scalar("rax").unwrap().value_u64().unwrap();
+    let rax = driver
+        .state()
+        .get_scalar("rax")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let ax = rax & 0xFFFF;
     assert_eq!(ax, 0x8000, "AX expected 0x8000, got 0x{:04x}", ax);
 
-    let rdx = driver.state().get_scalar("rdx").unwrap().value_u64().unwrap();
+    let rdx = driver
+        .state()
+        .get_scalar("rdx")
+        .unwrap()
+        .value_u64()
+        .unwrap();
     let dx = rdx & 0xFFFF;
     assert_eq!(dx, 0xFFFF, "DX expected 0xFFFF, got 0x{:04x}", dx);
 }

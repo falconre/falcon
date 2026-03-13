@@ -32,10 +32,7 @@ fn bsf_zero_source() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("rax", il::const_(0xDEAD, 64)),
-            ("rbx", il::const_(0, 64)),
-        ],
+        vec![("rax", il::const_(0xDEAD, 64)), ("rbx", il::const_(0, 64))],
         Memory::new(Endian::Little),
     );
 

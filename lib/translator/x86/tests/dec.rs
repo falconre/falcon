@@ -14,10 +14,7 @@ fn dec_normal() {
 
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("rax", il::const_(0x1235, 64)),
-            ("CF", il::const_(0, 1)),
-        ],
+        vec![("rax", il::const_(0x1235, 64)), ("CF", il::const_(0, 1))],
         Memory::new(Endian::Little),
     );
 

@@ -10,9 +10,7 @@ fn pslldq_shift_4_bytes() {
     // upper = 0x1111111122222222, lower = 0x3333333344444444
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("xmm0", mk128const(0x1111111122222222, 0x3333333344444444)),
-        ],
+        vec![("xmm0", mk128const(0x1111111122222222, 0x3333333344444444))],
         Memory::new(Endian::Little),
     );
 
@@ -35,9 +33,7 @@ fn pslldq_shift_8_bytes() {
     // xmm0 = (upper=0xAABBCCDDEEFF0011, lower=0x2233445566778899)
     let driver = init_amd64_driver(
         bytes,
-        vec![
-            ("xmm0", mk128const(0xAABBCCDDEEFF0011, 0x2233445566778899)),
-        ],
+        vec![("xmm0", mk128const(0xAABBCCDDEEFF0011, 0x2233445566778899))],
         Memory::new(Endian::Little),
     );
 
