@@ -261,12 +261,12 @@ pub fn add(
 
     let terminating_index = { control_flow_graph.new_block()?.index() };
 
+    // Per MIPS manual: sign-extend both operands to 64 bits, add,
+    // overflow if bit 32 != bit 31 of the result
+    let temp = Expr::add(Expr::sext(64, lhs)?, Expr::sext(64, rhs)?)?;
     let condition = Expr::cmpneq(
-        Expr::trun(
-            1,
-            Expr::shr(Expr::add(lhs.clone(), rhs)?, expr_const(31, 32))?,
-        )?,
-        Expr::trun(1, Expr::shr(lhs, expr_const(31, 32))?)?,
+        Expr::trun(1, Expr::shr(temp.clone(), expr_const(32, 64))?)?,
+        Expr::trun(1, Expr::shr(temp, expr_const(31, 64))?)?,
     )?;
 
     control_flow_graph.conditional_edge(head_index, raise_index, condition.clone())?;
@@ -336,12 +336,10 @@ pub fn addi(
 
     let terminating_index = { control_flow_graph.new_block()?.index() };
 
+    let temp = Expr::add(Expr::sext(64, lhs)?, Expr::sext(64, rhs)?)?;
     let condition = Expr::cmpneq(
-        Expr::trun(
-            1,
-            Expr::shr(Expr::add(lhs.clone(), rhs)?, expr_const(31, 32))?,
-        )?,
-        Expr::trun(1, Expr::shr(lhs, expr_const(31, 32))?)?,
+        Expr::trun(1, Expr::shr(temp.clone(), expr_const(32, 64))?)?,
+        Expr::trun(1, Expr::shr(temp, expr_const(31, 64))?)?,
     )?;
 
     control_flow_graph.conditional_edge(head_index, raise_index, condition.clone())?;
@@ -1429,7 +1427,8 @@ pub fn msub(
             tmp1.clone(),
             Expr::or(tmp1.clone().into(), Expr::zext(64, expr_scalar("$lo", 32))?)?,
         );
-        block.assign(tmp0.clone(), Expr::sub(tmp0.clone().into(), tmp1.into())?);
+        // Manual: temp <- (HI||LO) - (rs * rt), i.e., accumulator - product
+        block.assign(tmp0.clone(), Expr::sub(tmp1.into(), tmp0.clone().into())?);
         block.assign(
             scalar("$hi", 32),
             Expr::trun(32, Expr::shr(tmp0.clone().into(), expr_const(32, 64))?)?,
@@ -1472,7 +1471,8 @@ pub fn msubu(
             tmp1.clone(),
             Expr::or(tmp1.clone().into(), Expr::zext(64, expr_scalar("$lo", 32))?)?,
         );
-        block.assign(tmp0.clone(), Expr::sub(tmp0.clone().into(), tmp1.into())?);
+        // Manual: temp <- (HI||LO) - (rs * rt), i.e., accumulator - product
+        block.assign(tmp0.clone(), Expr::sub(tmp1.into(), tmp0.clone().into())?);
         block.assign(
             scalar("$hi", 32),
             Expr::trun(32, Expr::shr(tmp0.clone().into(), expr_const(32, 64))?)?,
@@ -2275,19 +2275,20 @@ pub fn sub(
 
     let terminating_index = { control_flow_graph.new_block()?.index() };
 
-    control_flow_graph.conditional_edge(
-        head_index,
-        raise_index,
-        Expr::cmpltu(rs.clone(), Expr::sub(rt.clone(), rs.clone())?)?,
+    // Per MIPS manual: sign-extend both operands to 64 bits, subtract,
+    // overflow if bit 32 != bit 31 of the result
+    let temp = Expr::sub(Expr::sext(64, rs)?, Expr::sext(64, rt)?)?;
+    let condition = Expr::cmpneq(
+        Expr::trun(1, Expr::shr(temp.clone(), expr_const(32, 64))?)?,
+        Expr::trun(1, Expr::shr(temp, expr_const(31, 64))?)?,
     )?;
+
+    control_flow_graph.conditional_edge(head_index, raise_index, condition.clone())?;
 
     control_flow_graph.conditional_edge(
         head_index,
         operation_index,
-        Expr::cmpeq(
-            Expr::cmpltu(rs.clone(), Expr::sub(rt, rs)?)?,
-            expr_const(0, 1),
-        )?,
+        Expr::cmpeq(condition, expr_const(0, 1))?,
     )?;
 
     control_flow_graph.unconditional_edge(raise_index, terminating_index)?;
