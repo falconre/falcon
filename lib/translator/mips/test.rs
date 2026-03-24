@@ -162,9 +162,18 @@ fn add() {
     );
     assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
 
-    let intrinsic = get_intrinsic(
+    let result = get_scalar(
         instruction_bytes,
         vec![("$a1", const_(0xffffffff, 32)), ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0);
+
+    // MIN_INT + (-1) should overflow
+    let intrinsic = get_intrinsic(
+        instruction_bytes,
+        vec![("$a1", const_(0x80000000, 32)), ("$a2", const_(0xffffffff, 32))],
         Memory::new(Endian::Big),
     );
     assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
@@ -653,6 +662,16 @@ fn bgezal() {
             .unwrap(),
         0x1
     );
+    // $ra should be written unconditionally even when branch not taken
+    assert_eq!(
+        driver
+            .state()
+            .get_scalar("$ra")
+            .unwrap()
+            .value_u64()
+            .unwrap(),
+        0xc
+    );
 }
 
 #[test]
@@ -995,6 +1014,16 @@ fn bltzal() {
             .unwrap(),
         0x1
     );
+    // $ra should be written unconditionally even when branch not taken
+    assert_eq!(
+        driver
+            .state()
+            .get_scalar("$ra")
+            .unwrap()
+            .value_u64()
+            .unwrap(),
+        0xc
+    );
 
     /*
     ori $a0, 0x0000
@@ -1224,6 +1253,15 @@ fn clo() {
         "$a0",
     );
     assert_eq!(result.value_u64().unwrap(), 8);
+
+    // clo of 0xFFFFFFFF should return 32
+    let result = get_scalar(
+        &[0x70, 0xa4, 0x20, 0x21],
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0xffffffff, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 32);
 }
 
 #[test]
@@ -1246,6 +1284,15 @@ fn clz() {
         "$a0",
     );
     assert_eq!(result.value_u64().unwrap(), 12);
+
+    // clz of 0 should return 32
+    let result = get_scalar(
+        &[0x70, 0xa4, 0x20, 0x20],
+        vec![("$a0", const_(1, 32)), ("$a1", const_(0, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 32);
 }
 
 #[test]
@@ -1282,6 +1329,23 @@ fn div() {
         "$lo",
     );
     assert_eq!(result.value_u64().unwrap(), 0xfffffffb);
+
+    // -20 / -4 = 5, remainder 0
+    let result = get_scalar(
+        &[0x00, 0x85, 0x00, 0x1a],
+        vec![("$a0", const_(0xffffffec, 32)), ("$a1", const_(0xfffffffc, 32))],
+        Memory::new(Endian::Big),
+        "$lo",
+    );
+    assert_eq!(result.value_u64().unwrap(), 5);
+
+    let result = get_scalar(
+        &[0x00, 0x85, 0x00, 0x1a],
+        vec![("$a0", const_(0xffffffec, 32)), ("$a1", const_(0xfffffffc, 32))],
+        Memory::new(Endian::Big),
+        "$hi",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0);
 }
 
 #[test]
@@ -1819,6 +1883,7 @@ fn movz() {
 
 #[test]
 fn msub() {
+    // msub: temp <- (HI||LO) - (rs * rt), accumulator - product
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
         vec![
@@ -1830,7 +1895,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$lo",
     );
-    assert_eq!(result.value_u64().unwrap(), 49);
+    assert_eq!(result.value_u64().unwrap(), 0xFFFFFFCF);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1843,7 +1908,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$hi",
     );
-    assert_eq!(result.value_u64().unwrap(), 0xfffffffe);
+    assert_eq!(result.value_u64().unwrap(), 1);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1856,7 +1921,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$hi",
     );
-    assert_eq!(result.value_u64().unwrap(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0xFFFFFFFF);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1869,7 +1934,7 @@ fn msub() {
         Memory::new(Endian::Big),
         "$lo",
     );
-    assert_eq!(result.value_u64().unwrap(), 0xffffffd8);
+    assert_eq!(result.value_u64().unwrap(), 0x28);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x04],
@@ -1882,11 +1947,12 @@ fn msub() {
         Memory::new(Endian::Big),
         "$hi",
     );
-    assert_eq!(result.value_u64().unwrap(), 0xffffffff);
+    assert_eq!(result.value_u64().unwrap(), 0);
 }
 
 #[test]
 fn msubu() {
+    // msubu: temp <- (HI||LO) - (rs * rt), unsigned, accumulator - product
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
         vec![
@@ -1898,7 +1964,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$lo",
     );
-    assert_eq!(result.value_u64().unwrap(), 49);
+    assert_eq!(result.value_u64().unwrap(), 0xFFFFFFCF);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1911,7 +1977,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$hi",
     );
-    assert_eq!(result.value_u64().unwrap(), 0xfffffffe);
+    assert_eq!(result.value_u64().unwrap(), 1);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1924,7 +1990,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$hi",
     );
-    assert_eq!(result.value_u64().unwrap(), 0);
+    assert_eq!(result.value_u64().unwrap(), 0xFFFFFFFF);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1937,7 +2003,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$lo",
     );
-    assert_eq!(result.value_u64().unwrap(), 0xffffffd8);
+    assert_eq!(result.value_u64().unwrap(), 0x28);
 
     let result = get_scalar(
         &[0x70, 0x85, 0x00, 0x05],
@@ -1950,7 +2016,7 @@ fn msubu() {
         Memory::new(Endian::Big),
         "$hi",
     );
-    assert_eq!(result.value_u64().unwrap(), 0x9);
+    assert_eq!(result.value_u64().unwrap(), 0xFFFFFFF6);
 }
 
 #[test]
@@ -2375,6 +2441,15 @@ fn sra() {
         "$a0",
     );
     assert_eq!(result.value_u64().unwrap(), 0xffff8000);
+
+    // sra $a0, $a1, 31 on negative value
+    let result = get_scalar(
+        &[0x00, 0x05, 0x27, 0xc3],
+        vec![("$a1", const_(0x80000000, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xffffffff);
 }
 
 #[test]
@@ -2453,16 +2528,25 @@ fn sub() {
     );
     assert_eq!(result.value_u64().unwrap(), 0);
 
-    let intrinsic = get_intrinsic(
+    let result = get_scalar(
         instruction_bytes,
         vec![("$a1", const_(0, 32)), ("$a2", const_(1, 32))],
         Memory::new(Endian::Big),
+        "$a0",
     );
-    assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
+    assert_eq!(result.value_u64().unwrap(), 0xffffffff);
 
     let intrinsic = get_intrinsic(
         instruction_bytes,
         vec![("$a1", const_(0x80000000, 32)), ("$a2", const_(1, 32))],
+        Memory::new(Endian::Big),
+    );
+    assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
+
+    // MAX_INT - (-1) should overflow
+    let intrinsic = get_intrinsic(
+        instruction_bytes,
+        vec![("$a1", const_(0x7fffffff, 32)), ("$a2", const_(0xffffffff, 32))],
         Memory::new(Endian::Big),
     );
     assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
@@ -2686,4 +2770,189 @@ fn xori() {
         "$a0",
     );
     assert_eq!(result.value_u64().unwrap(), 0xff00f00f);
+}
+
+#[test]
+fn teq() {
+    // teq $a0, $a1 — trap if equal
+    let instruction_bytes = &[0x00, 0x85, 0x00, 0x34];
+
+    // Equal case: both 42 → should trap
+    let intrinsic = get_intrinsic(
+        instruction_bytes,
+        vec![("$a0", const_(42, 32)), ("$a1", const_(42, 32))],
+        Memory::new(Endian::Big),
+    );
+    assert_eq!(intrinsic.mnemonic(), "trap");
+
+    // Not-equal case: 42 vs 43 → no trap, $a0 unchanged
+    let result = get_scalar(
+        instruction_bytes,
+        vec![("$a0", const_(42, 32)), ("$a1", const_(43, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 42);
+}
+
+#[test]
+fn ll() {
+    // ll $a0, 0xef($a1) — load linked word
+    let mut memory = Memory::new(Endian::Big);
+    memory.store(0xdeadbeef, const_(0xdeadbeef, 32)).unwrap();
+
+    let result = get_scalar(
+        &[0xc0, 0xa4, 0x00, 0xef],
+        vec![("$a1", const_(0xdeadbe00, 32))],
+        memory,
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0xdeadbeef);
+}
+
+#[test]
+fn sc() {
+    // sc $a0, 0xe0($a1) — store conditional word
+    let instruction_bytes = backing!([
+        0x34, 0x84, 0x00, 0x00, 0xe0, 0xa4, 0x00, 0xe0, 0x03, 0xe0, 0x00, 0x08, 0x00, 0x00, 0x00,
+        0x00
+    ]);
+
+    let driver = init_driver_function(
+        instruction_bytes,
+        vec![
+            ("$a0", const_(0xdeadbeef, 32)),
+            ("$a1", const_(0xdeadbe00, 32)),
+        ],
+    );
+
+    let driver = step_to(driver, 0x8);
+
+    let memval = driver
+        .state()
+        .memory()
+        .load(0xdeadbee0, 32)
+        .unwrap()
+        .unwrap()
+        .value_u64()
+        .unwrap();
+    assert_eq!(memval, 0xdeadbeef);
+
+    // $a0 should be set to 1 (success)
+    assert_eq!(
+        driver
+            .state()
+            .get_scalar("$a0")
+            .unwrap()
+            .value_u64()
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
+fn rdhwr() {
+    // rdhwr $a0, $29
+    let mut backing = memory::backing::Memory::new(Endian::Big);
+    backing.set_memory(
+        0,
+        vec![0x7c, 0x04, 0xe8, 0x3b],
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ,
+    );
+    let function = Mips::new().translate_function(&backing, 0).unwrap();
+
+    let block = function.block(0).unwrap();
+    let instruction = block.instruction(0).unwrap();
+    match instruction.operation() {
+        Operation::Intrinsic { ref intrinsic } => {
+            assert_eq!(intrinsic.mnemonic(), "rdhwr");
+        }
+        _ => panic!("Did not find rdhwr intrinsic"),
+    }
+}
+
+#[test]
+fn pref() {
+    // pref 0, 0($a0) — should translate to NOP
+    let bytes = &[0xcc, 0x80, 0x00, 0x00];
+
+    let mut backing = memory::backing::Memory::new(Endian::Big);
+    backing.set_memory(
+        0,
+        bytes.to_vec(),
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ,
+    );
+    let function = Mips::new().translate_function(&backing, 0).unwrap();
+
+    let block = function.block(0).unwrap();
+    let instruction = block.instruction(0).unwrap();
+    match instruction.operation() {
+        Operation::Nop { .. } => {}
+        _ => panic!("Expected pref to translate to NOP"),
+    }
+}
+
+#[test]
+fn sync() {
+    // sync 0 — should translate to NOP
+    let bytes = &[0x00, 0x00, 0x00, 0x0f];
+
+    let mut backing = memory::backing::Memory::new(Endian::Big);
+    backing.set_memory(
+        0,
+        bytes.to_vec(),
+        memory::MemoryPermissions::EXECUTE | memory::MemoryPermissions::READ,
+    );
+    let function = Mips::new().translate_function(&backing, 0).unwrap();
+
+    let block = function.block(0).unwrap();
+    let instruction = block.instruction(0).unwrap();
+    match instruction.operation() {
+        Operation::Nop { .. } => {}
+        _ => panic!("Expected sync to translate to NOP"),
+    }
+}
+
+#[test]
+fn addiu_negative_immediate() {
+    // addiu $a0, $a1, -1 (immediate 0xFFFF sign-extends to -1)
+    let result = get_scalar(
+        &[0x24, 0xa4, 0xff, 0xff],
+        vec![("$a1", const_(10, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 9);
+}
+
+#[test]
+fn sltiu_negative_immediate() {
+    // sltiu $a0, $a1, -1 (immediate 0xFFFF sign-extends to 0xFFFFFFFF, then unsigned compare)
+
+    // 0x7fffffff < 0xffffffff unsigned → 1
+    let result = get_scalar(
+        &[0x2c, 0xa4, 0xff, 0xff],
+        vec![("$a1", const_(0x7fffffff, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 1);
+
+    // 0xffffffff == 0xffffffff, not less → 0
+    let result = get_scalar(
+        &[0x2c, 0xa4, 0xff, 0xff],
+        vec![("$a1", const_(0xffffffff, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 0);
+
+    // 0 < 0xffffffff unsigned → 1
+    let result = get_scalar(
+        &[0x2c, 0xa4, 0xff, 0xff],
+        vec![("$a1", const_(0, 32))],
+        Memory::new(Endian::Big),
+        "$a0",
+    );
+    assert_eq!(result.value_u64().unwrap(), 1);
 }
