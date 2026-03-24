@@ -173,7 +173,10 @@ fn add() {
     // MIN_INT + (-1) should overflow
     let intrinsic = get_intrinsic(
         instruction_bytes,
-        vec![("$a1", const_(0x80000000, 32)), ("$a2", const_(0xffffffff, 32))],
+        vec![
+            ("$a1", const_(0x80000000, 32)),
+            ("$a2", const_(0xffffffff, 32)),
+        ],
         Memory::new(Endian::Big),
     );
     assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
@@ -1333,7 +1336,10 @@ fn div() {
     // -20 / -4 = 5, remainder 0
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1a],
-        vec![("$a0", const_(0xffffffec, 32)), ("$a1", const_(0xfffffffc, 32))],
+        vec![
+            ("$a0", const_(0xffffffec, 32)),
+            ("$a1", const_(0xfffffffc, 32)),
+        ],
         Memory::new(Endian::Big),
         "$lo",
     );
@@ -1341,7 +1347,10 @@ fn div() {
 
     let result = get_scalar(
         &[0x00, 0x85, 0x00, 0x1a],
-        vec![("$a0", const_(0xffffffec, 32)), ("$a1", const_(0xfffffffc, 32))],
+        vec![
+            ("$a0", const_(0xffffffec, 32)),
+            ("$a1", const_(0xfffffffc, 32)),
+        ],
         Memory::new(Endian::Big),
         "$hi",
     );
@@ -2546,7 +2555,10 @@ fn sub() {
     // MAX_INT - (-1) should overflow
     let intrinsic = get_intrinsic(
         instruction_bytes,
-        vec![("$a1", const_(0x7fffffff, 32)), ("$a2", const_(0xffffffff, 32))],
+        vec![
+            ("$a1", const_(0x7fffffff, 32)),
+            ("$a2", const_(0xffffffff, 32)),
+        ],
         Memory::new(Endian::Big),
     );
     assert_eq!(intrinsic.mnemonic(), "IntegerOverflow");
